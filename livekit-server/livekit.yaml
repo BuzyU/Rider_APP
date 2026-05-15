@@ -1,0 +1,18 @@
+port: 7880
+
+rtc:
+  tcp_port: 7881
+  use_external_ip: true
+
+  stun_servers:
+    - stun:stun.l.google.com:19302
+
+  turn_servers:
+    - host: your-turn-server.com
+      port: 3478
+      protocol: udp
+      username: user
+      credential: pass
+
+keys:
+  devkey: secret

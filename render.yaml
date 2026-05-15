@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: rider-app-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: LIVEKIT_URL
+        sync: false
+
+      - key: LIVEKIT_API_KEY
+        sync: false
+
+      - key: LIVEKIT_API_SECRET
+        sync: false

@@ -1,0 +1,23 @@
+# Node
+node_modules/
+.env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Android
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+*.class
+.DS_Store
+capture.png
+
+# Build artifacts
+*.apk
+*.aar
+
+# System
+Thumbs.db

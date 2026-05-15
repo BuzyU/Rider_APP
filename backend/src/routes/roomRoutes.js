@@ -4,15 +4,22 @@ const { createToken } = require('../services/tokenService')
 
 router.get('/token', async (req, res) => {
 
-    const room = req.query.room
-    const user = req.query.user
+    try {
+        const room = req.query.room
+        const user = req.query.user
 
-    const token = createToken(room, user)
+        const token = await createToken(room, user)
 
-    res.json({
-        roomName: room,
-        token
-    })
+        res.json({
+            roomName: room,
+            token
+        })
+    } catch (error) {
+        console.error(error)
+        res.status(500).json({
+            error: error.message
+        })
+    }
 })
 
 module.exports = router

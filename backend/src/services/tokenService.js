@@ -1,6 +1,6 @@
 const { AccessToken } = require('livekit-server-sdk')
 
-function createToken(roomName, participantName) {
+async function createToken(roomName, participantName) {
 
     const at = new AccessToken(
         process.env.LIVEKIT_API_KEY,
@@ -17,7 +17,7 @@ function createToken(roomName, participantName) {
         canSubscribe: true
     })
 
-    return at.toJwt()
+    return await at.toJwt()
 }
 
 module.exports = {

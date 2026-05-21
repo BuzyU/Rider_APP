@@ -9,8 +9,10 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     serviceAccount = require('../../riderapp-5ce68-firebase-adminsdk-fbsvc-7c77e002fa.json');
 }
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+}
 
 module.exports = admin;

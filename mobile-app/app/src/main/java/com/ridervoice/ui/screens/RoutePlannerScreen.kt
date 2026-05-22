@@ -18,10 +18,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.ui.theme.*
+import com.mapbox.maps.extension.compose.MapboxMap
+import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
+import com.mapbox.geojson.Point
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoutePlannerScreen(onBackClick: () -> Unit) {
+    var origin by remember { mutableStateOf("Your Location") }
+    var destination by remember { mutableStateOf("Lonavala, MH") }
     var selectedPreference by remember { mutableStateOf("Scenic") }
     val preferences = listOf("Fastest", "Scenic", "Twisty", "Off-road")
 
@@ -54,31 +59,32 @@ fun RoutePlannerScreen(onBackClick: () -> Unit) {
         // Input Fields
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
             OutlinedTextField(
-                value = "Your Location",
-                onValueChange = {},
-                leadingIcon = { Icon(Icons.Default.MyLocation, contentDescription = null, tint = TextSecondary) },
+                value = origin,
+                onValueChange = { origin = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Origin", color = TextSecondary) },
+                leadingIcon = { Icon(Icons.Default.MyLocation, contentDescription = "Origin", tint = ElectricCyan) },
                 colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = Gunmetal,
+                    focusedBorderColor = NeonOrange,
                     unfocusedBorderColor = Gunmetal,
                     containerColor = DarkSlate,
                     textColor = Color.White
                 ),
-                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(
-                value = "Lonavala, MH",
-                onValueChange = {},
-                leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = NeonOrange) },
-                trailingIcon = { Icon(Icons.Default.SwapVert, contentDescription = null, tint = TextSecondary) },
+                value = destination,
+                onValueChange = { destination = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Destination", color = TextSecondary) },
+                leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = "Destination", tint = NeonOrange) },
                 colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = Gunmetal,
+                    focusedBorderColor = NeonOrange,
                     unfocusedBorderColor = Gunmetal,
                     containerColor = DarkSlate,
                     textColor = Color.White
                 ),
-                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             )
         }
@@ -131,18 +137,15 @@ fun RoutePlannerScreen(onBackClick: () -> Unit) {
                 .background(DarkSlate)
                 .border(1.dp, Gunmetal, RoundedCornerShape(16.dp))
         ) {
-            // Placeholder for actual Mapbox implementation
-            Icon(
-                Icons.Default.Map,
-                contentDescription = null,
-                tint = Gunmetal,
-                modifier = Modifier.align(Alignment.Center).size(100.dp)
-            )
-            // Simulated route path
-            Text(
-                text = "Map Preview",
-                color = TextSecondary,
-                modifier = Modifier.align(Alignment.Center)
+            val mapViewportState = rememberMapViewportState {
+                setCameraOptions {
+                    center(Point.fromLngLat(73.4069, 18.7481)) // Lonavala coords
+                    zoom(11.0)
+                }
+            }
+            MapboxMap(
+                modifier = Modifier.fillMaxSize(),
+                mapViewportState = mapViewportState
             )
         }
 

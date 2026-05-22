@@ -7,6 +7,10 @@ plugins {
     id 'com.google.firebase.crashlytics'
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 android {
     namespace 'com.ridervoice'
     compileSdk 34
@@ -24,7 +28,16 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion '1.5.1'
+        kotlinCompilerExtensionVersion '1.5.14'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
     }
 
     // Required for kapt
@@ -39,10 +52,13 @@ dependencies {
     implementation "androidx.activity:activity-compose:1.8.2"
     implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0"
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.7.0"
+    implementation "com.google.android.material:material:1.11.0"
 
     // Compose
     implementation "androidx.compose.ui:ui:1.5.4"
-    implementation "androidx.compose.material3:material3:1.1.2"
+    implementation "androidx.compose.ui:ui-text-google-fonts:1.5.4"
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
     implementation "androidx.navigation:navigation-compose:2.7.6"
 
     // Firebase Crashlytics (Telemetry & Telemetry)
@@ -56,7 +72,7 @@ dependencies {
     implementation "androidx.hilt:hilt-navigation-compose:1.1.0"
 
     // LiveKit
-    implementation 'io.livekit:livekit-android:2.5.2'
+    implementation 'io.livekit:livekit-android:2.25.3'
 
     // Networking
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'

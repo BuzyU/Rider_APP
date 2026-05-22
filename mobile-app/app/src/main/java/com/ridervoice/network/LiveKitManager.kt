@@ -12,7 +12,6 @@ import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
-import io.livekit.android.room.roomOptions
 import io.livekit.android.room.track.LocalAudioTrackOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,23 +67,19 @@ class LiveKitManager @Inject constructor(
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                room = LiveKit.create(appContext = context)
-
-                // SMART VOX Configuration: Aggressive gating and noise suppression
                 val audioOptions = LocalAudioTrackOptions(
                     echoCancellation = true,
                     noiseSuppression = true,
                     autoGainControl = true
                 )
 
+                room = LiveKit.create(
+                    appContext = context
+                )
+
                 room?.connect(
                     url = url,
-                    token = token,
-                    options = roomOptions {
-                        adaptiveStream = true
-                        dynacast = true
-                        audioTrackCaptureDefaults = audioOptions
-                    }
+                    token = token
                 )
 
                 // Default to OPEN MIC (Smart VOX) as requested
@@ -138,7 +133,7 @@ class LiveKitManager @Inject constructor(
     }
 
     private fun updateParticipantList() {
-        val ids = room?.remoteParticipants?.keys?.toList() ?: emptyList()
+        val ids = room?.remoteParticipants?.keys?.map { it.value } ?: emptyList()
         _participants.value = ids
     }
 

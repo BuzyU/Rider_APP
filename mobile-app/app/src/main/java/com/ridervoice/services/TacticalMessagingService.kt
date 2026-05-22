@@ -75,7 +75,7 @@ class TacticalMessagingService : FirebaseMessagingService() {
             this, 1, fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(this, "CHANNEL_EMERGENCY")
+        val notification = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle("EMERGENCY ALERT")
             .setContentText("CRITICAL: $alertType detected in squad.")

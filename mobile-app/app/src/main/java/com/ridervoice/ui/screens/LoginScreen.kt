@@ -3,6 +3,7 @@ package com.ridervoice.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,7 +18,8 @@ import com.ridervoice.ui.theme.*
 @Composable
 fun LoginScreen(
     onGoogleSignInClick: () -> Unit,
-    onPhoneOtpClick: () -> Unit
+    onPhoneOtpClick: () -> Unit,
+    onGuestClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -32,9 +34,7 @@ fun LoginScreen(
         Text(
             text = "RIDER LINK",
             color = Color.White,
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = 2.sp
+            style = MaterialTheme.typography.displayLarge
         )
         Text(
             text = "STAY CONNECTED. RIDE UNITED.",
@@ -42,7 +42,8 @@ fun LoginScreen(
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.5.sp,
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(top = 8.dp),
+            style = MaterialTheme.typography.bodyLarge
         )
 
         Spacer(modifier = Modifier.weight(1f))
@@ -51,14 +52,13 @@ fun LoginScreen(
         Text(
             text = "WELCOME RIDER",
             color = NeonOrange,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleLarge,
             letterSpacing = 1.sp
         )
         Text(
             text = "Let's get you connected.",
             color = TextSecondary,
-            fontSize = 16.sp,
+            style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(top = 8.dp)
         )
 
@@ -69,7 +69,7 @@ fun LoginScreen(
             text = "G  Continue with Google",
             onClick = onGoogleSignInClick,
             isOutlined = true,
-            color = SlateGray,
+            color = DarkSlate,
             textColor = Color.White
         )
         
@@ -79,7 +79,7 @@ fun LoginScreen(
             text = "📞  Continue with Phone",
             onClick = onPhoneOtpClick,
             isOutlined = true,
-            color = SlateGray,
+            color = DarkSlate,
             textColor = Color.White
         )
         
@@ -87,7 +87,7 @@ fun LoginScreen(
         
         TacticalButton(
             text = "Continue as Guest",
-            onClick = { /* Handle Guest */ },
+            onClick = onGuestClick,
             isOutlined = true,
             color = Color(0xFF1D232B), // Very subtle outline
             textColor = TextSecondary
@@ -101,7 +101,8 @@ fun LoginScreen(
             color = TextSecondary,
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
-            lineHeight = 18.sp
+            lineHeight = 18.sp,
+            style = MaterialTheme.typography.bodyLarge
         )
     }
 }

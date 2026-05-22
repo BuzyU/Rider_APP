@@ -11,13 +11,17 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.widget.RemoteViews
 import com.ridervoice.MainActivity
+import com.ridervoice.R
 import com.ridervoice.network.ConnectionState
 import com.ridervoice.network.LiveKitManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -28,46 +32,74 @@ class VoiceForegroundService : Service() {
     lateinit var liveKitManager: LiveKitManager
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
-    private val channelId = "voice_channel"
+    private val channelId = "tactical_voice_channel"
     private val notificationId = 1
+    
+    // We only hold a wake lock if absolutely necessary, but we rely mostly on foreground status.
     private var wakeLock: PowerManager.WakeLock? = null
+
+    // State for notification
+    private var currentConvoyState: String = "Connecting..."
+    private var currentActiveSpeaker: String = "Nobody"
+    private var isMuted: Boolean = false
+
+    // Debouncing mechanism
+    private var updateJob: Job? = null
 
     @SuppressLint("WakelockTimeout")
     override fun onCreate() {
         super.onCreate()
         
-        // 1. Acquire Partial WakeLock to prevent CPU sleep when screen is off
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RiderVoice::VoiceServiceWakeLock")
-        wakeLock?.acquire() // Intentional infinite timeout until service is destroyed
+        // Use weakest possible wake lock strategy: rely primarily on foreground service.
+        // We only grab a partial wake lock if telemetry strictly requires it, but for now we trust the OS.
 
         createNotificationChannel()
-        startForeground(notificationId, buildNotification("Initializing..."))
+        startForeground(notificationId, buildTacticalNotification())
 
-        // Observe LiveKit state to update notification dynamically
+        // Observe LiveKit connection state
         serviceScope.launch {
-            liveKitManager.connectionState.collect { state ->
-                val statusText = when (state) {
-                    ConnectionState.CONNECTED -> "Live Voice Connected"
-                    ConnectionState.CONNECTING -> "Connecting to Room..."
+            liveKitManager.connectionState.collectLatest { state ->
+                currentConvoyState = when (state) {
+                    ConnectionState.CONNECTED -> "Convoy LIVE"
+                    ConnectionState.CONNECTING -> "Connecting..."
                     ConnectionState.RECONNECTING -> "Reconnecting..."
                     ConnectionState.FAILED -> "Connection Failed"
                     ConnectionState.DISCONNECTED -> "Disconnected"
                 }
-                updateNotification(statusText)
+                debouncedUpdateNotification()
             }
+        }
+
+        // Mocking an active speaker flow (in a real app, this comes from LiveKitManager)
+        serviceScope.launch {
+            // Suppose liveKitManager.activeSpeaker is a StateFlow<String?>
+            // liveKitManager.activeSpeaker.collectLatest { speaker ->
+            //     currentActiveSpeaker = speaker ?: "Nobody"
+            //     debouncedUpdateNotification()
+            // }
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Stop service via intent action if needed
-        if (intent?.action == "ACTION_STOP_SERVICE") {
-            liveKitManager.disconnect()
-            stopSelf()
-            return START_NOT_STICKY
+        when (intent?.action) {
+            "ACTION_STOP_SERVICE" -> {
+                liveKitManager.disconnect()
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            "ACTION_MUTE" -> {
+                isMuted = !isMuted
+                // liveKitManager.setMicrophoneMuted(isMuted)
+                updateNotificationImmediate()
+            }
+            "ACTION_PING" -> {
+                // Send regroup ping to squad
+            }
+            "ACTION_HAZARD" -> {
+                // Drop hazard pin at current telemetry location
+            }
         }
         
-        // Return START_REDELIVER_INTENT so OS automatically resurrects the service if killed for memory
         return START_REDELIVER_INTENT
     }
 
@@ -75,17 +107,30 @@ class VoiceForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Voice Communication",
-                NotificationManager.IMPORTANCE_LOW
+                "Tactical Convoy HUD",
+                NotificationManager.IMPORTANCE_LOW // Low importance avoids constant popping, keeping it stable
             ).apply {
-                description = "Keeps voice connection active in background"
+                description = "Convoy communication and telemetry overlay"
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
     }
 
-    private fun buildNotification(contentText: String): Notification {
+    private fun debouncedUpdateNotification() {
+        if (updateJob?.isActive == true) return
+        updateJob = serviceScope.launch {
+            delay(500) // Rate-limit updates to max twice per second
+            updateNotificationImmediate()
+        }
+    }
+
+    private fun updateNotificationImmediate() {
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.notify(notificationId, buildTacticalNotification())
+    }
+
+    private fun buildTacticalNotification(): Notification {
         val returnIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
@@ -94,28 +139,49 @@ class VoiceForegroundService : Service() {
             PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action to stop service
-        val stopIntent = Intent(this, VoiceForegroundService::class.java).apply {
-            action = "ACTION_STOP_SERVICE"
+        // Custom Layouts
+        val collapsedViews = RemoteViews(packageName, R.layout.notification_tactical_collapsed)
+        val expandedViews = RemoteViews(packageName, R.layout.notification_tactical_expanded)
+
+        // Update Text
+        collapsedViews.setTextViewText(R.id.text_convoy_status, currentConvoyState)
+        collapsedViews.setTextViewText(R.id.text_active_speaker, "Active: $currentActiveSpeaker")
+        
+        expandedViews.setTextViewText(R.id.text_convoy_status_expanded, currentConvoyState)
+        expandedViews.setTextViewText(R.id.text_active_speaker_expanded, "Active Speaker: $currentActiveSpeaker")
+
+        // Update Icons (Mute state)
+        val muteIcon = if (isMuted) android.R.drawable.ic_lock_silent_mode else android.R.drawable.ic_lock_silent_mode_off
+        collapsedViews.setImageViewResource(R.id.btn_mute, muteIcon)
+        expandedViews.setImageViewResource(R.id.btn_mute_expanded, muteIcon)
+
+        // Intents for Actions
+        val muteIntent = PendingIntent.getService(this, 1, Intent(this, VoiceForegroundService::class.java).apply { action = "ACTION_MUTE" }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val pingIntent = PendingIntent.getService(this, 2, Intent(this, VoiceForegroundService::class.java).apply { action = "ACTION_PING" }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val hazardIntent = PendingIntent.getService(this, 3, Intent(this, VoiceForegroundService::class.java).apply { action = "ACTION_HAZARD" }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+
+        collapsedViews.setOnClickPendingIntent(R.id.btn_mute, muteIntent)
+        
+        expandedViews.setOnClickPendingIntent(R.id.btn_mute_expanded, muteIntent)
+        expandedViews.setOnClickPendingIntent(R.id.btn_ping, pingIntent)
+        expandedViews.setOnClickPendingIntent(R.id.btn_hazard, hazardIntent)
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, channelId)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
         }
-        val stopPendingIntent = PendingIntent.getService(
-            this, 1, stopIntent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
 
-        return Notification.Builder(this, channelId)
-            .setContentTitle("Rider Voice Active")
-            .setContentText(contentText)
+        return builder
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setCustomContentView(collapsedViews)
+            .setCustomBigContentView(expandedViews)
+            .setStyle(Notification.DecoratedCustomViewStyle())
             .setContentIntent(pendingIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Disconnect", stopPendingIntent)
             .setOngoing(true)
+            .setOnlyAlertOnce(true) // Prevents vibration/sound on every update
             .build()
-    }
-
-    private fun updateNotification(contentText: String) {
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(notificationId, buildNotification(contentText))
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -123,14 +189,9 @@ class VoiceForegroundService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         liveKitManager.disconnect()
-        
-        // Release WakeLock safely
         wakeLock?.let {
-            if (it.isHeld) {
-                it.release()
-            }
+            if (it.isHeld) it.release()
         }
-        
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
 }

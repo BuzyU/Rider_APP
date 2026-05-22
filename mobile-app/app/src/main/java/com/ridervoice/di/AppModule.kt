@@ -1,6 +1,7 @@
 package com.ridervoice.di
 
 import com.ridervoice.network.ApiService
+import com.ridervoice.security.AuthRepository
 import com.ridervoice.utils.Constants
 import dagger.Module
 import dagger.Provides

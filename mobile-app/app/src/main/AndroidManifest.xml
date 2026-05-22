@@ -14,6 +14,8 @@
     <application
         android:name=".App"
         android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:label="RiderVoice"
         android:theme="@style/Theme.Material3.DayNight.NoActionBar">
         <activity android:name=".MainActivity" android:exported="true">

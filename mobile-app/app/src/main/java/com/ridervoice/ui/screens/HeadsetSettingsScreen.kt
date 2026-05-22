@@ -34,7 +34,7 @@ fun HeadsetSettingsScreen(onBack: () -> Unit) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = GraphiteBase)
+                colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = GraphiteBase)
             )
         },
         containerColor = GraphiteBase

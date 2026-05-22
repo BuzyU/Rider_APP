@@ -73,6 +73,10 @@ class HardwarePTTManager @Inject constructor(
         logDebug("MediaSession: DEACTIVATED (Releasing to Spotify/Apple Music)")
     }
 
+    fun isSessionActive(): Boolean {
+        return mediaSession?.isActive == true
+    }
+
     private fun handlePttToggle() {
         isMicOpen = !isMicOpen
         onMicToggleRequest?.invoke(isMicOpen)

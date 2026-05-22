@@ -18,7 +18,6 @@ import com.mapbox.geojson.Point
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
-import com.mapbox.maps.extension.compose.style.MapStyle
 import com.ridervoice.data.local.entities.ConvoyEventEntity
 import com.ridervoice.data.local.entities.RawWaypointEntity
 import com.ridervoice.ui.theme.DarkSlate
@@ -53,7 +52,7 @@ fun RideReplayScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back", tint = NeonOrange) }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = GraphiteBase)
+                colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = GraphiteBase)
             )
         }
     ) { padding ->
@@ -62,8 +61,7 @@ fun RideReplayScreen(
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 MapboxMap(
                     modifier = Modifier.fillMaxSize(),
-                    mapViewportState = mapViewportState,
-                    style = { MapStyle(style = Style.DARK) }
+                    mapViewportState = mapViewportState
                 ) {
                     // TODO: Draw LineString from compressed GeoJSON using Mapbox extensions
                     // For now, if we had the Mapbox compose annotations plugin fully set up for Polylines,

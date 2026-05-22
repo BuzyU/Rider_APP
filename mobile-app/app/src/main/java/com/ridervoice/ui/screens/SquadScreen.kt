@@ -7,9 +7,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,12 +23,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.ui.theme.*
+import com.ridervoice.ui.viewmodels.SquadViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SquadScreen(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    viewModel: SquadViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // We fetch data using a placeholder userId "test-user" for now,
+    // this would normally come from an AuthRepository or SessionManager.
+    LaunchedEffect(Unit) {
+        viewModel.fetchData("test-user")
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -36,7 +51,11 @@ fun SquadScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = Color.White)
+                }
+                Column {
                 Text(
                     text = "YOUR SQUAD",
                     color = Color.White,
@@ -50,6 +69,7 @@ fun SquadScreen(
                     fontSize = 12.sp,
                     letterSpacing = 1.sp
                 )
+            }
             }
             
             // Add Friend / QR Code Button
@@ -75,7 +95,7 @@ fun SquadScreen(
             onValueChange = {},
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("Search by @handle", color = TextSecondary) },
-            leadingIcon = { Icon(Icons.Default.Search, tint = TextSecondary) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = TextSecondary) },
             colors = TextFieldDefaults.outlinedTextFieldColors(
                 focusedBorderColor = NeonOrange,
                 unfocusedBorderColor = Gunmetal,
@@ -86,45 +106,58 @@ fun SquadScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Incoming Ride Invites Section
-        Text(
-            text = "INCOMING INVITES (1)",
-            color = NeonOrange,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.5.sp
-        )
+        if (uiState.isLoading) {
+            CircularProgressIndicator(color = NeonOrange, modifier = Modifier.align(Alignment.CenterHorizontally))
+            return@Column
+        }
         
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Placeholder for an Invite
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(DarkSlate)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = "PUNE NIGHT RIDERS", color = Color.White, fontWeight = FontWeight.Bold)
-                Text(text = "Invited by @GhostRider", color = TextSecondary, fontSize = 12.sp)
-            }
-            Button(
-                onClick = { /* Join Room */ },
-                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Text("JOIN", fontWeight = FontWeight.Bold, color = Color.Black)
-            }
+        if (uiState.errorMessage != null) {
+            Text(text = "Error: ${uiState.errorMessage}", color = Color.Red, modifier = Modifier.align(Alignment.CenterHorizontally))
+            return@Column
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        // Incoming Ride Invites Section
+        if (uiState.invites.isNotEmpty()) {
+            Text(
+                text = "INCOMING INVITES (${uiState.invites.size})",
+                color = NeonOrange,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.5.sp
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            for (invite in uiState.invites) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DarkSlate)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = invite.room.name.uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(text = "Invited by ${invite.inviter.handle}", color = TextSecondary, fontSize = 12.sp)
+                    }
+                    Button(
+                        onClick = { /* Join Room */ },
+                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text("JOIN", fontWeight = FontWeight.Bold, color = Color.Black)
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
 
         // Active Squad List
         Text(
-            text = "ONLINE FRIENDS",
+            text = "ONLINE FRIENDS (${uiState.friends.size})",
             color = TextSecondary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
@@ -136,11 +169,19 @@ fun SquadScreen(
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                SquadMemberCard(handle = "@TorqueLead", bike = "Ducati V4", status = "Online")
+            items(uiState.friends.size) { index ->
+                val friend = uiState.friends[index]
+                SquadMemberCard(
+                    handle = friend.handle, 
+                    bike = friend.bikeModel ?: "Unknown Bike", 
+                    status = "Online"
+                )
             }
-            item {
-                SquadMemberCard(handle = "@ApexWolf", bike = "Yamaha MT-09", status = "In a Ride")
+            
+            if (uiState.friends.isEmpty()) {
+                item {
+                    Text(text = "No friends found. Add some riders!", color = TextSecondary, modifier = Modifier.padding(16.dp))
+                }
             }
         }
     }

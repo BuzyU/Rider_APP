@@ -5,7 +5,7 @@ Rider Voice is a real-time communication system and mobile application tailored 
 ## Technical Stack
 - Frontend: Kotlin / Jetpack Compose
 - Audio & Real-time: LiveKit, WebRTC
-- Backend: Node.js
+- Backend: Node.js 
 - State Management: ViewModels with StateFlow
 - Dependency Injection: Dagger Hilt
 - Maps: Mapbox SDK

@@ -29,4 +29,4 @@ Rider Voice is a real-time communication system and mobile application tailored 
 1. Open the /mobile-app folder in Android Studio.
 2. Ensure you have added your google-services.json file for Firebase Authentication support.
 3. Sync Gradle and build the project.
-4. Run the app on a physical Android device for accurate Bluetooth and WebRTC testing.
+4. Run the app on a physical Android device for accurate Bluetooth and WebRTC testing. 

@@ -15,7 +15,7 @@ Rider Voice is a real-time communication system and mobile application tailored 
 - Live Intercom Communication: Real-time 3-way voice communication via WebRTC.
 - Active Ride HUD: Dedicated dashboard for real-time ride tracking.
 - Dynamic Route Planning: Origin and destination management with distance, duration, and elevation calculations.
-- Ride Statistics: Real-time graphing and recording of speed, total distance, and average speeds.
+- Ride Statistics: Real-time graphing and recording of speed, total distance, and average speeds. 
 - Background Processing: Foreground service stability for uninterrupted communication during rides.
 - Bluetooth Integration: Support for devices such as Cardo Packtalk.
 - Authentication: Cloud-synced guest login and persistent sessions.

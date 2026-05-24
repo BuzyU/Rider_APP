@@ -1,7 +1,7 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
-const stripQuotes = (val?: string) => val?.replace(/^["']|["']$/g, '');
+const stripQuotes = (val?: string) => val?.replace(/^["'\s,]+|["'\s,]+$/g, '');
 
 const firebaseConfig = {
   apiKey: stripQuotes(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),

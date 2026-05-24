@@ -8,7 +8,7 @@ const getAdminApp = () => {
     return adminApp;
   }
 
-  const stripQuotes = (val?: string) => val?.replace(/^["']|["']$/g, '');
+  const stripQuotes = (val?: string) => val?.replace(/^["'\s,]+|["'\s,]+$/g, '');
 
   const projectId = stripQuotes(process.env.FIREBASE_PROJECT_ID);
   const clientEmail = stripQuotes(process.env.FIREBASE_CLIENT_EMAIL);

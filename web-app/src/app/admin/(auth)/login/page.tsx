@@ -3,7 +3,32 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 import { firebaseAuth } from "@/utils/firebase/client";
+
+const formatFirebaseAuthError = (error: unknown) => {
+  if (error instanceof FirebaseError) {
+    switch (error.code) {
+      case "auth/invalid-credential":
+      case "auth/invalid-login-credentials":
+        return "Invalid email or password.";
+      case "auth/user-not-found":
+        return "No Firebase user found for this email.";
+      case "auth/wrong-password":
+        return "Wrong password for this account.";
+      case "auth/user-disabled":
+        return "This Firebase user is disabled.";
+      case "auth/too-many-requests":
+        return "Too many attempts. Try again in a few minutes.";
+      case "auth/network-request-failed":
+        return "Network error while contacting Firebase.";
+      default:
+        return `Firebase login failed (${error.code}).`;
+    }
+  }
+
+  return "Login failed. Check your credentials and try again.";
+};
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -48,7 +73,7 @@ export default function AdminLoginPage() {
 
       router.replace("/admin");
     } catch (err) {
-      setError("Login failed. Check your credentials and try again.");
+      setError(formatFirebaseAuthError(err));
     } finally {
       setIsLoading(false);
     }

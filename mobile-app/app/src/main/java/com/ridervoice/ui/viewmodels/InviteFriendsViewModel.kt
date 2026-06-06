@@ -46,11 +46,11 @@ class InviteFriendsViewModel @Inject constructor(
         }
     }
 
-    fun sendInvite(convoyName: String, friendId: String) {
+    fun sendInvite(roomId: String, friendId: String) {
         viewModelScope.launch {
             try {
                 val req = SendInviteRequest(
-                    roomId = convoyName,
+                    roomId = roomId,
                     inviteeId = friendId
                 )
                 apiService.sendRideInvite(req)

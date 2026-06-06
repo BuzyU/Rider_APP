@@ -59,6 +59,7 @@ class AudioDeviceRouter @Inject constructor(
     private var scoConnectRetries = 0
     private val MAX_SCO_RETRIES = 3
     private var isScoStartRequested = false
+    private var isStarted = false
 
     // ── Broadcast receivers ───────────────────────────────────────────────────
 
@@ -163,6 +164,8 @@ class AudioDeviceRouter @Inject constructor(
      * Registers all receivers and starts the initial device scan.
      */
     fun start() {
+        if (isStarted) return
+        isStarted = true
         Log.d(TAG, "AudioDeviceRouter starting")
         _routerState.value = RouterState.SCANNING
 
@@ -197,6 +200,8 @@ class AudioDeviceRouter @Inject constructor(
      * Call this when leaving the voice session. Tears down everything cleanly.
      */
     fun stop() {
+        if (!isStarted) return
+        isStarted = false
         Log.d(TAG, "AudioDeviceRouter stopping")
         _routerState.value = RouterState.IDLE
 

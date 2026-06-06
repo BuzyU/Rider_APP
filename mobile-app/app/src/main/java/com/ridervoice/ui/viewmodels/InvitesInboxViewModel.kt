@@ -57,7 +57,14 @@ class InvitesInboxViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     _invites.value = _invites.value.filter { it.id != invite.id }
                     if (accept) {
-                        onAcceptSuccess(invite.room.name)
+                        val tokenReq = com.ridervoice.models.JoinTokenRequest(invite.roomId)
+                        val tokenRes = apiService.getJoinToken(tokenReq)
+                        if (tokenRes.isSuccessful && tokenRes.body() != null) {
+                            com.ridervoice.models.RideSession.livekitToken = tokenRes.body()!!.token
+                            onAcceptSuccess(invite.roomId)
+                        } else {
+                            _error.value = "Failed to get join token"
+                        }
                     }
                 } else {
                     _error.value = "Failed to respond to invite"

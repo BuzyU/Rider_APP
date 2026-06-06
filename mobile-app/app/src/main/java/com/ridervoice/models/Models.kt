@@ -84,6 +84,11 @@ data class RoomData(val roomName: String, val token: String)
 data class RoomTokenRequest(val roomName: String)
 data class FcmTokenRequest(val userId: String, val token: String, val platform: String = "android")
 
+object RideSession {
+    var livekitUrl: String = ""
+    var livekitToken: String = ""
+}
+
 data class Friend(
     val id: String,
     val handle: String,

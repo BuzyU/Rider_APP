@@ -50,7 +50,9 @@ class LobbyViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val res = apiService.startRide(roomName)
-                if (res.isSuccessful) {
+                if (res.isSuccessful && res.body() != null) {
+                    com.ridervoice.models.RideSession.livekitToken = res.body()!!.token
+                    com.ridervoice.models.RideSession.livekitUrl = res.body()!!.livekitUrl
                     onStartSuccess()
                 } else {
                     _error.value = "Failed to start ride"

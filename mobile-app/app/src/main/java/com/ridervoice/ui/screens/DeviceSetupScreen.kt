@@ -128,7 +128,7 @@ fun DeviceSetupScreen(
                 viewModel.finishSetup()
                 onReady()
             },
-            enabled = routerState == RouterState.ACTIVE || convoyName == "GLOBAL",
+            enabled = true, // ALWAYS ENABLED to allow bypass
             color = NeonOrange,
             textColor = Color.White,
             modifier = Modifier.padding(24.dp)

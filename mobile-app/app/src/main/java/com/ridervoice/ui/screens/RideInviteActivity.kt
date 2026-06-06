@@ -20,7 +20,18 @@ import com.ridervoice.ui.theme.GraphiteBase
 import com.ridervoice.ui.theme.NeonOrange
 import com.ridervoice.ui.theme.SuccessGreen
 
+import com.ridervoice.network.ApiService
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@AndroidEntryPoint
 class RideInviteActivity : ComponentActivity() {
+    
+    @Inject lateinit var apiService: ApiService
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -78,8 +89,30 @@ class RideInviteActivity : ComponentActivity() {
                     // Giant Glove-Friendly Buttons
                     Button(
                         onClick = {
-                            // TODO: Launch MainActivity with deep link to Room
-                            finish()
+                            CoroutineScope(Dispatchers.Main).launch {
+                                try {
+                                    // 1. Accept invite
+                                    val inviteId = intent.getStringExtra("inviteId") ?: ""
+                                    if (inviteId.isNotBlank()) {
+                                        apiService.respondToInvite(com.ridervoice.models.InviteRespondRequest(inviteId, "ACCEPTED"))
+                                    }
+
+                                    // 2. Fetch token
+                                    val tokenRes = apiService.getJoinToken(com.ridervoice.models.JoinTokenRequest(roomName))
+                                    if (tokenRes.isSuccessful && tokenRes.body() != null) {
+                                        com.ridervoice.models.RideSession.livekitToken = tokenRes.body()!!.token
+                                    }
+
+                                    // 3. Launch app
+                                    val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                                        flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                    }
+                                    startActivity(launchIntent)
+                                    finish()
+                                } catch (e: Exception) {
+                                    finish()
+                                }
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()

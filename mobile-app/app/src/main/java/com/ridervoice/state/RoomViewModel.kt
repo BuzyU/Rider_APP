@@ -158,21 +158,19 @@ class RoomViewModel @Inject constructor(
         thermalManager.startMonitoring(viewModelScope)
         serviceWatchdog.startMonitoring(viewModelScope)
 
+        val token = com.ridervoice.models.RideSession.livekitToken
+        val url = com.ridervoice.models.RideSession.livekitUrl.ifBlank { Constants.LIVEKIT_URL }
+
+        if (token.isBlank()) {
+            _error.value = "Missing session credentials"
+            return
+        }
+
         viewModelScope.launch {
             _error.value = null
             try {
-                val response = apiService.getRoomToken(
-                    com.ridervoice.models.RoomTokenRequest(roomName)
-                )
-                if (!response.isSuccessful || response.body() == null) {
-                    _error.value = "Token error: ${response.code()}"
-                    return@launch
-                }
                 // LiveKitManager.connect() starts AudioDeviceRouter + VoxEngine internally
-                liveKitManager.connect(
-                    url = Constants.LIVEKIT_URL,
-                    token = response.body()!!.token
-                )
+                liveKitManager.connect(url, token)
             } catch (e: Exception) {
                 _error.value = "Connection error: ${e.message}"
             }

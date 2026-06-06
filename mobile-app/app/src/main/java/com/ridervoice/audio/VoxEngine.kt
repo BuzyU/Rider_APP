@@ -114,7 +114,7 @@ class VoxEngine @Inject constructor() {
      */
     @Suppress("MissingPermission")
     fun start() {
-        if (pollJob?.isActive == true) return
+        if (audioRecord != null || pollJob?.isActive == true) return
         Log.d(TAG, "VOX engine starting")
 
         try {
@@ -163,7 +163,11 @@ class VoxEngine @Inject constructor() {
     fun stop() {
         pollJob?.cancel()
         pollJob = null
-        audioRecord?.stop()
+        try {
+            audioRecord?.stop()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping AudioRecord", e)
+        }
         audioRecord?.release()
         audioRecord = null
         closeMic()

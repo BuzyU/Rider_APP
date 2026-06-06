@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "500579707845",
+    "project_id": "riderapp-5ce68",
+    "storage_bucket": "riderapp-5ce68.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:500579707845:android:332b59a53a3c671f2179ac",
+        "android_client_info": {
+          "package_name": "com.ridervoice"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "500579707845-7mhtgq8gp5lvc81nbaej5kndk77vilbs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ridervoice",
+            "certificate_hash": "facd95eb5eaab88906774064a79f85187169583e"
+          }
+        },
+        {
+          "client_id": "500579707845-8onk2brvdc3lmj2jhmnktk1h4pl3hh1a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCSz401v0YNLlq9Ff1f6m551f9ZB_mbb4I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "500579707845-8onk2brvdc3lmj2jhmnktk1h4pl3hh1a.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

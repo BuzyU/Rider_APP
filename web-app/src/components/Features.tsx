@@ -1,171 +1,149 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Smartphone, Link, BatteryCharging, Network } from 'lucide-react';
+import { Smartphone, Link, BatteryCharging, Network, Mic, RefreshCw, Volume2, Zap, User, Share } from 'lucide-react';
 import styles from './Features.module.css';
-
-const textVariants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }
-  }
-};
-
-const imageVariants = {
-  hidden: { opacity: 0, scale: 0.95 },
-  visible: { 
-    opacity: 1, 
-    scale: 1,
-    transition: { duration: 1, ease: [0.16, 1, 0.3, 1] }
-  }
-};
 
 export default function Features() {
   return (
     <>
-      {/* Feature 1 */}
-      <section className={styles.featureSection}>
-        <div className="container">
-          <div className={styles.featureRow}>
-            <motion.div 
-              className={styles.textContent}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              variants={textVariants}
-            >
-              <h2 className="section-title">Infinite Range VoIP.</h2>
-              <p className="section-desc">
+      <section className="container">
+        <div className={styles.bentoContainer}>
+          
+          {/* Feature 1: Wide */}
+          <motion.div 
+            className={`${styles.bentoCard} ${styles.cardWide}`}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className={styles.bentoText}>
+              <h2 className={styles.bentoTitle}>Infinite Range VoIP.</h2>
+              <p className={styles.bentoDesc}>
                 Leave Bluetooth mesh limits behind. Our app uses cellular data to keep your convoy connected in crystal clear audio, whether they are 50 feet or 50 miles away.
               </p>
-            </motion.div>
+            </div>
             
-            <motion.div 
-              className={styles.visualContent}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              variants={imageVariants}
-            >
-              <div className={styles.mockupContainer}>
-                <div className={styles.mockupPulse} />
-                <Network size={64} className={styles.mockupIcon} style={{ color: 'var(--safety-orange)', opacity: 1 }} />
-                <div className={styles.connectionLine} />
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
+            <div className={styles.microUI}>
+              {/* Map/Range visualization */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--background)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
+                    <User size={24} />
+                  </div>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>You</span>
+                </div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', color: 'var(--safety-orange)' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'currentColor' }}></div>
+                  <div style={{ height: 2, width: 80, background: 'linear-gradient(90deg, var(--safety-orange), transparent)' }}></div>
+                </div>
 
-      {/* Feature 2 */}
-      <section className={styles.featureSection}>
-        <div className="container">
-          <div className={`${styles.featureRow} ${styles.rowReverse}`}>
-            <motion.div 
-              className={styles.textContent}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              variants={textVariants}
-            >
-              <h2 className="section-title">The Universal Bridge.</h2>
-              <p className="section-desc">
-                Your friend's Cardo, your Sena, or standard AirPods. Connect them to the app via Bluetooth, and we bridge the gap. Everyone talks in one digital room.
-              </p>
-            </motion.div>
-            
-            <motion.div 
-              className={styles.visualContent}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              variants={imageVariants}
-            >
-              <div className={styles.mockupContainer}>
-                <div className={styles.headphoneGroup}>
-                  <div className={styles.headphoneItem}>
-                    <Smartphone size={40} style={{ opacity: 0.5 }} />
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--background)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
+                    <User size={24} />
                   </div>
-                  <div className={`${styles.headphoneItem} ${styles.active}`}>
-                    <Smartphone size={56} />
-                  </div>
-                  <div className={styles.headphoneItem}>
-                    <Smartphone size={40} style={{ opacity: 0.5 }} />
-                  </div>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Alex</span>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>50 miles</div>
                 </div>
               </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
+            </div>
+          </motion.div>
 
-      {/* Feature 3: One-Tap Invites */}
-      <section className={styles.featureSection}>
-        <div className="container">
-          <div className={styles.featureRow}>
-            <motion.div 
-              className={styles.textContent}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              variants={textVariants}
-            >
-              <h2 className="section-title">One-Tap Invites.</h2>
-              <p className="section-desc">
-                No pairing sequences. No manual channel matching. Just drop a link in your group chat. iOS or Android, your friends tap and they're instantly in the ride.
+          {/* Feature 2: Square */}
+          <motion.div 
+            className={styles.bentoCard}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className={styles.bentoText}>
+              <h2 className={styles.bentoTitle}>The Universal Bridge.</h2>
+              <p className={styles.bentoDesc}>
+                Cardo, Sena, or AirPods. Connect them via Bluetooth, and we bridge the gap.
               </p>
-            </motion.div>
-            
-            <motion.div 
-              className={styles.visualContent}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              variants={imageVariants}
-            >
-              <div className={styles.mockupContainer}>
-                <Link size={64} className={styles.mockupIcon} style={{ color: 'var(--safety-orange)', opacity: 1, marginBottom: 0 }} />
-                <div style={{ position: 'absolute', width: '200px', height: '2px', background: 'rgba(0,0,0,0.1)', top: '65%' }}></div>
-                <div style={{ position: 'absolute', width: '100px', height: '2px', background: 'var(--safety-orange)', top: '65%', left: '50%', transform: 'translateX(-50%)' }}></div>
+            </div>
+            <div className={styles.microUI}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--background)', padding: '1rem', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                <Smartphone size={32} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>AirPods Pro</span>
+                  <span style={{ color: 'var(--safety-orange)', fontSize: '0.8rem', fontWeight: 600 }}>Connected</span>
+                </div>
               </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
+            </div>
+          </motion.div>
 
-      {/* Feature 4: Background Mode */}
-      <section className={styles.featureSection}>
-        <div className="container">
-          <div className={`${styles.featureRow} ${styles.rowReverse}`}>
-            <motion.div 
-              className={styles.textContent}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              variants={textVariants}
-            >
-              <h2 className="section-title">Lock and Ride.</h2>
-              <p className="section-desc">
+          {/* Feature 3: Square */}
+          <motion.div 
+            className={styles.bentoCard}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className={styles.bentoText}>
+              <h2 className={styles.bentoTitle}>One-Tap Invites.</h2>
+              <p className={styles.bentoDesc}>
+                Drop a link in your group chat. iOS or Android, they tap and they're instantly in the ride.
+              </p>
+            </div>
+            <div className={styles.microUI}>
+              <div className={styles.shareSheet}>
+                <div className={styles.shareAvatar}><Share size={24} /></div>
+                <span style={{ fontWeight: 600, fontSize: '1rem' }}>Invite to Convoy</span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px' }}>rider.app/join/xyz123</span>
+                <div className={styles.shareBtn}>Copy Link</div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Feature 4: Wide */}
+          <motion.div 
+            className={`${styles.bentoCard} ${styles.cardWide}`}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className={styles.bentoText}>
+              <h2 className={styles.bentoTitle}>Lock and Ride.</h2>
+              <p className={styles.bentoDesc}>
                 The app runs silently in your pocket. Optimized for extreme background efficiency, it preserves your battery for the map and keeps you connected all day.
               </p>
-            </motion.div>
-            
-            <motion.div 
-              className={styles.visualContent}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-100px" }}
-              variants={imageVariants}
-            >
-              <div className={styles.mockupContainer}>
-                <BatteryCharging size={64} className={styles.mockupIcon} style={{ color: 'var(--safety-orange)', opacity: 1, marginBottom: 0 }} />
-                <div style={{ position: 'absolute', fontSize: '1.5rem', fontWeight: 600, marginTop: '5rem', color: 'var(--text-primary)' }}>
-                  12h+ Background
+            </div>
+            <div className={styles.microUI}>
+              <div className={styles.lockScreen}>
+                <div className={styles.timeClock}>10:41</div>
+                
+                <div className={styles.liveActivity}>
+                  <div className={styles.activityIcon}>
+                    <Mic size={20} />
+                  </div>
+                  <div className={styles.activityText}>
+                    <div className={styles.activityTitle}>Sunday Ride</div>
+                    <div className={styles.activitySub}>3 Riders Active</div>
+                  </div>
+                  <div className={styles.activityWave}>
+                    <div className={styles.waveBar}></div>
+                    <div className={styles.waveBar}></div>
+                    <div className={styles.waveBar}></div>
+                    <div className={styles.waveBar}></div>
+                  </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
+          </motion.div>
+
+        </div>
+      </section>
+
+      <section className={styles.secondaryFeatures}>
+        <div className="container">
+          <div className={styles.secondaryHeader}>
+            <h2 className="section-title">And so much more.</h2>
           </div>
         </div>
       </section>

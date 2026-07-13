@@ -1,0 +1,86 @@
+.roadmapSection {
+  padding: 8rem 0;
+  background-color: var(--background);
+  position: relative;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+.card {
+  background-color: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.05);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+}
+
+.iconWrapper {
+  color: var(--text-primary);
+  background: var(--background);
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+}
+
+.statusBadge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+}
+
+.cardTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.cardDesc {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .roadmapSection {
+    padding: 5rem 0;
+  }
+}

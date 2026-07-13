@@ -1,114 +1,252 @@
-.featureSection {
-  min-height: 80vh;
-  display: flex;
-  align-items: center;
-  padding: 4rem 0;
-  overflow: hidden;
+.bentoContainer {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  padding: 6rem 0;
 }
 
-.featureRow {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3rem;
-  text-align: center;
-}
-
-@media (min-width: 992px) {
-  .featureSection {
-    padding: 8rem 0;
-  }
-  
-  .featureRow {
-    flex-direction: row;
-    gap: 8rem;
-    text-align: left;
-  }
-  
-  .rowReverse {
-    flex-direction: row-reverse;
-  }
-}
-
-.textContent {
-  flex: 1;
-  max-width: 500px;
-}
-
-.visualContent {
-  flex: 1;
-  width: 100%;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.mockupContainer {
-  width: 100%;
-  max-width: 400px;
-  margin: 0 auto;
-  aspect-ratio: 1 / 1;
+.bentoCard {
   background-color: var(--surface);
-  border-radius: 24px;
+  border-radius: 32px;
   border: 1px solid var(--border-color);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  padding: 3rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
-@media (min-width: 992px) {
-  .mockupContainer {
-    max-width: none;
-    border-radius: 32px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
-  }
+/* Feature 1 Layout */
+.cardWide {
+  display: flex;
+  flex-direction: column;
 }
 
-/* Specific mockup visuals */
-.mockupIcon {
+/* Mockups inside Bento Boxes */
+.bentoText {
+  z-index: 10;
+  max-width: 400px;
+}
+
+.bentoTitle {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.bentoDesc {
+  font-size: 1.125rem;
   color: var(--text-secondary);
-  opacity: 0.5;
-  margin-bottom: 2rem;
+  line-height: 1.5;
 }
 
-.mockupPulse {
-  position: absolute;
-  width: 100px;
-  height: 100px;
+/* Micro-UIs */
+.microUI {
+  margin-top: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  position: relative;
+}
+
+/* Lock Screen UI */
+.lockScreen {
+  width: 280px;
+  height: 180px;
+  background: #000;
+  border-radius: 32px 32px 0 0;
+  padding: 20px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+  border: 4px solid #1c1c1e;
+  border-bottom: none;
+  margin-top: auto;
+}
+
+.timeClock {
+  font-size: 4rem;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  margin-bottom: 20px;
+  line-height: 1;
+}
+
+.liveActivity {
+  width: 100%;
+  background: #1c1c1e;
+  border-radius: 20px;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.activityIcon {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--safety-orange);
-  filter: blur(50px);
-  opacity: 0.2;
-}
-
-.connectionLine {
-  width: 2px;
-  height: 60px;
-  background: linear-gradient(180deg, var(--safety-orange) 0%, transparent 100%);
-  margin-top: 1rem;
-}
-
-/* Secondary Feature specific */
-.headphoneGroup {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  justify-content: center;
+  color: white;
 }
 
-.headphoneItem {
+.activityText {
+  flex: 1;
+}
+
+.activityTitle {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.activitySub {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.activityWave {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  height: 20px;
+}
+
+.waveBar {
+  width: 3px;
+  background: var(--safety-orange);
+  border-radius: 2px;
+  animation: pulse 1s infinite alternate;
+}
+
+.waveBar:nth-child(2) { animation-delay: 0.2s; }
+.waveBar:nth-child(3) { animation-delay: 0.4s; }
+.waveBar:nth-child(4) { animation-delay: 0.6s; }
+
+@keyframes pulse {
+  0% { height: 4px; }
+  100% { height: 16px; }
+}
+
+/* Share Link UI */
+.shareSheet {
+  width: 280px;
+  background: var(--background);
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+  border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  opacity: 0.7;
 }
 
-.headphoneItem.active {
-  opacity: 1;
-  color: var(--safety-orange);
+.shareAvatar {
+  width: 50px;
+  height: 50px;
+  background: #f0f0f0;
+  border-radius: 50%;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+}
+
+.shareBtn {
+  background: var(--safety-orange);
+  color: white;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 600;
+  margin-top: 15px;
+}
+
+/* Secondary Features Grid */
+.secondaryFeatures {
+  padding: 0;
+}
+
+.secondaryHeader {
+  text-align: center;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.secondaryGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.secondaryCard {
+  background-color: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.secondaryIcon {
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  background: var(--background);
+  padding: 1rem;
+  border-radius: 16px;
+  width: max-content;
+  border: 1px solid var(--border-color);
+}
+
+.secondaryTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.secondaryDesc {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+@media (min-width: 992px) {
+  .bentoContainer {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .cardWide {
+    grid-column: span 2;
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .cardWide .bentoText {
+    flex: 1;
+    padding-right: 4rem;
+  }
+
+  .cardWide .microUI {
+    flex: 1;
+    margin-top: 0;
+    justify-content: flex-end;
+  }
+  
+  .secondaryGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

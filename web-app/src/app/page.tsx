@@ -1,7 +1,10 @@
 import React from "react";
 import Hero from "@/components/Hero";
+import TrustLogos from "@/components/TrustLogos";
+import TrustBanner from "@/components/TrustBanner";
 import Features from "@/components/Features";
 import MapPreview from "@/components/MapPreview";
+import Roadmap from "@/components/Roadmap";
 import Footer from "@/components/Footer";
 import WaitlistForm from "@/components/WaitlistForm";
 
@@ -10,10 +13,14 @@ export default function Home() {
     <div style={{ maxWidth: '100%', overflowX: 'hidden' }}>
       <main>
         <Hero />
+        <TrustLogos />
+        <TrustBanner />
         
         <Features />
         
         <MapPreview />
+        
+        <Roadmap />
 
         {/* Final Waitlist Section */}
         <section className="section" style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>

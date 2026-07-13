@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-inter",
+  display: 'swap',
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const barlowCondensed = Barlow_Condensed({
+  weight: ['400', '600', '700', '900'],
   subsets: ["latin"],
+  variable: "--font-barlow-condensed",
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "Rider APP | Tactical Motorcycle Comms",
-  description: "Next-generation tactical voice and telemetry platform for motorcycle convoys.",
+  title: "Ride together. Talk without limits.",
+  description: "No phone, no app-locking, no brand walls. Long-range group intercom with universal connectivity and rider-first extras.",
 };
 
 export default function RootLayout({
@@ -25,7 +28,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${inter.variable} ${barlowCondensed.variable}`}
     >
       <body>{children}</body>
     </html>

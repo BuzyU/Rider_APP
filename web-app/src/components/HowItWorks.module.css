@@ -1,0 +1,72 @@
+.header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.header h2 {
+  font-size: 2.5rem;
+}
+
+.stepsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  background-color: var(--asphalt);
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.stepNumber {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  font-family: var(--font-heading);
+  font-size: 8rem;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.03);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: rgba(204, 255, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.icon {
+  color: var(--electric-yellow);
+}
+
+.content h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.content p {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 600px) {
+  .step {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}

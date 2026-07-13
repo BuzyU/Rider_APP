@@ -1,0 +1,114 @@
+.featureSection {
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  padding: 4rem 0;
+  overflow: hidden;
+}
+
+.featureRow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+  text-align: center;
+}
+
+@media (min-width: 992px) {
+  .featureSection {
+    padding: 8rem 0;
+  }
+  
+  .featureRow {
+    flex-direction: row;
+    gap: 8rem;
+    text-align: left;
+  }
+  
+  .rowReverse {
+    flex-direction: row-reverse;
+  }
+}
+
+.textContent {
+  flex: 1;
+  max-width: 500px;
+}
+
+.visualContent {
+  flex: 1;
+  width: 100%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.mockupContainer {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  aspect-ratio: 1 / 1;
+  background-color: var(--surface);
+  border-radius: 24px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 992px) {
+  .mockupContainer {
+    max-width: none;
+    border-radius: 32px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Specific mockup visuals */
+.mockupIcon {
+  color: var(--text-secondary);
+  opacity: 0.5;
+  margin-bottom: 2rem;
+}
+
+.mockupPulse {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: var(--safety-orange);
+  filter: blur(50px);
+  opacity: 0.2;
+}
+
+.connectionLine {
+  width: 2px;
+  height: 60px;
+  background: linear-gradient(180deg, var(--safety-orange) 0%, transparent 100%);
+  margin-top: 1rem;
+}
+
+/* Secondary Feature specific */
+.headphoneGroup {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.headphoneItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  opacity: 0.7;
+}
+
+.headphoneItem.active {
+  opacity: 1;
+  color: var(--safety-orange);
+}

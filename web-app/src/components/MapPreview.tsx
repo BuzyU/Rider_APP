@@ -1,10 +1,10 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { Coffee, Navigation } from 'lucide-react';
 import styles from './MapPreview.module.css';
 
-const textVariants = {
+const textVariants: Variants = {
   hidden: { opacity: 0, y: 30 },
   visible: { 
     opacity: 1, 
@@ -13,7 +13,7 @@ const textVariants = {
   }
 };
 
-const imageVariants = {
+const imageVariants: Variants = {
   hidden: { opacity: 0, scale: 0.95 },
   visible: { 
     opacity: 1, 

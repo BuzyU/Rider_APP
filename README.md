@@ -4,6 +4,8 @@
 
 Rider Voice is an Android app that lets a group of riders create a named convoy, invite friends, and communicate hands-free over push-to-talk (PTT) voice during a ride. It is backed by a Node.js REST API and LiveKit for real-time audio.
 
+> 📐 For a deep-dive into the system design, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+
 ---
 
 ## What It Does

@@ -33,7 +33,7 @@ Rider_APP/
 
 ---
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -51,6 +51,48 @@ Rider_APP/
 | LiveKit signalling | livekit-server-sdk 2.8 |
 | Web (marketing) | Next.js 14, TypeScript |
 | Deployment | Render.com (backend), Vercel (web-app) |
+
+
+### Mobile Development
+![Kotlin](https://img.shields.io/badge/Kotlin-1.9-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Latest-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)
+![Material 3](https://img.shields.io/badge/Material%203-Google-757575?style=for-the-badge&logo=materialdesign&logoColor=white)
+![Hilt](https://img.shields.io/badge/Hilt-2.48-3DDC84?style=for-the-badge&logo=android&logoColor=white)
+![Navigation Compose](https://img.shields.io/badge/Navigation%20Compose-Jetpack-4285F4?style=for-the-badge&logo=android&logoColor=white)
+
+### Networking
+![Retrofit](https://img.shields.io/badge/Retrofit-2-48B983?style=for-the-badge)
+![OkHttp](https://img.shields.io/badge/OkHttp-Latest-009688?style=for-the-badge)
+
+### Real-Time Communication
+![LiveKit](https://img.shields.io/badge/LiveKit%20Android%20SDK-2.25-1E293B?style=for-the-badge)
+![LiveKit Server SDK](https://img.shields.io/badge/livekit--server--sdk-2.8-1E293B?style=for-the-badge)
+
+### Maps
+![Mapbox](https://img.shields.io/badge/Mapbox%20Maps-11.2-000000?style=for-the-badge&logo=mapbox&logoColor=white)
+![Compose Extension](https://img.shields.io/badge/Compose%20Extension-Mapbox-4285F4?style=for-the-badge)
+
+### Firebase
+![Firebase Auth](https://img.shields.io/badge/Firebase%20Auth-Google%20Sign--In%20%2B%20FCM-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
+![Firebase Crashlytics](https://img.shields.io/badge/Firebase%20Crashlytics-Latest-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
+
+### Local Database
+![Room](https://img.shields.io/badge/Room-2.6-3DDC84?style=for-the-badge&logo=android&logoColor=white)
+
+### Backend
+![Node.js](https://img.shields.io/badge/Node.js-Latest-339933?style=for-the-badge&logo=node.js&logoColor=white)
+![Express.js](https://img.shields.io/badge/Express-4-000000?style=for-the-badge&logo=express&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-5-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Database-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
+
+### Web
+![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=next.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-Latest-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+
+### Deployment
+![Render](https://img.shields.io/badge/Render-Backend-46E3B7?style=for-the-badge&logo=render&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-Web%20App-000000?style=for-the-badge&logo=vercel&logoColor=white)
 
 ---
 

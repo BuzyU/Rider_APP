@@ -40,6 +40,12 @@ interface RideDao {
 
     @Query("DELETE FROM raw_waypoints WHERE sessionId = :sessionId")
     suspend fun deleteWaypointsForSession(sessionId: String)
+
+    @Query("SELECT MAX(speedMps) FROM raw_waypoints WHERE sessionId = :sessionId")
+    suspend fun getMaxSpeed(sessionId: String): Float?
+
+    @Query("DELETE FROM ride_sessions WHERE id = :sessionId")
+    suspend fun deleteSession(sessionId: String)
 }
 
 @Database(

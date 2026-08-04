@@ -9,7 +9,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -17,6 +16,7 @@ import androidx.compose.ui.unit.sp
 import com.ridervoice.ui.components.TacticalButton
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +32,7 @@ fun RegistrationScreen(
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
 
+    val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(errorMessage) {
@@ -79,11 +80,9 @@ fun RegistrationScreen(
             text = if (isLoading) "Creating..." else "Register",
             onClick = {
                 if (password != confirmPassword) {
-                    // show error via ViewModel
-                    viewModel.setLoading(false)
-                    // set an error message state
-                    // Using errorMessage flow in ViewModel is easiest
-                    // But here call registerWithEmail and rely on ViewModel
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("Passwords do not match")
+                    }
                 } else {
                     viewModel.registerWithEmail(email, password) { success ->
                         if (success) onRegistrationSuccess()

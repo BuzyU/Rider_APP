@@ -59,33 +59,6 @@ fun LoginScreen(
         }
     }
 
-    // Try to silently retrieve a saved Google credential on startup so users don't have to sign in again.
-    LaunchedEffect(Unit) {
-        coroutineScope.launch {
-            try {
-                val credentialManager = CredentialManager.create(context)
-                val googleIdOption = GetGoogleIdOption.Builder()
-                    .setFilterByAuthorizedAccounts(false)
-                    .setServerClientId(context.getString(R.string.default_web_client_id))
-                    .build()
-
-                val request = GetCredentialRequest.Builder()
-                    .addCredentialOption(googleIdOption)
-                    .build()
-
-                val result = credentialManager.getCredential(context, request)
-                val credential = result.credential
-                if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                    viewModel.handleGoogleIdToken(googleIdTokenCredential.idToken)
-                }
-            } catch (e: Exception) {
-                // No saved credential available or retrieval failed; user can still tap the Google button.
-                e.printStackTrace()
-            }
-        }
-    }
-
     fun launchGoogleSignIn() {
         coroutineScope.launch {
             try {

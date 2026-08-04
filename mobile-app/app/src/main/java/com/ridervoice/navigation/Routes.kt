@@ -3,6 +3,7 @@ package com.ridervoice.navigation
 object Routes {
     const val SPLASH         = "splash"
     const val LOGIN          = "login"
+    const val REGISTER       = "register"
     const val HOME           = "home"
     const val SQUAD          = "squad"
     const val ROUTE_PLANNER  = "route_planner"

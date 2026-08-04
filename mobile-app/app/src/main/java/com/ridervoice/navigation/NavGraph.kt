@@ -45,11 +45,26 @@ fun NavGraph() {
         composable(Routes.LOGIN) {
             LoginScreen(
                 onGoogleSignInClick = {},
+                onRegisterClick = { navController.navigate(Routes.REGISTER) },
                 onLoginSuccess = {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        // Registration screen
+        composable(Routes.REGISTER) {
+            val vm: com.ridervoice.ui.viewmodels.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            RegistrationScreen(
+                viewModel = vm,
+                onRegistrationSuccess = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.REGISTER) { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() }
             )
         }
  

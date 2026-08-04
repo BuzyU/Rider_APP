@@ -30,6 +30,10 @@ class AuthViewModel @Inject constructor(
     private val _otpSent = MutableStateFlow(false)
     val otpSent: StateFlow<Boolean> = _otpSent.asStateFlow()
 
+    // Track failed email/password attempts to surface "Forgot password"
+    private val _failedAttempts = MutableStateFlow(0)
+    val failedAttempts: StateFlow<Int> = _failedAttempts.asStateFlow()
+
     private var _verificationId: String? = null
 
     /**
@@ -77,6 +81,7 @@ class AuthViewModel @Inject constructor(
         _loginSuccess.value = false
         _otpSent.value = false
         _verificationId = null
+        _failedAttempts.value = 0
     }
 
     fun handleGoogleIdToken(idToken: String) {
@@ -112,6 +117,55 @@ class AuthViewModel @Inject constructor(
                 _errorMessage.value = "Invalid OTP or sign-in failed."
                 _isLoading.value = false
             }
+        }
+    }
+
+    // New: Email/password sign-in
+    fun signInWithEmail(email: String, password: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            val success = authRepository.signInWithEmail(email.trim(), password)
+            if (success) {
+                _failedAttempts.value = 0
+                ensureProfile()
+                _loginSuccess.value = true
+            } else {
+                _failedAttempts.value = _failedAttempts.value + 1
+                _errorMessage.value = "Email sign-in failed. Check credentials or network."
+            }
+            _isLoading.value = false
+        }
+    }
+
+    // New: Register via email/password
+    fun registerWithEmail(email: String, password: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            val success = authRepository.registerWithEmail(email.trim(), password)
+            if (success) {
+                ensureProfile()
+                _loginSuccess.value = true
+            } else {
+                _errorMessage.value = "Registration failed."
+            }
+            _isLoading.value = false
+            onResult(success)
+        }
+    }
+
+    // New: Send password reset
+    fun sendPasswordReset(email: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            val success = authRepository.sendPasswordReset(email.trim())
+            if (!success) {
+                _errorMessage.value = "Failed to send password reset."
+            }
+            _isLoading.value = false
+            onResult(success)
         }
     }
 

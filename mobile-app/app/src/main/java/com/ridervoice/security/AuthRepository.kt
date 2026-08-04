@@ -61,4 +61,35 @@ class AuthRepository @Inject constructor() {
             false
         }
     }
+
+    // New: Email/password authentication helpers
+    suspend fun signInWithEmail(email: String, password: String): Boolean {
+        return try {
+            auth.signInWithEmailAndPassword(email, password).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun registerWithEmail(email: String, password: String): Boolean {
+        return try {
+            auth.createUserWithEmailAndPassword(email, password).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun sendPasswordReset(email: String): Boolean {
+        return try {
+            auth.sendPasswordResetEmail(email).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }

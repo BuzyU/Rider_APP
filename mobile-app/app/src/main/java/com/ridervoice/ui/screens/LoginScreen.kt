@@ -30,15 +30,22 @@ import kotlinx.coroutines.launch
 fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel(),
     onGoogleSignInClick: () -> Unit = {},
+    onRegisterClick: () -> Unit = {},
     onLoginSuccess: () -> Unit
 ) {
     val isLoading = viewModel.isLoading.collectAsState().value
     val loginSuccess = viewModel.loginSuccess.collectAsState().value
     val errorMessage = viewModel.errorMessage.collectAsState().value
+    val failedAttempts by viewModel.failedAttempts.collectAsState()
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var showResetDialog by remember { mutableStateOf(false) }
+    var resetEmail by remember { mutableStateOf("") }
 
     LaunchedEffect(loginSuccess) {
         if (loginSuccess) {
@@ -143,18 +150,63 @@ fun LoginScreen(
             modifier = Modifier.padding(top = 8.dp)
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Only show Google sign-in. Phone and Guest flows removed per request.
+        // Google sign-in
         TacticalButton(
             text = "G  Continue with Google",
-            onClick = { launchGoogleSignIn() },
+            onClick = { launchGoogleSignIn(); onGoogleSignInClick() },
             isOutlined = true,
             color = DarkSlate,
             textColor = Color.White
         )
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Email / Password fields
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email", color = TextSecondary) },
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password", color = TextSecondary) },
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TacticalButton(
+            text = if (isLoading) "Signing in..." else "Sign in",
+            onClick = { if (!isLoading) viewModel.signInWithEmail(email, password) },
+            color = NeonOrange,
+            textColor = Color.White
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TextButton(onClick = { onRegisterClick() }) {
+            Text("New sign up", color = TextSecondary)
+        }
+
+        // Show Forgot password only after several failed attempts
+        if (failedAttempts >= 3) {
+            TextButton(onClick = { showResetDialog = true }) {
+                Text("Forgot password?", color = TextSecondary)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "By continuing, you agree to our\nTerms of Service and Privacy Policy",
@@ -165,9 +217,47 @@ fun LoginScreen(
             style = MaterialTheme.typography.bodyLarge
         )
 
+        // Password reset dialog
+        if (showResetDialog) {
+            AlertDialog(
+                onDismissRequest = { showResetDialog = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.sendPasswordReset(resetEmail) { success ->
+                            showResetDialog = false
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(
+                                    if (success) "Password reset sent" else "Failed to send reset"
+                                )
+                            }
+                        }
+                    }) { Text("Send") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showResetDialog = false }) { Text("Cancel") }
+                },
+                title = { Text("Reset Password") },
+                text = {
+                    Column {
+                        OutlinedTextField(
+                            value = resetEmail,
+                            onValueChange = { resetEmail = it },
+                            label = { Text("Email") },
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Email),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
+
+        Spacer(modifier = Modifier.weight(1f))
     }
 }

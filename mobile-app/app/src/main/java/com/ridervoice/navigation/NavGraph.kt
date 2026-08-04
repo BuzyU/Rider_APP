@@ -182,10 +182,19 @@ fun NavGraph() {
         ) { back ->
             val roomName = back.arguments?.getString("roomName") ?: ""
             val vm: com.ridervoice.ui.viewmodels.SosViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val state by vm.state.collectAsState()
+            
             SosScreen(
+                state = state,
                 onCancelClick = { navController.popBackStack() },
-                onSend = { vm.sendAlert(roomName); navController.popBackStack() }
+                onSend = { vm.sendAlert(roomName) }
             )
+            
+            LaunchedEffect(state) {
+                if (state is com.ridervoice.ui.viewmodels.SosState.Sent) {
+                    navController.popBackStack()
+                }
+            }
         }
 
         // ── Other screens ──────────────────────────────────────────────────

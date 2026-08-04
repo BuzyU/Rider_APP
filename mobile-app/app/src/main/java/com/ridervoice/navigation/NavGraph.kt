@@ -45,7 +45,6 @@ fun NavGraph() {
         composable(Routes.LOGIN) {
             LoginScreen(
                 onGoogleSignInClick = {},
-                onPhoneOtpClick = {},
                 onLoginSuccess = {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.LOGIN) { inclusive = true }

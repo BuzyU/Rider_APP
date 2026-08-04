@@ -22,14 +22,14 @@ import kotlinx.coroutines.delay
 import com.ridervoice.ui.theme.*
 
 @Composable
-fun SosScreen(onCancelClick: () -> Unit, onSend: () -> Unit) {
+fun SosScreen(state: com.ridervoice.ui.viewmodels.SosState, onCancelClick: () -> Unit, onSend: () -> Unit) {
     var countdown by remember { mutableStateOf(15) }
 
     LaunchedEffect(key1 = countdown) {
         if (countdown > 0) {
             delay(1000L)
             countdown--
-        } else {
+        } else if (state is com.ridervoice.ui.viewmodels.SosState.Idle) {
             onSend()
         }
     }
@@ -106,17 +106,34 @@ fun SosScreen(onCancelClick: () -> Unit, onSend: () -> Unit) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Send Button
-        Button(
-            onClick = onSend,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FF4D4D)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed)
-        ) {
-            Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("SEND SOS NOW", color = AlertRed, style = MaterialTheme.typography.titleLarge)
+        if (state is com.ridervoice.ui.viewmodels.SosState.Sending) {
+            androidx.compose.material3.CircularProgressIndicator(color = AlertRed)
+            Spacer(modifier = Modifier.height(16.dp))
+        } else if (state is com.ridervoice.ui.viewmodels.SosState.Failed) {
+            Text(text = "Failed: ${state.message}", color = AlertRed, style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = onSend,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FF4D4D)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed)
+            ) {
+                Text("RETRY", color = AlertRed, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            // Send Button
+            Button(
+                onClick = onSend,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FF4D4D)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed)
+            ) {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("SEND SOS NOW", color = AlertRed, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))

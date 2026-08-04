@@ -74,6 +74,25 @@ data class FriendRequest(
     val handle: String? = null
 )
 
+// ── Profile ───────────────────────────────────────────────────────────────────
+
+data class ProfileRequest(
+    val handle: String? = null,
+    val displayName: String? = null,
+    val bikeModel: String? = null,
+    val bio: String? = null
+)
+
+data class ProfileResponse(
+    val id: String,
+    val handle: String?,
+    val displayName: String?,
+    val bikeModel: String?,
+    val bio: String? = null,
+    val email: String? = null,
+    val createdAt: String? = null
+)
+
 // ── Device setup ──────────────────────────────────────────────────────────────
 
 data class DeviceHandshakeResult(

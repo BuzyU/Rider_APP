@@ -25,6 +25,18 @@ interface ApiService {
     @POST("/api/users/fcm-token")
     suspend fun updateFcmToken(@Body body: FcmTokenRequest): Response<Any>
 
+    /** Creates/updates the authenticated user's profile (handle, displayName, etc). */
+    @POST("/api/users/profile")
+    suspend fun upsertProfile(@Body body: com.ridervoice.models.ProfileRequest): Response<com.ridervoice.models.ProfileResponse>
+
+    /** Returns the authenticated user's own full profile. */
+    @GET("/api/users/me")
+    suspend fun getMyProfile(): Response<com.ridervoice.models.ProfileResponse>
+
+    /** Public search for a rider by handle (used by the add-friend flow). */
+    @GET("/api/users/search")
+    suspend fun searchByHandle(@retrofit2.http.Query("handle") handle: String): Response<com.ridervoice.models.ProfileResponse>
+
     // ── Friends ───────────────────────────────────────────────────────────────
 
     @GET("/api/friends/list/{userId}")

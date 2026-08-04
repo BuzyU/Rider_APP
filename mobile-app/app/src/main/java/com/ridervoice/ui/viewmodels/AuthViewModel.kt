@@ -2,6 +2,8 @@ package com.ridervoice.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ridervoice.network.ApiService
+import com.ridervoice.models.ProfileRequest
 import com.ridervoice.security.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val apiService: ApiService
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -29,6 +32,29 @@ class AuthViewModel @Inject constructor(
 
     private var _verificationId: String? = null
 
+    /**
+     * Auto-provisions a unique handle/profile row on first login so features that
+     * depend on `handle` (add-friend-by-handle, search) work immediately.
+     * Non-fatal: a failure here must never block the user from reaching the app.
+     */
+    private suspend fun ensureProfile() {
+        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser ?: return
+        try {
+            val existing = apiService.getMyProfile()
+            if (existing.isSuccessful && existing.body()?.handle != null) return // already provisioned
+
+            val autoHandle = "rider" + user.uid.takeLast(6)
+            apiService.upsertProfile(
+                ProfileRequest(
+                    handle = autoHandle,
+                    displayName = user.displayName ?: "Rider"
+                )
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun signInAnonymously() {
         viewModelScope.launch {
             _isLoading.value = true
@@ -36,6 +62,7 @@ class AuthViewModel @Inject constructor(
             
             val success = authRepository.signInAnonymously()
             if (success) {
+                ensureProfile()
                 _loginSuccess.value = true
             } else {
                 _errorMessage.value = "Guest sign-in failed. Check your network or Firebase setup."
@@ -59,6 +86,7 @@ class AuthViewModel @Inject constructor(
             
             val success = authRepository.signInWithGoogle(idToken)
             if (success) {
+                ensureProfile()
                 _loginSuccess.value = true
             } else {
                 _errorMessage.value = "Google sign-in failed."
@@ -78,6 +106,7 @@ class AuthViewModel @Inject constructor(
             _isLoading.value = true
             val success = authRepository.signInWithPhoneAuthCredential(credential)
             if (success) {
+                ensureProfile()
                 _loginSuccess.value = true
             } else {
                 _errorMessage.value = "Invalid OTP or sign-in failed."

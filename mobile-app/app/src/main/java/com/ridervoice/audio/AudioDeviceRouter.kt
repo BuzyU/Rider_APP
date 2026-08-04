@@ -193,7 +193,13 @@ class AudioDeviceRouter @Inject constructor(
 
         // Acquire BluetoothHeadset profile proxy
         val btAdapter = BluetoothAdapter.getDefaultAdapter()
-        btAdapter?.getProfileProxy(context, bluetoothProfileListener, BluetoothProfile.HEADSET)
+        if (hasBluetoothConnectPermission()) {
+            try {
+                btAdapter?.getProfileProxy(context, bluetoothProfileListener, BluetoothProfile.HEADSET)
+            } catch (e: SecurityException) {
+                Log.e(TAG, "BLUETOOTH_CONNECT not granted, skipping BT profile proxy", e)
+            }
+        }
 
         // Set communication mode immediately
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
@@ -327,21 +333,39 @@ class AudioDeviceRouter @Inject constructor(
             reEvaluatePriority(skipBluetooth = true)
             return
         }
+        if (!hasBluetoothConnectPermission()) {
+            Log.e(TAG, "BLUETOOTH_CONNECT not granted, cannot start SCO")
+            reEvaluatePriority(skipBluetooth = true)
+            return
+        }
         isScoStartRequested = true
         @Suppress("DEPRECATION")
-        audioManager.startBluetoothSco()
+        try {
+            audioManager.startBluetoothSco()
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException starting SCO", e)
+        }
         @Suppress("DEPRECATION")
         audioManager.isBluetoothScoOn = true
     }
 
     private fun isBluetoothScoAvailableAndConnected(): Boolean {
         if (!audioManager.isBluetoothScoAvailableOffCall) return false
-        // Check if any paired device is in HEADSET profile and audio-connected
-        return bluetoothHeadset?.connectedDevices?.isNotEmpty() == true
+        if (!hasBluetoothConnectPermission()) return false
+        return try {
+            bluetoothHeadset?.connectedDevices?.isNotEmpty() == true
+        } catch (e: SecurityException) {
+            false
+        }
     }
 
     private fun getConnectedBluetoothName(): String {
-        return bluetoothHeadset?.connectedDevices?.firstOrNull()?.name ?: "Bluetooth headset"
+        if (!hasBluetoothConnectPermission()) return "Bluetooth headset"
+        return try {
+            bluetoothHeadset?.connectedDevices?.firstOrNull()?.name ?: "Bluetooth headset"
+        } catch (e: SecurityException) {
+            "Bluetooth headset"
+        }
     }
 
     /**
@@ -356,6 +380,17 @@ class AudioDeviceRouter @Inject constructor(
         scope.launch {
             delay(200)
             audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, prev, 0)
+        }
+    }
+
+    private fun hasBluetoothConnectPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.BLUETOOTH_CONNECT
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else {
+            true
         }
     }
 }

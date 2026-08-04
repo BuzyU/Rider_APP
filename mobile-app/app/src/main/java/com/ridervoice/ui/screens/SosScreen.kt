@@ -22,13 +22,15 @@ import kotlinx.coroutines.delay
 import com.ridervoice.ui.theme.*
 
 @Composable
-fun SosScreen(onCancelClick: () -> Unit) {
+fun SosScreen(onCancelClick: () -> Unit, onSend: () -> Unit) {
     var countdown by remember { mutableStateOf(15) }
 
     LaunchedEffect(key1 = countdown) {
         if (countdown > 0) {
             delay(1000L)
             countdown--
+        } else {
+            onSend()
         }
     }
 
@@ -106,7 +108,7 @@ fun SosScreen(onCancelClick: () -> Unit) {
 
         // Send Button
         Button(
-            onClick = { /* Send immediately */ },
+            onClick = onSend,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FF4D4D)),

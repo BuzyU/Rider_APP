@@ -20,9 +20,11 @@ object Routes {
     // Shared
     const val DEVICE_SETUP   = "device_setup/{convoyName}/{isHost}"
     const val ACTIVE_RIDE_HUD = "active_ride_hud/{roomName}/{userName}"
+    const val SOS            = "sos/{roomName}"
 
     fun inviteFriendsPath(convoyName: String) = "invite_friends/$convoyName"
     fun lobbyPath(convoyName: String)         = "lobby/$convoyName"
     fun deviceSetupPath(convoyName: String, isHost: Boolean) = "device_setup/$convoyName/$isHost"
     fun activeRideHudPath(roomName: String, userName: String) = "active_ride_hud/$roomName/$userName"
+    fun sosPath(roomName: String) = "sos/$roomName"
 }

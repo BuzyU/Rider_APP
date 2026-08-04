@@ -72,6 +72,11 @@ interface ApiService {
     @POST("/api/rooms/room/token")
     suspend fun getRoomToken(@Body body: RoomTokenRequest): Response<RoomData>
 
+    // ── Emergency ─────────────────────────────────────────────────────────────────
+
+    @POST("/api/emergency/alert")
+    suspend fun sendSosAlert(@Body body: com.ridervoice.models.SosAlertRequest): Response<Any>
+
     // ── Ride History ──────────────────────────────────────────────────────────────
 
     @GET("/api/rides/history")

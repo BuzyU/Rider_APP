@@ -49,6 +49,12 @@ data class JoinTokenRequest(
     val roomName: String
 )
 
+data class SosAlertRequest(
+    val roomName: String,
+    val lat: Double?,
+    val lng: Double?
+)
+
 // ── Invites ───────────────────────────────────────────────────────────────────
 
 data class InviteRespondRequest(

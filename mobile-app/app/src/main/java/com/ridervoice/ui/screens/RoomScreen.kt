@@ -44,6 +44,7 @@ fun RoomScreen(
     roomName: String,
     userName: String,
     onLeave: () -> Unit,
+    onSosClick: () -> Unit,
     viewModel: RoomViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -266,12 +267,36 @@ fun RoomScreen(
                     }
                 )
 
+                // SOS
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures(onTap = { onSosClick() })
+                    }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x33FF4D4D))
+                            .border(1.dp, AlertRed, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = "SOS", tint = AlertRed, modifier = Modifier.size(22.dp))
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("SOS", color = AlertRed, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
                 // Leave
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.pointerInput(Unit) {
                         detectTapGestures(onTap = {
                             viewModel.leaveRoom()
+                            context.stopService(Intent(context, VoiceForegroundService::class.java))
                             onLeave()
                         })
                     }

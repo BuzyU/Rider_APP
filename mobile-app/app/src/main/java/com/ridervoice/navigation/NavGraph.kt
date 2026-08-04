@@ -168,7 +168,23 @@ fun NavGraph() {
                     navController.navigate(Routes.HOME) {
                         popUpTo(0) { inclusive = false }
                     }
+                },
+                onSosClick = {
+                    navController.navigate(Routes.sosPath(roomName))
                 }
+            )
+        }
+
+        // ── SOS SCREEN ─────────────────────────────────────────────────────
+        composable(
+            route = Routes.SOS,
+            arguments = listOf(navArgument("roomName") { type = NavType.StringType })
+        ) { back ->
+            val roomName = back.arguments?.getString("roomName") ?: ""
+            val vm: com.ridervoice.ui.viewmodels.SosViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            SosScreen(
+                onCancelClick = { navController.popBackStack() },
+                onSend = { vm.sendAlert(roomName); navController.popBackStack() }
             )
         }
 

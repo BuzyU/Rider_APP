@@ -23,12 +23,20 @@ class AuthViewModel @Inject constructor(
 
     private val _loginSuccess = MutableStateFlow(false)
     val loginSuccess: StateFlow<Boolean> = _loginSuccess.asStateFlow()
-    
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     private val _otpSent = MutableStateFlow(false)
     val otpSent: StateFlow<Boolean> = _otpSent.asStateFlow()
+
+    // Tracks consecutive wrong-password attempts to reveal "Forgot password?"
+    private val _wrongPasswordCount = MutableStateFlow(0)
+    val wrongPasswordCount: StateFlow<Int> = _wrongPasswordCount.asStateFlow()
+
+    // Signals a successful password reset email dispatch
+    private val _resetEmailSent = MutableStateFlow(false)
+    val resetEmailSent: StateFlow<Boolean> = _resetEmailSent.asStateFlow()
 
     private var _verificationId: String? = null
 
@@ -47,7 +55,7 @@ class AuthViewModel @Inject constructor(
             apiService.upsertProfile(
                 ProfileRequest(
                     handle = autoHandle,
-                    displayName = user.displayName ?: "Rider"
+                    displayName = user.displayName ?: user.email?.substringBefore("@") ?: "Rider"
                 )
             )
         } catch (e: Exception) {
@@ -59,7 +67,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
-            
+
             val success = authRepository.signInAnonymously()
             if (success) {
                 ensureProfile()
@@ -67,23 +75,25 @@ class AuthViewModel @Inject constructor(
             } else {
                 _errorMessage.value = "Guest sign-in failed. Check your network or Firebase setup."
             }
-            
+
             _isLoading.value = false
         }
     }
-    
+
     fun signOut() {
         authRepository.signOut()
         _loginSuccess.value = false
         _otpSent.value = false
         _verificationId = null
+        _wrongPasswordCount.value = 0
+        _resetEmailSent.value = false
     }
 
     fun handleGoogleIdToken(idToken: String) {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
-            
+
             val success = authRepository.signInWithGoogle(idToken)
             if (success) {
                 ensureProfile()
@@ -93,6 +103,67 @@ class AuthViewModel @Inject constructor(
             }
             _isLoading.value = false
         }
+    }
+
+    /** Sign in with email + password. Increments wrong-password counter for Forgot Password reveal. */
+    fun signInWithEmail(email: String, password: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+
+            val error = authRepository.signInWithEmail(email, password)
+            if (error == null) {
+                _wrongPasswordCount.value = 0
+                ensureProfile()
+                _loginSuccess.value = true
+            } else {
+                // Count wrong-password attempts specifically to reveal "Forgot password?"
+                if (error.contains("Wrong password", ignoreCase = true) ||
+                    error.contains("password", ignoreCase = true)
+                ) {
+                    _wrongPasswordCount.value += 1
+                }
+                _errorMessage.value = error
+            }
+            _isLoading.value = false
+        }
+    }
+
+    /** Register a new account with email + password. */
+    fun createAccountWithEmail(email: String, password: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+
+            val error = authRepository.createAccountWithEmail(email, password)
+            if (error == null) {
+                ensureProfile()
+                _loginSuccess.value = true
+            } else {
+                _errorMessage.value = error
+            }
+            _isLoading.value = false
+        }
+    }
+
+    /** Send password-reset email. */
+    fun sendPasswordReset(email: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+
+            val error = authRepository.sendPasswordResetEmail(email)
+            if (error == null) {
+                _resetEmailSent.value = true
+            } else {
+                _errorMessage.value = error
+            }
+            _isLoading.value = false
+        }
+    }
+
+    fun clearResetEmailSent() {
+        _resetEmailSent.value = false
     }
 
     fun onOtpSent(verificationId: String) {
@@ -118,6 +189,6 @@ class AuthViewModel @Inject constructor(
     fun setLoading(loading: Boolean) {
         _isLoading.value = loading
     }
-    
+
     fun getVerificationId(): String? = _verificationId
 }

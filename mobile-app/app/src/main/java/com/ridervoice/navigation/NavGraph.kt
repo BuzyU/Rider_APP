@@ -50,6 +50,21 @@ fun NavGraph() {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
+                },
+                onRegisterClick = {
+                    navController.navigate(Routes.REGISTER)
+                }
+            )
+        }
+
+        // ── Register ────────────────────────────────────────────────────────
+        composable(Routes.REGISTER) {
+            RegisterScreen(
+                onBackClick = { navController.popBackStack() },
+                onRegisterSuccess = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }

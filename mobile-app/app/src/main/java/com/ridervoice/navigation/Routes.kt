@@ -16,6 +16,7 @@ object Routes {
  
     // Join flow
     const val INVITES_INBOX  = "invites_inbox"
+    const val REGISTER       = "register"
  
     // Shared
     const val DEVICE_SETUP   = "device_setup/{convoyName}/{isHost}"

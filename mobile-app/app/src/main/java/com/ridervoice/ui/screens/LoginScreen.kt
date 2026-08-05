@@ -1,38 +1,45 @@
 package com.ridervoice.ui.screens
 
-import android.app.Activity
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.firebase.FirebaseException
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthOptions
-import com.google.firebase.auth.PhoneAuthProvider
 import com.ridervoice.R
-import com.ridervoice.ui.components.TacticalButton
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,30 +47,42 @@ fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel(),
     onGoogleSignInClick: () -> Unit = {},
     onPhoneOtpClick: () -> Unit = {},
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: () -> Unit,
+    onRegisterClick: () -> Unit
 ) {
-    val isLoading = viewModel.isLoading.collectAsState().value
-    val loginSuccess = viewModel.loginSuccess.collectAsState().value
-    val errorMessage = viewModel.errorMessage.collectAsState().value
-    
+    val isLoading by viewModel.isLoading.collectAsState()
+    val loginSuccess by viewModel.loginSuccess.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val wrongPasswordCount by viewModel.wrongPasswordCount.collectAsState()
+    val resetEmailSent by viewModel.resetEmailSent.collectAsState()
+
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val focusManager = LocalFocusManager.current
 
-    var showPhoneInput by remember { mutableStateOf(false) }
-    var showOtpInput by remember { mutableStateOf(false) }
-    var phoneNumber by remember { mutableStateOf("+1") }
-    var otpCode by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var showForgotPassword by remember { mutableStateOf(false) }
+    var forgotEmail by remember { mutableStateOf("") }
+
+    // Reveal "Forgot password?" after 2 wrong attempts
+    val showForgotHint = wrongPasswordCount >= 2
 
     LaunchedEffect(loginSuccess) {
-        if (loginSuccess) {
-            onLoginSuccess()
-        }
+        if (loginSuccess) onLoginSuccess()
     }
-    
+
     LaunchedEffect(errorMessage) {
-        errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
+        errorMessage?.let { snackbarHostState.showSnackbar(it) }
+    }
+
+    LaunchedEffect(resetEmailSent) {
+        if (resetEmailSent) {
+            snackbarHostState.showSnackbar("Password reset email sent! Check your inbox.")
+            showForgotPassword = false
+            viewModel.clearResetEmailSent()
         }
     }
 
@@ -75,184 +94,331 @@ fun LoginScreen(
                     .setFilterByAuthorizedAccounts(false)
                     .setServerClientId(context.getString(R.string.default_web_client_id))
                     .build()
-                    
                 val request = GetCredentialRequest.Builder()
                     .addCredentialOption(googleIdOption)
                     .build()
-                    
                 val result = credentialManager.getCredential(context, request)
                 val credential = result.credential
-                if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                if (credential is CustomCredential &&
+                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                ) {
                     val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                     viewModel.handleGoogleIdToken(googleIdTokenCredential.idToken)
                 }
+            } catch (e: NoCredentialException) {
+                snackbarHostState.showSnackbar(
+                    "No Google account found on this device. Please add a Google account in your device Settings."
+                )
             } catch (e: Exception) {
-                e.printStackTrace()
+                snackbarHostState.showSnackbar("Google sign-in failed: ${e.localizedMessage ?: "Unknown error"}")
             }
         }
     }
 
-    fun submitPhoneNumber() {
-        viewModel.setLoading(true)
-        val options = PhoneAuthOptions.newBuilder(FirebaseAuth.getInstance())
-            .setPhoneNumber(phoneNumber)
-            .setTimeout(60L, TimeUnit.SECONDS)
-            .setActivity(context as Activity)
-            .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    viewModel.handlePhoneCredential(credential)
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        },
+        containerColor = GraphiteBase
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF0A0E14), GraphiteBase, Color(0xFF0D1520))
+                    )
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 28.dp, vertical = 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Logo / Title
+                Text(
+                    text = "RIDER LINK",
+                    color = Color.White,
+                    style = MaterialTheme.typography.displayLarge
+                )
+                Text(
+                    text = "STAY CONNECTED. RIDE UNITED.",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.5.sp,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+
+                Spacer(modifier = Modifier.weight(0.6f))
+
+                Text(
+                    text = "WELCOME RIDER",
+                    color = NeonOrange,
+                    style = MaterialTheme.typography.titleLarge,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = "Sign in to continue.",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                if (!showForgotPassword) {
+                    // ── Google button ──────────────────────────────────────
+                    OutlinedButton(
+                        onClick = { if (!isLoading) launchGoogleSignIn() },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        border = ButtonDefaults.outlinedButtonBorder.copy(
+                            width = 1.dp
+                        )
+                    ) {
+                        Text(
+                            text = "G   Continue with Google",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        )
+                    }
+
+                    // ── Divider ────────────────────────────────────────────
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Divider(modifier = Modifier.weight(1f), color = DarkSlate)
+                        Text(
+                            "  or  ",
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                        Divider(modifier = Modifier.weight(1f), color = DarkSlate)
+                    }
+
+                    // ── Email field ────────────────────────────────────────
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it.trim() },
+                        label = { Text("Email", color = TextSecondary) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                        ),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = NeonOrange,
+                            unfocusedBorderColor = DarkSlate,
+                            textColor = Color.White,
+                            cursorColor = NeonOrange
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // ── Password field ─────────────────────────────────────
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password", color = TextSecondary) },
+                        singleLine = true,
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                focusManager.clearFocus()
+                                if (email.isNotBlank() && password.isNotBlank()) {
+                                    viewModel.signInWithEmail(email, password)
+                                }
+                            }
+                        ),
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                    tint = TextSecondary
+                                )
+                            }
+                        },
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = NeonOrange,
+                            unfocusedBorderColor = DarkSlate,
+                            textColor = Color.White,
+                            cursorColor = NeonOrange
+                        )
+                    )
+
+                    // ── Forgot password hint (appears after 2 failed attempts) ─
+                    AnimatedVisibility(
+                        visible = showForgotHint,
+                        enter = fadeIn() + slideInVertically(),
+                        exit = fadeOut()
+                    ) {
+                        TextButton(
+                            onClick = {
+                                forgotEmail = email
+                                showForgotPassword = true
+                            },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text(
+                                "Forgot password?",
+                                color = NeonOrange,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // ── Sign In button ─────────────────────────────────────
+                    Button(
+                        onClick = {
+                            focusManager.clearFocus()
+                            if (email.isNotBlank() && password.isNotBlank()) {
+                                viewModel.signInWithEmail(email, password)
+                            }
+                        },
+                        enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                "Sign In",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // ── New sign up ────────────────────────────────────────
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Don't have an account? ", color = TextSecondary, fontSize = 14.sp)
+                        TextButton(
+                            onClick = onRegisterClick,
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                "New sign up",
+                                color = NeonOrange,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                } else {
+                    // ── Forgot Password flow ───────────────────────────────
+                    Text(
+                        text = "Reset Password",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Enter your email and we'll send you a reset link.",
+                        color = TextSecondary,
+                        textAlign = TextAlign.Center,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = forgotEmail,
+                        onValueChange = { forgotEmail = it.trim() },
+                        label = { Text("Email", color = TextSecondary) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                focusManager.clearFocus()
+                                if (forgotEmail.isNotBlank()) viewModel.sendPasswordReset(forgotEmail)
+                            }
+                        ),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = NeonOrange,
+                            unfocusedBorderColor = DarkSlate,
+                            textColor = Color.White,
+                            cursorColor = NeonOrange
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Button(
+                        onClick = {
+                            focusManager.clearFocus()
+                            if (forgotEmail.isNotBlank()) viewModel.sendPasswordReset(forgotEmail)
+                        },
+                        enabled = !isLoading && forgotEmail.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Send Reset Email", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    TextButton(onClick = { showForgotPassword = false }) {
+                        Text("← Back to Sign In", color = TextSecondary, fontSize = 14.sp)
+                    }
                 }
-                override fun onVerificationFailed(e: FirebaseException) {
-                    viewModel.setLoading(false)
-                    coroutineScope.launch { snackbarHostState.showSnackbar(e.localizedMessage ?: "Verification Failed") }
-                }
-                override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
-                    viewModel.onOtpSent(verificationId)
-                    showPhoneInput = false
-                    showOtpInput = true
-                }
-            })
-            .build()
-        PhoneAuthProvider.verifyPhoneNumber(options)
-    }
 
-    fun submitOtpCode() {
-        val verificationId = viewModel.getVerificationId()
-        if (verificationId != null) {
-            val credential = PhoneAuthProvider.getCredential(verificationId, otpCode)
-            viewModel.handlePhoneCredential(credential)
-        }
-    }
+                Spacer(modifier = Modifier.weight(1f))
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(GraphiteBase)
-            .padding(horizontal = 24.dp, vertical = 48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        Text(
-            text = "RIDER LINK",
-            color = Color.White,
-            style = MaterialTheme.typography.displayLarge
-        )
-        Text(
-            text = "STAY CONNECTED. RIDE UNITED.",
-            color = TextSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.5.sp,
-            modifier = Modifier.padding(top = 8.dp),
-            style = MaterialTheme.typography.bodyLarge
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Text(
-            text = "WELCOME RIDER",
-            color = NeonOrange,
-            style = MaterialTheme.typography.titleLarge,
-            letterSpacing = 1.sp
-        )
-        Text(
-            text = "Let's get you connected.",
-            color = TextSecondary,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        if (showPhoneInput) {
-            OutlinedTextField(
-                value = phoneNumber,
-                onValueChange = { phoneNumber = it },
-                label = { Text("Phone Number", color = TextSecondary) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            TacticalButton(
-                text = if (isLoading) "Sending..." else "Send Code",
-                onClick = { submitPhoneNumber() },
-                color = NeonOrange,
-                textColor = Color.White
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            TextButton(onClick = { showPhoneInput = false }) {
-                Text("Cancel", color = TextSecondary)
+                Text(
+                    text = "By continuing, you agree to our\nTerms of Service and Privacy Policy",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 17.sp
+                )
             }
-        } else if (showOtpInput) {
-            OutlinedTextField(
-                value = otpCode,
-                onValueChange = { otpCode = it },
-                label = { Text("6-Digit Code", color = TextSecondary) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            TacticalButton(
-                text = if (isLoading) "Verifying..." else "Verify Code",
-                onClick = { submitOtpCode() },
-                color = ElectricCyan,
-                textColor = Color.Black
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            TextButton(onClick = { 
-                showOtpInput = false
-                showPhoneInput = true
-            }) {
-                Text("Change Number", color = TextSecondary)
-            }
-        } else {
-            // Default Action Buttons
-            TacticalButton(
-                text = "G  Continue with Google",
-                onClick = { launchGoogleSignIn() },
-                isOutlined = true,
-                color = DarkSlate,
-                textColor = Color.White
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            TacticalButton(
-                text = "📞  Continue with Phone",
-                onClick = { showPhoneInput = true },
-                isOutlined = true,
-                color = DarkSlate,
-                textColor = Color.White
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            TacticalButton(
-                text = if (isLoading) "Connecting..." else "Continue as Guest",
-                onClick = { if (!isLoading) viewModel.signInAnonymously() },
-                isOutlined = true,
-                color = Color(0xFF1D232B),
-                textColor = TextSecondary
-            )
         }
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Text(
-            text = "By continuing, you agree to our\nTerms of Service and Privacy Policy",
-            color = TextSecondary,
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center,
-            lineHeight = 18.sp,
-            style = MaterialTheme.typography.bodyLarge
-        )
-        
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
     }
 }

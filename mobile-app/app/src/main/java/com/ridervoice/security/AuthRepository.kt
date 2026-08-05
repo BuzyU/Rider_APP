@@ -61,4 +61,44 @@ class AuthRepository @Inject constructor() {
             false
         }
     }
+
+    /** Sign in with email + password. Returns null on success, error message on failure. */
+    suspend fun signInWithEmail(email: String, password: String): String? {
+        return try {
+            auth.signInWithEmailAndPassword(email, password).await()
+            null
+        } catch (e: com.google.firebase.auth.FirebaseAuthInvalidCredentialsException) {
+            "Wrong password. Please try again."
+        } catch (e: com.google.firebase.auth.FirebaseAuthInvalidUserException) {
+            "No account found with this email."
+        } catch (e: Exception) {
+            e.localizedMessage ?: "Sign-in failed."
+        }
+    }
+
+    /** Create a new account with email + password. Returns null on success, error message on failure. */
+    suspend fun createAccountWithEmail(email: String, password: String): String? {
+        return try {
+            auth.createUserWithEmailAndPassword(email, password).await()
+            null
+        } catch (e: com.google.firebase.auth.FirebaseAuthWeakPasswordException) {
+            "Password must be at least 6 characters."
+        } catch (e: com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+            "An account with this email already exists."
+        } catch (e: Exception) {
+            e.localizedMessage ?: "Registration failed."
+        }
+    }
+
+    /** Send password reset email. Returns null on success, error message on failure. */
+    suspend fun sendPasswordResetEmail(email: String): String? {
+        return try {
+            auth.sendPasswordResetEmail(email).await()
+            null
+        } catch (e: com.google.firebase.auth.FirebaseAuthInvalidUserException) {
+            "No account found with this email."
+        } catch (e: Exception) {
+            e.localizedMessage ?: "Failed to send reset email."
+        }
+    }
 }

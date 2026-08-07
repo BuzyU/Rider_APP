@@ -57,7 +57,7 @@ fun ProfileDrawer(
             Column {
                 Text(
                     text = "GUEST RIDER",
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -124,7 +124,7 @@ fun StatItem(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
-            color = Color.White,
+            color = TextPrimary,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
@@ -160,7 +160,7 @@ fun DrawerMenuItem(
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = text,
-            color = if (tint == AlertRed) AlertRed else Color.White,
+            color = if (tint == AlertRed) AlertRed else TextPrimary,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium
         )

@@ -80,7 +80,7 @@ fun RoomScreen(
         ) {
             Icon(Icons.Default.Navigation, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(64.dp))
             Spacer(modifier = Modifier.height(16.dp))
-            Text("TACTICAL CONVOY ACTIVE", color = Color.White, style = MaterialTheme.typography.titleLarge)
+            Text("TACTICAL CONVOY ACTIVE", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
             Text("Voice and telemetry running", color = TextSecondary)
             Spacer(modifier = Modifier.height(32.dp))
             Button(
@@ -93,7 +93,7 @@ fun RoomScreen(
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan)
             ) {
-                Text("LAUNCH NAVIGATION", color = Color.Black, fontWeight = FontWeight.Bold)
+                Text("LAUNCH NAVIGATION", color = TextPrimary, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -108,7 +108,7 @@ fun RoomScreen(
 
             // Room info
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(roomName, color = Color.White, style = MaterialTheme.typography.titleLarge)
+                Text(roomName, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
                 Text("${participants.count { !it.isGhost }} connected", color = TextSecondary, fontSize = 12.sp)
             }
 
@@ -127,7 +127,7 @@ fun RoomScreen(
                     .background(Color(0x88FF4D4D))
                     .padding(12.dp)
             ) {
-                Text(msg, color = Color.White, fontSize = 13.sp)
+                Text(msg, color = TextPrimary, fontSize = 13.sp)
             }
         }
 
@@ -180,7 +180,7 @@ fun RoomScreen(
                 ) {
                     Column {
                         Text("VOICE CHANNEL", color = TextSecondary, fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Bold)
-                        Text(roomName, color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(roomName, color = TextPrimary, fontWeight = FontWeight.Bold)
                     }
                     IconButton(onClick = { isVoiceChannelExpanded = false }) {
                         Icon(Icons.Default.ExpandMore, contentDescription = "Collapse", tint = TextSecondary)
@@ -210,7 +210,7 @@ fun RoomScreen(
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("${participants.count { !it.isGhost }} riders online", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("${participants.count { !it.isGhost }} riders online", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         Text(audioStatusLine, color = TextSecondary, fontSize = 11.sp)
                     }
                     IconButton(onClick = { isVoiceChannelExpanded = true }) {
@@ -458,7 +458,7 @@ private fun PttButton(
         Icon(
             Icons.Default.Mic,
             contentDescription = "PTT",
-            tint = if (isActive) Color.White else TextSecondary,
+            tint = if (isActive) TextPrimary else TextSecondary,
             modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -468,7 +468,7 @@ private fun PttButton(
                 isVoxOpen -> "VOX ACTIVE"
                 else      -> "HOLD TO TALK"
             },
-            color = if (isActive) Color.White else TextSecondary,
+            color = if (isActive) TextPrimary else TextSecondary,
             fontWeight = FontWeight.Bold,
             fontSize = 13.sp
         )

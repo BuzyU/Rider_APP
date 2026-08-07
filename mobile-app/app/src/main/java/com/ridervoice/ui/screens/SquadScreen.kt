@@ -58,12 +58,12 @@ fun SquadScreen(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = Color.White)
+                    Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
                 }
                 Column {
                     Text(
                         text = "YOUR SQUAD",
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.sp
@@ -159,7 +159,7 @@ fun SquadScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = invite.room.name.uppercase(),
-                            color = Color.White,
+                            color = TextPrimary,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
@@ -174,7 +174,7 @@ fun SquadScreen(
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
-                        Text("JOIN", fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("JOIN", fontWeight = FontWeight.Bold, color = TextPrimary)
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -217,7 +217,7 @@ fun SquadScreen(
         var friendHandle by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showAddFriendDialog = false },
-            title = { Text("Add Rider to Squad", color = Color.White) },
+            title = { Text("Add Rider to Squad", color = TextPrimary) },
             text = {
                 OutlinedTextField(
                     value = friendHandle,
@@ -227,7 +227,7 @@ fun SquadScreen(
                         focusedBorderColor = NeonOrange,
                         unfocusedBorderColor = Gunmetal,
                         containerColor = DarkSlate,
-                        textColor = Color.White
+                        textColor = TextPrimary
                     ),
                     singleLine = true
                 )
@@ -270,11 +270,11 @@ fun SquadMemberCard(handle: String, bike: String, status: String) {
                 .background(Gunmetal),
             contentAlignment = Alignment.Center
         ) {
-            Text(handle.take(2).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
+            Text(handle.take(2).uppercase(), color = TextPrimary, fontWeight = FontWeight.Bold)
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = "@$handle", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(text = "@$handle", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Text(text = bike, color = TextSecondary, fontSize = 12.sp)
         }
         Text(

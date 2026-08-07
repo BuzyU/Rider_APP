@@ -51,11 +51,11 @@ fun InviteFriendsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
             }
             Text(
                 text = "INVITE SQUAD",
-                color = Color.White,
+                color = TextPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 16.dp)
             )
@@ -93,7 +93,7 @@ fun InviteFriendsScreen(
                 text = "Continue to Lobby",
                 onClick = onInvitesSent,
                 color = ElectricCyan,
-                textColor = Color.Black,
+                textColor = TextPrimary,
                 modifier = Modifier.padding(24.dp)
             )
         }
@@ -115,7 +115,7 @@ fun FriendInviteCard(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = friend.displayName ?: friend.handle, color = Color.White, fontWeight = FontWeight.Bold)
+            Text(text = friend.displayName ?: friend.handle, color = TextPrimary, fontWeight = FontWeight.Bold)
         }
         
         Button(
@@ -126,7 +126,7 @@ fun FriendInviteCard(
                 disabledContainerColor = Gunmetal
             )
         ) {
-            Text(if (isInvited) "Invited" else "Invite", color = if (isInvited) TextSecondary else Color.White)
+            Text(if (isInvited) "Invited" else "Invite", color = if (isInvited) TextSecondary else TextPrimary)
         }
     }
 }

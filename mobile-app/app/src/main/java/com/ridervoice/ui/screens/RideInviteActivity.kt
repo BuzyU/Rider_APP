@@ -65,21 +65,21 @@ class RideInviteActivity : ComponentActivity() {
                     
                     Text(
                         text = inviter,
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Black
                     )
                     
                     Text(
                         text = "is requesting you to join",
-                        color = Color.Gray,
+                        color = TextSecondary,
                         fontSize = 16.sp,
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                     
                     Text(
                         text = roomName,
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -120,7 +120,7 @@ class RideInviteActivity : ComponentActivity() {
                         colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("JOIN RIDE", color = Color.Black, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                        Text("JOIN RIDE", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Black)
                     }
                     
                     Spacer(modifier = Modifier.height(24.dp))
@@ -133,7 +133,7 @@ class RideInviteActivity : ComponentActivity() {
                         colors = ButtonDefaults.buttonColors(containerColor = DarkSlate),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("IGNORE", color = Color.Gray, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text("IGNORE", color = TextSecondary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

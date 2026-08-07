@@ -51,11 +51,11 @@ fun DeviceSetupScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
             }
             Text(
                 text = "DEVICE SETUP",
-                color = Color.White,
+                color = TextPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 16.dp)
             )
@@ -130,7 +130,7 @@ fun DeviceSetupScreen(
             },
             enabled = true, // ALWAYS ENABLED to allow bypass
             color = NeonOrange,
-            textColor = Color.White,
+            textColor = TextPrimary,
             modifier = Modifier.padding(24.dp)
         )
     }

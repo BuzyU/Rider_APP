@@ -17,6 +17,6 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
         onSplashFinished()
     }
     Box(modifier = Modifier.fillMaxSize().background(GraphiteBase), contentAlignment = Alignment.Center) {
-        Text("INITIALIZING SYSTEMS...", color = Color.White)
+        Text("INITIALIZING SYSTEMS...", color = TextPrimary)
     }
 }

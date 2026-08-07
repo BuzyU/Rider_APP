@@ -48,15 +48,15 @@ fun RideStatsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = Color.White)
+                    Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
                 }
                 Text(
                     text = "RIDE STATS",
-                    color = Color.White,
+                    color = TextPrimary,
                     style = MaterialTheme.typography.titleLarge
                 )
                 IconButton(onClick = { /* Share */ }) {
-                    Icon(Icons.Default.IosShare, contentDescription = "Share", tint = Color.White)
+                    Icon(Icons.Default.IosShare, contentDescription = "Share", tint = TextPrimary)
                 }
             }
 
@@ -234,7 +234,7 @@ fun StatItem(label: String, value: String, unit: String) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 text = value,
-                color = Color.White,
+                color = TextPrimary,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Black
             )

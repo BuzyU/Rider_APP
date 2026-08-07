@@ -30,7 +30,7 @@ class EmergencyAlertActivity : ComponentActivity() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF8B0000)), // Deep Red
+                    .background(AlertRed), // Deep Red
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -39,7 +39,7 @@ class EmergencyAlertActivity : ComponentActivity() {
                 ) {
                     Text(
                         text = "EMERGENCY",
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 48.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 4.sp
@@ -49,7 +49,7 @@ class EmergencyAlertActivity : ComponentActivity() {
                     
                     Text(
                         text = alertType,
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -58,7 +58,7 @@ class EmergencyAlertActivity : ComponentActivity() {
                     
                     Text(
                         text = "Dispatching location to squad in 10s...",
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 16.sp
                     )
                     
@@ -72,7 +72,7 @@ class EmergencyAlertActivity : ComponentActivity() {
                         colors = ButtonDefaults.buttonColors(containerColor = DarkSlate),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("I'M OKAY (CANCEL)", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text("I'M OKAY (CANCEL)", color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

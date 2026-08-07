@@ -27,7 +27,7 @@ fun TacticalDebugOverlay(
         modifier = modifier
             .fillMaxWidth()
             .height(200.dp)
-            .background(Color(0xBB000000), RoundedCornerShape(8.dp))
+            .background(DarkSlate.copy(alpha = 0.85f), RoundedCornerShape(8.dp))
             .padding(8.dp)
     ) {
         Column {
@@ -45,7 +45,7 @@ fun TacticalDebugOverlay(
                 items(logs.reversed()) { log ->
                     Text(
                         text = log,
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         lineHeight = 12.sp

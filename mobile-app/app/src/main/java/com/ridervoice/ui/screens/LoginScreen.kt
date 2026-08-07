@@ -127,7 +127,7 @@ fun LoginScreen(
                 .padding(padding)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color(0xFF0A0E14), GraphiteBase, Color(0xFF0D1520))
+                        colors = listOf(GraphiteBase, GraphiteBase, GraphiteBase)
                     )
                 )
         ) {
@@ -142,7 +142,7 @@ fun LoginScreen(
                 // Logo / Title
                 Text(
                     text = "RIDER LINK",
-                    color = Color.White,
+                    color = TextPrimary,
                     style = MaterialTheme.typography.displayLarge
                 )
                 Text(
@@ -177,7 +177,7 @@ fun LoginScreen(
                         onClick = { if (!isLoading) launchGoogleSignIn() },
                         modifier = Modifier.fillMaxWidth().height(52.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
                         border = ButtonDefaults.outlinedButtonBorder.copy(
                             width = 1.dp
                         )
@@ -221,7 +221,7 @@ fun LoginScreen(
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = NeonOrange,
                             unfocusedBorderColor = DarkSlate,
-                            textColor = Color.White,
+                            textColor = TextPrimary,
                             cursorColor = NeonOrange
                         )
                     )
@@ -261,7 +261,7 @@ fun LoginScreen(
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = NeonOrange,
                             unfocusedBorderColor = DarkSlate,
-                            textColor = Color.White,
+                            textColor = TextPrimary,
                             cursorColor = NeonOrange
                         )
                     )
@@ -304,14 +304,14 @@ fun LoginScreen(
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
-                                color = Color.White,
+                                color = TextPrimary,
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp
                             )
                         } else {
                             Text(
                                 "Sign In",
-                                color = Color.White,
+                                color = TextPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
@@ -342,7 +342,7 @@ fun LoginScreen(
                     // ── Forgot Password flow ───────────────────────────────
                     Text(
                         text = "Reset Password",
-                        color = Color.White,
+                        color = TextPrimary,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -374,7 +374,7 @@ fun LoginScreen(
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = NeonOrange,
                             unfocusedBorderColor = DarkSlate,
-                            textColor = Color.White,
+                            textColor = TextPrimary,
                             cursorColor = NeonOrange
                         )
                     )
@@ -393,12 +393,12 @@ fun LoginScreen(
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
-                                color = Color.White,
+                                color = TextPrimary,
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("Send Reset Email", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text("Send Reset Email", color = TextPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
 

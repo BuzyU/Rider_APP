@@ -93,7 +93,7 @@ fun HomeScreen(
                         )
                         Text(
                             text = "READY TO RIDE?",
-                            color = Color.White,
+                            color = TextPrimary,
                             style = MaterialTheme.typography.titleLarge
                         )
                     }
@@ -138,7 +138,7 @@ fun HomeScreen(
                     Column {
                         Text(
                             text = if (uiState.hasActiveRide) uiState.activeRideName else "No Active Ride",
-                            color = Color.White,
+                            color = TextPrimary,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleLarge
@@ -218,7 +218,7 @@ fun SleekActionRow(
         
         Text(
             text = title,
-            color = Color.White,
+            color = TextPrimary,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f)

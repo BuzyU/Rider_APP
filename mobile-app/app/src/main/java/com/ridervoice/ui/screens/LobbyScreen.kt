@@ -51,11 +51,11 @@ fun LobbyScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
             }
             Text(
                 text = "LOBBY: $convoyName",
-                color = Color.White,
+                color = TextPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 16.dp)
             )
@@ -104,7 +104,7 @@ fun LobbyScreen(
                 },
                 enabled = canStart,
                 color = NeonOrange,
-                textColor = Color.White,
+                textColor = TextPrimary,
                 modifier = Modifier.padding(24.dp)
             )
         }
@@ -122,7 +122,7 @@ fun RiderStatusCard(userName: String, status: String, color: Color) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = userName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text(text = userName, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Text(text = status, color = color, fontSize = 14.sp)
         }
         Icon(

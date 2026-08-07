@@ -70,7 +70,7 @@ fun RegisterScreen(
                 title = {},
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = Color.Transparent)
@@ -83,7 +83,7 @@ fun RegisterScreen(
                 .padding(padding)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color(0xFF0A0E14), GraphiteBase, Color(0xFF0D1520))
+                        colors = listOf(GraphiteBase, GraphiteBase, GraphiteBase)
                     )
                 )
         ) {
@@ -127,7 +127,7 @@ fun RegisterScreen(
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         focusedBorderColor = NeonOrange,
                         unfocusedBorderColor = DarkSlate,
-                        textColor = Color.White,
+                        textColor = TextPrimary,
                         cursorColor = NeonOrange
                     )
                 )
@@ -168,7 +168,7 @@ fun RegisterScreen(
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         focusedBorderColor = NeonOrange,
                         unfocusedBorderColor = DarkSlate,
-                        textColor = Color.White,
+                        textColor = TextPrimary,
                         cursorColor = NeonOrange
                     )
                 )
@@ -212,7 +212,7 @@ fun RegisterScreen(
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         focusedBorderColor = NeonOrange,
                         unfocusedBorderColor = DarkSlate,
-                        textColor = Color.White,
+                        textColor = TextPrimary,
                         cursorColor = NeonOrange
                     )
                 )
@@ -232,14 +232,14 @@ fun RegisterScreen(
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
-                            color = Color.White,
+                            color = TextPrimary,
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp
                         )
                     } else {
                         Text(
                             "Create Account",
-                            color = Color.White,
+                            color = TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )

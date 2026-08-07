@@ -26,7 +26,7 @@ fun PostRideSummaryScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xEE000000)),
+            .background(DarkSlate.copy(alpha = 0.9f)),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -67,7 +67,7 @@ fun PostRideSummaryScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("SAVE TO LOGBOOK", color = Color.White, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Text("SAVE TO LOGBOOK", color = TextPrimary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -82,7 +82,7 @@ fun PostRideSummaryScreen(
 @Composable
 fun StatBox(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Text(label, color = TextSecondary, fontSize = 10.sp)
     }
 }
@@ -96,6 +96,6 @@ fun PrivacyChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
         ),
         shape = RoundedCornerShape(8.dp)
     ) {
-        Text(label, color = if (isSelected) Color.White else TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = if (isSelected) TextPrimary else TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }

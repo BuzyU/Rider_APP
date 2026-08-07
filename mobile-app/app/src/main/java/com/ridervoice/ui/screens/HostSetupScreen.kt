@@ -58,11 +58,11 @@ fun HostSetupScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White)
+                Icon(Icons.Default.ArrowBackIosNew, "Back", tint = TextPrimary)
             }
             Column(modifier = Modifier.padding(start = 8.dp)) {
                 Text("HOST A RIDE", color = TextSecondary, fontSize = 11.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
-                Text("Name your convoy", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                Text("Name your convoy", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
             }
         }
 
@@ -144,9 +144,9 @@ fun HostSetupScreen(
                 )
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = TextPrimary, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                 } else {
-                    Text("CREATE CONVOY & INVITE RIDERS →", color = Color.White, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("CREATE CONVOY & INVITE RIDERS →", color = TextPrimary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 }
             }
 

@@ -35,7 +35,7 @@ fun ParticipantCard(participant: Participant, isFaded: Boolean = false) {
             Column {
                 Text(
                     text = participant.identity.uppercase(), 
-                    color = Color.White, 
+                    color = TextPrimary, 
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -43,7 +43,7 @@ fun ParticipantCard(participant: Participant, isFaded: Boolean = false) {
                 if (participant.isGhost) {
                     Text("Reconnecting...", color = NeonOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 } else {
-                    Text("Online", color = Color(0xFF34C759), fontSize = 12.sp)
+                    Text("Online", color = SuccessGreen, fontSize = 12.sp)
                 }
             }
         }

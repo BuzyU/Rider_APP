@@ -50,15 +50,15 @@ fun RoutePlannerScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
             }
             Text(
                 text = "ROUTE PLANNER",
-                color = Color.White,
+                color = TextPrimary,
                 style = MaterialTheme.typography.titleLarge
             )
             IconButton(onClick = { /* Menu */ }) {
-                Icon(Icons.Default.List, contentDescription = "Menu", tint = Color.White)
+                Icon(Icons.Default.List, contentDescription = "Menu", tint = TextPrimary)
             }
         }
 
@@ -74,7 +74,7 @@ fun RoutePlannerScreen(
                     focusedBorderColor = NeonOrange,
                     unfocusedBorderColor = Gunmetal,
                     containerColor = DarkSlate,
-                    textColor = Color.White
+                    textColor = TextPrimary
                 ),
                 shape = RoundedCornerShape(12.dp)
             )
@@ -89,7 +89,7 @@ fun RoutePlannerScreen(
                     focusedBorderColor = NeonOrange,
                     unfocusedBorderColor = Gunmetal,
                     containerColor = DarkSlate,
-                    textColor = Color.White
+                    textColor = TextPrimary
                 ),
                 shape = RoundedCornerShape(12.dp)
             )
@@ -124,7 +124,7 @@ fun RoutePlannerScreen(
                 ) {
                     Text(
                         text = pref,
-                        color = if (isSelected) Color.White else TextSecondary,
+                        color = if (isSelected) TextPrimary else TextSecondary,
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
@@ -189,11 +189,11 @@ fun RoutePlannerScreen(
                                 .background(Gunmetal),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(rider.handle.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(rider.handle.take(1).uppercase(), color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text("@${rider.handle}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text("@${rider.handle}", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             Text("${rider.distanceKm} km away", color = NeonOrange, fontSize = 10.sp)
                         }
                     }
@@ -209,7 +209,7 @@ fun RoutePlannerScreen(
         ) {
             Text(
                 text = uiState.routeName,
-                color = Color.White,
+                color = TextPrimary,
                 style = MaterialTheme.typography.titleLarge
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -218,15 +218,15 @@ fun RoutePlannerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("${uiState.distanceKm} km", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                    Text("${uiState.distanceKm} km", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
                     Text("DISTANCE", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
                 Column {
-                    Text(uiState.duration, color = Color.White, style = MaterialTheme.typography.titleLarge)
+                    Text(uiState.duration, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
                     Text("DURATION", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
                 Column {
-                    Text("${uiState.elevationGain} m", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                    Text("${uiState.elevationGain} m", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
                     Text("ELEV GAIN", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -237,7 +237,7 @@ fun RoutePlannerScreen(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
             ) {
-                Text("SAVE ROUTE", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                Text("SAVE ROUTE", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
             }
         }
     }

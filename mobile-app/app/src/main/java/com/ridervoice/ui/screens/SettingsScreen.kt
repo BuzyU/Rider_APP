@@ -48,11 +48,11 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = Color.White)
+                    Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
                 }
                 Text(
                     text = "SETTINGS",
-                    color = Color.White,
+                    color = TextPrimary,
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(start = 16.dp)
                 )
@@ -62,6 +62,15 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(bottom = 100.dp)
             ) {
+                item {
+                    SettingsSectionHeader("APPEARANCE")
+                    SettingsItemToggle(
+                        label = "Dark Mode",
+                        checked = settingsState.darkTheme,
+                        onCheckedChange = { settingsViewModel.toggleDarkTheme() }
+                    )
+                }
+
                 item {
                     SettingsSectionHeader("AUDIO SETTINGS")
                     SettingsItemValue(
@@ -139,7 +148,7 @@ fun SettingsScreen(
         showOptionsDialog?.let { (key, options) ->
             AlertDialog(
                 onDismissRequest = { showOptionsDialog = null },
-                title = { Text(text = "Select Option", color = Color.White) },
+                title = { Text(text = "Select Option", color = TextPrimary) },
                 containerColor = Gunmetal,
                 text = {
                     Column {
@@ -193,7 +202,7 @@ fun SettingsItemValue(label: String, value: String, onClick: () -> Unit = {}) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.VolumeUp, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(16.dp))
-            Text(label, color = Color.White, style = MaterialTheme.typography.bodyLarge)
+            Text(label, color = TextPrimary, style = MaterialTheme.typography.bodyLarge)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(value, color = ElectricCyan, style = MaterialTheme.typography.bodyLarge)
@@ -216,13 +225,13 @@ fun SettingsItemToggle(label: String, checked: Boolean, onCheckedChange: (Boolea
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Mic, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(16.dp))
-            Text(label, color = Color.White, style = MaterialTheme.typography.bodyLarge)
+            Text(label, color = TextPrimary, style = MaterialTheme.typography.bodyLarge)
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
+                checkedThumbColor = TextPrimary,
                 checkedTrackColor = SuccessGreen,
                 uncheckedThumbColor = TextSecondary,
                 uncheckedTrackColor = Gunmetal

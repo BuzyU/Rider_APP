@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 
 data class AppSettingsState(
+    val darkTheme: Boolean = false,
     val noiseCancellation: Boolean = true,
     val openMic: Boolean = true,
     val autoHudMode: Boolean = true,
@@ -31,6 +32,7 @@ class SettingsViewModel @Inject constructor(
 
     private fun loadInitialState(): AppSettingsState {
         return AppSettingsState(
+            darkTheme = securePrefs.getBoolean("dark_theme_enabled", false),
             noiseCancellation = securePrefs.getBoolean("settings_noise_cancellation", true),
             openMic = securePrefs.getBoolean("settings_open_mic", true),
             autoHudMode = securePrefs.getBoolean("settings_auto_hud", true),
@@ -41,6 +43,13 @@ class SettingsViewModel @Inject constructor(
             speedForHud = securePrefs.getString("settings_speed_hud", "15 km/h"),
             reconnectMode = securePrefs.getString("settings_reconnect_mode", "Auto")
         )
+    }
+
+    fun toggleDarkTheme() {
+        val newValue = !_settingsState.value.darkTheme
+        _settingsState.value = _settingsState.value.copy(darkTheme = newValue)
+        securePrefs.saveBoolean("dark_theme_enabled", newValue)
+        com.ridervoice.ui.theme.ThemeState.set(newValue)
     }
 
     fun toggleNoiseCancellation() {

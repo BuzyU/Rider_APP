@@ -49,11 +49,11 @@ fun InvitesInboxScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
             }
             Text(
                 text = "INVITES INBOX",
-                color = Color.White,
+                color = TextPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(start = 16.dp)
             )
@@ -111,7 +111,7 @@ fun InviteCard(
         Spacer(modifier = Modifier.height(16.dp))
         
         Text(text = "CONVOY", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        Text(text = invite.room.name, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black)
+        Text(text = invite.room.name, color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Black)
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -122,9 +122,9 @@ fun InviteCard(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.weight(1f).height(48.dp)
             ) {
-                Icon(Icons.Default.Close, contentDescription = "Decline", tint = Color.White)
+                Icon(Icons.Default.Close, contentDescription = "Decline", tint = TextPrimary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Decline", color = Color.White)
+                Text("Decline", color = TextPrimary)
             }
             Button(
                 onClick = onAccept,
@@ -132,9 +132,9 @@ fun InviteCard(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.weight(1f).height(48.dp)
             ) {
-                Icon(Icons.Default.Check, contentDescription = "Accept", tint = Color.White)
+                Icon(Icons.Default.Check, contentDescription = "Accept", tint = TextPrimary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Accept", color = Color.White)
+                Text("Accept", color = TextPrimary)
             }
         }
     }

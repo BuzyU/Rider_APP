@@ -23,7 +23,7 @@ fun TacticalButton(
     modifier: Modifier = Modifier,
     isOutlined: Boolean = false,
     color: Color = NeonOrange,
-    textColor: Color = Color.White,
+    textColor: Color = TextPrimary,
     enabled: Boolean = true
 ) {
     if (isOutlined) {

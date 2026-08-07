@@ -5,14 +5,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
+import com.ridervoice.ui.theme.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.models.Participant
-import com.ridervoice.ui.theme.DarkSlate
-import com.ridervoice.ui.theme.NeonOrange
-import com.ridervoice.ui.theme.TextSecondary
+
 
 @Composable
 fun ParticipantCard(participant: Participant, isFaded: Boolean = false) {

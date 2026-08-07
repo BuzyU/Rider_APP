@@ -7,8 +7,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import com.ridervoice.ui.theme.GraphiteBase
+import com.ridervoice.ui.theme.*
+
 
 @Composable
 fun SplashScreen(onSplashFinished: () -> Unit) {

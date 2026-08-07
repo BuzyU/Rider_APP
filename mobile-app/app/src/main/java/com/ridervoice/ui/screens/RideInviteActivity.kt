@@ -11,14 +11,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import com.ridervoice.ui.theme.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ridervoice.ui.theme.DarkSlate
-import com.ridervoice.ui.theme.GraphiteBase
-import com.ridervoice.ui.theme.NeonOrange
-import com.ridervoice.ui.theme.SuccessGreen
+
 
 import com.ridervoice.network.ApiService
 import dagger.hilt.android.AndroidEntryPoint

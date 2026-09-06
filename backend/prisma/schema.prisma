@@ -89,6 +89,7 @@ model RideInvite {
 model RideSession {
   id           String         @id @default(uuid())
   riderId      String
+  roomName     String?
   startTime    DateTime
   endTime      DateTime?
   distanceKm   Float

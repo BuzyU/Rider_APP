@@ -22,6 +22,7 @@ router.post('/sync', async (req, res) => {
         const ride = await prisma.rideSession.create({
             data: {
                 riderId,
+                roomName: roomName || null,
                 startTime: new Date(startTime),
                 endTime: endTime ? new Date(endTime) : null,
                 distanceKm: distanceKm || 0,

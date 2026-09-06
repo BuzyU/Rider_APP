@@ -159,5 +159,6 @@ data class RideHistoryResponse(
     val endTime: String?,
     val distanceKm: Float,
     val privacyState: String,
-    val routeJson: String?
+    val routeJson: String?,
+    val roomName: String? = null
 )

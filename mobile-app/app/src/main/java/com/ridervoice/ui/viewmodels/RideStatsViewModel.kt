@@ -76,9 +76,14 @@ class RideStatsViewModel @Inject constructor(
                             val startMs = formatter.parse(rideResponse.startTime)?.time ?: return@forEach
                             val endMs = rideResponse.endTime?.let { formatter.parse(it)?.time }
                             
+                            val existing = rideDao.getSessionById(rideResponse.id)
+                            val resolvedRoomName = rideResponse.roomName?.takeIf { it.isNotBlank() }
+                                ?: existing?.roomName?.takeIf { it.isNotBlank() }
+                                ?: "Unnamed Ride"
+
                             val entity = com.ridervoice.data.local.entities.RideSessionEntity(
                                 id = rideResponse.id,
-                                roomName = "Sync Ride",
+                                roomName = resolvedRoomName,
                                 startTime = startMs,
                                 endTime = endMs,
                                 totalDistanceMeters = rideResponse.distanceKm * 1000f,

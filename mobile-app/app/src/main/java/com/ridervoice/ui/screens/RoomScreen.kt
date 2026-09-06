@@ -63,6 +63,25 @@ fun RoomScreen(
     var isVoiceChannelExpanded by remember { mutableStateOf(false) }
     var isPttPressed by remember { mutableStateOf(false) }
 
+    // Point-of-use runtime permissions: Background location launcher (API 29+)
+    val bgLocationLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
+    // Point-of-use runtime permissions: Location + Notifications
+    val ridePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] == true
+        if (fineLocationGranted && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            bgLocationLauncher.launch(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        ridePermissionLauncher.launch(com.ridervoice.permissions.PermissionManager.ridePermissions)
+    }
+
     // Start session
     LaunchedEffect(roomName, userName) {
         val serviceIntent = Intent(context, VoiceForegroundService::class.java)

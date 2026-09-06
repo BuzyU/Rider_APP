@@ -25,15 +25,31 @@ router.post('/room/token', async (req, res) => {
             }
         })
 
-        // Upsert the Room in Supabase
-        await prisma.room.upsert({
+        // Check if room already exists
+        const existingRoom = await prisma.room.findUnique({
             where: { name: roomName },
-            update: {},
-            create: {
-                name: roomName,
-                ownerId: user.uid
-            }
+            include: { invites: { where: { status: 'ACCEPTED' } } }
         })
+
+        if (existingRoom) {
+            // Verify membership: caller must be room owner or have an ACCEPTED invite
+            const isOwner = existingRoom.ownerId === user.uid
+            const hasAcceptedInvite = existingRoom.invites.some(
+                i => i.inviteeId === user.uid && (!i.status || i.status === 'ACCEPTED')
+            )
+
+            if (!isOwner && !hasAcceptedInvite) {
+                return res.status(403).json({ error: 'Access denied: you are not a member of this room' })
+            }
+        } else {
+            // Create the room for the caller (legacy quick-join creation)
+            await prisma.room.create({
+                data: {
+                    name: roomName,
+                    ownerId: user.uid
+                }
+            })
+        }
 
         // Generate LiveKit Token
         const participantIdentity = user.uid

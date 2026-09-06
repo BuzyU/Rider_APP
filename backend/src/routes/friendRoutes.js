@@ -40,8 +40,8 @@ router.post('/request', async (req, res, next) => {
         const existing = await prisma.friendship.findFirst({
             where: {
                 OR: [
-                    { requesterId, addresseeId },
-                    { requesterId: addresseeId, addresseeId: requesterId }
+                    { requesterId, addresseeId: targetId },
+                    { requesterId: targetId, addresseeId: requesterId }
                 ]
             }
         })
@@ -53,7 +53,7 @@ router.post('/request', async (req, res, next) => {
         }
 
         const request = await prisma.friendship.create({
-            data: { requesterId, addresseeId, status: 'PENDING' }
+            data: { requesterId, addresseeId: targetId, status: 'PENDING' }
         })
         res.status(201).json(request)
     } catch (error) {

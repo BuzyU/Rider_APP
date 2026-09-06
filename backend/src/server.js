@@ -23,6 +23,7 @@ app.use(rateLimiter)
 
 // Public health check
 app.use('/api/health', healthRoute)
+app.use('/health', healthRoute)
 app.use('/', healthRoute)
 
 // Authenticated routes

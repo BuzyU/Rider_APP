@@ -19,6 +19,8 @@ class HardwarePTTManager @Inject constructor(
 ) {
     private var mediaSession: MediaSessionCompat? = null
     private var isMicOpen = false
+    private var focusRequest: android.media.AudioFocusRequest? = null
+    private val audioManager by lazy { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
     private val _debugLogs = MutableStateFlow<List<String>>(emptyList())
     val debugLogs: StateFlow<List<String>> = _debugLogs
@@ -30,6 +32,11 @@ class HardwarePTTManager @Inject constructor(
     var onMicToggleRequest: ((Boolean) -> Unit)? = null
 
     fun activateSession() {
+        if (mediaSession?.isActive == true) {
+            logDebug("MediaSession: Already active — ignoring duplicate activateSession()")
+            return
+        }
+
         if (mediaSession == null) {
             mediaSession = MediaSessionCompat(context, "HardwarePTTManager")
             mediaSession?.setCallback(object : MediaSessionCompat.Callback() {
@@ -63,10 +70,10 @@ class HardwarePTTManager @Inject constructor(
         
         mediaSession?.setPlaybackState(state)
 
-        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val focusRequest = android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).build()
-            audioManager.requestAudioFocus(focusRequest)
+            val req = android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).build()
+            focusRequest = req
+            audioManager.requestAudioFocus(req)
         } else {
             @Suppress("DEPRECATION")
             audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
@@ -77,6 +84,14 @@ class HardwarePTTManager @Inject constructor(
     }
 
     fun deactivateSession() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            focusRequest = null
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(null)
+        }
+
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null

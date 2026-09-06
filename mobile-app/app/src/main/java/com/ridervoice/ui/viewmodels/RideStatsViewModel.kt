@@ -31,6 +31,10 @@ class RideStatsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            val maxSpeedMps = rideDao.getAllTimeMaxSpeed() ?: 0f
+            val topSpeedKmh = maxSpeedMps * 3.6f
+            val topSpeedStr = String.format(Locale.US, "%.0f", topSpeedKmh)
+
             rideDao.getAllSessions().collectLatest { sessions ->
                 var totalDistMeters = 0f
                 var totalDurationSec = 0L
@@ -53,7 +57,7 @@ class RideStatsViewModel @Inject constructor(
                     totalDistance = String.format(Locale.US, "%.1f", totalKm),
                     totalTime = timeStr,
                     avgSpeed = String.format(Locale.US, "%.0f", avgSpeedKmh),
-                    topSpeed = "0", // Top speed would require waypoint analysis
+                    topSpeed = topSpeedStr,
                     speedDataPoints = emptyList() // Needs full waypoint query to plot
                 )
             }

@@ -5,6 +5,15 @@ export async function middleware(request: NextRequest) {
   const response = await createClient(request)
   const { pathname } = request.nextUrl
 
+  if (pathname.startsWith('/api/admin') && pathname !== '/api/admin/session') {
+    const hasSession = request.cookies.get('__session')?.value
+    const isAdmin = request.cookies.get('rv_admin')?.value === '1'
+
+    if (!hasSession || !isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+  }
+
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
     const hasSession = request.cookies.get('__session')?.value
     const isAdmin = request.cookies.get('rv_admin')?.value === '1'

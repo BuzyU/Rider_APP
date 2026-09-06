@@ -7,6 +7,7 @@ const healthRoute = require('./routes/healthRoute')
 const authMiddleware = require('./middleware/authMiddleware')
 const rateLimiter = require('./middleware/rateLimiter')
 const errorMiddleware = require('./middleware/errorMiddleware')
+const requestLogger = require('./middleware/requestLogger')
 const profileRoutes = require('./routes/userRoutes')
 const friendRoutes = require('./routes/friendRoutes')
 const inviteRoutes = require('./routes/inviteRoutes')
@@ -19,6 +20,7 @@ const app = express()
 
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
+app.use(requestLogger)
 app.use(rateLimiter)
 
 // Public health check

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Cormorant_Garamond, IBM_Plex_Sans } from "next/font/google";
 import { adminAuth } from "@/utils/firebase/admin";
+import { supabaseAdmin } from "@/utils/supabase/admin";
 import "../admin.css";
 
 const adminSerif = Cormorant_Garamond({
@@ -16,17 +17,6 @@ const adminSans = IBM_Plex_Sans({
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-admin-sans",
 });
-
-const navItems = [
-  { label: "Overview", href: "/admin" },
-  { label: "All Users", href: "/admin/users", badge: "392" },
-  { label: "Roles", href: "/admin/roles" },
-  { label: "Rides", href: "/admin/rides", badge: "24" },
-  { label: "Rooms", href: "/admin/rooms" },
-  { label: "Invites", href: "/admin/invites" },
-  { label: "Reports", href: "/admin/reports" },
-  { label: "Settings", href: "/admin/settings" },
-];
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +37,32 @@ export default async function AdminAppLayout({
   } catch {
     redirect("/admin/login");
   }
+
+  // Fetch real counts using head: true, count: 'exact'
+  let userCount: number | null = null;
+  let rideCount: number | null = null;
+
+  try {
+    const [{ count: uCount }, { count: rCount }] = await Promise.all([
+      supabaseAdmin.from("User").select("*", { count: "exact", head: true }),
+      supabaseAdmin.from("RideSession").select("*", { count: "exact", head: true }),
+    ]);
+    userCount = uCount;
+    rideCount = rCount;
+  } catch {
+    // If query fails, degrade gracefully without fake numbers
+  }
+
+  const navItems = [
+    { label: "Overview", href: "/admin" },
+    { label: "All Users", href: "/admin/users", badge: userCount !== null ? String(userCount) : undefined },
+    { label: "Roles", href: "/admin/roles" },
+    { label: "Rides", href: "/admin/rides", badge: rideCount !== null ? String(rideCount) : undefined },
+    { label: "Rooms", href: "/admin/rooms" },
+    { label: "Invites", href: "/admin/invites" },
+    { label: "Reports", href: "/admin/reports" },
+    { label: "Settings", href: "/admin/settings" },
+  ];
 
   return (
     <div className={`admin-shell ${adminSerif.variable} ${adminSans.variable}`}>

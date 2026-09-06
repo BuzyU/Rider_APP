@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ridervoice.models.SosAlertRequest
 import com.ridervoice.network.ApiService
+import com.ridervoice.services.LocationService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -20,7 +21,8 @@ sealed class SosState {
 
 @HiltViewModel
 class SosViewModel @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val locationService: LocationService
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<SosState>(SosState.Idle)
@@ -30,7 +32,14 @@ class SosViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = SosState.Sending
             try {
-                val response = apiService.sendSosAlert(SosAlertRequest(roomName = roomName, lat = null, lng = null))
+                val loc = locationService.currentLocation.value
+                val response = apiService.sendSosAlert(
+                    SosAlertRequest(
+                        roomName = roomName,
+                        lat = loc?.latitude,
+                        lng = loc?.longitude
+                    )
+                )
                 _state.value = if (response.isSuccessful) SosState.Sent else SosState.Failed("Server error")
             } catch (e: Exception) {
                 _state.value = SosState.Failed(e.message ?: "Network error")
@@ -38,3 +47,4 @@ class SosViewModel @Inject constructor(
         }
     }
 }
+

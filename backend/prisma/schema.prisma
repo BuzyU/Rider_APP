@@ -27,6 +27,7 @@ model User {
   receivedInvites        RideInvite[]  @relation("Invitee")
   deviceTokens           DeviceToken[]
   rides                  RideSession[]
+  alerts                 EmergencyAlert[] @relation("AlertSender")
 }
 
 model DeviceToken {
@@ -65,6 +66,7 @@ model Room {
   createdAt DateTime     @default(now())
   
   invites   RideInvite[]
+  alerts    EmergencyAlert[]
 }
 
 enum InviteStatus {
@@ -110,3 +112,19 @@ model ConvoyEvent {
 
   ride      RideSession @relation(fields: [rideId], references: [id])
 }
+
+model EmergencyAlert {
+  id         String   @id @default(uuid())
+  senderId   String
+  roomId     String
+  roomName   String
+  lat        Float?
+  lng        Float?
+  recipients String[]
+  status     String   @default("SENT") // SENT, FAILED
+  createdAt  DateTime @default(now())
+
+  sender     User     @relation("AlertSender", fields: [senderId], references: [id])
+  room       Room     @relation(fields: [roomId], references: [id])
+}
+

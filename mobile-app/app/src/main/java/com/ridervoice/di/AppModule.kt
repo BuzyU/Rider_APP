@@ -19,7 +19,12 @@ object AppModule {
 
     object AuthTokenCache {
         var cachedToken: String? = null
-        var expiryTime: Long = 0
+        var expiryTime: Long = 0L
+
+        fun clear() {
+            cachedToken = null
+            expiryTime = 0L
+        }
     }
 
     @Provides

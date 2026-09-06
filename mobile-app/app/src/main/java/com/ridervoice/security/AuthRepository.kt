@@ -38,6 +38,7 @@ class AuthRepository @Inject constructor() {
     }
 
     fun signOut() {
+        com.ridervoice.di.AppModule.AuthTokenCache.clear()
         auth.signOut()
     }
 

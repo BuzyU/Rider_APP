@@ -30,10 +30,15 @@ object AppModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(authRepository: AuthRepository): OkHttpClient {
-        return OkHttpClient.Builder()
-            .addInterceptor(HttpLoggingInterceptor().apply {
+        val builder = OkHttpClient.Builder()
+
+        if (com.ridervoice.BuildConfig.DEBUG) {
+            builder.addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })
+        }
+
+        return builder
             .addInterceptor { chain ->
                 // Blocking call in interceptor to fetch Firebase token
                 var token: String? = null

@@ -1,4 +1,5 @@
 const admin = require('../config/firebaseAdmin')
+const prisma = require('../db')
 
 module.exports = async (req, res, next) => {
     const authHeader = req.headers.authorization
@@ -17,6 +18,33 @@ module.exports = async (req, res, next) => {
     try {
         const decodedToken = await admin.auth().verifyIdToken(token)
         req.user = decodedToken // Inject user info into the request
+
+        // Auto-sync user to Supabase so foreign key constraints never fail
+        try {
+            await prisma.user.upsert({
+                where: { id: decodedToken.uid },
+                update: {},
+                create: {
+                    id: decodedToken.uid,
+                    email: decodedToken.email || null,
+                    displayName: decodedToken.name || (decodedToken.email ? decodedToken.email.split('@')[0] : 'Rider')
+                }
+            })
+        } catch (syncErr) {
+            if (syncErr.code === 'P2002') {
+                // Unique email conflict fallback
+                await prisma.user.upsert({
+                    where: { id: decodedToken.uid },
+                    update: {},
+                    create: {
+                        id: decodedToken.uid,
+                        email: null,
+                        displayName: decodedToken.name || 'Rider'
+                    }
+                }).catch(() => {})
+            }
+        }
+
         next()
     } catch (error) {
         console.error('Firebase Auth Error:', error.message)

@@ -20,6 +20,30 @@ router.post('/invite', async (req, res, next) => {
     }
 
     try {
+        // Ensure inviter user record exists in Supabase
+        await prisma.user.upsert({
+            where: { id: inviterId },
+            update: {},
+            create: {
+                id: inviterId,
+                email: req.user.email || null,
+                displayName: req.user.name || (req.user.email ? req.user.email.split('@')[0] : 'Rider')
+            }
+        }).catch(() => {})
+
+        // Check room exists — supports roomId (UUID) or room name (convoyName)
+        const room = await prisma.room.findFirst({
+            where: {
+                OR: [
+                    { id: roomId },
+                    { name: roomId }
+                ]
+            }
+        })
+        if (!room) {
+            return res.status(404).json({ error: 'Room not found' })
+        }
+
         // Only friends can be invited — prevents invite spam
         const isFriend = await prisma.friendship.findFirst({
             where: {
@@ -34,22 +58,16 @@ router.post('/invite', async (req, res, next) => {
             return res.status(403).json({ error: 'Can only invite friends' })
         }
 
-        // Check room exists
-        const room = await prisma.room.findUnique({ where: { id: roomId } })
-        if (!room) {
-            return res.status(404).json({ error: 'Room not found' })
-        }
-
         // Prevent duplicate pending invites
         const existingInvite = await prisma.rideInvite.findFirst({
-            where: { roomId, inviterId, inviteeId, status: 'PENDING' }
+            where: { roomId: room.id, inviterId, inviteeId, status: 'PENDING' }
         })
         if (existingInvite) {
             return res.status(409).json({ error: 'Invite already pending' })
         }
 
         const invite = await prisma.rideInvite.create({
-            data: { roomId, inviterId, inviteeId, status: 'PENDING' }
+            data: { roomId: room.id, inviterId, inviteeId, status: 'PENDING' }
         })
 
         // Send push notification
@@ -118,7 +136,19 @@ router.get('/invites/:userId', async (req, res, next) => {
                 room:    { select: { name: true } }
             }
         })
-        res.json(invites)
+
+        const formatted = invites.map(i => ({
+            ...i,
+            inviter: {
+                handle: i.inviter?.handle || i.inviter?.displayName || 'Rider',
+                displayName: i.inviter?.displayName || null
+            },
+            room: {
+                name: i.room?.name || 'Convoy'
+            }
+        }))
+
+        res.json(formatted)
     } catch (error) {
         next(error)
     }

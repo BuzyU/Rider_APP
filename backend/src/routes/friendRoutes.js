@@ -52,6 +52,17 @@ router.post('/request', async (req, res, next) => {
             })
         }
 
+        // Ensure requester user record exists in Supabase
+        await prisma.user.upsert({
+            where: { id: requesterId },
+            update: {},
+            create: {
+                id: requesterId,
+                email: req.user.email || null,
+                displayName: req.user.name || (req.user.email ? req.user.email.split('@')[0] : 'Rider')
+            }
+        }).catch(() => {})
+
         const request = await prisma.friendship.create({
             data: { requesterId, addresseeId: targetId, status: 'PENDING' }
         })

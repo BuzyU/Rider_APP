@@ -24,9 +24,29 @@ object Routes {
     const val SOS            = "sos/{roomName}"
     const val POST_RIDE_SUMMARY = "post_ride_summary"
  
-    fun inviteFriendsPath(convoyName: String) = "invite_friends/$convoyName"
-    fun lobbyPath(convoyName: String)         = "lobby/$convoyName"
-    fun deviceSetupPath(convoyName: String, isHost: Boolean) = "device_setup/$convoyName/$isHost"
-    fun activeRideHudPath(roomName: String, userName: String) = "active_ride_hud/$roomName/$userName"
-    fun sosPath(roomName: String) = "sos/$roomName"
+    fun inviteFriendsPath(convoyName: String): String {
+        val safe = convoyName.ifBlank { "Convoy" }
+        return "invite_friends/${android.net.Uri.encode(safe)}"
+    }
+
+    fun lobbyPath(convoyName: String): String {
+        val safe = convoyName.ifBlank { "Convoy" }
+        return "lobby/${android.net.Uri.encode(safe)}"
+    }
+
+    fun deviceSetupPath(convoyName: String, isHost: Boolean): String {
+        val safe = convoyName.ifBlank { "Convoy" }
+        return "device_setup/${android.net.Uri.encode(safe)}/$isHost"
+    }
+
+    fun activeRideHudPath(roomName: String, userName: String): String {
+        val safeRoom = roomName.ifBlank { "Convoy" }
+        val safeUser = userName.ifBlank { "Rider" }
+        return "active_ride_hud/${android.net.Uri.encode(safeRoom)}/${android.net.Uri.encode(safeUser)}"
+    }
+
+    fun sosPath(roomName: String): String {
+        val safe = roomName.ifBlank { "Convoy" }
+        return "sos/${android.net.Uri.encode(safe)}"
+    }
 }

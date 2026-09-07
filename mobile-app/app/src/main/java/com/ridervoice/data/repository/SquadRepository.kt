@@ -42,7 +42,15 @@ class SquadRepository @Inject constructor(
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
-                Result.failure(Exception("Failed to send friend request: ${response.code()}"))
+                val errorMsg = response.errorBody()?.string()?.let { body ->
+                    try {
+                        val json = org.json.JSONObject(body)
+                        json.optString("error", "Error ${response.code()}")
+                    } catch (e: Exception) {
+                        null
+                    }
+                } ?: "Failed to add friend (${response.code()})"
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(e)

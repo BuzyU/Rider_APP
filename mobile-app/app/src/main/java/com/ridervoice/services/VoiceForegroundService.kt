@@ -53,8 +53,20 @@ class VoiceForegroundService : Service() {
         // Use weakest possible wake lock strategy: rely primarily on foreground service.
         // We only grab a partial wake lock if telemetry strictly requires it, but for now we trust the OS.
 
-        createNotificationChannel()
-        startForeground(notificationId, buildTacticalNotification())
+        try {
+            createNotificationChannel()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    notificationId,
+                    buildTacticalNotification(),
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                )
+            } else {
+                startForeground(notificationId, buildTacticalNotification())
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("VoiceForegroundService", "startForeground failed", e)
+        }
 
         // Observe LiveKit connection state
         serviceScope.launch {

@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,6 +38,7 @@ fun SquadScreen(
         FirebaseAuth.getInstance().currentUser?.uid
     }
     var showAddFriendDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(currentUserId) {
         if (currentUserId != null) {
@@ -94,20 +96,58 @@ fun SquadScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("Search by @handle", color = TextSecondary) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = TextSecondary) },
+            trailingIcon = {
+                if (searchQuery.isNotBlank()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = TextSecondary)
+                    }
+                }
+            },
+            singleLine = true,
             colors = TextFieldDefaults.outlinedTextFieldColors(
                 focusedBorderColor = NeonOrange,
                 unfocusedBorderColor = Gunmetal,
-                containerColor = DarkSlate
+                containerColor = DarkSlate,
+                textColor = TextPrimary
             ),
             shape = RoundedCornerShape(12.dp)
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Error message banner (non-blocking)
+        uiState.errorMessage?.let { err ->
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = AlertRed.copy(alpha = 0.15f)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = err,
+                        color = AlertRed,
+                        fontSize = 13.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { viewModel.clearError() },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = AlertRed)
+                    }
+                }
+            }
+        }
 
         // Not signed in
         if (currentUserId == null) {
@@ -122,15 +162,6 @@ fun SquadScreen(
         if (uiState.isLoading) {
             CircularProgressIndicator(
                 color = NeonOrange,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
-            return@Column
-        }
-
-        uiState.errorMessage?.let { err ->
-            Text(
-                text = "Error: $err",
-                color = AlertRed,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
             return@Column
@@ -183,8 +214,20 @@ fun SquadScreen(
         }
 
         // Friends list
+        val filteredFriends = remember(uiState.friends, searchQuery) {
+            if (searchQuery.isBlank()) {
+                uiState.friends
+            } else {
+                val q = searchQuery.removePrefix("@").trim()
+                uiState.friends.filter {
+                    it.handle.contains(q, ignoreCase = true) ||
+                    (it.displayName?.contains(q, ignoreCase = true) == true)
+                }
+            }
+        }
+
         Text(
-            text = "ONLINE FRIENDS (${uiState.friends.size})",
+            text = "ONLINE FRIENDS (${filteredFriends.size})",
             color = TextSecondary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
@@ -193,21 +236,53 @@ fun SquadScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(uiState.friends.size) { i ->
-                val friend = uiState.friends[i]
+            items(filteredFriends.size) { i ->
+                val friend = filteredFriends[i]
                 SquadMemberCard(
                     handle = friend.handle,
                     bike   = friend.bikeModel ?: "Unknown Bike",
                     status = "Online"
                 )
             }
-            if (uiState.friends.isEmpty()) {
+            if (filteredFriends.isEmpty()) {
                 item {
-                    Text(
-                        text = "No friends yet. Search by @handle to add riders.",
-                        color = TextSecondary,
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    if (searchQuery.isNotBlank() && currentUserId != null) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(DarkSlate)
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Rider \"$searchQuery\" is not in your squad yet.",
+                                color = TextSecondary,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = {
+                                    viewModel.addFriend(currentUserId, searchQuery)
+                                    searchQuery = ""
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    "Add @${searchQuery.removePrefix("@").trim()} to Squad",
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "No friends yet. Search by @handle to add riders.",
+                            color = TextSecondary,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
                 }
             }
         }

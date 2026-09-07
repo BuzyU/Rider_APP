@@ -148,7 +148,8 @@ fun NavGraph() {
                 navArgument("isHost") { type = NavType.BoolType }
             )
         ) { back ->
-            val convoyName = back.arguments?.getString("convoyName") ?: ""
+            val rawConvoyName = back.arguments?.getString("convoyName") ?: ""
+            val convoyName = try { android.net.Uri.decode(rawConvoyName) } catch (e: Exception) { rawConvoyName }
             val isHost     = back.arguments?.getBoolean("isHost") ?: false
             DeviceSetupScreen(
                 convoyName  = convoyName,
@@ -157,10 +158,16 @@ fun NavGraph() {
                     if (convoyName == "GLOBAL") {
                         navController.popBackStack()
                     } else {
-                        val userName = FirebaseAuth.getInstance().currentUser?.displayName ?: "Rider"
-                        navController.navigate(Routes.activeRideHudPath(convoyName, userName)) {
+                        val rawName = FirebaseAuth.getInstance().currentUser?.displayName
+                        val userName = if (!rawName.isNullOrBlank()) rawName else "Rider"
+                        val safeConvoy = if (convoyName.isNotBlank()) convoyName else "Convoy"
+                        navController.navigate(Routes.activeRideHudPath(safeConvoy, userName)) {
                             // Clear the setup stack so back button doesn't go back into setup
-                            popUpTo(Routes.HOME) { inclusive = false }
+                            try {
+                                popUpTo(Routes.HOME) { inclusive = false }
+                            } catch (e: Exception) {
+                                // In case HOME is not in backstack
+                            }
                         }
                     }
                 },
@@ -176,8 +183,10 @@ fun NavGraph() {
                 navArgument("userName") { type = NavType.StringType }
             )
         ) { back ->
-            val roomName = back.arguments?.getString("roomName") ?: ""
-            val userName = back.arguments?.getString("userName") ?: ""
+            val rawRoomName = back.arguments?.getString("roomName") ?: ""
+            val rawUserName = back.arguments?.getString("userName") ?: ""
+            val roomName = try { android.net.Uri.decode(rawRoomName) } catch (e: Exception) { rawRoomName }
+            val userName = try { android.net.Uri.decode(rawUserName) } catch (e: Exception) { rawUserName }
             RoomScreen(
                 roomName = roomName,
                 userName = userName,

@@ -98,6 +98,7 @@ class RideInviteActivity : ComponentActivity() {
                                     val tokenRes = apiService.getJoinToken(com.ridervoice.models.JoinTokenRequest(roomName))
                                     if (tokenRes.isSuccessful && tokenRes.body() != null) {
                                         com.ridervoice.models.RideSession.livekitToken = tokenRes.body()!!.token
+                                        com.ridervoice.models.RideSession.livekitUrl = tokenRes.body()!!.livekitUrl
                                     }
 
                                     // 3. Launch app

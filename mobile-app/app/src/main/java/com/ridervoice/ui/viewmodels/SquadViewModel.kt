@@ -73,4 +73,8 @@ class SquadViewModel @Inject constructor(
             }
         }
     }
+
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
 }

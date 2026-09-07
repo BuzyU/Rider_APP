@@ -58,8 +58,8 @@ router.get('/search', async (req, res, next) => {
     const cleanHandle = handle.replace(/^@/, '').trim()
 
     try {
-        const user = await prisma.user.findUnique({
-            where:  { handle: cleanHandle },
+        const user = await prisma.user.findFirst({
+            where:  { handle: { equals: cleanHandle, mode: 'insensitive' } },
             select: { id: true, handle: true, displayName: true, bikeModel: true, bio: true }
         })
         if (!user) return res.status(404).json({ error: 'Rider not found' })

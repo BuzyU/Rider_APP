@@ -18,38 +18,24 @@ router.post('/request', async (req, res, next) => {
     try {
         let targetId = addresseeId
         if (handle) {
-            const cleanHandle = handle.startsWith('@') ? handle.substring(1) : handle
-            const userByHandle = await prisma.user.findUnique({ where: { handle: cleanHandle } })
+            const cleanHandle = handle.startsWith('@') ? handle.substring(1).trim() : handle.trim()
+            const userByHandle = await prisma.user.findFirst({
+                where: { handle: { equals: cleanHandle, mode: 'insensitive' } }
+            })
             if (!userByHandle) {
-                return res.status(404).json({ error: 'Rider handle not found' })
+                return res.status(404).json({ error: `Rider @${cleanHandle} not found` })
             }
             targetId = userByHandle.id
         }
 
         if (requesterId === targetId) {
-            return res.status(400).json({ error: 'Cannot send a friend request to yourself' })
+            return res.status(400).json({ error: 'Cannot add yourself to squad' })
         }
 
         // Check if addressee exists (in case addresseeId was passed directly)
         const addressee = await prisma.user.findUnique({ where: { id: targetId } })
         if (!addressee) {
             return res.status(404).json({ error: 'Rider not found' })
-        }
-
-        // Prevent duplicate requests
-        const existing = await prisma.friendship.findFirst({
-            where: {
-                OR: [
-                    { requesterId, addresseeId: targetId },
-                    { requesterId: targetId, addresseeId: requesterId }
-                ]
-            }
-        })
-        if (existing) {
-            return res.status(409).json({
-                error: 'Friend request already exists',
-                status: existing.status
-            })
         }
 
         // Ensure requester user record exists in Supabase
@@ -63,8 +49,28 @@ router.post('/request', async (req, res, next) => {
             }
         }).catch(() => {})
 
+        // Check if friendship already exists
+        const existing = await prisma.friendship.findFirst({
+            where: {
+                OR: [
+                    { requesterId, addresseeId: targetId },
+                    { requesterId: targetId, addresseeId: requesterId }
+                ]
+            }
+        })
+        if (existing) {
+            if (existing.status !== 'ACCEPTED') {
+                const updated = await prisma.friendship.update({
+                    where: { id: existing.id },
+                    data: { status: 'ACCEPTED' }
+                })
+                return res.status(200).json(updated)
+            }
+            return res.status(200).json(existing)
+        }
+
         const request = await prisma.friendship.create({
-            data: { requesterId, addresseeId: targetId, status: 'PENDING' }
+            data: { requesterId, addresseeId: targetId, status: 'ACCEPTED' }
         })
         res.status(201).json(request)
     } catch (error) {
@@ -144,6 +150,15 @@ router.get('/list/:userId', async (req, res, next) => {
     }
 
     try {
+        // Auto-upgrade any PENDING friendships for this user to ACCEPTED
+        await prisma.friendship.updateMany({
+            where: {
+                status: 'PENDING',
+                OR: [{ requesterId: userId }, { addresseeId: userId }]
+            },
+            data: { status: 'ACCEPTED' }
+        }).catch(() => {})
+
         const friends = await prisma.friendship.findMany({
             where: {
                 status: 'ACCEPTED',

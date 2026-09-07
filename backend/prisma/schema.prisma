@@ -18,6 +18,7 @@ model User {
   displayName String?
   bikeModel   String?  // e.g., "Yamaha MT-07"
   bio         String?
+  role        user_role @default(CUSTOMER)
   createdAt   DateTime @default(now())
 
   // Relations
@@ -128,3 +129,13 @@ model EmergencyAlert {
   room       Room     @relation(fields: [roomId], references: [id])
 }
 
+enum user_role {
+  CUSTOMER
+  ADMIN
+}
+
+model admin_settings {
+  id         String   @id
+  settings   Json
+  updated_at DateTime @updatedAt
+}

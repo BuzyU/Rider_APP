@@ -120,8 +120,52 @@ fun HostSetupScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Error
-            error?.let {
-                Text(it, color = AlertRed, fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp))
+            error?.let { err ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    color = AlertRed.copy(alpha = 0.15f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Unable to Create Convoy",
+                                color = AlertRed,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = err,
+                                color = TextPrimary,
+                                fontSize = 13.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Button(
+                            onClick = {
+                                viewModel.createConvoy(
+                                    convoyName = convoyName.trim(),
+                                    origin = origin.trim().ifBlank { null },
+                                    destination = destination.trim().ifBlank { null },
+                                    meetupPoint = meetupPoint.trim().ifBlank { null },
+                                    estimatedDurationMin = durationHours.trim().toFloatOrNull()?.let { (it * 60).toInt() }
+                                )
+                            },
+                            enabled = canCreate && !isLoading,
+                            colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Retry", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                }
             }
 
             // Create button

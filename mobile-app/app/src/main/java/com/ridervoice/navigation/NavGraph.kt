@@ -71,6 +71,7 @@ fun NavGraph() {
  
         // ── Dashboard ──────────────────────────────────────────────────────
         composable(Routes.HOME) {
+            val authVm: com.ridervoice.ui.viewmodels.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             HomeScreen(
                 onHostRideClick      = { navController.navigate(Routes.HOST_SETUP) },
                 onJoinRideClick      = { navController.navigate(Routes.INVITES_INBOX) },
@@ -82,6 +83,12 @@ fun NavGraph() {
                 // legacy quick-start kept for testing
                 onStartRideClick     = { roomName ->
                     navController.navigate(Routes.deviceSetupPath(roomName, isHost = true))
+                },
+                onLogoutSuccess      = {
+                    authVm.signOut()
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }

@@ -44,13 +44,40 @@ class HostSetupViewModel @Inject constructor(
                     // rooms by Room.name, not Room.id. Passing a UUID causes 404 everywhere.
                     _createdConvoyName.value = response.body()!!.convoyName
                 } else {
-                    _error.value = response.errorBody()?.string() ?: "Failed to create convoy"
+                    val raw = response.errorBody()?.string()
+                    _error.value = parseConvoyError(raw, response.code())
                 }
             } catch (e: Exception) {
-                _error.value = e.message ?: "Network error"
+                _error.value = "Network error: ${e.localizedMessage ?: "Please check your connection and retry."}"
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    private fun parseConvoyError(raw: String?, code: Int): String {
+        if (!raw.isNullOrBlank()) {
+            try {
+                val json = org.json.JSONObject(raw)
+                if (json.has("error")) {
+                    val errorMsg = json.getString("error")
+                    if (errorMsg.contains("Internal server error", ignoreCase = true)) {
+                        return "The server encountered a problem creating your convoy. Please try again."
+                    }
+                    return errorMsg
+                }
+            } catch (_: Exception) {
+                if (raw.contains("Internal server error", ignoreCase = true)) {
+                    return "The server encountered a problem creating your convoy. Please try again."
+                }
+            }
+        }
+        return when (code) {
+            400 -> "Invalid convoy details. Please check the convoy name and try again."
+            401 -> "Your session has expired. Please sign in again."
+            409 -> "A convoy with this name already exists. Please choose a different name."
+            in 500..599 -> "Server trouble. Please try again shortly."
+            else -> "Failed to create convoy (code $code). Please retry."
         }
     }
 }

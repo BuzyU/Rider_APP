@@ -39,13 +39,15 @@ fun HomeScreen(
     onSettingsClick: () -> Unit,
     onRoutePlannerClick: () -> Unit,
     onRideHistoryClick: () -> Unit,
-    onDeviceSetupClick: () -> Unit
+    onDeviceSetupClick: () -> Unit,
+    onLogoutSuccess: () -> Unit = {}
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     val context = LocalContext.current
     
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    var showLogoutConfirmDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (OEMBatteryWarning.isAggressiveOEM()) {
@@ -53,6 +55,30 @@ fun HomeScreen(
             Toast.makeText(context, warning, Toast.LENGTH_LONG).show()
         }
         viewModel.refreshDeviceState()
+    }
+
+    if (showLogoutConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirmDialog = false },
+            title = { Text("Log Out", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to log out of RiderVoice?", color = TextSecondary) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutConfirmDialog = false
+                        onLogoutSuccess()
+                    }
+                ) {
+                    Text("Log Out", color = AlertRed, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirmDialog = false }) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            },
+            containerColor = DarkSlate
+        )
     }
 
     ModalNavigationDrawer(
@@ -65,7 +91,10 @@ fun HomeScreen(
                 ProfileDrawer(
                     onSettingsClick = onSettingsClick,
                     onDeviceSetupClick = onDeviceSetupClick,
-                    onLogoutClick = { /* Handle logout */ }
+                    onLogoutClick = {
+                        scope.launch { drawerState.close() }
+                        showLogoutConfirmDialog = true
+                    }
                 )
             }
         },

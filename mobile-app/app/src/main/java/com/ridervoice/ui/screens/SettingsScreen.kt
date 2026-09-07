@@ -133,8 +133,7 @@ fun SettingsScreen(
                     TacticalButton(
                         text = "Sign Out",
                         onClick = { 
-                            authViewModel.signOut() 
-                            onSignOutSuccess()
+                            showSignOutConfirmDialog = true
                         },
                         isOutlined = true,
                         color = Color(0xFF1D232B),
@@ -143,6 +142,31 @@ fun SettingsScreen(
                     )
                 }
             }
+        }
+
+        if (showSignOutConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showSignOutConfirmDialog = false },
+                title = { Text("Sign Out", color = TextPrimary, fontWeight = FontWeight.Bold) },
+                text = { Text("Are you sure you want to sign out of RiderVoice?", color = TextSecondary) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showSignOutConfirmDialog = false
+                            authViewModel.signOut()
+                            onSignOutSuccess()
+                        }
+                    ) {
+                        Text("Sign Out", color = AlertRed, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSignOutConfirmDialog = false }) {
+                        Text("Cancel", color = TextSecondary)
+                    }
+                },
+                containerColor = DarkSlate
+            )
         }
         // Bottom Navigation Bar Removed        // Options Dialog
         showOptionsDialog?.let { (key, options) ->

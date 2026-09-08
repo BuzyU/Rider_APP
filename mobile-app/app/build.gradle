@@ -57,6 +57,15 @@ android {
     compileSdk 34
 
     signingConfigs {
+        debug {
+            def fallbackKeystore = file("$projectDir/signing/debug-fallback.keystore")
+            if (fallbackKeystore.exists()) {
+                storeFile fallbackKeystore
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
+        }
         release {
             def envKeystore = System.getenv("KEYSTORE_FILE")
             def keystoreFile = envKeystore != null ? (file(envKeystore).isAbsolute() ? file(envKeystore) : file("$projectDir/$envKeystore")) : null
@@ -66,32 +75,10 @@ android {
                 keyAlias System.getenv("KEY_ALIAS") ?: ""
                 keyPassword System.getenv("KEY_PASSWORD") ?: ""
             } else {
-                logger.warn("WARNING: Building release APK with debug signing config. This build cannot be updated over builds signed with a production keystore.")
-                // Locate existing debug keystore or auto-generate one in build directory to satisfy validateSigningRelease
-                def debugKeystore = file("${System.getProperty('user.home')}/.android/debug.keystore")
-                def configKeystore = file("${System.getProperty('user.home')}/.config/.android/debug.keystore")
-                def chosenKeystore = debugKeystore.exists() ? debugKeystore : (configKeystore.exists() ? configKeystore : file("$buildDir/debug-fallback.keystore"))
-                
-                if (!chosenKeystore.exists()) {
-                    chosenKeystore.parentFile.mkdirs()
-                    try {
-                        def cmd = [
-                            "keytool", "-genkey", "-v",
-                            "-keystore", chosenKeystore.absolutePath,
-                            "-storepass", "android",
-                            "-alias", "androiddebugkey",
-                            "-keypass", "android",
-                            "-keyalg", "RSA",
-                            "-keysize", "2048",
-                            "-validity", "10000",
-                            "-dname", "CN=Android Debug,O=Android,C=US"
-                        ]
-                        cmd.execute().waitFor()
-                    } catch (Exception ignored) {}
-                }
-
-                if (chosenKeystore.exists()) {
-                    storeFile chosenKeystore
+                def fallbackKeystore = file("$projectDir/signing/debug-fallback.keystore")
+                if (fallbackKeystore.exists()) {
+                    logger.warn("WARNING: Building release APK with committed debug-fallback keystore. This build cannot be updated over builds signed with a production keystore.")
+                    storeFile fallbackKeystore
                     storePassword "android"
                     keyAlias "androiddebugkey"
                     keyPassword "android"

@@ -60,4 +60,27 @@ class InviteFriendsViewModel @Inject constructor(
             }
         }
     }
+
+    fun addFriend(handle: String, onComplete: () -> Unit = {}) {
+        val cleanHandle = handle.trim().removePrefix("@")
+        if (cleanHandle.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val req = com.ridervoice.models.FriendRequest(handle = cleanHandle)
+                val response = apiService.sendFriendRequest(req)
+                if (response.isSuccessful) {
+                    loadFriends()
+                    onComplete()
+                } else {
+                    _error.value = "Failed to add squad rider"
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Network error"
+            }
+        }
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
 }

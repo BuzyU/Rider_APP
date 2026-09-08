@@ -1,0 +1,144 @@
+name: Android APK Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Publish Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Extract Version & Enforce Bucket Bounds Validation
+        id: versioning
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          # Strip leading 'v' or 'V'
+          VERSION_NAME="${TAG_NAME#[vV]}"
+          echo "Processing release tag: $TAG_NAME (versionName: $VERSION_NAME)"
+
+          # Strip build suffixes/metadata for numerical parsing
+          CLEAN_VER="${VERSION_NAME%%[-+]*}"
+          IFS='.' read -r -a PARTS <<< "$CLEAN_VER"
+
+          MAJOR=${PARTS[0]:-0}
+          MINOR=${PARTS[1]:-0}
+          PATCH=${PARTS[2]:-0}
+          BUILD=${PARTS[3]:-0}
+
+          echo "Parsed version components: Major=$MAJOR, Minor=$MINOR, Patch=$PATCH, Build=$BUILD"
+
+          # ── STRICT BUCKET BOUNDS VALIDATION ──────────────────────────────────
+          # Prevents silent collision between version multipliers (e.g. Minor 100 collides with Major)
+          if (( MAJOR < 0 || MAJOR > 200 )); then
+            echo "::error::Invalid Major version: $MAJOR. Must be between 0 and 200."
+            exit 1
+          fi
+          if (( MINOR < 0 || MINOR > 99 )); then
+            echo "::error::Invalid Minor version: $MINOR. Must be between 0 and 99 to prevent versionCode collision."
+            exit 1
+          fi
+          if (( PATCH < 0 || PATCH > 99 )); then
+            echo "::error::Invalid Patch version: $PATCH. Must be between 0 and 99 to prevent versionCode collision."
+            exit 1
+          fi
+          if (( BUILD < 0 || BUILD > 999 )); then
+            echo "::error::Invalid Build/4th component version: $BUILD. Must be between 0 and 999."
+            exit 1
+          fi
+
+          # Monotonic calculation formula:
+          VERSION_CODE=$(( (MAJOR * 10000000) + (MINOR * 100000) + (PATCH * 1000) + BUILD ))
+          echo "Computed Monotonic versionCode: $VERSION_CODE"
+
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+
+      - name: Configure Keystore Signing (Optional Secrets)
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Decoding production keystore from repository secrets..."
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > mobile-app/app/release.keystore
+            echo "KEYSTORE_FILE=release.keystore" >> $GITHUB_ENV
+            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
+          else
+            echo "::warning::KEYSTORE_BASE64 secret is not configured. Falling back to debug signing config for release build."
+          fi
+
+      - name: Grant Execute Permissions for Gradlew
+        run: chmod +x mobile-app/gradlew
+
+      - name: Build Release APK
+        working-directory: mobile-app
+        run: |
+          ./gradlew assembleRelease \
+            -PversionName="${{ env.VERSION_NAME }}" \
+            -PversionCode="${{ env.VERSION_CODE }}" \
+            --stacktrace
+
+      - name: Prepare Versioned Assets & Calculate SHA-256 Checksum
+        run: |
+          APK_SOURCE="mobile-app/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK_SOURCE" ]; then
+            echo "::error::Generated APK not found at $APK_SOURCE"
+            exit 1
+          fi
+
+          TARGET_APK="Rider_APP-${{ env.TAG_NAME }}.apk"
+          cp "$APK_SOURCE" "./$TARGET_APK"
+
+          # Calculate SHA-256 Checksum
+          sha256sum "$TARGET_APK" > "${TARGET_APK}.sha256"
+          CHECKSUM=$(awk '{print $1}' "${TARGET_APK}.sha256")
+          echo "SHA256_HASH=$CHECKSUM" >> $GITHUB_ENV
+
+          echo "Generated Asset: $TARGET_APK"
+          echo "SHA-256 Checksum: $CHECKSUM"
+
+      - name: Create GitHub Release & Upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: "RiderVoice ${{ env.TAG_NAME }}"
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          body: |
+            ### RiderVoice ${{ env.TAG_NAME }} Release
+            
+            **Version Information**:
+            - **versionName**: `${{ env.VERSION_NAME }}`
+            - **versionCode**: `${{ env.VERSION_CODE }}`
+            - **Release Asset**: `${{ env.TAG_NAME }}`
+            - **SHA-256 Checksum**:
+            ```
+            ${{ env.SHA256_HASH }}
+            ```
+            
+            #### In-App Update Verification
+            RiderVoice's in-app updater automatically verifies this SHA-256 checksum and package ID before launching the system installer.
+          files: |
+            Rider_APP-${{ env.TAG_NAME }}.apk
+            Rider_APP-${{ env.TAG_NAME }}.apk.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

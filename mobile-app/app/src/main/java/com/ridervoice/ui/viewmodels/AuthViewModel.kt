@@ -15,7 +15,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val securePrefs: com.ridervoice.security.SecurePreferences
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -86,6 +87,8 @@ class AuthViewModel @Inject constructor(
 
     fun signOut() {
         authRepository.signOut()
+        com.ridervoice.models.RideSession.clear()
+        securePrefs.clearActiveRide()
         _loginSuccess.value = false
         _otpSent.value = false
         _verificationId = null

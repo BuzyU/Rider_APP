@@ -228,7 +228,31 @@ class RoomViewModel @Inject constructor(
         _error.value = msg
     }
 
-    // ── Cleanup ───────────────────────────────────────────────────────────────
+    fun endRideForEveryone(roomName: String, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                apiService.endRideForEveryone(roomName)
+            } catch (e: Exception) {
+                android.util.Log.e("RoomViewModel", "Failed to end ride on server: ${e.message}")
+            } finally {
+                leaveRoom()
+                onComplete()
+            }
+        }
+    }
+
+    fun transferHostAndLeave(roomName: String, newHostId: String, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                apiService.transferHost(roomName, com.ridervoice.models.TransferHostRequest(newHostId))
+            } catch (e: Exception) {
+                android.util.Log.e("RoomViewModel", "Failed to transfer host on server: ${e.message}")
+            } finally {
+                leaveRoom()
+                onComplete()
+            }
+        }
+    }
 
     fun leaveRoom() {
         cleanup()

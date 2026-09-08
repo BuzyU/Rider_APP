@@ -79,7 +79,7 @@ router.get('/me', async (req, res, next) => {
             where:  { id: req.user.uid },
             select: {
                 id: true, handle: true, displayName: true,
-                bikeModel: true, bio: true, email: true, createdAt: true
+                bikeModel: true, bio: true, email: true, phone: true, createdAt: true
             }
         })
         if (!user) return res.status(404).json({ error: 'Profile not found. Call POST /profile first.' })

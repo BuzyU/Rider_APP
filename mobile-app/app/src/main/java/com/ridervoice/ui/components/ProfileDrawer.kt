@@ -27,6 +27,7 @@ fun ProfileDrawer(
     status: String = "Online",
     totalMiles: String = "1,204",
     totalRides: String = "45",
+    onAccountClick: () -> Unit = {},
     onSettingsClick: () -> Unit,
     onDeviceSetupClick: () -> Unit,
     onLogoutClick: () -> Unit
@@ -41,9 +42,14 @@ fun ProfileDrawer(
             .border(1.dp, BorderColor)
             .padding(24.dp)
     ) {
-        // Avatar / Call-Sign Section
+        // Avatar / Call-Sign Section (Clickable to open Account)
         Row(
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { onAccountClick() }
+                .padding(4.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -109,6 +115,12 @@ fun ProfileDrawer(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Menu Items
+        DrawerMenuItem(
+            icon = Icons.Default.AccountCircle,
+            text = "Operator Dossier (Account)",
+            tint = ElectricCyan,
+            onClick = onAccountClick
+        )
         DrawerMenuItem(
             icon = Icons.Default.Settings,
             text = "Transceiver Settings",

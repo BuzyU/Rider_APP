@@ -86,7 +86,8 @@ data class ProfileRequest(
     val handle: String? = null,
     val displayName: String? = null,
     val bikeModel: String? = null,
-    val bio: String? = null
+    val bio: String? = null,
+    val phone: String? = null
 )
 
 data class ProfileResponse(
@@ -96,6 +97,7 @@ data class ProfileResponse(
     val bikeModel: String?,
     val bio: String? = null,
     val email: String? = null,
+    val phone: String? = null,
     val createdAt: String? = null
 )
 
@@ -119,7 +121,30 @@ data class FcmTokenRequest(val userId: String, val token: String, val platform: 
 object RideSession {
     var livekitUrl: String = ""
     var livekitToken: String = ""
+    var activeRoomName: String? = null
+    var isHost: Boolean = false
+
+    fun clear() {
+        livekitUrl = ""
+        livekitToken = ""
+        activeRoomName = null
+        isHost = false
+    }
 }
+
+data class ShareLinkResponse(
+    val token: String,
+    val shareUrl: String,
+    val expiresAt: String
+)
+
+data class JoinViaTokenRequest(
+    val token: String
+)
+
+data class TransferHostRequest(
+    val newHostId: String
+)
 
 data class Friend(
     val id: String,

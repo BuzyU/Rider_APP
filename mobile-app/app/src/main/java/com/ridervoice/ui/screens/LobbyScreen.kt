@@ -30,6 +30,7 @@ import com.ridervoice.ui.viewmodels.LobbyViewModel
 fun LobbyScreen(
     convoyName: String,
     viewModel: LobbyViewModel = hiltViewModel(),
+    homeViewModel: com.ridervoice.ui.viewmodels.HomeViewModel = hiltViewModel(),
     onStartRide: () -> Unit,
     onBackClick: () -> Unit,
     onInviteMoreClick: () -> Unit = {}
@@ -39,6 +40,8 @@ fun LobbyScreen(
     val error by viewModel.error.collectAsState()
 
     var showExitDialog by remember { mutableStateOf(false) }
+    var showAddRidersSheet by remember { mutableStateOf(false) }
+    var riderToRemove by remember { mutableStateOf<com.ridervoice.models.LobbyRiderInfo?>(null) }
 
     // Intercept back navigation
     BackHandler {
@@ -87,6 +90,53 @@ fun LobbyScreen(
                 }
             },
             containerColor = DarkSlate
+        )
+    }
+
+    // Confirmation dialog before ejecting a rider
+    riderToRemove?.let { rider ->
+        AlertDialog(
+            onDismissRequest = { riderToRemove = null },
+            title = {
+                Text(
+                    text = "REMOVE RIDER FROM CONVOY?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to remove @${rider.handle ?: rider.displayName ?: "rider"} from this convoy? Their connection will be severed.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val uid = rider.id
+                        riderToRemove = null
+                        viewModel.removeRider(convoyName, uid)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
+                ) {
+                    Text("REMOVE RIDER", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { riderToRemove = null }) {
+                    Text("CANCEL", color = TextPrimary)
+                }
+            },
+            containerColor = DarkSlate
+        )
+    }
+
+    if (showAddRidersSheet) {
+        com.ridervoice.ui.components.AddRidersBottomSheet(
+            convoyName = convoyName,
+            lobbyViewModel = viewModel,
+            onDismiss = { showAddRidersSheet = false }
         )
     }
 
@@ -173,12 +223,23 @@ fun LobbyScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Section: Mid-lobby quick actions (Share code / Invite more)
+                // Section: Mid-lobby quick actions (Add Riders / Share Link)
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Button(
+                            onClick = { showAddRidersSheet = true },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                        ) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = "Add Riders", tint = if (ThemeState.isDarkTheme) Color.Black else Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("+ ADD RIDERS", style = MaterialTheme.typography.labelSmall, color = if (ThemeState.isDarkTheme) Color.Black else Color.White, fontWeight = FontWeight.Bold)
+                        }
+
                         OutlinedButton(
                             onClick = {
                                 val sendIntent = Intent().apply {
@@ -192,20 +253,9 @@ fun LobbyScreen(
                             shape = RoundedCornerShape(8.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
                         ) {
-                            Icon(Icons.Default.Share, contentDescription = "Share", tint = NeonOrange, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Share, contentDescription = "Share", tint = ElectricCyan, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("SHARE CODE", style = MaterialTheme.typography.labelSmall, color = TextPrimary)
-                        }
-
-                        OutlinedButton(
-                            onClick = onInviteMoreClick,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-                        ) {
-                            Icon(Icons.Default.PersonAdd, contentDescription = "Invite More", tint = ElectricCyan, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("INVITE SQUAD", style = MaterialTheme.typography.labelSmall, color = TextPrimary)
                         }
                     }
                 }
@@ -246,7 +296,8 @@ fun LobbyScreen(
                             userName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider",
                             status = "TUNED IN / READY",
                             color = TechGreen,
-                            icon = Icons.Default.CheckCircle
+                            icon = Icons.Default.CheckCircle,
+                            onRemoveClick = { riderToRemove = entry.invitee }
                         )
                     }
                 }
@@ -281,7 +332,8 @@ fun LobbyScreen(
                             userName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider",
                             status = "INVITE SENT — STANDBY",
                             color = WarningAmber,
-                            icon = Icons.Default.Pending
+                            icon = Icons.Default.Pending,
+                            onRemoveClick = { riderToRemove = entry.invitee }
                         )
                     }
                 }
@@ -312,7 +364,7 @@ fun LobbyScreen(
                 }
             }
 
-            // CRITICAL FIX: Solo Ride Prohibition Removed — Always Enabled with Dynamic Label!
+            // Solo Ride Always Enabled with Dynamic Label!
             val canStart = true
             val startLabel = if (accepted.isNotEmpty()) {
                 "START RIDE (${accepted.size + 1} RIDERS)"
@@ -323,7 +375,10 @@ fun LobbyScreen(
             TacticalButton(
                 text = startLabel,
                 onClick = {
-                    viewModel.startRide(convoyName, onStartSuccess = onStartRide)
+                    viewModel.startRide(convoyName, onStartSuccess = {
+                        homeViewModel.setActiveRide(convoyName, isHost = true)
+                        onStartRide()
+                    })
                 },
                 enabled = canStart,
                 color = NeonOrange,
@@ -341,7 +396,8 @@ fun RiderStatusCard(
     userName: String,
     status: String,
     color: Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onRemoveClick: (() -> Unit)? = null
 ) {
     Surface(
         color = DarkSlate,
@@ -373,6 +429,20 @@ fun RiderStatusCard(
                 tint = color,
                 modifier = Modifier.size(22.dp)
             )
+            if (onRemoveClick != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = onRemoveClick,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.RemoveCircleOutline,
+                        contentDescription = "Remove Rider",
+                        tint = AlertRed.copy(alpha = 0.8f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
     }
 }

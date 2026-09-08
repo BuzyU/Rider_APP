@@ -14,6 +14,7 @@ import com.ridervoice.models.RoomTokenRequest
 import com.ridervoice.models.StartRideResponse
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -78,6 +79,26 @@ interface ApiService {
     /** Joiner: get a LiveKit token after accepting an invite */
     @POST("/api/lobby/join-token")
     suspend fun getJoinToken(@Body body: JoinTokenRequest): Response<StartRideResponse>
+
+    /** Host: generate shareable join link token */
+    @POST("/api/lobby/{roomName}/share-link")
+    suspend fun generateShareLink(@Path("roomName") roomName: String): Response<com.ridervoice.models.ShareLinkResponse>
+
+    /** Joiner: join convoy via token from share link */
+    @POST("/api/lobby/join-via-token")
+    suspend fun joinViaToken(@Body body: com.ridervoice.models.JoinViaTokenRequest): Response<StartRideResponse>
+
+    /** Host: remove a rider from the convoy */
+    @DELETE("/api/lobby/{roomName}/riders/{userId}")
+    suspend fun removeRiderFromConvoy(@Path("roomName") roomName: String, @Path("userId") userId: String): Response<Any>
+
+    /** Host: end ride for everyone */
+    @POST("/api/lobby/{roomName}/end")
+    suspend fun endRideForEveryone(@Path("roomName") roomName: String): Response<Any>
+
+    /** Host: transfer ownership to another rider */
+    @POST("/api/lobby/{roomName}/transfer-host")
+    suspend fun transferHost(@Path("roomName") roomName: String, @Body body: com.ridervoice.models.TransferHostRequest): Response<Any>
 
     // ── Legacy room token (kept for quick-join / guest) ───────────────────────
 

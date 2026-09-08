@@ -1,0 +1,38 @@
+name: Android CI Build & Test
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  validate-and-test:
+    name: Build & Test Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant Execute Permissions for Gradlew
+        run: chmod +x mobile-app/gradlew
+
+      - name: Run Unit Tests
+        working-directory: mobile-app
+        run: ./gradlew testDebugUnitTest --info
+
+      - name: Assemble Debug APK
+        working-directory: mobile-app
+        run: ./gradlew assembleDebug

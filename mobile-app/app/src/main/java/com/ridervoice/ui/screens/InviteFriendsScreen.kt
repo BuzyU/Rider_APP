@@ -35,20 +35,6 @@ fun InviteFriendsScreen(
     onBackClick: () -> Unit,
     onNavigateToSquad: () -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val isDark = ThemeState.isDarkTheme
-
-    val friends by viewModel.friends.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
-
-    val invitedIds = remember { mutableStateListOf<String>() }
-    var searchQuery by remember { mutableStateOf("") }
-
-    LaunchedEffect(Unit) {
-        viewModel.loadFriends()
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -80,7 +66,53 @@ fun InviteFriendsScreen(
             }
         }
 
-        // Error notification banner (previously swallowed)
+        InviteFriendsContent(
+            convoyName = convoyName,
+            viewModel = viewModel,
+            onInvitesSent = onInvitesSent,
+            onNavigateToSquad = onNavigateToSquad,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InviteFriendsContent(
+    convoyName: String,
+    viewModel: InviteFriendsViewModel = hiltViewModel(),
+    onInvitesSent: (() -> Unit)? = null,
+    onNavigateToSquad: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val isDark = ThemeState.isDarkTheme
+
+    val friends by viewModel.friends.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+
+    val invitedIds = remember { mutableStateListOf<String>() }
+    var searchQuery by remember { mutableStateOf("") }
+    var showAddFriendDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadFriends()
+    }
+
+    if (showAddFriendDialog) {
+        com.ridervoice.ui.components.AddFriendDialog(
+            onDismiss = { showAddFriendDialog = false },
+            onAddFriend = { handle ->
+                viewModel.addFriend(handle)
+            }
+        )
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        // Error notification banner
         error?.let { err ->
             Surface(
                 color = HazardContainer,
@@ -109,7 +141,7 @@ fun InviteFriendsScreen(
             }
         }
 
-        // Section: Top Quick Controls (Invite Entire Squad + Share Convoy Link)
+        // Section: Top Quick Controls (Add Squad Rider by handle + Invite All)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -117,21 +149,14 @@ fun InviteFriendsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
-                onClick = {
-                    val sendIntent = Intent().apply {
-                        action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, "Join my RiderVoice convoy '$convoyName' on RiderVoice!")
-                        type = "text/plain"
-                    }
-                    context.startActivity(Intent.createChooser(sendIntent, "Share Convoy Code"))
-                },
+                onClick = { showAddFriendDialog = true },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(8.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
             ) {
-                Icon(Icons.Default.Share, contentDescription = "Share", tint = NeonOrange, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.PersonAdd, contentDescription = "Add Rider", tint = NeonOrange, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("SHARE LINK", style = MaterialTheme.typography.labelSmall, color = TextPrimary)
+                Text("+ CALLSIGN", style = MaterialTheme.typography.labelSmall, color = TextPrimary)
             }
 
             if (friends.isNotEmpty()) {
@@ -160,7 +185,7 @@ fun InviteFriendsScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Filter friends by @handle", color = TextSecondary, style = MaterialTheme.typography.bodyMedium) },
+                placeholder = { Text("Filter squad by @handle", color = TextSecondary, style = MaterialTheme.typography.bodyMedium) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = TextSecondary) },
                 singleLine = true,
                 modifier = Modifier
@@ -215,21 +240,21 @@ fun InviteFriendsScreen(
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "You haven't added friends to your squad yet. You can add them now or continue straight to the lobby.",
+                                text = "You haven't added friends to your squad yet. Commission riders by callsign to transmit invites directly.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = TextSecondary,
                                 modifier = Modifier.padding(horizontal = 8.dp)
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
-                                onClick = onNavigateToSquad,
+                                onClick = { showAddFriendDialog = true },
                                 colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Icon(Icons.Default.PersonAdd, contentDescription = null, tint = if (isDark) Color.Black else Color.White)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "ADD FRIENDS TO SQUAD",
+                                    text = "ADD RIDER BY CALLSIGN",
                                     color = if (isDark) Color.Black else Color.White,
                                     style = MaterialTheme.typography.labelLarge
                                 )
@@ -259,22 +284,24 @@ fun InviteFriendsScreen(
             }
         }
 
-        // CRITICAL FIX: "Continue to Lobby" moved OUTSIDE conditional, ALWAYS visible!
-        val buttonLabel = if (invitedIds.isNotEmpty()) {
-            "CONTINUE TO LOBBY (${invitedIds.size} INVITED)"
-        } else {
-            "CONTINUE TO LOBBY (SKIP INVITES)"
-        }
+        // Optional Continue Button (when used as full screen flow)
+        if (onInvitesSent != null) {
+            val buttonLabel = if (invitedIds.isNotEmpty()) {
+                "CONTINUE TO LOBBY (${invitedIds.size} INVITED)"
+            } else {
+                "CONTINUE TO LOBBY (SKIP INVITES)"
+            }
 
-        TacticalButton(
-            text = buttonLabel,
-            onClick = onInvitesSent,
-            color = if (invitedIds.isNotEmpty()) TechGreen else NeonOrange,
-            textColor = if (isDark) Color.Black else Color.White,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        )
+            TacticalButton(
+                text = buttonLabel,
+                onClick = onInvitesSent,
+                color = if (invitedIds.isNotEmpty()) TechGreen else NeonOrange,
+                textColor = if (isDark) Color.Black else Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            )
+        }
     }
 }
 

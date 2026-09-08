@@ -53,7 +53,8 @@ fun RoomScreen(
     userName: String,
     onLeave: () -> Unit,
     onSosClick: () -> Unit,
-    viewModel: RoomViewModel = hiltViewModel()
+    viewModel: RoomViewModel = hiltViewModel(),
+    homeViewModel: com.ridervoice.ui.viewmodels.HomeViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val isDark = ThemeState.isDarkTheme
@@ -74,6 +75,20 @@ fun RoomScreen(
     var isDeafened by remember { mutableStateOf(false) }
     var showLeaveConfirmDialog by remember { mutableStateOf(false) }
     var showAudioRoutePicker by remember { mutableStateOf(false) }
+
+    val isHost = com.ridervoice.models.RideSession.isHost
+    val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    val otherRiders = remember(participants, currentUid) {
+        participants.filter { !it.isGhost && it.identity != currentUid }
+    }
+
+    fun exitRideCleanup() {
+        showLeaveConfirmDialog = false
+        homeViewModel.clearActiveRide()
+        com.ridervoice.models.RideSession.clear()
+        context.stopService(Intent(context, VoiceForegroundService::class.java))
+        onLeave()
+    }
 
     // Intercept hardware/system back button with confirmation
     BackHandler {
@@ -119,44 +134,129 @@ fun RoomScreen(
         viewModel.joinRoom(roomName, userName)
     }
 
-    // ── LEAVE CONFIRMATION DIALOG ────────────────────────────────────────────
+    // ── LEAVE CONFIRMATION DIALOG (HOST VS RIDER SEMANTICS) ───────────────────
     if (showLeaveConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showLeaveConfirmDialog = false },
-            title = {
-                Text(
-                    text = "LEAVE CONVOY VOICE?",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary
-                )
-            },
-            text = {
-                Text(
-                    text = "You will disconnect from active convoy communications and live background audio.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showLeaveConfirmDialog = false
-                        viewModel.leaveRoom()
-                        context.stopService(Intent(context, VoiceForegroundService::class.java))
-                        onLeave()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
-                ) {
-                    Text("LEAVE CONVOY", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showLeaveConfirmDialog = false }) {
-                    Text("STAY IN CONVOY", color = TextPrimary)
-                }
-            },
-            containerColor = DarkSlate
-        )
+        if (isHost) {
+            AlertDialog(
+                onDismissRequest = { showLeaveConfirmDialog = false },
+                title = {
+                    Text(
+                        text = "LEADER DEPARTURE",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (otherRiders.isNotEmpty()) {
+                            Text(
+                                text = "You are the convoy host with ${otherRiders.size} other rider(s) tuned in. You can end the ride for all members or transfer leadership to keep the convoy channel open.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        } else {
+                            Text(
+                                text = "You are currently the only rider in this convoy. Leaving will conclude and terminate the session.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (otherRiders.isNotEmpty()) {
+                            Button(
+                                onClick = {
+                                    val successor = otherRiders.first()
+                                    viewModel.transferHostAndLeave(roomName, successor.identity) {
+                                        exitRideCleanup()
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    "TRANSFER HOST & LEAVE",
+                                    color = if (isDark) Color.Black else Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                viewModel.endRideForEveryone(roomName) {
+                                    exitRideCleanup()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                if (otherRiders.isNotEmpty()) "END RIDE FOR EVERYONE" else "END RIDE",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = { showLeaveConfirmDialog = false },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("STAY IN CONVOY", color = TextPrimary)
+                        }
+                    }
+                },
+                dismissButton = {},
+                containerColor = DarkSlate
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { showLeaveConfirmDialog = false },
+                title = {
+                    Text(
+                        text = "LEAVE CONVOY VOICE?",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        text = "You will disconnect from active convoy communications and live background audio.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.leaveRoom()
+                            exitRideCleanup()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("LEAVE CONVOY", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { showLeaveConfirmDialog = false },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("STAY IN CONVOY", color = TextPrimary)
+                    }
+                },
+                containerColor = DarkSlate
+            )
+        }
     }
 
     // ── AUDIO ROUTE SELECTOR DIALOG ─────────────────────────────────────────

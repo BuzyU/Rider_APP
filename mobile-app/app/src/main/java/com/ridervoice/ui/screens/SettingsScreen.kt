@@ -24,13 +24,17 @@ import com.ridervoice.ui.components.TacticalButton
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
 import com.ridervoice.ui.viewmodels.SettingsViewModel
+import com.ridervoice.ui.viewmodels.UpdateViewModel
+import com.ridervoice.ui.components.UpdateDialog
 
 @Composable
 fun SettingsScreen(
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel(),
+    updateViewModel: UpdateViewModel = hiltViewModel(),
     onBackClick: () -> Unit,
     onNavigateToHeadsetSettings: () -> Unit = {},
+    onNavigateToAccount: () -> Unit = {},
     onSignOutSuccess: () -> Unit = {}
 ) {
     val settingsState by settingsViewModel.settingsState.collectAsState()
@@ -75,6 +79,16 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
+                item {
+                    SettingsSectionHeader("OPERATOR & IDENTITY")
+                    SettingsItemValue(
+                        label = "Operator Dossier & Profile",
+                        value = "View Account",
+                        icon = Icons.Default.AccountCircle,
+                        onClick = onNavigateToAccount
+                    )
+                }
+
                 item {
                     SettingsSectionHeader("COCKPIT & DISPLAY")
                     SettingsItemToggle(
@@ -159,6 +173,22 @@ fun SettingsScreen(
                 }
 
                 item {
+                    SettingsSectionHeader("FIRMWARE & OTA UPDATES")
+                    SettingsItemValue(
+                        label = "Transceiver Firmware Version",
+                        value = "v${updateViewModel.currentVersionName}",
+                        icon = Icons.Default.Info,
+                        onClick = { updateViewModel.checkForUpdates() }
+                    )
+                    SettingsItemValue(
+                        label = "Check for OTA Updates",
+                        value = "Check Now",
+                        icon = Icons.Default.SystemUpdate,
+                        onClick = { updateViewModel.checkForUpdates() }
+                    )
+                }
+
+                item {
                     Spacer(modifier = Modifier.height(28.dp))
                     TacticalButton(
                         text = "DISENGAGE TRANSCEIVER (SIGN OUT)",
@@ -175,6 +205,19 @@ fun SettingsScreen(
                 }
             }
         }
+
+        // In-App Update Dialog HUD
+        val updateState by updateViewModel.uiState.collectAsState()
+        UpdateDialog(
+            uiState = updateState,
+            onConfirmDownload = { updateViewModel.promptDownloadConfirmation(it) },
+            onStartDownload = { updateViewModel.startDownload(it) },
+            onCancelDownload = { updateViewModel.cancelDownload() },
+            onInstallUpdate = { file, info -> updateViewModel.installUpdate(file, info) },
+            onOpenSettings = { updateViewModel.openSettings() },
+            onRetry = { updateViewModel.checkForUpdates() },
+            onDismiss = { updateViewModel.dismiss() }
+        )
 
         // Sign out confirmation dialog
         if (showSignOutConfirmDialog) {

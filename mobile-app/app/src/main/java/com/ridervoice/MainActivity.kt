@@ -7,13 +7,21 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.*
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.ridervoice.navigation.NavGraph
 import com.ridervoice.permissions.PermissionManager
+import com.ridervoice.ui.theme.*
+import com.ridervoice.update.AppVersion
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -43,11 +51,82 @@ class MainActivity : ComponentActivity() {
         // Restore saved theme choice. Defaults to LIGHT — never reads system dark mode.
         com.ridervoice.ui.theme.ThemeState.set(securePreferences.getBoolean("dark_theme_enabled", false))
 
-        val initialRoute = intent?.getStringExtra("NAV_ROUTE")
+        val uriData = intent?.data
+        val initialRoute = if (uriData != null && uriData.scheme == "ridervoice" && uriData.host == "join") {
+            val token = uriData.pathSegments.firstOrNull()
+                ?: uriData.getQueryParameter("token")
+                ?: uriData.lastPathSegment
+            if (!token.isNullOrBlank()) {
+                com.ridervoice.navigation.Routes.joinViaTokenPath(token)
+            } else {
+                intent?.getStringExtra("NAV_ROUTE")
+            }
+        } else {
+            intent?.getStringExtra("NAV_ROUTE")
+        }
 
         setContent {
             com.ridervoice.ui.theme.RiderVoiceTheme {
+                val showUpdateSuccessDialog = remember { mutableStateOf(false) }
+                val updatedVersionName = remember { mutableStateOf("") }
+
+                // Post-update installation detection
+                LaunchedEffect(Unit) {
+                    val lastRecordedVersion = securePreferences.getString("installed_version_name", "")
+                    val currentVersion = BuildConfig.VERSION_NAME
+
+                    if (lastRecordedVersion.isNotBlank()) {
+                        val lastVer = AppVersion.parse(lastRecordedVersion)
+                        val currentVer = AppVersion.parse(currentVersion)
+                        if (currentVer > lastVer) {
+                            updatedVersionName.value = currentVersion
+                            showUpdateSuccessDialog.value = true
+                        }
+                    }
+                    // Persist current version so the dialog only appears once
+                    securePreferences.saveString("installed_version_name", currentVersion)
+                }
+
                 NavGraph(startRoute = initialRoute)
+
+                // Post-update success dialog (shown once)
+                if (showUpdateSuccessDialog.value) {
+                    AlertDialog(
+                        onDismissRequest = { showUpdateSuccessDialog.value = false },
+                        containerColor = DarkSlate,
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = TechGreen,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        },
+                        title = {
+                            Text(
+                                text = "UPDATE COMPLETE",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = "RiderVoice has been successfully updated to v${updatedVersionName.value}.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = { showUpdateSuccessDialog.value = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
+                            ) {
+                                Text("CONTINUE", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    )
+                }
 
                 if (showPermissionRationale.value) {
                     AlertDialog(

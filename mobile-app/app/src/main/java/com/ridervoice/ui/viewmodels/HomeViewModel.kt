@@ -33,11 +33,15 @@ class HomeViewModel @Inject constructor(
 
     private val isConfigured = securePrefs.isDeviceConfigured()
     private val devName = securePrefs.getDeviceName() ?: "No Device"
+    private val activeRoom = securePrefs.getActiveRideRoom() ?: com.ridervoice.models.RideSession.activeRoomName
 
     private val _uiState = MutableStateFlow(HomeState(
         isDeviceConfigured = isConfigured,
         deviceName = if (isConfigured) devName else "No Device",
-        deviceStatus = if (isConfigured) "Configured (Disconnected)" else "Tap to configure"
+        deviceStatus = if (isConfigured) "Configured (Disconnected)" else "Tap to configure",
+        hasActiveRide = !activeRoom.isNullOrBlank(),
+        activeRideName = activeRoom ?: "",
+        activeRideSubtitle = if (!activeRoom.isNullOrBlank()) "Currently sharing location & audio" else "Start or join a ride to connect"
     ))
     val uiState: StateFlow<HomeState> = _uiState.asStateFlow()
 
@@ -70,6 +74,15 @@ class HomeViewModel @Inject constructor(
         )
     }
 
+    fun refreshActiveRideState() {
+        val room = securePrefs.getActiveRideRoom() ?: com.ridervoice.models.RideSession.activeRoomName
+        _uiState.value = _uiState.value.copy(
+            hasActiveRide = !room.isNullOrBlank(),
+            activeRideName = room ?: "",
+            activeRideSubtitle = if (!room.isNullOrBlank()) "Currently sharing location & audio" else "Start or join a ride to connect"
+        )
+    }
+
     fun updateNetworkStatus(isStrong: Boolean) {
         _uiState.value = _uiState.value.copy(
             isNetworkStrong = isStrong,
@@ -77,11 +90,24 @@ class HomeViewModel @Inject constructor(
         )
     }
 
-    fun setActiveRide(roomName: String) {
+    fun setActiveRide(roomName: String, isHost: Boolean = true) {
+        securePrefs.saveActiveRide(roomName, isHost)
+        com.ridervoice.models.RideSession.activeRoomName = roomName
+        com.ridervoice.models.RideSession.isHost = isHost
         _uiState.value = _uiState.value.copy(
             hasActiveRide = true,
             activeRideName = roomName,
             activeRideSubtitle = "Currently sharing location & audio"
+        )
+    }
+
+    fun clearActiveRide() {
+        securePrefs.clearActiveRide()
+        com.ridervoice.models.RideSession.clear()
+        _uiState.value = _uiState.value.copy(
+            hasActiveRide = false,
+            activeRideName = "",
+            activeRideSubtitle = "Start or join a ride to connect"
         )
     }
 }

@@ -66,14 +66,26 @@ model Room {
   ownerId   String
   createdAt DateTime     @default(now())
   
-  invites   RideInvite[]
-  alerts    EmergencyAlert[]
+  invites    RideInvite[]
+  alerts     EmergencyAlert[]
+  joinTokens RoomJoinToken[]
 }
 
 enum InviteStatus {
   PENDING
   ACCEPTED
   DECLINED
+  REMOVED
+}
+
+model RoomJoinToken {
+  id        String   @id @default(uuid())
+  roomId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
 }
 
 model RideInvite {

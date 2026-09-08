@@ -70,4 +70,26 @@ class SecurePreferences(context: Context) {
     fun getBoolean(key: String, defaultValue: Boolean): Boolean {
         return prefs.getBoolean(key, defaultValue)
     }
+
+    fun saveActiveRide(roomName: String, isHost: Boolean) {
+        prefs.edit()
+            .putString("active_ride_room", roomName)
+            .putBoolean("active_ride_is_host", isHost)
+            .apply()
+    }
+
+    fun getActiveRideRoom(): String? {
+        return prefs.getString("active_ride_room", null)
+    }
+
+    fun isActiveRideHost(): Boolean {
+        return prefs.getBoolean("active_ride_is_host", false)
+    }
+
+    fun clearActiveRide() {
+        prefs.edit()
+            .remove("active_ride_room")
+            .remove("active_ride_is_host")
+            .apply()
+    }
 }

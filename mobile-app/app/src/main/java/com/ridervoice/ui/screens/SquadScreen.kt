@@ -381,49 +381,13 @@ fun SquadScreen(
     }
 
     if (showAddFriendDialog) {
-        var friendHandle by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showAddFriendDialog = false },
-            title = {
-                Text(
-                    text = "ADD RIDER TO SQUAD",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary
-                )
-            },
-            text = {
-                OutlinedTextField(
-                    value = friendHandle,
-                    onValueChange = { friendHandle = it },
-                    placeholder = { Text("@handle", color = TextSecondary) },
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = NeonOrange,
-                        unfocusedBorderColor = BorderColor,
-                        containerColor = DarkSlate,
-                        textColor = TextPrimary
-                    ),
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (friendHandle.isNotBlank() && currentUserId != null) {
-                            viewModel.addFriend(currentUserId, friendHandle)
-                        }
-                        showAddFriendDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
-                ) {
-                    Text("ADD TO SQUAD", color = if (isDark) Color.Black else Color.White, fontWeight = FontWeight.Bold)
+        com.ridervoice.ui.components.AddFriendDialog(
+            onDismiss = { showAddFriendDialog = false },
+            onAddFriend = { handle ->
+                if (currentUserId != null) {
+                    viewModel.addFriend(currentUserId, handle)
                 }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showAddFriendDialog = false }) {
-                    Text("CANCEL", color = TextPrimary)
-                }
-            },
-            containerColor = DarkSlate
+            }
         )
     }
 }

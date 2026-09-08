@@ -42,6 +42,7 @@ fun HomeScreen(
     onDeviceSetupClick: () -> Unit,
     onInvitesInboxClick: () -> Unit = { onJoinRideClick() },
     onSosClick: () -> Unit = {},
+    onAccountClick: () -> Unit = {},
     onLogoutSuccess: () -> Unit = {}
 ) {
     val uiState = viewModel.uiState.collectAsState().value
@@ -55,6 +56,7 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         viewModel.refreshDeviceState()
+        viewModel.refreshActiveRideState()
     }
 
     // ── LOGOUT CONFIRMATION DIALOG ───────────────────────────────────────────
@@ -79,6 +81,7 @@ fun HomeScreen(
                 Button(
                     onClick = {
                         showLogoutConfirmDialog = false
+                        viewModel.clearActiveRide()
                         onLogoutSuccess()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
@@ -103,6 +106,10 @@ fun HomeScreen(
                 drawerShape = RoundedCornerShape(0.dp)
             ) {
                 ProfileDrawer(
+                    onAccountClick = {
+                        scope.launch { drawerState.close() }
+                        onAccountClick()
+                    },
                     onSettingsClick = onSettingsClick,
                     onDeviceSetupClick = onDeviceSetupClick,
                     onLogoutClick = {

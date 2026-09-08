@@ -90,6 +90,7 @@ fun NavGraph(
                 onRoutePlannerClick  = { navController.navigate(Routes.ROUTE_PLANNER) },
                 onRideHistoryClick   = { navController.navigate(Routes.RIDE_STATS) },
                 onDeviceSetupClick   = { navController.navigate(Routes.deviceSetupPath("GLOBAL", isHost = false)) },
+                onAccountClick       = { navController.navigate(Routes.ACCOUNT) },
                 // legacy quick-start kept for testing
                 onStartRideClick     = { roomName ->
                     navController.navigate(Routes.deviceSetupPath(roomName, isHost = true))
@@ -109,7 +110,9 @@ fun NavGraph(
         composable(Routes.HOST_SETUP) {
             HostSetupScreen(
                 onConvoyCreated = { convoyName ->
-                    navController.navigate(Routes.inviteFriendsPath(convoyName))
+                    navController.navigate(Routes.lobbyPath(convoyName)) {
+                        popUpTo(Routes.HOST_SETUP) { inclusive = true }
+                    }
                 },
                 onBackClick = { navController.popBackStack() }
             )
@@ -277,10 +280,18 @@ fun NavGraph(
                 }
             )
         }
+        composable(Routes.ACCOUNT) {
+            AccountScreen(
+                onBackClick = { navController.popBackStack() },
+                onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
+                onCheckForUpdates = { navController.navigate(Routes.SETTINGS) }
+            )
+        }
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onBackClick = { navController.navigateUp() },
                 onNavigateToHeadsetSettings = { navController.navigate(Routes.HEADSET_SETTINGS) },
+                onNavigateToAccount = { navController.navigate(Routes.ACCOUNT) },
                 onSignOutSuccess = {
                     navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
                 }
@@ -297,6 +308,19 @@ fun NavGraph(
         }
         composable(Routes.JOIN_ROOM) {
             JoinRoomScreen(
+                onJoin = { roomCode, userName ->
+                    navController.navigate(Routes.deviceSetupPath(roomCode, isHost = false))
+                },
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = Routes.JOIN_VIA_TOKEN,
+            arguments = listOf(navArgument("token") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val token = backStackEntry.arguments?.getString("token") ?: ""
+            JoinRoomScreen(
+                initialToken = token,
                 onJoin = { roomCode, userName ->
                     navController.navigate(Routes.deviceSetupPath(roomCode, isHost = false))
                 },

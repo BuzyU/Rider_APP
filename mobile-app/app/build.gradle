@@ -12,16 +12,78 @@ kotlin {
     jvmToolchain(17)
 }
 
+def calculateVersionCode(String vName) {
+    if (project.hasProperty('versionCode')) {
+        return project.property('versionCode').toInteger()
+    }
+    if (System.getenv("VERSION_CODE") != null && !System.getenv("VERSION_CODE").isEmpty()) {
+        return System.getenv("VERSION_CODE").toInteger()
+    }
+    try {
+        def clean = vName.replaceAll(/^v/i, "").split(/[-+]/)[0]
+        def parts = clean.split(/\./).collect { it.isInteger() ? it.toInteger() : 0 }
+        def major = parts.size() > 0 ? parts[0] : 1
+        def minor = parts.size() > 1 ? parts[1] : 0
+        def patch = parts.size() > 2 ? parts[2] : 0
+        def build = parts.size() > 3 ? parts[3] : 0
+
+        // Strict bucket bounds validation to prevent collision
+        if (major < 0 || major > 200) {
+            throw new GradleException("Invalid major version: $major (must be 0..200)")
+        }
+        if (minor < 0 || minor > 99) {
+            throw new GradleException("Invalid minor version: $minor (must be 0..99 to avoid versionCode collision)")
+        }
+        if (patch < 0 || patch > 99) {
+            throw new GradleException("Invalid patch version: $patch (must be 0..99 to avoid versionCode collision)")
+        }
+        if (build < 0 || build > 999) {
+            throw new GradleException("Invalid build version: $build (must be 0..999)")
+        }
+
+        return (major * 10000000) + (minor * 100000) + (patch * 1000) + build
+    } catch (GradleException ge) {
+        throw ge
+    } catch (Exception e) {
+        return 1
+    }
+}
+
+def appVersionName = project.hasProperty('versionName') ? project.property('versionName').toString() : (System.getenv("VERSION_NAME") ?: "0.0.1")
+def appVersionCode = calculateVersionCode(appVersionName)
+
 android {
     namespace 'com.ridervoice'
     compileSdk 34
+
+    signingConfigs {
+        release {
+            if (System.getenv("KEYSTORE_FILE") != null && file(System.getenv("KEYSTORE_FILE")).exists()) {
+                storeFile file(System.getenv("KEYSTORE_FILE"))
+                storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
+                keyAlias System.getenv("KEY_ALIAS") ?: ""
+                keyPassword System.getenv("KEY_PASSWORD") ?: ""
+            } else {
+                logger.warn("WARNING: Building release APK with debug signing config. This build cannot be updated over builds signed with a production keystore.")
+                initWith(signingConfigs.debug)
+            }
+        }
+    }
 
     defaultConfig {
         applicationId "com.ridervoice"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
     }
 
     buildFeatures {
@@ -105,9 +167,15 @@ dependencies {
     // Media & AVRCP
     implementation "androidx.media:media:1.7.0"
     
+    // Image Loading (Coil for Google Profile Photos & Avatars)
+    implementation "io.coil-kt:coil-compose:2.5.0"
+
     // Room Database (Flight Recorder)
     def room_version = "2.6.1"
     implementation "androidx.room:room-runtime:$room_version"
     implementation "androidx.room:room-ktx:$room_version"
     ksp "androidx.room:room-compiler:$room_version"
+
+    // Unit Testing
+    testImplementation "junit:junit:4.13.2"
 }

@@ -8,6 +8,7 @@ object Routes {
     const val ROUTE_PLANNER  = "route_planner"
     const val RIDE_STATS     = "ride_stats"
     const val SETTINGS       = "settings"
+    const val ACCOUNT        = "account"
  
     // Host flow
     const val HOST_SETUP     = "host_setup"
@@ -24,6 +25,7 @@ object Routes {
     const val SOS            = "sos/{roomName}"
     const val POST_RIDE_SUMMARY = "post_ride_summary"
     const val JOIN_ROOM       = "join_room"
+    const val JOIN_VIA_TOKEN  = "join_via_token/{token}"
     const val HEADSET_SETTINGS = "headset_settings"
     const val RIDE_REPLAY     = "ride_replay/{rideId}"
  
@@ -56,5 +58,9 @@ object Routes {
     fun rideReplayPath(rideId: String): String {
         val safe = rideId.ifBlank { "latest" }
         return "ride_replay/${android.net.Uri.encode(safe)}"
+    }
+
+    fun joinViaTokenPath(token: String): String {
+        return "join_via_token/${android.net.Uri.encode(token)}"
     }
 }

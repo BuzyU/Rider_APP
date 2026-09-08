@@ -181,6 +181,8 @@ class UpdateManager @Inject constructor(
         downloadJob?.cancel()
 
         val updatesDir = File(context.cacheDir, "updates").apply { mkdirs() }
+        // Clean out any stale previously downloaded APKs to ensure fresh verification
+        updatesDir.listFiles()?.forEach { try { it.delete() } catch (ignored: Exception) {} }
 
         // Storage space check (APK size + 20 MB headroom)
         val requiredBytes = if (releaseInfo.apkSizeBytes > 0) releaseInfo.apkSizeBytes + 20_000_000 else 80_000_000

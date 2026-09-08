@@ -82,7 +82,14 @@ jobs:
             echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
             echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
           else
-            echo "::warning::KEYSTORE_BASE64 secret is not configured. Falling back to debug signing config for release build."
+            echo "::warning::KEYSTORE_BASE64 secret is not configured. Generating debug keystore fallback for release build."
+            keytool -genkey -v -keystore mobile-app/app/debug-fallback.keystore \
+              -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+            echo "KEYSTORE_FILE=debug-fallback.keystore" >> $GITHUB_ENV
+            echo "KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
+            echo "KEY_ALIAS=androiddebugkey" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
           fi
 
       - name: Grant Execute Permissions for Gradlew

@@ -2,14 +2,17 @@ package com.ridervoice.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,9 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,6 +56,7 @@ fun RoomScreen(
     viewModel: RoomViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val isDark = ThemeState.isDarkTheme
 
     val connectionState by viewModel.connectionState.collectAsState()
     val participants by viewModel.participants.collectAsState()
@@ -62,6 +71,14 @@ fun RoomScreen(
 
     var isVoiceChannelExpanded by remember { mutableStateOf(false) }
     var isPttPressed by remember { mutableStateOf(false) }
+    var isDeafened by remember { mutableStateOf(false) }
+    var showLeaveConfirmDialog by remember { mutableStateOf(false) }
+    var showAudioRoutePicker by remember { mutableStateOf(false) }
+
+    // Intercept hardware/system back button with confirmation
+    BackHandler {
+        showLeaveConfirmDialog = true
+    }
 
     // Point-of-use runtime permissions: Background location launcher (API 29+)
     val bgLocationLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -102,6 +119,120 @@ fun RoomScreen(
         viewModel.joinRoom(roomName, userName)
     }
 
+    // ── LEAVE CONFIRMATION DIALOG ────────────────────────────────────────────
+    if (showLeaveConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showLeaveConfirmDialog = false },
+            title = {
+                Text(
+                    text = "LEAVE CONVOY VOICE?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "You will disconnect from active convoy communications and live background audio.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLeaveConfirmDialog = false
+                        viewModel.leaveRoom()
+                        context.stopService(Intent(context, VoiceForegroundService::class.java))
+                        onLeave()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
+                ) {
+                    Text("LEAVE CONVOY", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showLeaveConfirmDialog = false }) {
+                    Text("STAY IN CONVOY", color = TextPrimary)
+                }
+            },
+            containerColor = DarkSlate
+        )
+    }
+
+    // ── AUDIO ROUTE SELECTOR DIALOG ─────────────────────────────────────────
+    if (showAudioRoutePicker) {
+        AlertDialog(
+            onDismissRequest = { showAudioRoutePicker = false },
+            title = {
+                Text(
+                    text = "AUDIO OUTPUT ROUTE",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Select audio hardware device:", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        color = Gunmetal,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showAudioRoutePicker = false
+                            }
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Bluetooth, contentDescription = null, tint = ElectricCyan)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Helmet Headset (Bluetooth SCO)", color = TextPrimary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Surface(
+                        color = Gunmetal,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showAudioRoutePicker = false
+                            }
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.VolumeUp, contentDescription = null, tint = NeonOrange)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Phone Speakerphone", color = TextPrimary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Surface(
+                        color = Gunmetal,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showAudioRoutePicker = false
+                            }
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.PhoneInTalk, contentDescription = null, tint = TextSecondary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Phone Earpiece / Wired", color = TextPrimary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAudioRoutePicker = false }) {
+                    Text("CLOSE", color = ElectricCyan)
+                }
+            },
+            containerColor = DarkSlate
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(GraphiteBase)) {
 
         // ── Background: navigation delegation placeholder ───────────────────
@@ -125,82 +256,146 @@ fun RoomScreen(
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan)
             ) {
-                Text("LAUNCH NAVIGATION", color = TextPrimary, fontWeight = FontWeight.Bold)
+                Text("LAUNCH NAVIGATION", color = if (isDark) Color.Black else Color.White, fontWeight = FontWeight.Bold)
             }
         }
 
         // ── Top HUD ────────────────────────────────────────────────────────
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 48.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 44.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.CenterVertically
         ) {
             // Live / connection status
             ConnectionPill(connectionState)
 
             // Room info
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(roomName, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
-                Text("${participants.count { !it.isGhost }} connected", color = TextSecondary, fontSize = 12.sp)
+                Text(
+                    text = roomName.uppercase(),
+                    color = NeonOrange,
+                    style = MaterialTheme.typography.titleLarge,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = "${participants.count { !it.isGhost }} RIDERS CONNECTED",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
 
-            // Audio device badge
-            AudioDeviceBadge(activeDevice, routerState)
+            // Right side: Audio device badge + Separated LEAVE button
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.clickable { showAudioRoutePicker = true }) {
+                    AudioDeviceBadge(activeDevice, routerState)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                // Cleanly separated LEAVE button on top header (safe from SOS)
+                IconButton(
+                    onClick = { showLeaveConfirmDialog = true },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Gunmetal)
+                        .border(1.5.dp, AlertRed, CircleShape)
+                        .semantics { contentDescription = "Leave Convoy Voice Call" }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CallEnd,
+                        contentDescription = "Leave Convoy",
+                        tint = AlertRed,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
 
-        // ── Error banner ───────────────────────────────────────────────────
+        // ── Error banner (dismissible) ───────────────────────────────────────
         error?.let { msg ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .padding(top = 130.dp)
+                    .padding(top = 110.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0x88FF4D4D))
+                    .background(Color(0xCC331010))
+                    .border(1.dp, AlertRed, RoundedCornerShape(8.dp))
                     .padding(12.dp)
             ) {
-                Text(msg, color = TextPrimary, fontSize = 13.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(msg, color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    IconButton(
+                        onClick = { viewModel.clearError() },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Dismiss error", tint = Color.White)
+                    }
+                }
             }
         }
 
-        // ── Audio status bar (below top HUD) ───────────────────────────────
+        // ── S-Meter / VU Audio Status Bar (below top HUD) ───────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(top = if (error != null) 190.dp else 130.dp) // BUG FIX: Move down if error banner is showing
+                .padding(horizontal = 16.dp)
+                .padding(top = if (error != null) 175.dp else 115.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(DarkSlate)
+                .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Amplitude bar
-                AmplitudeBar(
-                    amplitude = amplitude,
-                    noiseFloor = noiseFloor,
-                    isTransmitting = isMicEnabled || isVoxOpen,
-                    modifier = Modifier.width(80.dp).height(14.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(audioStatusLine, color = TextSecondary, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // S-Meter / VU Segmented Ladder
+                    SegmentedVuMeter(
+                        amplitude = amplitude,
+                        noiseFloor = noiseFloor,
+                        isTransmitting = isMicEnabled || isVoxOpen,
+                        modifier = Modifier.width(130.dp).height(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = audioStatusLine.uppercase(),
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
 
-        // ── Bottom voice channel panel ──────────────────────────────────────
+        // ── Bottom voice channel console ────────────────────────────────────
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .fillMaxHeight(if (isVoiceChannelExpanded) 0.72f else 0.28f)
-                .background(DarkSlate, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .fillMaxHeight(if (isVoiceChannelExpanded) 0.75f else 0.32f)
+                .background(DarkSlate, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .border(1.dp, BorderColor, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             // Drag handle
             Box(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isVoiceChannelExpanded = !isVoiceChannelExpanded }
+                    .padding(bottom = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Box(modifier = Modifier.width(40.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(TextSecondary))
+                Box(
+                    modifier = Modifier
+                        .width(44.dp)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(TextSecondary)
+                )
             }
 
             if (isVoiceChannelExpanded) {
@@ -211,15 +406,24 @@ fun RoomScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("VOICE CHANNEL", color = TextSecondary, fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Bold)
-                        Text(roomName, color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "TRANSCEIVER CHANNEL",
+                            color = NeonOrange,
+                            style = MaterialTheme.typography.labelSmall,
+                            letterSpacing = 1.5.sp
+                        )
+                        Text(
+                            text = roomName.uppercase(),
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.titleMedium
+                        )
                     }
                     IconButton(onClick = { isVoiceChannelExpanded = false }) {
-                        Icon(Icons.Default.ExpandMore, contentDescription = "Collapse", tint = TextSecondary)
+                        Icon(Icons.Default.ExpandMore, contentDescription = "Collapse Channel", tint = TextSecondary)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     items(participants) { participant ->
@@ -227,68 +431,130 @@ fun RoomScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             } else {
-                // Collapsed: active speaker row
+                // Collapsed: active speaker preview
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Gunmetal),
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Gunmetal)
+                            .border(1.dp, BorderColor, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Person, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Radio, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(18.dp))
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("${participants.count { !it.isGhost }} riders online", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text(audioStatusLine, color = TextSecondary, fontSize = 11.sp)
+                        Text(
+                            text = "${participants.count { !it.isGhost }} RIDERS ON FREQUENCY",
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = if (isDeafened) "INCOMING AUDIO DEAFENED" else audioStatusLine,
+                            color = if (isDeafened) AlertRed else TextSecondary,
+                            style = MaterialTheme.typography.labelSmall
+                        )
                     }
                     IconButton(onClick = { isVoiceChannelExpanded = true }) {
-                        Icon(Icons.Default.ExpandLess, contentDescription = "Expand", tint = TextSecondary)
+                        Icon(Icons.Default.ExpandLess, contentDescription = "Expand Channel", tint = TextSecondary)
                     }
                 }
             }
 
-            // ── Controls row ───────────────────────────────────────────────
+            // ── TACTICAL CONTROLS RACK ───────────────────────────────────────
+            // Separated controls: Mute + Deafen on left, Perforated PTT in center, Guarded SOS on right
             Row(
-                modifier = Modifier.fillMaxWidth().height(72.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(76.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Mute toggle (VOX override)
+                // 1. MUTE TOGGLE (Changed LIVE color off red to ElectricCyan / RF Teal)
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.pointerInput(Unit) {
-                        detectTapGestures(onTap = { viewModel.toggleMute() })
-                    }
+                    modifier = Modifier.padding(end = 4.dp)
                 ) {
-                    Box(
+                    FilledIconButton(
+                        onClick = { viewModel.toggleMute() },
                         modifier = Modifier
                             .size(52.dp)
-                            .clip(CircleShape)
-                            .background(if (isMicEnabled) Color(0x44FF4D4D) else Gunmetal)
-                            .border(1.dp, if (isMicEnabled) AlertRed else Color.Transparent, CircleShape),
-                        contentAlignment = Alignment.Center
+                            .border(
+                                1.5.dp,
+                                if (isMicEnabled) ElectricCyan else BorderColor,
+                                CircleShape
+                            ),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = if (isMicEnabled) DarkPalette.SurfaceAlt else Gunmetal
+                        )
                     ) {
                         Icon(
-                            if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
-                            contentDescription = "Mute",
-                            tint = if (isMicEnabled) AlertRed else TextSecondary,
-                            modifier = Modifier.size(22.dp)
+                            imageVector = if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
+                            contentDescription = if (isMicEnabled) "Microphone is live, tap to mute" else "Microphone muted, tap to unmute",
+                            tint = if (isMicEnabled) ElectricCyan else TextSecondary,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(if (isMicEnabled) "LIVE" else "MUTED", color = if (isMicEnabled) AlertRed else TextSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = if (isMicEnabled) "LIVE" else "MUTED",
+                        color = if (isMicEnabled) ElectricCyan else TextSecondary,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black
+                    )
                 }
 
-                // ── PTT BUTTON ─────────────────────────────────────────────
-                // Press and hold to transmit. Releases mic on lift.
-                PttButton(
+                // 2. DEAFEN TOGGLE (Silence incoming chatter)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(end = 6.dp)
+                ) {
+                    FilledIconButton(
+                        onClick = { isDeafened = !isDeafened },
+                        modifier = Modifier
+                            .size(52.dp)
+                            .border(
+                                1.5.dp,
+                                if (isDeafened) AlertRed else BorderColor,
+                                CircleShape
+                            ),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = if (isDeafened) DarkPalette.EmergencyContainer else Gunmetal
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (isDeafened) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                            contentDescription = if (isDeafened) "Incoming audio muted, tap to hear chatter" else "Tap to deafen incoming audio",
+                            tint = if (isDeafened) AlertRed else TextSecondary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = if (isDeafened) "DEAFEN" else "HEAR",
+                        color = if (isDeafened) AlertRed else TextSecondary,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+
+                // 3. PTT CAPSULE BUTTON (Perforated Palm-Mic Grille)
+                PttPerforatedButton(
                     isPressed = isPttPressed,
                     isVoxOpen = isVoxOpen,
-                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp).fillMaxHeight(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(horizontal = 4.dp),
                     onPressStart = {
                         isPttPressed = true
                         viewModel.onPttPressed(true)
@@ -299,52 +565,200 @@ fun RoomScreen(
                     }
                 )
 
-                // SOS
+                // 4. GUARDED SOS SWITCH (Separated, unmistakable hazard chamber)
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.pointerInput(Unit) {
-                        detectTapGestures(onTap = { onSosClick() })
-                    }
+                    modifier = Modifier.padding(start = 6.dp)
                 ) {
                     Box(
                         modifier = Modifier
                             .size(52.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x33FF4D4D))
-                            .border(1.dp, AlertRed, CircleShape),
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(HazardContainer)
+                            .border(2.dp, AlertRed, RoundedCornerShape(10.dp))
+                            .clickable { onSosClick() }
+                            .semantics { contentDescription = "Emergency SOS Hazard Switch" },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Warning, contentDescription = "SOS", tint = AlertRed, modifier = Modifier.size(22.dp))
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "SOS",
+                            tint = AlertRed,
+                            modifier = Modifier.size(26.dp)
+                        )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("SOS", color = AlertRed, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "SOS",
+                        color = AlertRed,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ── Retro S-Meter / VU Segmented Gauge ─────────────────────────────────────────
+
+@Composable
+private fun SegmentedVuMeter(
+    amplitude: Float,
+    noiseFloor: Float,
+    isTransmitting: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val isDark = ThemeState.isDarkTheme
+    val activeLevel = if (noiseFloor > 0 && isTransmitting) {
+        ((amplitude / (noiseFloor * 4.5f)).coerceIn(0f, 1f) * 8).toInt()
+    } else {
+        0
+    }
+
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            for (i in 1..8) {
+                val isLit = isTransmitting && i <= activeLevel
+                val segmentColor = when {
+                    !isLit -> if (isDark) Color(0xFF20252D) else LightPalette.SurfaceAlt
+                    i <= 5 -> ElectricCyan
+                    i <= 7 -> NeonOrange
+                    else   -> AlertRed
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(segmentColor)
+                        .border(0.5.dp, BorderColor.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("-20", style = MaterialTheme.typography.labelSmall, fontSize = 7.sp, color = TextSecondary)
+            Text("-10", style = MaterialTheme.typography.labelSmall, fontSize = 7.sp, color = TextSecondary)
+            Text("0", style = MaterialTheme.typography.labelSmall, fontSize = 7.sp, color = TextSecondary)
+            Text("+3dB", style = MaterialTheme.typography.labelSmall, fontSize = 7.sp, color = TextSecondary)
+        }
+    }
+}
 
-                // Leave
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.pointerInput(Unit) {
-                        detectTapGestures(onTap = {
-                            viewModel.leaveRoom()
-                            context.stopService(Intent(context, VoiceForegroundService::class.java))
-                            onLeave()
-                        })
+// ── Retro Perforated Palm-Mic PTT Capsule ──────────────────────────────────────
+
+@Composable
+private fun PttPerforatedButton(
+    isPressed: Boolean,
+    isVoxOpen: Boolean,
+    modifier: Modifier = Modifier,
+    onPressStart: () -> Unit,
+    onPressEnd: () -> Unit
+) {
+    val isDark = ThemeState.isDarkTheme
+    val isActive = isPressed || isVoxOpen
+
+    val pulseTransition = rememberInfiniteTransition(label = "ptt")
+    val scale by pulseTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (isActive) 1.04f else 1f,
+        animationSpec = infiniteRepeatable(tween(400, easing = LinearEasing), RepeatMode.Reverse),
+        label = "pttScale"
+    )
+
+    val buttonBg = when {
+        isPressed -> if (isDark) AmberContainer else LightPalette.AccentAmber
+        isVoxOpen -> if (isDark) DarkPalette.SurfaceAlt else LightPalette.SurfaceAlt
+        else      -> if (isDark) DarkPalette.SurfaceAlt else LightPalette.Surface
+    }
+
+    val rimColor = when {
+        isPressed -> NeonOrange
+        isVoxOpen -> ElectricCyan
+        else      -> BorderColor
+    }
+
+    val dotColor = when {
+        isPressed -> if (isDark) NeonOrange.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.6f)
+        else      -> if (isDark) Color(0xFF101316) else Color(0xFF5A626E).copy(alpha = 0.25f)
+    }
+
+    Box(
+        modifier = modifier
+            .scale(scale)
+            .clip(RoundedCornerShape(18.dp))
+            .background(buttonBg)
+            .border(2.dp, rimColor, RoundedCornerShape(18.dp))
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        onPressStart()
+                        tryAwaitRelease()
+                        onPressEnd()
                     }
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, AlertRed, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.CallEnd, contentDescription = "Leave", tint = AlertRed, modifier = Modifier.size(22.dp))
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("LEAVE", color = AlertRed, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                )
+            }
+            .semantics { contentDescription = "Push To Talk Radio Capsule" },
+        contentAlignment = Alignment.Center
+    ) {
+        // Canvas Perforated Mic Grille
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val stepX = 14.dp.toPx()
+            val stepY = 10.dp.toPx()
+            val dotRadius = 1.5.dp.toPx()
+            val cols = (size.width / stepX).toInt()
+            val rows = (size.height / stepY).toInt()
+
+            for (col in 1..cols) {
+                for (row in 1..rows) {
+                    val x = col * stepX - (stepX / 2)
+                    val y = row * stepY - (stepY / 2)
+                    drawCircle(
+                        color = dotColor,
+                        radius = dotRadius,
+                        center = Offset(x, y)
+                    )
                 }
+            }
+        }
+
+        // Center Callout Plate
+        Surface(
+            color = if (isPressed) NeonOrange else Gunmetal.copy(alpha = 0.9f),
+            shape = RoundedCornerShape(12.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, rimColor)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = null,
+                    tint = if (isPressed) (if (isDark) Color.Black else Color.White) else (if (isActive) ElectricCyan else TextPrimary),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = when {
+                        isPressed -> "TRANSMITTING"
+                        isVoxOpen -> "VOX ACTIVE"
+                        else      -> "HOLD TO TALK"
+                    },
+                    color = if (isPressed) (if (isDark) Color.Black else Color.White) else TextPrimary,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black
+                )
             }
         }
     }
@@ -355,154 +769,66 @@ fun RoomScreen(
 @Composable
 private fun ConnectionPill(state: ConnectionState) {
     val (color, label) = when (state) {
-        ConnectionState.CONNECTED    -> SuccessGreen to "LIVE"
-        ConnectionState.CONNECTING   -> NeonOrange   to "CONNECTING"
-        ConnectionState.RECONNECTING -> NeonOrange   to "RECONNECTING"
-        ConnectionState.FAILED       -> AlertRed     to "FAILED"
-        ConnectionState.DISCONNECTED -> TextSecondary to "OFFLINE"
+        ConnectionState.CONNECTED    -> TechGreen    to "LOCKED"
+        ConnectionState.CONNECTING   -> NeonOrange   to "ACQUIRING"
+        ConnectionState.RECONNECTING -> NeonOrange   to "SYNCING"
+        ConnectionState.FAILED       -> AlertRed     to "NO SIGNAL"
+        ConnectionState.DISCONNECTED -> TextSecondary to "STANDBY"
     }
 
     val pulse = rememberInfiniteTransition(label = "pulse")
     val alpha by pulse.animateFloat(
-        initialValue = 1f, targetValue = if (state == ConnectionState.CONNECTED) 0.3f else 1f,
+        initialValue = 1f,
+        targetValue = if (state == ConnectionState.CONNECTED) 0.4f else 1f,
         animationSpec = infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Reverse),
         label = "dot"
     )
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(color.copy(alpha = alpha)))
-        Spacer(modifier = Modifier.width(5.dp))
-        Text(label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color.copy(alpha = alpha))
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = label,
+            color = color,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 1.sp
+        )
     }
 }
 
 @Composable
 private fun AudioDeviceBadge(device: AudioDevice, routerState: RouterState) {
     val (icon, label, color) = when {
-        routerState == RouterState.CONNECTING_BT -> Triple(Icons.Default.Bluetooth, "Connecting…", NeonOrange)
-        routerState == RouterState.SCANNING -> Triple(Icons.Default.Search, "Scanning…", TextSecondary)
-        device is AudioDevice.BluetoothSco -> Triple(Icons.Default.BluetoothConnected, device.deviceName.take(14), ElectricCyan)
-        device is AudioDevice.WiredHeadset -> Triple(Icons.Default.Headset, "Wired", SuccessGreen)
-        device is AudioDevice.UsbAudio -> Triple(Icons.Default.Usb, "USB", SuccessGreen)
-        else -> Triple(Icons.Default.PhoneInTalk, "Earpiece", TextSecondary)
+        routerState == RouterState.CONNECTING_BT -> Triple(Icons.Default.Bluetooth, "BT SYNC…", NeonOrange)
+        routerState == RouterState.SCANNING      -> Triple(Icons.Default.Search, "SEARCH…", TextSecondary)
+        device is AudioDevice.BluetoothSco       -> Triple(Icons.Default.BluetoothConnected, device.deviceName.take(12).uppercase(), ElectricCyan)
+        device is AudioDevice.WiredHeadset       -> Triple(Icons.Default.Headset, "WIRED", TechGreen)
+        device is AudioDevice.UsbAudio           -> Triple(Icons.Default.Usb, "USB-RF", TechGreen)
+        else                                     -> Triple(Icons.Default.PhoneInTalk, "EARPIECE", TextSecondary)
     }
 
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(DarkSlate)
+            .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+        Icon(icon, contentDescription = "Audio Route", tint = color, modifier = Modifier.size(14.dp))
         Spacer(modifier = Modifier.width(4.dp))
-        Text(label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun AmplitudeBar(
-    amplitude: Float,
-    noiseFloor: Float,
-    isTransmitting: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val barColor = when {
-        isTransmitting && amplitude > noiseFloor * 2.5f -> SuccessGreen
-        isTransmitting -> ElectricCyan
-        else -> Gunmetal
-    }
-
-    val fillFraction = if (noiseFloor > 0) (amplitude / (noiseFloor * 5f)).coerceIn(0f, 1f) else 0f
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(Gunmetal)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(fillFraction)
-                .background(barColor)
-        )
-        // Noise floor marker
-        if (noiseFloor > 0) {
-            val markerFraction = (1f / 5f).coerceIn(0f, 1f)
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(markerFraction),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(2.dp)
-                        .background(NeonOrange.copy(alpha = 0.8f))
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PttButton(
-    isPressed: Boolean,
-    isVoxOpen: Boolean,
-    modifier: Modifier = Modifier,
-    onPressStart: () -> Unit,
-    onPressEnd: () -> Unit,
-) {
-    val isActive = isPressed || isVoxOpen
-
-    val pulseTransition = rememberInfiniteTransition(label = "ptt")
-    val scale by pulseTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = if (isActive) 1.06f else 1f,
-        animationSpec = infiniteRepeatable(tween(400, easing = LinearEasing), RepeatMode.Reverse),
-        label = "pttScale"
-    )
-
-    Button(
-        onClick = {},  // handled by pointerInput below
-        modifier = modifier
-            .scale(scale)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        onPressStart()
-                        tryAwaitRelease()
-                        onPressEnd()
-                    }
-                )
-            },
-        shape = RoundedCornerShape(36.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = when {
-                isPressed  -> NeonOrange
-                isVoxOpen  -> ElectricCyan
-                else       -> Gunmetal
-            }
-        ),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = if (isActive) 8.dp else 2.dp)
-    ) {
-        Icon(
-            Icons.Default.Mic,
-            contentDescription = "PTT",
-            tint = if (isActive) TextPrimary else TextSecondary,
-            modifier = Modifier.size(22.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = when {
-                isPressed -> "TRANSMITTING"
-                isVoxOpen -> "VOX ACTIVE"
-                else      -> "HOLD TO TALK"
-            },
-            color = if (isActive) TextPrimary else TextSecondary,
-            fontWeight = FontWeight.Bold,
-            fontSize = 13.sp
+            text = label,
+            color = color,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
         )
     }
 }

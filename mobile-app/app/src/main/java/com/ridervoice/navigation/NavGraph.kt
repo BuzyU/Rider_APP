@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -15,8 +16,10 @@ import com.ridervoice.ui.screens.*
 import com.ridervoice.utils.OEMBatteryWarning
  
 @Composable
-fun NavGraph() {
-    val navController = rememberNavController()
+fun NavGraph(
+    navController: NavHostController = rememberNavController(),
+    startRoute: String? = null
+) {
     val context = LocalContext.current
  
     LaunchedEffect(Unit) {
@@ -33,8 +36,13 @@ fun NavGraph() {
         // ── Splash ─────────────────────────────────────────────────────────
         composable(Routes.SPLASH) {
             SplashScreen(onSplashFinished = {
-                val dest = if (FirebaseAuth.getInstance().currentUser != null)
-                    Routes.HOME else Routes.LOGIN
+                val dest = if (startRoute != null && FirebaseAuth.getInstance().currentUser != null) {
+                    startRoute
+                } else if (FirebaseAuth.getInstance().currentUser != null) {
+                    Routes.HOME
+                } else {
+                    Routes.LOGIN
+                }
                 navController.navigate(dest) {
                     popUpTo(Routes.SPLASH) { inclusive = true }
                 }
@@ -74,7 +82,9 @@ fun NavGraph() {
             val authVm: com.ridervoice.ui.viewmodels.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             HomeScreen(
                 onHostRideClick      = { navController.navigate(Routes.HOST_SETUP) },
-                onJoinRideClick      = { navController.navigate(Routes.INVITES_INBOX) },
+                onJoinRideClick      = { navController.navigate(Routes.JOIN_ROOM) },
+                onInvitesInboxClick  = { navController.navigate(Routes.INVITES_INBOX) },
+                onSosClick           = { navController.navigate(Routes.sosPath("GLOBAL")) },
                 onSquadClick         = { navController.navigate(Routes.SQUAD) },
                 onSettingsClick      = { navController.navigate(Routes.SETTINGS) },
                 onRoutePlannerClick  = { navController.navigate(Routes.ROUTE_PLANNER) },
@@ -259,9 +269,54 @@ fun NavGraph() {
         }
  
         // ── Other screens ──────────────────────────────────────────────────
-        composable(Routes.SQUAD)        { SquadScreen(onBackClick = { navController.popBackStack() }) }
-        composable(Routes.SETTINGS)     { SettingsScreen(onBackClick = { navController.navigateUp() }, onSignOutSuccess = { navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } } }) }
+        composable(Routes.SQUAD) {
+            SquadScreen(
+                onBackClick = { navController.popBackStack() },
+                onJoinRoom = { roomName ->
+                    navController.navigate(Routes.deviceSetupPath(roomName, isHost = false))
+                }
+            )
+        }
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
+                onBackClick = { navController.navigateUp() },
+                onNavigateToHeadsetSettings = { navController.navigate(Routes.HEADSET_SETTINGS) },
+                onSignOutSuccess = {
+                    navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
+                }
+            )
+        }
         composable(Routes.ROUTE_PLANNER){ RoutePlannerScreen(onBackClick = { navController.popBackStack() }) }
-        composable(Routes.RIDE_STATS)   { RideStatsScreen(onBackClick = { navController.popBackStack() }) }
+        composable(Routes.RIDE_STATS) {
+            RideStatsScreen(
+                onBackClick = { navController.popBackStack() },
+                onReplayRide = { rideId ->
+                    navController.navigate(Routes.rideReplayPath(rideId))
+                }
+            )
+        }
+        composable(Routes.JOIN_ROOM) {
+            JoinRoomScreen(
+                onJoin = { roomCode, userName ->
+                    navController.navigate(Routes.deviceSetupPath(roomCode, isHost = false))
+                },
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.HEADSET_SETTINGS) {
+            HeadsetSettingsScreen(onBackClick = { navController.popBackStack() })
+        }
+        composable(
+            route = Routes.RIDE_REPLAY,
+            arguments = listOf(navArgument("rideId") { type = NavType.StringType; defaultValue = "latest" })
+        ) { backStackEntry ->
+            val rideId = backStackEntry.arguments?.getString("rideId") ?: "latest"
+            RideReplayScreen(
+                rideId = rideId,
+                waypoints = emptyList(),
+                events = emptyList(),
+                onBack = { navController.popBackStack() }
+            )
+        }
     }
 }

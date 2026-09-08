@@ -74,6 +74,28 @@ class SquadViewModel @Inject constructor(
         }
     }
 
+    fun acceptInvite(invite: RideInvite, onAcceptSuccess: (String) -> Unit) {
+        viewModelScope.launch {
+            val result = squadRepository.respondToInvite(invite.id, true)
+            if (result.isSuccess) {
+                _uiState.update { state ->
+                    state.copy(invites = state.invites.filter { it.id != invite.id })
+                }
+                onAcceptSuccess(invite.room.name)
+            } else {
+                _uiState.update {
+                    it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Failed to accept invite")
+                }
+            }
+        }
+    }
+
+    fun removeFriend(friendId: String) {
+        _uiState.update { state ->
+            state.copy(friends = state.friends.filter { it.id != friendId })
+        }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
     }

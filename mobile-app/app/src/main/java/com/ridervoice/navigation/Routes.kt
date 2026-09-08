@@ -23,6 +23,9 @@ object Routes {
     const val ACTIVE_RIDE_HUD = "active_ride_hud/{roomName}/{userName}"
     const val SOS            = "sos/{roomName}"
     const val POST_RIDE_SUMMARY = "post_ride_summary"
+    const val JOIN_ROOM       = "join_room"
+    const val HEADSET_SETTINGS = "headset_settings"
+    const val RIDE_REPLAY     = "ride_replay/{rideId}"
  
     fun inviteFriendsPath(convoyName: String): String {
         val safe = convoyName.ifBlank { "Convoy" }
@@ -48,5 +51,10 @@ object Routes {
     fun sosPath(roomName: String): String {
         val safe = roomName.ifBlank { "Convoy" }
         return "sos/${android.net.Uri.encode(safe)}"
+    }
+
+    fun rideReplayPath(rideId: String): String {
+        val safe = rideId.ifBlank { "latest" }
+        return "ride_replay/${android.net.Uri.encode(safe)}"
     }
 }

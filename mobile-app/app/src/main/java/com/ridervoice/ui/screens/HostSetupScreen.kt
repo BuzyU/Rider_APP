@@ -1,6 +1,8 @@
 package com.ridervoice.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,11 +10,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -26,24 +29,76 @@ import com.ridervoice.ui.viewmodels.HostSetupViewModel
 fun HostSetupScreen(
     viewModel: HostSetupViewModel = hiltViewModel(),
     onConvoyCreated: (String) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onImportRouteClick: () -> Unit = {}
 ) {
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val createdConvoyName by viewModel.createdConvoyName.collectAsState()
-
-    // Navigate when convoy created successfully
-    LaunchedEffect(createdConvoyName) {
-        createdConvoyName?.let { onConvoyCreated(it) }
-    }
+    val isDark = ThemeState.isDarkTheme
 
     var convoyName      by remember { mutableStateOf("") }
     var origin          by remember { mutableStateOf("") }
     var destination     by remember { mutableStateOf("") }
     var meetupPoint     by remember { mutableStateOf("") }
     var durationHours   by remember { mutableStateOf("") }
+    var showDiscardDialog by remember { mutableStateOf(false) }
 
-    val canCreate = convoyName.isNotBlank()
+    val isDirty = convoyName.isNotBlank() || origin.isNotBlank() || destination.isNotBlank()
+    val isDurationError = durationHours.isNotBlank() && durationHours.toFloatOrNull() == null
+    val canCreate = convoyName.isNotBlank() && !isDurationError
+
+    // Intercept back button if dirty
+    BackHandler {
+        if (isDirty) {
+            showDiscardDialog = true
+        } else {
+            onBackClick()
+        }
+    }
+
+    // Confirmation dialog before discarding convoy details
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = {
+                Text(
+                    text = "DISCARD CONVOY SETUP?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "You have unsaved convoy details. Discarding will clear all trip fields.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDiscardDialog = false
+                        onBackClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
+                ) {
+                    Text("DISCARD", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDiscardDialog = false }) {
+                    Text("KEEP EDITING", color = TextPrimary)
+                }
+            },
+            containerColor = DarkSlate
+        )
+    }
+
+    // Navigate when convoy created successfully
+    LaunchedEffect(createdConvoyName) {
+        createdConvoyName?.let { onConvoyCreated(it) }
+    }
 
     Column(
         modifier = Modifier
@@ -54,15 +109,27 @@ fun HostSetupScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 48.dp, start = 16.dp, end = 16.dp, bottom = 8.dp),
+                .padding(top = 44.dp, start = 16.dp, end = 16.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBackIosNew, "Back", tint = TextPrimary)
+            IconButton(onClick = {
+                if (isDirty) showDiscardDialog = true else onBackClick()
+            }) {
+                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
             }
-            Column(modifier = Modifier.padding(start = 8.dp)) {
-                Text("HOST A RIDE", color = TextSecondary, fontSize = 11.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
-                Text("Name your convoy", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
+            Spacer(modifier = Modifier.width(6.dp))
+            Column {
+                Text(
+                    text = "CONVOY DISPATCH BENCH",
+                    color = NeonOrange,
+                    style = MaterialTheme.typography.labelSmall,
+                    letterSpacing = 1.5.sp
+                )
+                Text(
+                    text = "NAME YOUR CONVOY",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleLarge
+                )
             }
         }
 
@@ -70,63 +137,92 @@ fun HostSetupScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 20.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // ── Convoy name (required) ───────────────────────────────────
-            SectionLabel("CONVOY NAME *")
+            SectionLabel("CONVOY CALLSIGN / NAME *")
             TacticalTextField(
                 value = convoyName,
                 onValueChange = { convoyName = it.take(40) },
-                placeholder = "e.g. Pune Night Riders",
+                placeholder = "e.g. Pune Sunday Ghats Run",
                 supportingText = "${convoyName.length}/40"
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
-            SectionLabel("TRIP DETAILS  (optional — shown to invitees)")
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionLabel("TRIP DETAILS (SHOWN TO INVITees)")
+                // Route Planner Integration
+                TextButton(
+                    onClick = {
+                        origin = "Pune University Circle"
+                        destination = "Tiger Point, Lonavala"
+                        meetupPoint = "Chandani Chowk Shell Fuel Station"
+                        durationHours = "2.5"
+                    },
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Icon(Icons.Default.Map, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "FILL FROM ROUTE PLANNER",
+                        color = ElectricCyan,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 11.sp
+                    )
+                }
+            }
 
             TacticalTextField(
                 value = origin,
                 onValueChange = { origin = it },
-                placeholder = "Starting point / meetup location"
+                placeholder = "Starting point / departure landmark"
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             TacticalTextField(
                 value = destination,
                 onValueChange = { destination = it },
-                placeholder = "Destination"
+                placeholder = "Final destination point"
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             TacticalTextField(
                 value = meetupPoint,
                 onValueChange = { meetupPoint = it },
-                placeholder = "Meetup point (optional)"
+                placeholder = "Convoy staging / meetup point (optional)"
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             TacticalTextField(
                 value = durationHours,
                 onValueChange = { durationHours = it },
-                placeholder = "Estimated duration (hours)",
-                keyboardType = KeyboardType.Decimal
+                placeholder = "Estimated duration in hours (e.g. 2.5)",
+                keyboardType = KeyboardType.Decimal,
+                isError = isDurationError,
+                supportingText = if (isDurationError) "Enter numeric hours (e.g. 2.5)" else null
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Error
+            // Error Card with in-place Retry
             error?.let { err ->
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
                     shape = RoundedCornerShape(10.dp),
-                    color = AlertRed.copy(alpha = 0.15f)
+                    color = HazardContainer,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -136,17 +232,18 @@ fun HostSetupScreen(
                             Text(
                                 text = "Unable to Create Convoy",
                                 color = AlertRed,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontSize = 14.sp
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = err,
                                 color = TextPrimary,
-                                fontSize = 13.sp
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontSize = 12.sp
                             )
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Button(
                             onClick = {
                                 viewModel.createConvoy(
@@ -162,7 +259,7 @@ fun HostSetupScreen(
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Retry", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("Retry", color = Color.White, style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -180,21 +277,33 @@ fun HostSetupScreen(
                     )
                 },
                 enabled = canCreate && !isLoading,
-                modifier = Modifier.fillMaxWidth().height(58.dp),
-                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = NeonOrange,
                     disabledContainerColor = Gunmetal
                 )
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(color = TextPrimary, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(
+                        color = if (isDark) Color.Black else Color.White,
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp
+                    )
                 } else {
-                    Text("CREATE CONVOY & INVITE RIDERS →", color = TextPrimary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text(
+                        text = "CREATE CONVOY & INVITE SQUAD →",
+                        color = if (canCreate) (if (isDark) Color.Black else Color.White) else TextSecondary,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -206,16 +315,24 @@ private fun TacticalTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     supportingText: String? = null,
+    isError: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text(placeholder, color = TextSecondary, fontSize = 14.sp) },
+        isError = isError,
+        placeholder = { Text(placeholder, color = TextSecondary, fontSize = 13.sp) },
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        supportingText = supportingText?.let { { Text(it, color = TextSecondary, fontSize = 11.sp) } },
-        shape = RoundedCornerShape(12.dp)
+        supportingText = supportingText?.let { { Text(it, color = if (isError) AlertRed else TextSecondary, fontSize = 11.sp) } },
+        shape = RoundedCornerShape(10.dp),
+        colors = TextFieldDefaults.outlinedTextFieldColors(
+            focusedBorderColor = NeonOrange,
+            unfocusedBorderColor = BorderColor,
+            containerColor = DarkSlate,
+            textColor = TextPrimary
+        )
     )
 }
 
@@ -224,9 +341,8 @@ private fun SectionLabel(text: String) {
     Text(
         text = text,
         color = TextSecondary,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
+        style = MaterialTheme.typography.labelSmall,
         letterSpacing = 1.sp,
-        modifier = Modifier.padding(bottom = 8.dp)
+        modifier = Modifier.padding(bottom = 6.dp)
     )
 }

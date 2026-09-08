@@ -89,6 +89,9 @@ interface ApiService {
     @POST("/api/emergency/alert")
     suspend fun sendSosAlert(@Body body: com.ridervoice.models.SosAlertRequest): Response<Any>
 
+    @POST("/api/emergency/cancel")
+    suspend fun cancelEmergencyAlert(@Body body: com.ridervoice.models.CancelAlertRequest): Response<Any>
+
     // ── Ride History ──────────────────────────────────────────────────────────────
 
     @GET("/api/rides/history")

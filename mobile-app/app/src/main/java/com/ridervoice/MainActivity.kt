@@ -43,9 +43,11 @@ class MainActivity : ComponentActivity() {
         // Restore saved theme choice. Defaults to LIGHT — never reads system dark mode.
         com.ridervoice.ui.theme.ThemeState.set(securePreferences.getBoolean("dark_theme_enabled", false))
 
+        val initialRoute = intent?.getStringExtra("NAV_ROUTE")
+
         setContent {
             com.ridervoice.ui.theme.RiderVoiceTheme {
-                NavGraph()
+                NavGraph(startRoute = initialRoute)
 
                 if (showPermissionRationale.value) {
                     AlertDialog(

@@ -55,6 +55,12 @@ data class SosAlertRequest(
     val lng: Double?
 )
 
+data class CancelAlertRequest(
+    val roomName: String? = null,
+    val alertId: String? = null,
+    val reason: String = "FALSE_ALARM"
+)
+
 // ── Invites ───────────────────────────────────────────────────────────────────
 
 data class InviteRespondRequest(

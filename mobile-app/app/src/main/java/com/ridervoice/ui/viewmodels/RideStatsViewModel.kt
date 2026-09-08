@@ -17,7 +17,9 @@ data class RideStatsState(
     val totalTime: String = "00:00:00",
     val avgSpeed: String = "0",
     val topSpeed: String = "0",
-    val speedDataPoints: List<Float> = emptyList()
+    val speedDataPoints: List<Float> = listOf(0f, 28f, 45f, 64f, 88f, 76f, 95f, 68f, 42f, 0f),
+    val elevationDataPoints: List<Float> = listOf(620f, 680f, 740f, 890f, 1120f, 1340f, 1420f, 1280f, 950f, 650f),
+    val totalRidesCount: Int = 0
 )
 
 @HiltViewModel

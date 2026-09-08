@@ -56,4 +56,14 @@ class SquadRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun respondToInvite(inviteId: String, accept: Boolean): Result<Unit> {
+        return try {
+            val response = apiService.respondToInvite(com.ridervoice.models.InviteRespondRequest(inviteId, if (accept) "ACCEPTED" else "DECLINED"))
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Failed to respond (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

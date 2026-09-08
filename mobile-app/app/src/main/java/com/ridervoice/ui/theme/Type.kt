@@ -15,46 +15,79 @@ val provider = GoogleFont.Provider(
     certificates = R.array.com_google_android_gms_fonts_certs
 )
 
-val fontOrbitron = GoogleFont("Orbitron")
+val fontBarlowCondensed = GoogleFont("Barlow Condensed")
+val fontSpaceMono = GoogleFont("Space Mono")
 val fontInter = GoogleFont("Inter")
 
-val OrbitronFamily = FontFamily(
-    Font(googleFont = fontOrbitron, fontProvider = provider, weight = FontWeight.Black),
-    Font(googleFont = fontOrbitron, fontProvider = provider, weight = FontWeight.Bold)
+val BarlowCondensedFamily = FontFamily(
+    Font(googleFont = fontBarlowCondensed, fontProvider = provider, weight = FontWeight.Black),
+    Font(googleFont = fontBarlowCondensed, fontProvider = provider, weight = FontWeight.ExtraBold),
+    Font(googleFont = fontBarlowCondensed, fontProvider = provider, weight = FontWeight.Bold)
+)
+
+// Backwards compatibility alias for OrbitronFamily
+val OrbitronFamily = BarlowCondensedFamily
+
+val SpaceMonoFamily = FontFamily(
+    Font(googleFont = fontSpaceMono, fontProvider = provider, weight = FontWeight.Bold),
+    Font(googleFont = fontSpaceMono, fontProvider = provider, weight = FontWeight.Normal)
 )
 
 val InterFamily = FontFamily(
     Font(googleFont = fontInter, fontProvider = provider, weight = FontWeight.Normal),
+    Font(googleFont = fontInter, fontProvider = provider, weight = FontWeight.Medium),
     Font(googleFont = fontInter, fontProvider = provider, weight = FontWeight.Bold)
 )
 
 val Typography = Typography(
     displayLarge = TextStyle(
-        fontFamily = OrbitronFamily,
+        fontFamily = BarlowCondensedFamily,
         fontWeight = FontWeight.Black,
-        fontSize = 36.sp,
+        fontSize = 40.sp,
         lineHeight = 44.sp,
-        letterSpacing = 2.sp
+        letterSpacing = 2.5.sp
     ),
     titleLarge = TextStyle(
-        fontFamily = OrbitronFamily,
-        fontWeight = FontWeight.Bold,
+        fontFamily = BarlowCondensedFamily,
+        fontWeight = FontWeight.ExtraBold,
         fontSize = 22.sp,
-        lineHeight = 28.sp,
-        letterSpacing = 0.sp
+        lineHeight = 26.sp,
+        letterSpacing = 1.5.sp
+    ),
+    titleMedium = TextStyle(
+        fontFamily = BarlowCondensedFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 17.sp,
+        lineHeight = 22.sp,
+        letterSpacing = 1.2.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = BarlowCondensedFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 1.0.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = SpaceMonoFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
+        letterSpacing = 0.8.sp
     ),
     bodyLarge = TextStyle(
         fontFamily = InterFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
+        fontWeight = FontWeight.Medium,
+        fontSize = 15.sp,
+        lineHeight = 22.sp,
+        letterSpacing = 0.2.sp
     ),
-    labelLarge = TextStyle(
+    bodyMedium = TextStyle(
         fontFamily = InterFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 1.sp
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 0.2.sp
     )
 )
+

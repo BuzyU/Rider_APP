@@ -1,5 +1,6 @@
 package com.ridervoice.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,17 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
-import kotlinx.coroutines.launch
-import com.ridervoice.utils.OEMBatteryWarning
+import com.ridervoice.ui.components.ProfileDrawer
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.HomeViewModel
-import com.ridervoice.ui.components.ProfileDrawer
+import com.ridervoice.utils.OEMBatteryWarning
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,41 +40,55 @@ fun HomeScreen(
     onRoutePlannerClick: () -> Unit,
     onRideHistoryClick: () -> Unit,
     onDeviceSetupClick: () -> Unit,
+    onInvitesInboxClick: () -> Unit = { onJoinRideClick() },
+    onSosClick: () -> Unit = {},
     onLogoutSuccess: () -> Unit = {}
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     val context = LocalContext.current
-    
+    val isDark = ThemeState.isDarkTheme
+
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var showLogoutConfirmDialog by remember { mutableStateOf(false) }
+    var showBatteryWarning by remember { mutableStateOf(OEMBatteryWarning.isAggressiveOEM()) }
 
     LaunchedEffect(Unit) {
-        if (OEMBatteryWarning.isAggressiveOEM()) {
-            val warning = OEMBatteryWarning.getBatteryOptimizationWarningText()
-            Toast.makeText(context, warning, Toast.LENGTH_LONG).show()
-        }
         viewModel.refreshDeviceState()
     }
 
+    // ── LOGOUT CONFIRMATION DIALOG ───────────────────────────────────────────
     if (showLogoutConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutConfirmDialog = false },
-            title = { Text("Log Out", color = TextPrimary, fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to log out of RiderVoice?", color = TextSecondary) },
+            title = {
+                Text(
+                    text = "DISENGAGE TRANSCEIVER?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to log out of RiderVoice? You will need to sign in again to access your squad and convoys.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         showLogoutConfirmDialog = false
                         onLogoutSuccess()
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
                 ) {
-                    Text("Log Out", color = AlertRed, fontWeight = FontWeight.Bold)
+                    Text("SIGN OUT", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showLogoutConfirmDialog = false }) {
-                    Text("Cancel", color = TextSecondary)
+                OutlinedButton(onClick = { showLogoutConfirmDialog = false }) {
+                    Text("CANCEL", color = TextPrimary)
                 }
             },
             containerColor = DarkSlate
@@ -104,36 +118,42 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp)
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
             ) {
-                // Top Header with Profile Avatar
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Top Header with Callsign Plate and Drawer Avatar
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(TechGreen))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "TRANSCEIVER DASHBOARD",
+                                color = NeonOrange,
+                                style = MaterialTheme.typography.labelSmall,
+                                letterSpacing = 1.5.sp
+                            )
+                        }
                         Text(
-                            text = "HEY, RIDER",
-                            color = NeonViolet, // Premium HUD aesthetic
-                            fontSize = 12.sp,
-                            letterSpacing = 1.sp,
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                        Text(
-                            text = "READY TO RIDE?",
+                            text = "RIDERVOICE",
                             color = TextPrimary,
-                            style = MaterialTheme.typography.titleLarge
+                            style = MaterialTheme.typography.displayLarge,
+                            fontSize = 32.sp
                         )
                     }
-                    
+
                     // Profile Avatar Button
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(46.dp)
                             .clip(CircleShape)
                             .background(DarkSlate)
-                            .border(1.dp, Gunmetal, CircleShape)
+                            .border(1.5.dp, BorderColor, CircleShape)
                             .clickable {
                                 scope.launch { drawerState.open() }
                             },
@@ -141,70 +161,182 @@ fun HomeScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Person,
-                            contentDescription = "Profile",
+                            contentDescription = "Open Profile Drawer",
                             tint = ElectricCyan,
                             modifier = Modifier.size(24.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Active Ride Panel (Glassmorphic)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(DarkSlate.copy(alpha = 0.8f))
-                        .border(1.dp, Gunmetal, RoundedCornerShape(24.dp))
-                        .clickable { 
-                            if (uiState.hasActiveRide && uiState.activeRideName.isNotBlank()) {
-                                onStartRideClick(uiState.activeRideName) 
+                // Persistent OEM Battery Optimization Warning Banner
+                if (showBatteryWarning) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Surface(
+                        color = HazardContainer,
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, WarningAmber),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.BatteryAlert, contentDescription = "Battery Warning", tint = WarningAmber, modifier = Modifier.size(22.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Battery restrictions may mute background voice. Please disable optimization.",
+                                color = TextPrimary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontSize = 12.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(onClick = { showBatteryWarning = false }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = TextSecondary, modifier = Modifier.size(16.dp))
                             }
                         }
-                        .padding(24.dp)
-                ) {
-                    Column {
-                        Text(
-                            text = if (uiState.hasActiveRide) uiState.activeRideName else "No Active Ride",
-                            color = TextPrimary,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleLarge
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Transceiver Channel Monitor / Active Ride Window
+                Surface(
+                    color = if (uiState.hasActiveRide) DarkSlate else DarkSlate.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.5.dp,
+                        if (uiState.hasActiveRide) NeonOrange else BorderColor
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (uiState.hasActiveRide && uiState.activeRideName.isNotBlank()) {
+                                Modifier.clickable { onStartRideClick(uiState.activeRideName) }
+                            } else {
+                                Modifier
+                            }
                         )
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "CHANNEL FREQUENCY MONITOR",
+                                color = if (uiState.hasActiveRide) NeonOrange else TextSecondary,
+                                style = MaterialTheme.typography.labelSmall,
+                                letterSpacing = 1.sp
+                            )
+                            if (uiState.hasActiveRide) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(TechGreen))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "LIVE",
+                                        color = TechGreen,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
                         Text(
-                            text = uiState.activeRideSubtitle,
+                            text = if (uiState.hasActiveRide) uiState.activeRideName.uppercase() else "NO ACTIVE CONVOY",
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontSize = 20.sp
+                        )
+
+                        Text(
+                            text = if (uiState.hasActiveRide) {
+                                "${uiState.activeRideSubtitle} • Tap to enter voice HUD"
+                            } else {
+                                "Tap 'Host Convoy Ride' or 'Join' below to link with riders"
+                            },
                             color = TextSecondary,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(top = 4.dp),
-                            style = MaterialTheme.typography.bodyLarge
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 2.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(22.dp))
 
                 Text(
-                    text = "ACTIONS",
+                    text = "TACTICAL CHANNELS & CONTROLS",
                     color = TextSecondary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.5.sp,
-                    style = MaterialTheme.typography.labelLarge
+                    style = MaterialTheme.typography.labelSmall,
+                    letterSpacing = 1.5.sp
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Sleek Vertical List instead of Grid
+                // Modular Transceiver Rack Rows
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    item { SleekActionRow("HOST RIDE", Icons.Default.PlayArrow, NeonOrange) { onHostRideClick() } }
-                    item { SleekActionRow("JOIN RIDE", Icons.Default.GroupAdd, ElectricCyan) { onJoinRideClick() } }
-                    item { SleekActionRow("ROUTE PLANNER", Icons.Default.Map, NeonViolet) { onRoutePlannerClick() } }
-                    item { SleekActionRow("MY SQUAD", Icons.Default.Group, TextSecondary) { onSquadClick() } }
-                    item { SleekActionRow("RIDE HISTORY", Icons.Default.History, TextSecondary) { onRideHistoryClick() } }
+                    item {
+                        SleekActionRow("HOST CONVOY RIDE", Icons.Default.PlayArrow, NeonOrange) { onHostRideClick() }
+                    }
+                    item {
+                        SleekActionRow("INVITES INBOX", Icons.Default.Mail, ElectricCyan) { onInvitesInboxClick() }
+                    }
+                    item {
+                        SleekActionRow("JOIN VIA ROOM CODE", Icons.Default.MeetingRoom, ElectricCyan) { onJoinRideClick() }
+                    }
+                    item {
+                        SleekActionRow("ROUTE PLANNER", Icons.Default.Map, NeonViolet) { onRoutePlannerClick() }
+                    }
+                    item {
+                        SleekActionRow("MY SQUAD DIRECTORY", Icons.Default.Group, TechGreen) { onSquadClick() }
+                    }
+                    item {
+                        SleekActionRow("RIDE TELEMETRY HISTORY", Icons.Default.History, TextSecondary) { onRideHistoryClick() }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Prominent Emergency SOS Trigger Bar on Dashboard
+                Surface(
+                    color = HazardContainer,
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, AlertRed),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                        .clickable { onSosClick() }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Emergency SOS",
+                            tint = AlertRed,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "EMERGENCY SOS TRANSMIT",
+                            color = AlertRed,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 1.sp
+                        )
+                    }
                 }
             }
         }
@@ -218,46 +350,51 @@ fun SleekActionRow(
     iconTint: Color,
     onClick: () -> Unit
 ) {
-    Row(
+    Surface(
+        color = DarkSlate,
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(DarkSlate.copy(alpha = 0.5f))
-            .border(1.dp, Gunmetal, RoundedCornerShape(16.dp))
             .clickable { onClick() }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(GraphiteSurface),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(Gunmetal)
+                    .border(1.dp, BorderColor, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Text(
+                text = title,
+                color = TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+
             Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = iconTint,
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = TextSecondary,
                 modifier = Modifier.size(20.dp)
             )
         }
-        
-        Spacer(modifier = Modifier.width(16.dp))
-        
-        Text(
-            text = title,
-            color = TextPrimary,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f)
-        )
-        
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = TextSecondary,
-            modifier = Modifier.size(20.dp)
-        )
     }
 }

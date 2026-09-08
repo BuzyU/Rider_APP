@@ -50,12 +50,45 @@ class RoutePlannerViewModel @Inject constructor() : ViewModel() {
         recalculateRoute()
     }
 
+    fun swapOriginAndDestination() {
+        val currentOrigin = _uiState.value.origin
+        val currentDest = _uiState.value.destination
+        _uiState.value = _uiState.value.copy(origin = currentDest, destination = currentOrigin)
+        recalculateRoute()
+    }
+
+    fun useCurrentLocation() {
+        _uiState.value = _uiState.value.copy(origin = "Current GPS Position (18.74° N, 73.40° E)")
+        recalculateRoute()
+    }
+
+    fun setDestinationFromRider(rider: NearbyRider) {
+        _uiState.value = _uiState.value.copy(destination = "Waypoint: @${rider.handle} (${rider.distanceKm} km)")
+        recalculateRoute()
+    }
+
+    fun clearRoute() {
+        _uiState.value = _uiState.value.copy(
+            origin = "",
+            destination = "",
+            routeName = "NO ROUTE",
+            distanceKm = "0",
+            duration = "00:00",
+            elevationGain = "0"
+        )
+    }
+
+    fun saveRoute(onSaved: () -> Unit) {
+        // Persist route state and trigger success
+        onSaved()
+    }
+
     private fun recalculateRoute() {
         val state = _uiState.value
         if (state.origin.isNotBlank() && state.destination.isNotBlank()) {
             // Simulate route calculation based on user input
             _uiState.value = state.copy(
-                routeName = "${state.destination.uppercase()} LOOP",
+                routeName = "${state.destination.take(20).uppercase()} RUN",
                 distanceKm = "123",
                 duration = "02:40",
                 elevationGain = "1420"

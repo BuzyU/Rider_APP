@@ -22,33 +22,40 @@ import com.ridervoice.ui.theme.*
 
 @Composable
 fun ProfileDrawer(
+    riderHandle: String = "@RIDER",
+    riderName: String = "Active Transceiver",
+    status: String = "Online",
+    totalMiles: String = "1,204",
+    totalRides: String = "45",
     onSettingsClick: () -> Unit,
     onDeviceSetupClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
+    val isDark = ThemeState.isDarkTheme
+
     Column(
         modifier = Modifier
             .fillMaxHeight()
             .width(300.dp)
             .background(GraphiteBase)
-            .border(1.dp, Gunmetal)
+            .border(1.dp, BorderColor)
             .padding(24.dp)
     ) {
-        // Avatar Section
+        // Avatar / Call-Sign Section
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(60.dp)
                     .clip(CircleShape)
                     .background(DarkSlate)
-                    .border(2.dp, NeonViolet, CircleShape),
+                    .border(2.dp, ElectricCyan, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Person,
-                    contentDescription = "Profile",
+                    contentDescription = "Profile Avatar",
                     tint = ElectricCyan,
                     modifier = Modifier.size(32.dp)
                 )
@@ -56,55 +63,60 @@ fun ProfileDrawer(
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(
-                    text = "GUEST RIDER",
+                    text = riderHandle.uppercase(),
                     color = TextPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Black
                 )
-                Text(
-                    text = "Online",
-                    color = TechGreen,
-                    fontSize = 12.sp
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(TechGreen))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = status,
+                        color = TechGreen,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 11.sp
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-        Divider(color = Gunmetal, thickness = 1.dp)
+        Spacer(modifier = Modifier.height(28.dp))
+        Divider(color = BorderColor, thickness = 1.dp)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Stats Section
+        // Transceiver / Ride Telemetry Section
         Text(
-            text = "RIDE STATS",
-            color = TextSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
+            text = "TELEMETRY LOGBOOK",
+            color = NeonOrange,
+            style = MaterialTheme.typography.labelSmall,
             letterSpacing = 1.sp
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
         
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            StatItem(value = "1,204", label = "Miles")
-            StatItem(value = "45", label = "Rides")
-            StatItem(value = "3", label = "Squads")
+            StatItem(value = totalMiles, label = "Miles")
+            StatItem(value = totalRides, label = "Rides")
+            StatItem(value = "CH-01", label = "Default")
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-        Divider(color = Gunmetal, thickness = 1.dp)
+        Spacer(modifier = Modifier.height(28.dp))
+        Divider(color = BorderColor, thickness = 1.dp)
         Spacer(modifier = Modifier.height(16.dp))
 
         // Menu Items
         DrawerMenuItem(
             icon = Icons.Default.Settings,
-            text = "Settings",
+            text = "Transceiver Settings",
             onClick = onSettingsClick
         )
         DrawerMenuItem(
             icon = Icons.Default.Headset,
-            text = "Device Setup",
+            text = "Audio & Helmet Setup",
             onClick = onDeviceSetupClick
         )
         
@@ -112,7 +124,7 @@ fun ProfileDrawer(
         
         DrawerMenuItem(
             icon = Icons.Default.Logout,
-            text = "Log Out",
+            text = "Disengage (Sign Out)",
             tint = AlertRed,
             onClick = onLogoutClick
         )
@@ -120,49 +132,51 @@ fun ProfileDrawer(
 }
 
 @Composable
-fun StatItem(value: String, label: String) {
+private fun StatItem(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
             color = TextPrimary,
-            fontSize = 20.sp,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = label,
+            text = label.uppercase(),
             color = TextSecondary,
-            fontSize = 12.sp
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 10.sp
         )
     }
 }
 
 @Composable
-fun DrawerMenuItem(
+private fun DrawerMenuItem(
     icon: ImageVector,
     text: String,
-    tint: Color = TextSecondary,
+    tint: Color = TextPrimary,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(8.dp))
             .clickable { onClick() }
-            .padding(vertical = 16.dp, horizontal = 12.dp),
+            .padding(vertical = 12.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = text,
             tint = tint,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = text,
-            color = if (tint == AlertRed) AlertRed else TextPrimary,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium
+            color = tint,
+            style = MaterialTheme.typography.labelLarge,
+            fontSize = 14.sp
         )
     }
 }

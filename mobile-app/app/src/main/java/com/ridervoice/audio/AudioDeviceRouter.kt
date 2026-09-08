@@ -413,4 +413,4 @@ sealed class AudioDevice {
     fun isHandsFree(): Boolean = this is BluetoothSco || this is WiredHeadset || this is UsbAudio
 }
 
-enum class RouterState { IDLE, SCANNING, CONNECTING_BT, ACTIVE }
+enum class RouterState { IDLE, SCANNING, CONNECTING_BT, ACTIVE, FAILED }

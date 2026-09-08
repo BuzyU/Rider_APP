@@ -60,5 +60,27 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
     }
 })
 
+// POST /api/emergency/cancel
+router.post('/cancel', async (req, res, next) => {
+    const userId = req.user?.uid
+    const { roomName, alertId, reason } = req.body
+    try {
+        if (alertId) {
+            await prisma.emergencyAlert.updateMany({
+                where: { id: alertId },
+                data: { status: 'CANCELLED' }
+            })
+        } else if (roomName && userId) {
+            await prisma.emergencyAlert.updateMany({
+                where: { roomName: roomName, senderId: userId },
+                data: { status: 'CANCELLED' }
+            })
+        }
+        res.status(200).json({ cancelled: true, reason: reason || 'FALSE_ALARM' })
+    } catch (error) {
+        next(error)
+    }
+})
+
 module.exports = router
 

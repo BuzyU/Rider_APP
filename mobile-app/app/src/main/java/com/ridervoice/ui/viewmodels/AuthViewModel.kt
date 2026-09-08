@@ -45,13 +45,13 @@ class AuthViewModel @Inject constructor(
      * depend on `handle` (add-friend-by-handle, search) work immediately.
      * Non-fatal: a failure here must never block the user from reaching the app.
      */
-    private suspend fun ensureProfile() {
+    private suspend fun ensureProfile(customHandle: String? = null) {
         val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser ?: return
         try {
             val existing = apiService.getMyProfile()
-            if (existing.isSuccessful && existing.body()?.handle != null) return // already provisioned
+            if (existing.isSuccessful && existing.body()?.handle != null && customHandle == null) return // already provisioned
 
-            val autoHandle = "rider" + user.uid.takeLast(6)
+            val autoHandle = if (!customHandle.isNullOrBlank()) customHandle else ("rider" + user.uid.takeLast(6))
             apiService.upsertProfile(
                 ProfileRequest(
                     handle = autoHandle,
@@ -61,6 +61,10 @@ class AuthViewModel @Inject constructor(
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    fun clearError() {
+        _errorMessage.value = null
     }
 
     fun signInAnonymously() {
@@ -130,14 +134,14 @@ class AuthViewModel @Inject constructor(
     }
 
     /** Register a new account with email + password. */
-    fun createAccountWithEmail(email: String, password: String) {
+    fun createAccountWithEmail(email: String, password: String, handle: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
 
             val error = authRepository.createAccountWithEmail(email, password)
             if (error == null) {
-                ensureProfile()
+                ensureProfile(handle)
                 _loginSuccess.value = true
             } else {
                 _errorMessage.value = error

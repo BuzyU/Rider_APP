@@ -1,26 +1,26 @@
 package com.ridervoice.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBackIosNew
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.ridervoice.models.Friend
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.SquadViewModel
 
@@ -28,16 +28,17 @@ import com.ridervoice.ui.viewmodels.SquadViewModel
 @Composable
 fun SquadScreen(
     onBackClick: () -> Unit,
+    onJoinRoom: (String) -> Unit = {},
     viewModel: SquadViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isDark = ThemeState.isDarkTheme
 
-    // BUG FIX: was hardcoded to "test-user".
-    // Firebase currentUser can be null briefly after a cold start — handle that.
     val currentUserId = remember {
         FirebaseAuth.getInstance().currentUser?.uid
     }
     var showAddFriendDialog by remember { mutableStateOf(false) }
+    var friendToRemove by remember { mutableStateOf<Friend?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(currentUserId) {
@@ -46,12 +47,52 @@ fun SquadScreen(
         }
     }
 
+    // Confirmation dialog before removing friend
+    friendToRemove?.let { friend ->
+        AlertDialog(
+            onDismissRequest = { friendToRemove = null },
+            title = {
+                Text(
+                    text = "REMOVE FROM SQUAD?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Remove @${friend.handle} from your trusted squad directory?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.removeFriend(friend.id)
+                        friendToRemove = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
+                ) {
+                    Text("REMOVE", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { friendToRemove = null }) {
+                    Text("CANCEL", color = TextPrimary)
+                }
+            },
+            containerColor = DarkSlate
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(GraphiteBase)
-            .padding(24.dp)
+            .padding(horizontal = 20.dp, vertical = 24.dp)
     ) {
+        Spacer(modifier = Modifier.height(20.dp))
+
         // Top Header
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -62,44 +103,69 @@ fun SquadScreen(
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
                 }
+                Spacer(modifier = Modifier.width(6.dp))
                 Column {
+                    Text(
+                        text = "COMMUNICATIONS DIRECTORY",
+                        color = NeonOrange,
+                        style = MaterialTheme.typography.labelSmall,
+                        letterSpacing = 1.5.sp
+                    )
                     Text(
                         text = "YOUR SQUAD",
                         color = TextPrimary,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        text = "MUTUAL TRUSTED RIDERS",
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        letterSpacing = 1.sp
+                        style = MaterialTheme.typography.titleLarge
                     )
                 }
             }
 
-            IconButton(
-                onClick = { showAddFriendDialog = true },
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(DarkSlate)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Rider",
-                    tint = NeonOrange
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Refresh Button
+                IconButton(
+                    onClick = { currentUserId?.let { viewModel.fetchData(it) } },
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(DarkSlate)
+                        .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh Squad",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Add Friend Button
+                IconButton(
+                    onClick = { showAddFriendDialog = true },
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(DarkSlate)
+                        .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Rider",
+                        tint = NeonOrange,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
+        // Search Bar
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search by @handle", color = TextSecondary) },
+            placeholder = { Text("Filter squad by @handle", color = TextSecondary, style = MaterialTheme.typography.bodyMedium) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = TextSecondary) },
             trailingIcon = {
                 if (searchQuery.isNotBlank()) {
@@ -111,32 +177,33 @@ fun SquadScreen(
             singleLine = true,
             colors = TextFieldDefaults.outlinedTextFieldColors(
                 focusedBorderColor = NeonOrange,
-                unfocusedBorderColor = Gunmetal,
+                unfocusedBorderColor = BorderColor,
                 containerColor = DarkSlate,
                 textColor = TextPrimary
             ),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(10.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // Error message banner (non-blocking)
+        // Error message banner
         uiState.errorMessage?.let { err ->
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 12.dp),
                 shape = RoundedCornerShape(8.dp),
-                color = AlertRed.copy(alpha = 0.15f)
+                color = HazardContainer,
+                border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = err,
                         color = AlertRed,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(
@@ -151,69 +218,83 @@ fun SquadScreen(
 
         // Not signed in
         if (currentUserId == null) {
-            Text(
-                text = "Sign in to see your squad.",
-                color = TextSecondary,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "Sign in to see your squad directory.",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
             return@Column
         }
 
         if (uiState.isLoading) {
-            CircularProgressIndicator(
-                color = NeonOrange,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
+            }
             return@Column
         }
 
-        // Incoming invites
+        // Section 1: Incoming Invites (with working JOIN button!)
         if (uiState.invites.isNotEmpty()) {
             Text(
-                text = "INCOMING INVITES (${uiState.invites.size})",
+                text = "INCOMING CONVOY INVITES (${uiState.invites.size})",
                 color = NeonOrange,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelSmall,
                 letterSpacing = 1.5.sp
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             for (invite in uiState.invites) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSlate)
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    color = DarkSlate,
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = invite.room.name.uppercase(),
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Invited by ${invite.inviter.handle}",
-                            color = TextSecondary,
-                            fontSize = 12.sp
-                        )
-                    }
-                    Button(
-                        onClick = { /* Join Room */ },
-                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("JOIN", fontWeight = FontWeight.Bold, color = TextPrimary)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = invite.room.name.uppercase(),
+                                color = TextPrimary,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontSize = 15.sp
+                            )
+                            Text(
+                                text = "Invited by @${invite.inviter.handle ?: "Host"}",
+                                color = TextSecondary,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+
+                        // CRITICAL FIX: Wired JOIN Button!
+                        Button(
+                            onClick = {
+                                viewModel.acceptInvite(invite) { roomName ->
+                                    onJoinRoom(roomName)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = TechGreen),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "JOIN",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (isDark) Color.Black else Color.White
+                            )
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Friends list
+        // Section 2: Squad Friends List
         val filteredFriends = remember(uiState.friends, searchQuery) {
             if (searchQuery.isBlank()) {
                 uiState.friends
@@ -227,72 +308,89 @@ fun SquadScreen(
         }
 
         Text(
-            text = "ONLINE FRIENDS (${filteredFriends.size})",
+            text = "TRUSTED SQUAD (${filteredFriends.size})",
             color = TextSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.labelSmall,
             letterSpacing = 1.5.sp
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(filteredFriends.size) { i ->
                 val friend = filteredFriends[i]
                 SquadMemberCard(
                     handle = friend.handle,
-                    bike   = friend.bikeModel ?: "Unknown Bike",
-                    status = "Online"
+                    bike = friend.bikeModel ?: "Motorcycle",
+                    status = "Tuned In",
+                    onRemoveClick = { friendToRemove = friend }
                 )
             }
             if (filteredFriends.isEmpty()) {
                 item {
-                    if (searchQuery.isNotBlank() && currentUserId != null) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(DarkSlate)
-                                .padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                    if (searchQuery.isNotBlank()) {
+                        Surface(
+                            color = DarkSlate,
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                         ) {
-                            Text(
-                                text = "Rider \"$searchQuery\" is not in your squad yet.",
-                                color = TextSecondary,
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = {
-                                    viewModel.addFriend(currentUserId, searchQuery)
-                                    searchQuery = ""
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
-                                shape = RoundedCornerShape(8.dp)
+                            Column(
+                                modifier = Modifier.padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    "Add @${searchQuery.removePrefix("@").trim()} to Squad",
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold
+                                    text = "No rider matching \"$searchQuery\" in squad.",
+                                    color = TextSecondary,
+                                    style = MaterialTheme.typography.bodyMedium
                                 )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = {
+                                        viewModel.addFriend(currentUserId, searchQuery)
+                                        searchQuery = ""
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = "Add @${searchQuery.removePrefix("@").trim()} to Squad",
+                                        color = if (isDark) Color.Black else Color.White,
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                }
                             }
                         }
                     } else {
-                        Text(
-                            text = "No friends yet. Search by @handle to add riders.",
-                            color = TextSecondary,
-                            modifier = Modifier.padding(16.dp)
-                        )
+                        Surface(
+                            color = DarkSlate,
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Your squad directory is empty. Tap '+' above to add riders by @handle.",
+                                color = TextSecondary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(18.dp)
+                            )
+                        }
                     }
                 }
             }
         }
     }
-    
+
     if (showAddFriendDialog) {
         var friendHandle by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showAddFriendDialog = false },
-            title = { Text("Add Rider to Squad", color = TextPrimary) },
+            title = {
+                Text(
+                    text = "ADD RIDER TO SQUAD",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
+                )
+            },
             text = {
                 OutlinedTextField(
                     value = friendHandle,
@@ -300,7 +398,7 @@ fun SquadScreen(
                     placeholder = { Text("@handle", color = TextSecondary) },
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         focusedBorderColor = NeonOrange,
-                        unfocusedBorderColor = Gunmetal,
+                        unfocusedBorderColor = BorderColor,
                         containerColor = DarkSlate,
                         textColor = TextPrimary
                     ),
@@ -308,55 +406,103 @@ fun SquadScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    if (friendHandle.isNotBlank() && currentUserId != null) {
-                        viewModel.addFriend(currentUserId, friendHandle)
-                    }
-                    showAddFriendDialog = false
-                }) {
-                    Text("ADD", color = NeonOrange, fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = {
+                        if (friendHandle.isNotBlank() && currentUserId != null) {
+                            viewModel.addFriend(currentUserId, friendHandle)
+                        }
+                        showAddFriendDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                ) {
+                    Text("ADD TO SQUAD", color = if (isDark) Color.Black else Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddFriendDialog = false }) {
-                    Text("CANCEL", color = TextSecondary)
+                OutlinedButton(onClick = { showAddFriendDialog = false }) {
+                    Text("CANCEL", color = TextPrimary)
                 }
             },
-            containerColor = GraphiteBase
+            containerColor = DarkSlate
         )
     }
 }
 
 @Composable
-fun SquadMemberCard(handle: String, bike: String, status: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(DarkSlate)
-            .clickable { }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+fun SquadMemberCard(
+    handle: String,
+    bike: String,
+    status: String,
+    onRemoveClick: () -> Unit
+) {
+    Surface(
+        color = DarkSlate,
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Gunmetal),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(handle.take(2).uppercase(), color = TextPrimary, fontWeight = FontWeight.Bold)
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Gunmetal)
+                    .border(1.dp, BorderColor, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = handle.take(2).uppercase(),
+                    color = ElectricCyan,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 15.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "@$handle",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 15.sp
+                )
+                Text(
+                    text = bike,
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 12.sp
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(TechGreen))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = status.uppercase(),
+                    color = TechGreen,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Remove from squad button
+                IconButton(
+                    onClick = onRemoveClick,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PersonRemove,
+                        contentDescription = "Remove @$handle from squad",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = "@$handle", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Text(text = bike, color = TextSecondary, fontSize = 12.sp)
-        }
-        Text(
-            text = status,
-            color = if (status == "Online") SuccessGreen else NeonOrange,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold
-        )
     }
 }

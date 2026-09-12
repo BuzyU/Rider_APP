@@ -1,6 +1,6 @@
 'use client';
 
-import { Bluetooth, Cable, Smartphone, Ear } from 'lucide-react';
+import { Bluetooth, Cable, Ear } from 'lucide-react';
 import styles from './Compatibility.module.css';
 
 export default function Compatibility() {

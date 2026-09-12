@@ -48,10 +48,8 @@ export default function MapPreview() {
             variants={imageVariants}
           >
             <div className={styles.mapMockup}>
-              {/* Abstract map background pattern */}
               <div className={styles.mapBackground}></div>
               
-              {/* Route line */}
               <svg className={styles.routeLine} viewBox="0 0 1000 1000" preserveAspectRatio="none">
                 <motion.path 
                   d="M 200 800 Q 500 500 800 200" 
@@ -66,7 +64,6 @@ export default function MapPreview() {
                 />
               </svg>
               
-              {/* Pins */}
               <motion.div 
                 className={`${styles.pin} ${styles.riderPin}`} 
                 style={{ left: '20%', top: '80%' }}

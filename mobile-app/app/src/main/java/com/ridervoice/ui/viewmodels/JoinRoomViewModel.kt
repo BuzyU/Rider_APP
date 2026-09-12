@@ -42,7 +42,7 @@ class JoinRoomViewModel @Inject constructor(
                     RideSession.isHost = false
                     onSuccess(body.roomName)
                 } else if (res.code() == 404) {
-                    // Resilient fallback: direct tune-in to convoy room code
+
                     RideSession.activeRoomName = cleanToken
                     RideSession.isHost = false
                     onSuccess(cleanToken)
@@ -58,7 +58,7 @@ class JoinRoomViewModel @Inject constructor(
                     _error.value = errorMsg
                 }
             } catch (e: Exception) {
-                // Network or endpoint fallback: direct tune-in
+
                 RideSession.activeRoomName = cleanToken
                 RideSession.isHost = false
                 onSuccess(cleanToken)

@@ -20,9 +20,10 @@ export async function requireAdmin(): Promise<AdminUser | NextResponse> {
   let decoded;
   try {
     decoded = await adminAuth().verifySessionCookie(sessionCookie, true);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "verification failed";
     return NextResponse.json(
-      { error: `Unauthorized: Invalid session (${err?.message || "verification failed"})` },
+      { error: `Unauthorized: Invalid session (${message})` },
       { status: 401 }
     );
   }

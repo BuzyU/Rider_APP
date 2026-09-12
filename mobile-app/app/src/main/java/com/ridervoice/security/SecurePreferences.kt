@@ -6,7 +6,6 @@ import androidx.security.crypto.MasterKey
 
 class SecurePreferences(context: Context) {
 
-    // FIX: use EncryptedSharedPreferences — was plain SharedPreferences before
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()

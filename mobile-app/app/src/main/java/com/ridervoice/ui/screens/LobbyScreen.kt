@@ -43,7 +43,6 @@ fun LobbyScreen(
     var showAddRidersSheet by remember { mutableStateOf(false) }
     var riderToRemove by remember { mutableStateOf<com.ridervoice.models.LobbyRiderInfo?>(null) }
 
-    // Intercept back navigation
     BackHandler {
         showExitDialog = true
     }
@@ -55,7 +54,6 @@ fun LobbyScreen(
         }
     }
 
-    // Confirmation dialog before abandoning lobby
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
@@ -93,7 +91,6 @@ fun LobbyScreen(
         )
     }
 
-    // Confirmation dialog before ejecting a rider
     riderToRemove?.let { rider ->
         AlertDialog(
             onDismissRequest = { riderToRemove = null },
@@ -145,7 +142,7 @@ fun LobbyScreen(
             .fillMaxSize()
             .background(GraphiteBase)
     ) {
-        // Top Header
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -171,7 +168,6 @@ fun LobbyScreen(
             }
         }
 
-        // Error notification banner if any
         error?.let { err ->
             Surface(
                 color = HazardContainer,
@@ -223,7 +219,7 @@ fun LobbyScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Section: Mid-lobby quick actions (Add Riders / Share Link)
+
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
@@ -260,7 +256,6 @@ fun LobbyScreen(
                     }
                 }
 
-                // 1. ACCEPTED / TUNED IN RIDERS
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(TechGreen))
@@ -302,7 +297,6 @@ fun LobbyScreen(
                     }
                 }
 
-                // 2. PENDING / STANDBY RIDERS
                 item {
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -338,7 +332,6 @@ fun LobbyScreen(
                     }
                 }
 
-                // 3. DECLINED RIDERS (Previously hidden)
                 if (declined.isNotEmpty()) {
                     item {
                         Spacer(modifier = Modifier.height(12.dp))
@@ -364,7 +357,6 @@ fun LobbyScreen(
                 }
             }
 
-            // Solo Ride Always Enabled with Dynamic Label!
             val canStart = true
             val startLabel = if (accepted.isNotEmpty()) {
                 "START RIDE (${accepted.size + 1} RIDERS)"

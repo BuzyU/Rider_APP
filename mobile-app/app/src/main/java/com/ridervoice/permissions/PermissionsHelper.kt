@@ -8,13 +8,13 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 
 object PermissionsHelper {
-    
+
     fun isDndBypassGranted(context: Context): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             return notificationManager.isNotificationPolicyAccessGranted
         }
-        return true // Below M, we don't need explicit DND policy access
+        return true
     }
 
     fun requestDndBypass(context: Context) {

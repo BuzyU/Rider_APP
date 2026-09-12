@@ -23,7 +23,7 @@ class AppVersionTest {
 
     @Test
     fun testSemanticOrderingTenVersusNine() {
-        // String comparison fails here ("1.9.0" > "1.10.0"), but semantic comparison must succeed!
+
         val installed = AppVersion.parse("1.9.0")
         val latest = AppVersion.parse("1.10.0")
         assertTrue("1.10.0 must be newer than 1.9.0", latest.isNewerThan(installed))

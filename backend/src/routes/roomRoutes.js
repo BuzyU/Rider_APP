@@ -4,45 +4,30 @@ const prisma = require('../db')
 
 const router = express.Router()
 
-
 router.post('/room/token', async (req, res) => {
     try {
         const { roomName } = req.body
-        const user = req.user // Provided by authMiddleware
+        const user = req.user
 
         if (!roomName) {
             return res.status(400).json({ error: 'Missing roomName in request body' })
         }
 
-        // Sync user to Supabase
-        await prisma.user.upsert({
-            where: { id: user.uid },
-            update: { email: user.email },
-            create: {
-                id: user.uid,
-                email: user.email || null,
-                displayName: user.name || 'Rider'
-            }
-        })
-
-        // Check if room already exists
         const existingRoom = await prisma.room.findUnique({
             where: { name: roomName },
             include: { invites: { where: { status: 'ACCEPTED' } } }
         })
 
         if (existingRoom) {
-            // Verify membership: caller must be room owner or have an ACCEPTED invite
             const isOwner = existingRoom.ownerId === user.uid
-            const hasAcceptedInvite = existingRoom.invites.some(
+            const hasAcceptedInvite = isOwner || existingRoom.invites.some(
                 i => i.inviteeId === user.uid && (!i.status || i.status === 'ACCEPTED')
             )
 
-            if (!isOwner && !hasAcceptedInvite) {
+            if (!hasAcceptedInvite) {
                 return res.status(403).json({ error: 'Access denied: you are not a member of this room' })
             }
         } else {
-            // Create the room for the caller (legacy quick-join creation)
             await prisma.room.create({
                 data: {
                     name: roomName,
@@ -51,7 +36,6 @@ router.post('/room/token', async (req, res) => {
             })
         }
 
-        // Generate LiveKit Token
         const participantIdentity = user.uid
         const at = new AccessToken(
             process.env.LIVEKIT_API_KEY,

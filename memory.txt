@@ -1,0 +1,7 @@
+# Workspace Memory
+
+## Checkpoint 1
+
+- Added `CODE_DEPTH_STRUCTURE.md` as the file-level map of the Android, backend, database, LiveKit, and Next.js code.
+- Linked the new document from `README.md`.
+- Confirmed the repository uses PowerShell without `rg`; future inventories should use `Get-ChildItem` unless the tool is installed.

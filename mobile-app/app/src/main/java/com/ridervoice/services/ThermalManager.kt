@@ -21,9 +21,9 @@ import javax.inject.Singleton
 
 enum class ThermalState {
     NORMAL,
-    LEVEL_1_WARM,      // 38°C+ → reduce GPS frequency
-    LEVEL_2_HOT,       // 41°C+ → reduce GPS + disable cosmetics
-    LEVEL_3_CRITICAL   // 45°C+ → minimum everything
+    LEVEL_1_WARM,
+    LEVEL_2_HOT,
+    LEVEL_3_CRITICAL
 }
 
 @Singleton
@@ -70,13 +70,6 @@ class ThermalManager @Inject constructor(
         monitorJob = null
     }
 
-    /**
-     * Reads battery temperature from the sticky ACTION_BATTERY_CHANGED broadcast.
-     *
-     * BUG FIX: On Android 14+ (API 34), registerReceiver() with a null receiver
-     * and no flags generates a warning and may throw on some OEM builds.
-     * Use RECEIVER_NOT_EXPORTED for the sticky-broadcast query pattern.
-     */
     private fun readBatteryTemperature(): Float {
         return try {
             val intent: Intent? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -91,11 +84,11 @@ class ThermalManager @Inject constructor(
             }
 
             val raw = intent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1) ?: -1
-            if (raw < 0) 25f  // unknown — assume safe
+            if (raw < 0) 25f
             else raw / 10.0f
         } catch (e: Exception) {
             Log.e(TAG, "Failed to read battery temperature: ${e.message}")
-            25f  // assume safe on error
+            25f
         }
     }
 

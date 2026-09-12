@@ -14,7 +14,7 @@ interface NavigationProvider {
 
 class GoogleMapsProvider : NavigationProvider {
     override val name = "Google Maps"
-    
+
     override val isInstalled: (Context) -> Boolean = { context ->
         try {
             context.packageManager.getPackageInfo("com.google.android.apps.maps", 0)
@@ -34,7 +34,7 @@ class GoogleMapsProvider : NavigationProvider {
 
 class WazeProvider : NavigationProvider {
     override val name = "Waze"
-    
+
     override val isInstalled: (Context) -> Boolean = { context ->
         try {
             context.packageManager.getPackageInfo("com.waze", 0)
@@ -54,7 +54,7 @@ class WazeProvider : NavigationProvider {
 
 class OsmAndProvider : NavigationProvider {
     override val name = "OsmAnd"
-    
+
     override val isInstalled: (Context) -> Boolean = { context ->
         try {
             context.packageManager.getPackageInfo("net.osmand.plus", 0)
@@ -70,11 +70,10 @@ class OsmAndProvider : NavigationProvider {
     }
 
     override fun buildNavigationIntent(destination: Waypoint): Intent {
-        // OsmAnd uses standard geo URI
+
         val uri = Uri.parse("geo:${destination.lat},${destination.lng}?q=${destination.lat},${destination.lng}")
         return Intent(Intent.ACTION_VIEW, uri).apply {
-            // Can be either plus or free version, so we don't hardcode package
-            // unless we specifically check which one is installed.
+
         }
     }
 }
@@ -88,14 +87,13 @@ enum class NavigationState {
 
 object NavigationDelegate {
     val providers = listOf(GoogleMapsProvider(), WazeProvider(), OsmAndProvider())
-    
-    // Session tracking
+
     private var currentState: NavigationState = NavigationState.IDLE
-    
+
     fun getAvailableProviders(context: Context): List<NavigationProvider> {
         return providers.filter { it.isInstalled(context) }
     }
-    
+
     fun launchNavigation(context: Context, provider: NavigationProvider, destination: Waypoint): Boolean {
         currentState = NavigationState.LAUNCHING
         return try {
@@ -113,6 +111,6 @@ object NavigationDelegate {
     fun endSession() {
         currentState = NavigationState.IDLE
     }
-    
+
     fun getSessionState(): NavigationState = currentState
 }

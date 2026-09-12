@@ -43,12 +43,11 @@ fun RideReplayScreen(
     var isPlaying by remember { mutableStateOf(false) }
     var playbackSpeed by remember { mutableIntStateOf(1) }
 
-    // Mock telemetry waypoints if actual recorded list is empty, allowing interactive preview
     val displayWaypoints = remember(waypoints) {
         if (waypoints.isNotEmpty()) {
             waypoints
         } else {
-            // Synthetic route: e.g. Lonavala Loop 20 waypoints
+
             List(30) { idx ->
                 val progress = idx / 29f
                 RawWaypointEntity(
@@ -64,7 +63,6 @@ fun RideReplayScreen(
         }
     }
 
-    // Playback loop
     LaunchedEffect(isPlaying, playbackSpeed) {
         if (isPlaying) {
             while (isPlaying) {
@@ -115,7 +113,7 @@ fun RideReplayScreen(
                 .padding(padding)
                 .background(GraphiteBase)
         ) {
-            // ── Canvas Tactical Route Map ────────────────────────────────────
+
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -125,12 +123,11 @@ fun RideReplayScreen(
                     .background(DarkSlate)
                     .border(1.5.dp, BorderColor, RoundedCornerShape(16.dp))
             ) {
-                // Tactical Grid & Route Polyline
+
                 Canvas(modifier = Modifier.fillMaxSize().padding(24.dp)) {
                     val w = size.width
                     val h = size.height
 
-                    // Grid lines (retro CB radar)
                     val gridColor = if (isDark) Color(0x22FFFFFF) else Color(0x15000000)
                     for (i in 1..4) {
                         drawLine(gridColor, Offset(0f, h * i / 5), Offset(w, h * i / 5), strokeWidth = 1.dp.toPx())
@@ -146,7 +143,6 @@ fun RideReplayScreen(
                         val latSpan = (maxLat - minLat).coerceAtLeast(0.001)
                         val lngSpan = (maxLng - minLng).coerceAtLeast(0.001)
 
-                        // Full route path (dim)
                         val fullPath = Path()
                         val activePath = Path()
 
@@ -164,21 +160,18 @@ fun RideReplayScreen(
                             }
                         }
 
-                        // Draw background route
                         drawPath(
                             path = fullPath,
                             color = TextSecondary.copy(alpha = 0.35f),
                             style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                         )
 
-                        // Draw active scrubbed route
                         drawPath(
                             path = activePath,
                             color = NeonOrange,
                             style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                         )
 
-                        // Draw current position ping
                         val currentX = ((currentWaypoint!!.lng - minLng) / lngSpan * w).toFloat()
                         val currentY = (h - (currentWaypoint.lat - minLat) / latSpan * h).toFloat()
 
@@ -195,7 +188,6 @@ fun RideReplayScreen(
                     }
                 }
 
-                // Telemetry Overlay Badge (Top-Right)
                 Surface(
                     color = Gunmetal.copy(alpha = 0.85f),
                     shape = RoundedCornerShape(8.dp),
@@ -226,7 +218,6 @@ fun RideReplayScreen(
                     }
                 }
 
-                // Channel Badge (Top-Left)
                 Surface(
                     color = Gunmetal.copy(alpha = 0.85f),
                     shape = RoundedCornerShape(8.dp),
@@ -249,7 +240,6 @@ fun RideReplayScreen(
                 }
             }
 
-            // ── Timeline Scrubber & Playback Controls ─────────────────────────
             Surface(
                 color = DarkSlate,
                 shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
@@ -291,7 +281,6 @@ fun RideReplayScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Playback Controls Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
@@ -324,7 +313,6 @@ fun RideReplayScreen(
 
                         Spacer(modifier = Modifier.width(16.dp))
 
-                        // Speed Toggle Chip (1x, 2x, 4x)
                         Surface(
                             color = Gunmetal,
                             shape = RoundedCornerShape(6.dp),
@@ -349,7 +337,6 @@ fun RideReplayScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Event Timeline Markers
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween

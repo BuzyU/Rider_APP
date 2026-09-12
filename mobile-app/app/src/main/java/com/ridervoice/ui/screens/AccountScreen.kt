@@ -53,7 +53,7 @@ fun AccountScreen(
             .background(GraphiteBase)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // ── TOP APP BAR ────────────────────────────────────────────────────────
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -91,7 +91,6 @@ fun AccountScreen(
                 }
             }
 
-            // ── CONTENT ────────────────────────────────────────────────────────────
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -111,7 +110,7 @@ fun AccountScreen(
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Feedback messages
+
                     uiState.errorMessage?.let { err ->
                         item {
                             Surface(
@@ -152,7 +151,6 @@ fun AccountScreen(
                         }
                     }
 
-                    // ── OPERATOR HEADER CARD ───────────────────────────────────────
                     item {
                         Surface(
                             color = DarkSlate,
@@ -164,7 +162,7 @@ fun AccountScreen(
                                 modifier = Modifier.padding(20.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                // Dynamic Avatar: Google profile pic with graceful fallback to initial avatar
+
                                 Box(
                                     modifier = Modifier
                                         .size(96.dp)
@@ -193,21 +191,20 @@ fun AccountScreen(
                                                     modifier = Modifier.size(28.dp)
                                                 )
                                             } else if (state is AsyncImagePainter.State.Error) {
-                                                // Fallback to Dynamic Initial-Based Avatar
+
                                                 InitialAvatarText(initial = uiState.initialLetter)
                                             } else {
                                                 SubcomposeAsyncImageContent()
                                             }
                                         }
                                     } else {
-                                        // Dynamic Circular Avatar fallback using first letter of display name
+
                                         InitialAvatarText(initial = uiState.initialLetter)
                                     }
                                 }
 
                                 Spacer(modifier = Modifier.height(14.dp))
 
-                                // Display Name
                                 Text(
                                     text = uiState.displayName.ifBlank { "Rider Transceiver" },
                                     style = MaterialTheme.typography.titleLarge,
@@ -218,7 +215,6 @@ fun AccountScreen(
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
-                                // Handle Badge
                                 Surface(
                                     color = Gunmetal,
                                     shape = RoundedCornerShape(6.dp),
@@ -236,7 +232,6 @@ fun AccountScreen(
 
                                 Spacer(modifier = Modifier.height(10.dp))
 
-                                // Auth Provider Badge
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
                                         modifier = Modifier
@@ -257,7 +252,6 @@ fun AccountScreen(
                         }
                     }
 
-                    // ── IDENTIFICATION & COMMS ─────────────────────────────────────
                     item {
                         Text(
                             text = "── IDENTIFICATION & COMMS ──",
@@ -300,7 +294,6 @@ fun AccountScreen(
                         )
                     }
 
-                    // ── EQUIPMENT & RIG ────────────────────────────────────────────
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -328,7 +321,6 @@ fun AccountScreen(
                         )
                     }
 
-                    // ── QUICK ACTIONS ──────────────────────────────────────────────
                     item {
                         Spacer(modifier = Modifier.height(16.dp))
                         TacticalButton(
@@ -359,7 +351,6 @@ fun AccountScreen(
             }
         }
 
-        // ── PROFILE EDIT DIALOG ──────────────────────────────────────────────────
         if (showEditDialog) {
             EditProfileDialog(
                 initialDisplayName = uiState.displayName,
@@ -376,7 +367,6 @@ fun AccountScreen(
             )
         }
 
-        // ── IN-APP UPDATE DIALOG ─────────────────────────────────────────────────
         val updateState by updateViewModel.uiState.collectAsState()
         UpdateDialog(
             uiState = updateState,

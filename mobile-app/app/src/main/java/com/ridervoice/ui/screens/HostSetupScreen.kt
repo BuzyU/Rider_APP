@@ -48,7 +48,6 @@ fun HostSetupScreen(
     val isDurationError = durationHours.isNotBlank() && durationHours.toFloatOrNull() == null
     val canCreate = convoyName.isNotBlank() && !isDurationError
 
-    // Intercept back button if dirty
     BackHandler {
         if (isDirty) {
             showDiscardDialog = true
@@ -57,7 +56,6 @@ fun HostSetupScreen(
         }
     }
 
-    // Confirmation dialog before discarding convoy details
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
@@ -95,7 +93,6 @@ fun HostSetupScreen(
         )
     }
 
-    // Navigate when convoy created successfully
     LaunchedEffect(createdConvoyName) {
         createdConvoyName?.let { onConvoyCreated(it) }
     }
@@ -105,7 +102,7 @@ fun HostSetupScreen(
             .fillMaxSize()
             .background(GraphiteBase)
     ) {
-        // Top bar
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -141,7 +138,6 @@ fun HostSetupScreen(
         ) {
             Spacer(modifier = Modifier.height(14.dp))
 
-            // ── Convoy name (required) ───────────────────────────────────
             SectionLabel("CONVOY CALLSIGN / NAME *")
             TacticalTextField(
                 value = convoyName,
@@ -158,7 +154,7 @@ fun HostSetupScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 SectionLabel("TRIP DETAILS (SHOWN TO INVITees)")
-                // Route Planner Integration
+
                 TextButton(
                     onClick = {
                         origin = "Pune University Circle"
@@ -214,7 +210,6 @@ fun HostSetupScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Error Card with in-place Retry
             error?.let { err ->
                 Surface(
                     modifier = Modifier
@@ -265,7 +260,6 @@ fun HostSetupScreen(
                 }
             }
 
-            // Create button
             Button(
                 onClick = {
                     viewModel.createConvoy(

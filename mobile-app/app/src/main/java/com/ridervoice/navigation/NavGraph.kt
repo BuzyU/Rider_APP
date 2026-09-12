@@ -1,5 +1,5 @@
 package com.ridervoice.navigation
- 
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -14,14 +14,13 @@ import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.ridervoice.ui.screens.*
 import com.ridervoice.utils.OEMBatteryWarning
- 
+
 @Composable
 fun NavGraph(
     navController: NavHostController = rememberNavController(),
     startRoute: String? = null
 ) {
-    val context = LocalContext.current
- 
+    
     LaunchedEffect(Unit) {
         if (OEMBatteryWarning.isAggressiveOEM()) {
             android.util.Log.w(
@@ -30,10 +29,9 @@ fun NavGraph(
             )
         }
     }
- 
+
     NavHost(navController = navController, startDestination = Routes.SPLASH) {
- 
-        // ── Splash ─────────────────────────────────────────────────────────
+
         composable(Routes.SPLASH) {
             SplashScreen(onSplashFinished = {
                 val dest = if (startRoute != null && FirebaseAuth.getInstance().currentUser != null) {
@@ -48,8 +46,7 @@ fun NavGraph(
                 }
             })
         }
- 
-        // ── Auth ───────────────────────────────────────────────────────────
+
         composable(Routes.LOGIN) {
             LoginScreen(
                 onGoogleSignInClick = {},
@@ -65,7 +62,6 @@ fun NavGraph(
             )
         }
 
-        // ── Register ────────────────────────────────────────────────────────
         composable(Routes.REGISTER) {
             RegisterScreen(
                 onBackClick = { navController.popBackStack() },
@@ -76,8 +72,7 @@ fun NavGraph(
                 }
             )
         }
- 
-        // ── Dashboard ──────────────────────────────────────────────────────
+
         composable(Routes.HOME) {
             val authVm: com.ridervoice.ui.viewmodels.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             HomeScreen(
@@ -91,7 +86,7 @@ fun NavGraph(
                 onRideHistoryClick   = { navController.navigate(Routes.RIDE_STATS) },
                 onDeviceSetupClick   = { navController.navigate(Routes.deviceSetupPath("GLOBAL", isHost = false)) },
                 onAccountClick       = { navController.navigate(Routes.ACCOUNT) },
-                // legacy quick-start kept for testing
+
                 onStartRideClick     = { roomName ->
                     navController.navigate(Routes.deviceSetupPath(roomName, isHost = true))
                 },
@@ -103,10 +98,7 @@ fun NavGraph(
                 }
             )
         }
- 
-        // ── HOST PATH ──────────────────────────────────────────────────────
- 
-        // 1. Host names convoy + sets trip details
+
         composable(Routes.HOST_SETUP) {
             HostSetupScreen(
                 onConvoyCreated = { convoyName ->
@@ -117,8 +109,7 @@ fun NavGraph(
                 onBackClick = { navController.popBackStack() }
             )
         }
- 
-        // 2. Host invites friends by @handle
+
         composable(
             route = Routes.INVITE_FRIENDS,
             arguments = listOf(navArgument("convoyName") { type = NavType.StringType })
@@ -130,8 +121,7 @@ fun NavGraph(
                 onBackClick  = { navController.popBackStack() }
             )
         }
- 
-        // 3. Host lobby — waits for riders, sees accept/decline live
+
         composable(
             route = Routes.LOBBY,
             arguments = listOf(navArgument("convoyName") { type = NavType.StringType })
@@ -140,27 +130,23 @@ fun NavGraph(
             LobbyScreen(
                 convoyName   = convoyName,
                 onStartRide  = {
-                    // Host goes through device setup then active HUD
+
                     navController.navigate(Routes.deviceSetupPath(convoyName, isHost = true))
                 },
                 onBackClick  = { navController.popBackStack() }
             )
         }
- 
-        // ── JOIN PATH ──────────────────────────────────────────────────────
- 
-        // 1. Joiner sees pending invite cards
+
         composable(Routes.INVITES_INBOX) {
             InvitesInboxScreen(
                 onInviteAccepted = { convoyName ->
-                    // After accepting → device setup → active HUD
+
                     navController.navigate(Routes.deviceSetupPath(convoyName, isHost = false))
                 },
                 onBackClick = { navController.popBackStack() }
             )
         }
- 
-        // ── DEVICE SETUP (shared by host and joiner) ───────────────────────
+
         composable(
             route = Routes.DEVICE_SETUP,
             arguments = listOf(
@@ -182,11 +168,11 @@ fun NavGraph(
                         val userName = if (!rawName.isNullOrBlank()) rawName else "Rider"
                         val safeConvoy = if (convoyName.isNotBlank()) convoyName else "Convoy"
                         navController.navigate(Routes.activeRideHudPath(safeConvoy, userName)) {
-                            // Clear the setup stack so back button doesn't go back into setup
+
                             try {
                                 popUpTo(Routes.HOME) { inclusive = false }
                             } catch (e: Exception) {
-                                // In case HOME is not in backstack
+
                             }
                         }
                     }
@@ -194,8 +180,7 @@ fun NavGraph(
                 onBackClick = { navController.popBackStack() }
             )
         }
- 
-        // ── ACTIVE RIDE HUD ────────────────────────────────────────────────
+
         composable(
             route = Routes.ACTIVE_RIDE_HUD,
             arguments = listOf(
@@ -220,8 +205,7 @@ fun NavGraph(
                 }
             )
         }
- 
-        // ── SOS SCREEN ─────────────────────────────────────────────────────
+
         composable(
             route = Routes.SOS,
             arguments = listOf(navArgument("roomName") { type = NavType.StringType })
@@ -229,28 +213,27 @@ fun NavGraph(
             val roomName = back.arguments?.getString("roomName") ?: ""
             val vm: com.ridervoice.ui.viewmodels.SosViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             val state by vm.state.collectAsState()
-            
+
             SosScreen(
                 state = state,
                 onCancelClick = { navController.popBackStack() },
                 onSend = { vm.sendAlert(roomName) }
             )
-            
+
             LaunchedEffect(state) {
                 if (state is com.ridervoice.ui.viewmodels.SosState.Sent) {
                     navController.popBackStack()
                 }
             }
         }
- 
-        // ── POST RIDE SUMMARY ─────────────────────────────────────────────
+
         composable(Routes.POST_RIDE_SUMMARY) {
             val vm: com.ridervoice.ui.viewmodels.PostRideSummaryViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             val summary by vm.summary.collectAsState()
- 
+
             val current = summary
             if (current == null) {
-                // No pending ride (e.g. process was killed) — nothing to show, bounce home.
+
                 LaunchedEffect(Unit) {
                     navController.navigate(Routes.HOME) { popUpTo(0) { inclusive = true } }
                 }
@@ -270,8 +253,7 @@ fun NavGraph(
                 )
             }
         }
- 
-        // ── Other screens ──────────────────────────────────────────────────
+
         composable(Routes.SQUAD) {
             SquadScreen(
                 onBackClick = { navController.popBackStack() },

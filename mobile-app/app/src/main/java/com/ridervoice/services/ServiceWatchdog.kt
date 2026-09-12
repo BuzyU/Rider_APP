@@ -22,9 +22,6 @@ class ServiceWatchdog @Inject constructor(
     companion object {
         private const val TAG = "ServiceWatchdog"
 
-        // BUG FIX: DISCONNECTED is also the initial state. We must wait long enough
-        // for the connection attempt to either succeed or fail before concluding it's
-        // a zombie. 30s covers slow networks and Render cold-start (~25s).
         private const val STARTUP_GRACE_MS = 30_000L
         private const val CHECK_INTERVAL_MS = 10_000L
     }
@@ -37,15 +34,13 @@ class ServiceWatchdog @Inject constructor(
         startTimeMs = System.currentTimeMillis()
 
         watchdogJob = scope.launch(Dispatchers.IO) {
-            // Wait for startup grace period before the first check
+
             delay(STARTUP_GRACE_MS)
 
             while (isActive) {
                 val connectionState = liveKitManager.connectionState.value
                 val isTracking      = locationService.isTracking.value
 
-                // ── Zombie 1: Location running but LiveKit definitively dead ──
-                // Only trigger after grace period AND only on DISCONNECTED (not RECONNECTING)
                 if (isTracking && connectionState == ConnectionState.DISCONNECTED) {
                     val elapsed = System.currentTimeMillis() - startTimeMs
                     if (elapsed > STARTUP_GRACE_MS) {
@@ -55,7 +50,6 @@ class ServiceWatchdog @Inject constructor(
                     }
                 }
 
-                // ── Zombie 2: Orphaned MediaSession holding Bluetooth SCO ──
                 if (!isTracking && hardwarePTTManager.isSessionActive()) {
                     Log.e(TAG, "Zombie detected: orphaned MediaSession. Releasing.")
                     hardwarePTTManager.deactivateSession()

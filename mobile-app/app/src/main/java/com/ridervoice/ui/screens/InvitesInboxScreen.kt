@@ -41,7 +41,6 @@ fun InvitesInboxScreen(
         viewModel.loadInvites()
     }
 
-    // Confirmation dialog before declining invite
     inviteToDecline?.let { invite ->
         AlertDialog(
             onDismissRequest = { inviteToDecline = null },
@@ -88,7 +87,7 @@ fun InvitesInboxScreen(
             .fillMaxSize()
             .background(GraphiteBase)
     ) {
-        // Top Header
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -112,7 +111,7 @@ fun InvitesInboxScreen(
                     color = TextPrimary
                 )
             }
-            // Refresh Button
+
             IconButton(
                 onClick = { viewModel.loadInvites() },
                 modifier = Modifier
@@ -130,7 +129,6 @@ fun InvitesInboxScreen(
             }
         }
 
-        // Error Banner
         error?.let { err ->
             Surface(
                 color = HazardContainer,
@@ -164,7 +162,7 @@ fun InvitesInboxScreen(
                 CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
             }
         } else if (invites.isEmpty()) {
-            // Actionable Empty State
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -294,7 +292,7 @@ fun InviteCard(
             )
 
             Text(
-                text = "Transmitted by @${invite.inviter.handle ?: "Leader"}",
+                text = "Transmitted by @${invite.inviter.handle}",
                 color = ElectricCyan,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
@@ -306,7 +304,7 @@ fun InviteCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Decline Button
+
                 OutlinedButton(
                     onClick = onDecline,
                     enabled = !isProcessing,
@@ -319,7 +317,6 @@ fun InviteCard(
                     Text("DECLINE", color = AlertRed, style = MaterialTheme.typography.labelLarge)
                 }
 
-                // Accept Button
                 Button(
                     onClick = onAccept,
                     enabled = !isProcessing,

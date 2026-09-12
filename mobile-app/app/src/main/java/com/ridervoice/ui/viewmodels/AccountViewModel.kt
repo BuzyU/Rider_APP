@@ -28,10 +28,7 @@ data class AccountUiState(
     val authProvider: String = "Email",
     val createdAt: String? = null
 ) {
-    /**
-     * Dynamically computes the single-letter circular avatar fallback
-     * from the user's display name or handle (e.g. "Umer Zingu" -> "U").
-     */
+
     val initialLetter: String
         get() {
             val candidate = displayName.trim().ifEmpty { handle.trim().removePrefix("@") }
@@ -51,11 +48,6 @@ class AccountViewModel @Inject constructor(
         loadAccountData()
     }
 
-    /**
-     * Resolves high-resolution profile picture for Google accounts.
-     * Google Auth URLs typically append "=s96-c" (a low-res 96x96 thumbnail).
-     * Replacing this with "=s400-c" yields crisp avatars for modern phone displays.
-     */
     fun getHighResPhotoUrl(originalUrl: String?): String? {
         if (originalUrl.isNullOrBlank()) return null
         return if (originalUrl.contains(Regex("=[sS]\\d+(-c)?$"))) {
@@ -74,7 +66,7 @@ class AccountViewModel @Inject constructor(
             var detectedProvider = "Email"
 
             if (firebaseUser != null) {
-                // Check providerData for Google account
+
                 for (info in firebaseUser.providerData) {
                     if (info.providerId == GoogleAuthProvider.PROVIDER_ID || info.providerId == "google.com") {
                         detectedProvider = "Google"
@@ -119,7 +111,7 @@ class AccountViewModel @Inject constructor(
                     createdAt = p.createdAt
                 }
             } catch (e: Exception) {
-                // Non-fatal: backend profile not yet created or temporary network glitch
+
             }
 
             if (handle.isBlank() && firebaseUser != null) {

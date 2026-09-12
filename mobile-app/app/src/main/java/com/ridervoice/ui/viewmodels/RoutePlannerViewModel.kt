@@ -30,7 +30,7 @@ class RoutePlannerViewModel @Inject constructor() : ViewModel() {
     val uiState: StateFlow<RoutePlannerState> = _uiState.asStateFlow()
 
     init {
-        // Load initial dummy nearby riders
+
         _uiState.value = _uiState.value.copy(
             nearbyRiders = listOf(
                 NearbyRider("MotoGhost", "2.4"),
@@ -79,14 +79,14 @@ class RoutePlannerViewModel @Inject constructor() : ViewModel() {
     }
 
     fun saveRoute(onSaved: () -> Unit) {
-        // Persist route state and trigger success
+
         onSaved()
     }
 
     private fun recalculateRoute() {
         val state = _uiState.value
         if (state.origin.isNotBlank() && state.destination.isNotBlank()) {
-            // Simulate route calculation based on user input
+
             _uiState.value = state.copy(
                 routeName = "${state.destination.take(20).uppercase()} RUN",
                 distanceKm = "123",

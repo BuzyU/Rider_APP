@@ -19,9 +19,6 @@ class AudioFocusManager @Inject constructor(
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-    // BUG FIX: Was never nulled out after abandoning.
-    // Some OEM AudioManagers (Samsung, Xiaomi) throw on double-abandon
-    // when onDestroy and onCleared both call abandonFocus().
     private var focusRequest: AudioFocusRequest? = null
 
     private val focusChangeListener = AudioManager.OnAudioFocusChangeListener { change ->
@@ -34,7 +31,7 @@ class AudioFocusManager @Inject constructor(
     }
 
     fun requestFocus() {
-        if (focusRequest != null) return  // already holding focus
+        if (focusRequest != null) return
 
         val attrs = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
@@ -58,9 +55,9 @@ class AudioFocusManager @Inject constructor(
     }
 
     fun abandonFocus() {
-        val req = focusRequest ?: return   // BUG FIX: guard — nothing to abandon
+        val req = focusRequest ?: return
         audioManager.abandonAudioFocusRequest(req)
-        focusRequest = null                // BUG FIX: null out so double-call is safe
+        focusRequest = null
         Log.d(TAG, "Audio focus abandoned")
     }
 }

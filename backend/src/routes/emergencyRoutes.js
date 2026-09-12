@@ -3,13 +3,28 @@ const router = express.Router()
 const prisma = require('../db')
 const notificationService = require('../services/notificationService')
 
-// Rate limit: max 5 alerts per user per minute
 const alertTimestamps = new Map()
 
 const emergencyRateLimiter = (req, res, next) => {
     const userId = req.user?.uid || req.ip
     const now = Date.now()
-    const history = (alertTimestamps.get(userId) || []).filter(time => now - time < 60000)
+    const cutoff = now - 60000
+
+    let history = alertTimestamps.get(userId)
+    if (!history) {
+        history = [now]
+        alertTimestamps.set(userId, history)
+        return next()
+    }
+
+    let firstValidIndex = 0
+    while (firstValidIndex < history.length && history[firstValidIndex] <= cutoff) {
+        firstValidIndex++
+    }
+
+    if (firstValidIndex > 0) {
+        history = history.slice(firstValidIndex)
+    }
 
     if (history.length >= 5) {
         return res.status(429).json({ error: 'Too many emergency alerts. Maximum 5 per minute.' })
@@ -20,7 +35,6 @@ const emergencyRateLimiter = (req, res, next) => {
     next()
 }
 
-// POST /api/emergency/alert
 router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
     const userId = req.user.uid
     const { roomName, lat, lng } = req.body
@@ -34,13 +48,12 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
         const recipientIds = new Set([room.ownerId, ...room.invites.map(i => i.inviteeId)])
-        recipientIds.delete(userId) // don't alert yourself
+        recipientIds.delete(userId)
 
         const recipientList = Array.from(recipientIds)
         const parsedLat = typeof lat === 'number' ? lat : (lat ? parseFloat(lat) : null)
         const parsedLng = typeof lng === 'number' ? lng : (lng ? parseFloat(lng) : null)
 
-        // Persist the emergency alert
         const alert = await prisma.emergencyAlert.create({
             data: {
                 senderId: userId,
@@ -60,7 +73,6 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
     }
 })
 
-// POST /api/emergency/cancel
 router.post('/cancel', async (req, res, next) => {
     const userId = req.user?.uid
     const { roomName, alertId, reason } = req.body
@@ -83,4 +95,3 @@ router.post('/cancel', async (req, res, next) => {
 })
 
 module.exports = router
-

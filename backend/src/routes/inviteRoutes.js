@@ -1,15 +1,10 @@
 const express = require('express')
-const router  = express.Router()
-const prisma  = require('../db')
+const router = express.Router()
+const prisma = require('../db')
 const notificationService = require('../services/notificationService')
 
-/**
- * POST /api/invites/invite
- * Sends a ride invite FROM the authenticated user.
- * inviterId is always req.user.uid — never trusted from the request body.
- */
 router.post('/invite', async (req, res, next) => {
-    const inviterId = req.user.uid             // ← always from auth, never from body
+    const inviterId = req.user.uid
     const { roomId, inviteeId } = req.body
 
     if (!roomId || !inviteeId) {
@@ -20,18 +15,6 @@ router.post('/invite', async (req, res, next) => {
     }
 
     try {
-        // Ensure inviter user record exists in Supabase
-        await prisma.user.upsert({
-            where: { id: inviterId },
-            update: {},
-            create: {
-                id: inviterId,
-                email: req.user.email || null,
-                displayName: req.user.name || (req.user.email ? req.user.email.split('@')[0] : 'Rider')
-            }
-        }).catch(() => {})
-
-        // Check room exists — supports roomId (UUID) or room name (convoyName)
         const room = await prisma.room.findFirst({
             where: {
                 OR: [
@@ -44,7 +27,6 @@ router.post('/invite', async (req, res, next) => {
             return res.status(404).json({ error: 'Room not found' })
         }
 
-        // Only friends can be invited — prevents invite spam
         const isFriend = await prisma.friendship.findFirst({
             where: {
                 status: 'ACCEPTED',
@@ -58,7 +40,6 @@ router.post('/invite', async (req, res, next) => {
             return res.status(403).json({ error: 'Can only invite friends' })
         }
 
-        // Prevent duplicate pending invites
         const existingInvite = await prisma.rideInvite.findFirst({
             where: { roomId: room.id, inviterId, inviteeId, status: 'PENDING' }
         })
@@ -70,7 +51,6 @@ router.post('/invite', async (req, res, next) => {
             data: { roomId: room.id, inviterId, inviteeId, status: 'PENDING' }
         })
 
-        // Send push notification
         const inviter = await prisma.user.findUnique({ where: { id: inviterId } })
         if (inviter) {
             await notificationService.sendRideInvite(
@@ -86,13 +66,9 @@ router.post('/invite', async (req, res, next) => {
     }
 })
 
-/**
- * POST /api/invites/respond
- * Accept or decline an invite. Only the invitee can respond.
- */
 router.post('/respond', async (req, res, next) => {
     const inviteeId = req.user.uid
-    const { inviteId, response } = req.body  // response: 'ACCEPTED' | 'DECLINED'
+    const { inviteId, response } = req.body
 
     if (!inviteId || !['ACCEPTED', 'DECLINED'].includes(response)) {
         return res.status(400).json({ error: 'inviteId and response (ACCEPTED|DECLINED) required' })
@@ -109,7 +85,7 @@ router.post('/respond', async (req, res, next) => {
 
         const updated = await prisma.rideInvite.update({
             where: { id: inviteId },
-            data:  { status: response }
+            data: { status: response }
         })
         res.json(updated)
     } catch (error) {
@@ -117,10 +93,6 @@ router.post('/respond', async (req, res, next) => {
     }
 })
 
-/**
- * GET /api/invites/invites/:userId
- * Returns pending invites for the authenticated user only.
- */
 router.get('/invites/:userId', async (req, res, next) => {
     const { userId } = req.params
 
@@ -133,7 +105,7 @@ router.get('/invites/:userId', async (req, res, next) => {
             where: { inviteeId: userId, status: 'PENDING' },
             include: {
                 inviter: { select: { handle: true, displayName: true } },
-                room:    { select: { name: true } }
+                room: { select: { name: true } }
             }
         })
 

@@ -26,9 +26,8 @@ class HardwarePTTManager @Inject constructor(
     val debugLogs: StateFlow<List<String>> = _debugLogs
 
     private var lastEventTime = 0L
-    private val DEBOUNCE_MS = 300L // 300ms debounce for ghost presses
+    private val DEBOUNCE_MS = 300L
 
-    // Optional callback for LiveKit integration
     var onMicToggleRequest: ((Boolean) -> Unit)? = null
 
     fun activateSession() {
@@ -43,8 +42,7 @@ class HardwarePTTManager @Inject constructor(
                 override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
                     val keyEvent = mediaButtonEvent?.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
                     if (keyEvent != null && (keyEvent.keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || keyEvent.keyCode == KeyEvent.KEYCODE_HEADSETHOOK)) {
-                        
-                        // Debounce filtering
+
                         val now = System.currentTimeMillis()
                         if (keyEvent.action == KeyEvent.ACTION_DOWN) {
                             if (now - lastEventTime > DEBOUNCE_MS) {
@@ -55,19 +53,18 @@ class HardwarePTTManager @Inject constructor(
                                 logDebug("AVRCP: KEYCODE_MEDIA_PLAY_PAUSE (ACTION_DOWN) - DEBOUNCED GHOST")
                             }
                         }
-                        return true // Consume event
+                        return true
                     }
                     return super.onMediaButtonEvent(mediaButtonEvent)
                 }
             })
         }
 
-        // Set state to Playing so OS sends events here
         val state = PlaybackStateCompat.Builder()
             .setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE)
             .setState(PlaybackStateCompat.STATE_PLAYING, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
             .build()
-        
+
         mediaSession?.setPlaybackState(state)
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -111,6 +108,6 @@ class HardwarePTTManager @Inject constructor(
     private fun logDebug(message: String) {
         val timestamp = java.text.SimpleDateFormat("HH:mm:ss.SSS").format(java.util.Date())
         val newLog = "[$timestamp] $message"
-        _debugLogs.value = (_debugLogs.value + newLog).takeLast(20) // Keep last 20 logs
+        _debugLogs.value = (_debugLogs.value + newLog).takeLast(20)
     }
 }

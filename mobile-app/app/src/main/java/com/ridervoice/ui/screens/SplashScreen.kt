@@ -59,7 +59,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 .alpha(alphaAnim)
                 .scale(scaleAnim)
         ) {
-            // Retro Transceiver Instrument Header Badge
+
             Surface(
                 shape = RoundedCornerShape(4.dp),
                 color = Gunmetal,
@@ -85,9 +85,9 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 fontWeight = FontWeight.Black,
                 letterSpacing = 3.sp
             )
-            
+
             Spacer(modifier = Modifier.height(6.dp))
-            
+
             Text(
                 text = "STAY CONNECTED. RIDE UNITED.",
                 color = NeonOrange,
@@ -113,9 +113,9 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.5.sp
             )
-            
+
             Spacer(modifier = Modifier.height(14.dp))
-            
+
             LinearProgressIndicator(
                 color = NeonOrange,
                 trackColor = Gunmetal,

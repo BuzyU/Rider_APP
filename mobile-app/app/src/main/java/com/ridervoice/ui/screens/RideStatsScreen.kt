@@ -47,7 +47,7 @@ fun RideStatsScreen(
             .fillMaxSize()
             .background(GraphiteBase)
     ) {
-        // Top App Bar
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -71,7 +71,7 @@ fun RideStatsScreen(
                     color = TextPrimary
                 )
             }
-            // CRITICAL FIX: Wired Share Button!
+
             IconButton(onClick = {
                 val shareIntent = Intent().apply {
                     action = Intent.ACTION_SEND
@@ -92,7 +92,7 @@ fun RideStatsScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // Tab Selector Chips
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -127,7 +127,6 @@ fun RideStatsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Primary Metrics Grid
             Surface(
                 color = DarkSlate,
                 shape = RoundedCornerShape(16.dp),
@@ -157,7 +156,6 @@ fun RideStatsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Chart Header & Replay CTA Button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -172,7 +170,6 @@ fun RideStatsScreen(
                     letterSpacing = 1.sp
                 )
 
-                // Replay Ride Button
                 TextButton(
                     onClick = { onReplayRide("latest") },
                     contentPadding = PaddingValues(0.dp)
@@ -185,7 +182,6 @@ fun RideStatsScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Dynamic Chart Card (Functional Tab Filtering: Speed vs Elevation)
             Surface(
                 color = DarkSlate,
                 shape = RoundedCornerShape(16.dp),
@@ -205,7 +201,7 @@ fun RideStatsScreen(
                         .fillMaxSize()
                         .padding(16.dp)
                 ) {
-                    // Y Axis Labels
+
                     Column(
                         modifier = Modifier.fillMaxHeight().padding(bottom = 20.dp),
                         verticalArrangement = Arrangement.SpaceBetween,
@@ -227,15 +223,13 @@ fun RideStatsScreen(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Canvas Graph
                     Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                            // Canvas Grid lines & Polyline
+
                             androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
                                 val w = size.width
                                 val h = size.height
 
-                                // Draw horizontal grid lines
                                 for (i in 0..4) {
                                     val y = h * i / 4
                                     drawLine(
@@ -262,7 +256,6 @@ fun RideStatsScreen(
                             }
                         }
 
-                        // X Axis Labels
                         Row(
                             modifier = Modifier.fillMaxWidth().height(20.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,

@@ -1,7 +1,5 @@
 package com.ridervoice.models
 
-// ── Convoy / Lobby ────────────────────────────────────────────────────────────
-
 data class ConvoyCreateRequest(
     val convoyName: String,
     val origin: String? = null,
@@ -28,7 +26,7 @@ data class LobbyStatus(
 
 data class LobbyInviteEntry(
     val inviteId: String,
-    val status: String,           // PENDING | ACCEPTED | DECLINED
+    val status: String,
     val invitee: LobbyRiderInfo
 )
 
@@ -61,11 +59,9 @@ data class CancelAlertRequest(
     val reason: String = "FALSE_ALARM"
 )
 
-// ── Invites ───────────────────────────────────────────────────────────────────
-
 data class InviteRespondRequest(
     val inviteId: String,
-    val response: String          // ACCEPTED | DECLINED
+    val response: String
 )
 
 data class SendInviteRequest(
@@ -73,14 +69,10 @@ data class SendInviteRequest(
     val inviteeId: String
 )
 
-// ── Friends ───────────────────────────────────────────────────────────────────
-
 data class FriendRequest(
     val addresseeId: String? = null,
     val handle: String? = null
 )
-
-// ── Profile ───────────────────────────────────────────────────────────────────
 
 data class ProfileRequest(
     val handle: String? = null,
@@ -101,18 +93,14 @@ data class ProfileResponse(
     val createdAt: String? = null
 )
 
-// ── Device setup ──────────────────────────────────────────────────────────────
-
 data class DeviceHandshakeResult(
     val deviceName: String,
     val deviceType: DeviceType,
     val scoConnected: Boolean,
-    val signalStrengthDbm: Int?   // null for wired
+    val signalStrengthDbm: Int?
 )
 
 enum class DeviceType { BLUETOOTH_SCO, BLUETOOTH_A2DP, WIRED, USB, EARPIECE }
-
-// Existing models kept ─────────────────────────────────────────────────────────
 
 data class RoomData(val roomName: String, val token: String)
 data class RoomTokenRequest(val roomName: String)
@@ -180,8 +168,6 @@ data class RiderLocation(
     val heading: Float?,
     val timestamp: Long
 )
-
-// ── Ride History ──────────────────────────────────────────────────────────────
 
 data class RideHistoryResponse(
     val id: String,

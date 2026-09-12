@@ -7,7 +7,6 @@ class SessionRestore(context: Context) {
 
     private val prefs = SecurePreferences(context)
 
-    // FIX: was hardcoded to "ROOM_001" — now reads persisted value
     fun restoreRoom(): String? {
         return prefs.getLastRoomName()
     }

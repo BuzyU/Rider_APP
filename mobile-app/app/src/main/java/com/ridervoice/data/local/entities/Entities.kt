@@ -29,7 +29,7 @@ data class RawWaypointEntity(
 data class ConvoyEventEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val sessionId: String,
-    val eventType: String, // STOP_POINT, HIGH_SPEED_ZONE, DISCONNECT, RECONNECT
+    val eventType: String,
     val lat: Double,
     val lng: Double,
     val timestamp: Long

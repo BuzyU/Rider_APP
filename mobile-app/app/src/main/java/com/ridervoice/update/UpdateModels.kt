@@ -3,8 +3,6 @@ package com.ridervoice.update
 import com.google.gson.annotations.SerializedName
 import java.io.File
 
-// ── GitHub Releases API DTOs ─────────────────────────────────────────────────
-
 data class GitHubRelease(
     @SerializedName("tag_name") val tagName: String,
     @SerializedName("name") val name: String?,
@@ -19,8 +17,6 @@ data class GitHubAsset(
     @SerializedName("browser_download_url") val downloadUrl: String,
     @SerializedName("content_type") val contentType: String? = null
 )
-
-// ── App Release Information ──────────────────────────────────────────────────
 
 data class AppReleaseInfo(
     val versionName: String,
@@ -39,8 +35,6 @@ data class AppReleaseInfo(
             return "%.1f MB".format(mb)
         }
 }
-
-// ── Strict UI State Machine ──────────────────────────────────────────────────
 
 sealed class UpdateUiState {
     object Idle : UpdateUiState()

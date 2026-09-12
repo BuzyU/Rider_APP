@@ -40,7 +40,7 @@ fun InviteFriendsScreen(
             .fillMaxSize()
             .background(GraphiteBase)
     ) {
-        // Top Header
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -112,7 +112,7 @@ fun InviteFriendsContent(
     Column(
         modifier = modifier.fillMaxWidth()
     ) {
-        // Error notification banner
+
         error?.let { err ->
             Surface(
                 color = HazardContainer,
@@ -141,7 +141,6 @@ fun InviteFriendsContent(
             }
         }
 
-        // Section: Top Quick Controls (Add Squad Rider by handle + Invite All)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -180,7 +179,6 @@ fun InviteFriendsContent(
             }
         }
 
-        // Search Filter
         if (friends.isNotEmpty()) {
             OutlinedTextField(
                 value = searchQuery,
@@ -206,14 +204,13 @@ fun InviteFriendsContent(
             else friends.filter { it.handle.contains(searchQuery.removePrefix("@").trim(), ignoreCase = true) }
         }
 
-        // Content Area
         Box(modifier = Modifier.weight(1f)) {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
                 }
             } else if (friends.isEmpty()) {
-                // Empty state card with actionable CTA!
+
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -284,7 +281,6 @@ fun InviteFriendsContent(
             }
         }
 
-        // Optional Continue Button (when used as full screen flow)
         if (onInvitesSent != null) {
             val buttonLabel = if (invitedIds.isNotEmpty()) {
                 "CONTINUE TO LOBBY (${invitedIds.size} INVITED)"

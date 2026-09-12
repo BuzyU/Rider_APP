@@ -13,7 +13,7 @@ const friendRoutes = require('./routes/friendRoutes')
 const inviteRoutes = require('./routes/inviteRoutes')
 const rideRoutes = require('./routes/rideRoutes')
 const roomRoutes = require('./routes/roomRoutes')
-const lobbyRoutes = require('./routes/lobbyRoutes')   // NEW
+const lobbyRoutes = require('./routes/lobbyRoutes')
 const emergencyRoutes = require('./routes/emergencyRoutes')
 
 const app = express()
@@ -23,29 +23,25 @@ app.use(express.json({ limit: '10mb' }))
 app.use(requestLogger)
 app.use(rateLimiter)
 
-// Public health check
 app.use('/api/health', healthRoute)
 app.use('/health', healthRoute)
 app.use('/', healthRoute)
 
-// Authenticated routes
 app.use('/api/rooms', authMiddleware, roomRoutes)
 app.use('/api/users', authMiddleware, profileRoutes)
 app.use('/api/friends', authMiddleware, friendRoutes)
 app.use('/api/rides', authMiddleware, rideRoutes)
 app.use('/api/invites', authMiddleware, inviteRoutes)
-app.use('/api/lobby', authMiddleware, lobbyRoutes)       // NEW
+app.use('/api/lobby', authMiddleware, lobbyRoutes)
 app.use('/api/emergency', authMiddleware, emergencyRoutes)
 
 app.use(errorMiddleware)
 
-// Self-healing database check for RoomJoinToken table and REMOVED enum
 const prisma = require('./db')
 async function ensureDbExtensions() {
     try {
         await prisma.$executeRawUnsafe(`ALTER TYPE "InviteStatus" ADD VALUE IF NOT EXISTS 'REMOVED';`)
     } catch (e) {
-        // Ignored if type does not exist or already added
     }
     try {
         await prisma.$executeRawUnsafe(`

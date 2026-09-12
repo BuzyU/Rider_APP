@@ -23,19 +23,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * The central audio device manager for Rider Voice.
- *
- * Priority order (highest first):
- *   1. Bluetooth SCO headset (Cardo Packtalk, Sena, etc.)
- *   2. Wired headset with mic (3.5mm or USB-C)
- *   3. USB audio device with mic
- *   4. Built-in earpiece (never speaker — prevents accidental wind blast)
- *
- * On any device change the router re-evaluates priority and switches
- * automatically. The LiveKitBridge is notified so it can rebuild the
- * audio track with the right processing profile for the new device.
- */
 @Singleton
 class AudioDeviceRouter @Inject constructor(
     @ApplicationContext private val context: Context
@@ -45,15 +32,11 @@ class AudioDeviceRouter @Inject constructor(
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    // ── Public state ──────────────────────────────────────────────────────────
-
     private val _activeDevice = MutableStateFlow<AudioDevice>(AudioDevice.Earpiece)
     val activeDevice: StateFlow<AudioDevice> = _activeDevice
 
     private val _routerState = MutableStateFlow(RouterState.IDLE)
     val routerState: StateFlow<RouterState> = _routerState
-
-    // ── Bluetooth SCO state machine ───────────────────────────────────────────
 
     private var bluetoothHeadset: BluetoothHeadset? = null
     private var scoConnectRetries = 0
@@ -61,13 +44,6 @@ class AudioDeviceRouter @Inject constructor(
     private var isScoStartRequested = false
     private var isStarted = false
 
-    // ── Broadcast receivers ───────────────────────────────────────────────────
-
-    /**
-     * Listens for wired headset plug/unplug events (ACTION_HEADSET_PLUG)
-     * and USB audio device attach/detach (ACTION_AUDIO_BECOMING_NOISY,
-     * ACTION_USB_AUDIO_DEVICE_PLUG).
-     */
     private val wiredHeadsetReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
@@ -76,7 +52,7 @@ class AudioDeviceRouter @Inject constructor(
                     val hasMic = intent.getIntExtra("microphone", 0) == 1
                     if (state == 1) {
                         Log.d(TAG, "Wired headset connected (hasMic=$hasMic)")
-                        // Wired always wins over earpiece, loses to BT
+
                         if (_activeDevice.value !is AudioDevice.BluetoothSco) {
                             switchToWired(hasMic)
                         }
@@ -85,8 +61,7 @@ class AudioDeviceRouter @Inject constructor(
                         reEvaluatePriority()
                     }
                 }
-                // When BT or another device steals audio, Android fires NOISY.
-                // We use this as a signal to re-check what's available.
+
                 AudioManager.ACTION_AUDIO_BECOMING_NOISY -> {
                     Log.w(TAG, "Audio becoming noisy — forcing re-evaluation")
                     reEvaluatePriority()
@@ -100,11 +75,6 @@ class AudioDeviceRouter @Inject constructor(
         }
     }
 
-    /**
-     * Tracks Bluetooth SCO connection state transitions:
-     * CONNECTING → CONNECTED or DISCONNECTED.
-     * This is the only reliable way to know SCO actually succeeded on pre-12 Android.
-     */
     private val scoStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1)
@@ -127,7 +97,7 @@ class AudioDeviceRouter @Inject constructor(
                     } else {
                         Log.e(TAG, "SCO failed after $MAX_SCO_RETRIES retries — falling back")
                         isScoStartRequested = false
-                        // Mute vol to 0 before fallback to prevent speaker blast
+
                         safelyMuteVoiceCall()
                         reEvaluatePriority(skipBluetooth = true)
                     }
@@ -141,10 +111,6 @@ class AudioDeviceRouter @Inject constructor(
         }
     }
 
-    /**
-     * BluetoothProfile.ServiceListener — needed to get the BluetoothHeadset
-     * proxy object so we can call isAudioConnected() on devices.
-     */
     private val bluetoothProfileListener = object : BluetoothProfile.ServiceListener {
         override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
             if (profile == BluetoothProfile.HEADSET) {
@@ -157,19 +123,12 @@ class AudioDeviceRouter @Inject constructor(
         }
     }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
-
-    /**
-     * Call this when entering a voice session (e.g. joinRoom).
-     * Registers all receivers and starts the initial device scan.
-     */
     fun start() {
         if (isStarted) return
         isStarted = true
         Log.d(TAG, "AudioDeviceRouter starting")
         _routerState.value = RouterState.SCANNING
 
-        // Register wired/USB receiver
         val wiredFilter = IntentFilter().apply {
             addAction(AudioManager.ACTION_HEADSET_PLUG)
             addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
@@ -191,7 +150,6 @@ class AudioDeviceRouter @Inject constructor(
             )
         }
 
-        // Acquire BluetoothHeadset profile proxy
         val btAdapter = BluetoothAdapter.getDefaultAdapter()
         if (hasBluetoothConnectPermission()) {
             try {
@@ -201,17 +159,12 @@ class AudioDeviceRouter @Inject constructor(
             }
         }
 
-        // Set communication mode immediately
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         audioManager.isSpeakerphoneOn = false
 
-        // Initial scan
         reEvaluatePriority()
     }
 
-    /**
-     * Call this when leaving the voice session. Tears down everything cleanly.
-     */
     fun stop() {
         if (!isStarted) return
         isStarted = false
@@ -239,12 +192,6 @@ class AudioDeviceRouter @Inject constructor(
         _activeDevice.value = AudioDevice.Earpiece
     }
 
-    // ── Priority evaluation ───────────────────────────────────────────────────
-
-    /**
-     * Scans connected devices in priority order and routes to the best one.
-     * Safe to call from any state — it compares against current device first.
-     */
     fun reEvaluatePriority(skipBluetooth: Boolean = false) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             reEvaluateModern(skipBluetooth)
@@ -289,7 +236,7 @@ class AudioDeviceRouter @Inject constructor(
     }
 
     private fun reEvaluateLegacy(skipBluetooth: Boolean) {
-        // On pre-12 Android we must manually check and start SCO
+
         val isWiredConnected = audioManager.isWiredHeadsetOn
 
         when {
@@ -297,11 +244,12 @@ class AudioDeviceRouter @Inject constructor(
                 Log.d(TAG, "Legacy: starting BT SCO")
                 _routerState.value = RouterState.CONNECTING_BT
                 startBluetoothSco()
-                // _activeDevice updated by scoStateReceiver on success
+
             }
             isWiredConnected -> {
                 Log.d(TAG, "Legacy: wired headset")
-                @Suppress("DEPRECATION") audioManager.isBluetoothScoOn = false
+                @Suppress("DEPRECATION")
+                audioManager.isBluetoothScoOn = false
                 _activeDevice.value = AudioDevice.WiredHeadset
                 _routerState.value = RouterState.ACTIVE
             }
@@ -312,8 +260,6 @@ class AudioDeviceRouter @Inject constructor(
             }
         }
     }
-
-    // ── Device-specific switch helpers ────────────────────────────────────────
 
     private fun switchToWired(hasMic: Boolean) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -368,11 +314,6 @@ class AudioDeviceRouter @Inject constructor(
         }
     }
 
-    /**
-     * Silently zero voice call volume before routing change to prevent
-     * a sudden blast of audio through the wrong device (e.g. earpiece → speaker).
-     * Restores the volume ~200 ms after the switch.
-     */
     private fun safelyMuteVoiceCall() {
         val prev = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
         audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, 0, 0)
@@ -394,8 +335,6 @@ class AudioDeviceRouter @Inject constructor(
         }
     }
 }
-
-// ── Data types ────────────────────────────────────────────────────────────────
 
 sealed class AudioDevice {
     data class BluetoothSco(val deviceName: String) : AudioDevice()

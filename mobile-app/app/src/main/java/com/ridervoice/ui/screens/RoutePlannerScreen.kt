@@ -47,7 +47,7 @@ fun RoutePlannerScreen(
             .fillMaxSize()
             .background(GraphiteBase)
     ) {
-        // Top App Bar
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -108,7 +108,6 @@ fun RoutePlannerScreen(
             }
         }
 
-        // Input Fields (with swap button & GPS position button)
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -154,7 +153,6 @@ fun RoutePlannerScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Swap Origin / Destination Button
                 IconButton(
                     onClick = { viewModel.swapOriginAndDestination() },
                     modifier = Modifier
@@ -170,7 +168,6 @@ fun RoutePlannerScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Route Preferences Chips
         Text(
             text = "ROUTING CHARACTERISTIC",
             color = TextSecondary,
@@ -206,7 +203,6 @@ fun RoutePlannerScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Map Preview Area
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -218,7 +214,7 @@ fun RoutePlannerScreen(
         ) {
             val mapViewportState = rememberMapViewportState {
                 setCameraOptions {
-                    center(Point.fromLngLat(73.4069, 18.7481)) // Lonavala coords
+                    center(Point.fromLngLat(73.4069, 18.7481))
                     zoom(11.0)
                 }
             }
@@ -230,7 +226,6 @@ fun RoutePlannerScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Nearby Riders (Fixed setting coordinate waypoint instead of handle string)
         if (uiState.nearbyRiders.isNotEmpty()) {
             Text(
                 text = "NEARBY ACTIVE SQUAD RIDERS",
@@ -281,7 +276,6 @@ fun RoutePlannerScreen(
             }
         }
 
-        // Bottom Stats & Action (Fixed: Real Save Route action!)
         Surface(
             color = DarkSlate,
             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
@@ -315,7 +309,6 @@ fun RoutePlannerScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // CRITICAL FIX: Real SAVE ROUTE with validation & Toast!
                 Button(
                     onClick = {
                         viewModel.saveRoute {

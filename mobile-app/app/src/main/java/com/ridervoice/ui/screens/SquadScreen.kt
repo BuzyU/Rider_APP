@@ -47,7 +47,6 @@ fun SquadScreen(
         }
     }
 
-    // Confirmation dialog before removing friend
     friendToRemove?.let { friend ->
         AlertDialog(
             onDismissRequest = { friendToRemove = null },
@@ -93,7 +92,6 @@ fun SquadScreen(
     ) {
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Top Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -120,7 +118,7 @@ fun SquadScreen(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Refresh Button
+
                 IconButton(
                     onClick = { currentUserId?.let { viewModel.fetchData(it) } },
                     modifier = Modifier
@@ -139,7 +137,6 @@ fun SquadScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Add Friend Button
                 IconButton(
                     onClick = { showAddFriendDialog = true },
                     modifier = Modifier
@@ -160,7 +157,6 @@ fun SquadScreen(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // Search Bar
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
@@ -186,7 +182,6 @@ fun SquadScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Error message banner
         uiState.errorMessage?.let { err ->
             Surface(
                 modifier = Modifier
@@ -216,7 +211,6 @@ fun SquadScreen(
             }
         }
 
-        // Not signed in
         if (currentUserId == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
@@ -235,7 +229,6 @@ fun SquadScreen(
             return@Column
         }
 
-        // Section 1: Incoming Invites (with working JOIN button!)
         if (uiState.invites.isNotEmpty()) {
             Text(
                 text = "INCOMING CONVOY INVITES (${uiState.invites.size})",
@@ -264,13 +257,12 @@ fun SquadScreen(
                                 fontSize = 15.sp
                             )
                             Text(
-                                text = "Invited by @${invite.inviter.handle ?: "Host"}",
+                                text = "Invited by @${invite.inviter.handle}",
                                 color = TextSecondary,
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
 
-                        // CRITICAL FIX: Wired JOIN Button!
                         Button(
                             onClick = {
                                 viewModel.acceptInvite(invite) { roomName ->
@@ -294,7 +286,6 @@ fun SquadScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Section 2: Squad Friends List
         val filteredFriends = remember(uiState.friends, searchQuery) {
             if (searchQuery.isBlank()) {
                 uiState.friends
@@ -454,7 +445,6 @@ fun SquadMemberCard(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Remove from squad button
                 IconButton(
                     onClick = onRemoveClick,
                     modifier = Modifier.size(28.dp)

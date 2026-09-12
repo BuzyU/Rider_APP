@@ -11,11 +11,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.models.Participant
 
-
 @Composable
 fun ParticipantCard(participant: Participant, isFaded: Boolean = false) {
     val alphaVal = if (isFaded) 0.4f else 1.0f
-    
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -32,12 +31,12 @@ fun ParticipantCard(participant: Participant, isFaded: Boolean = false) {
         ) {
             Column {
                 Text(
-                    text = participant.identity.uppercase(), 
-                    color = TextPrimary, 
+                    text = participant.identity.uppercase(),
+                    color = TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
-                
+
                 if (participant.isGhost) {
                     Text("Reconnecting...", color = NeonOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 } else {

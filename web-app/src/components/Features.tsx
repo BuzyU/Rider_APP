@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Smartphone, Link, BatteryCharging, Network, Mic, RefreshCw, Volume2, Zap, User, Share } from 'lucide-react';
+import { Smartphone, Mic, User, Share } from 'lucide-react';
 import styles from './Features.module.css';
 
 export default function Features() {
@@ -9,8 +9,6 @@ export default function Features() {
     <>
       <section className="container">
         <div className={styles.bentoContainer}>
-          
-          {/* Feature 1: Wide */}
           <motion.div 
             className={`${styles.bentoCard} ${styles.cardWide}`}
             initial={{ opacity: 0, y: 20 }}
@@ -26,7 +24,6 @@ export default function Features() {
             </div>
             
             <div className={styles.microUI}>
-              {/* Map/Range visualization */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--background)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
@@ -51,7 +48,6 @@ export default function Features() {
             </div>
           </motion.div>
 
-          {/* Feature 2: Square */}
           <motion.div 
             className={styles.bentoCard}
             initial={{ opacity: 0, y: 20 }}
@@ -76,7 +72,6 @@ export default function Features() {
             </div>
           </motion.div>
 
-          {/* Feature 3: Square */}
           <motion.div 
             className={styles.bentoCard}
             initial={{ opacity: 0, y: 20 }}
@@ -87,7 +82,7 @@ export default function Features() {
             <div className={styles.bentoText}>
               <h2 className={styles.bentoTitle}>One-Tap Invites.</h2>
               <p className={styles.bentoDesc}>
-                Drop a link in your group chat. iOS or Android, they tap and they're instantly in the ride.
+                Drop a link in your group chat. iOS or Android, they tap and they&apos;re instantly in the ride.
               </p>
             </div>
             <div className={styles.microUI}>
@@ -100,7 +95,6 @@ export default function Features() {
             </div>
           </motion.div>
 
-          {/* Feature 4: Wide */}
           <motion.div 
             className={`${styles.bentoCard} ${styles.cardWide}`}
             initial={{ opacity: 0, y: 20 }}
@@ -136,7 +130,6 @@ export default function Features() {
               </div>
             </div>
           </motion.div>
-
         </div>
       </section>
 

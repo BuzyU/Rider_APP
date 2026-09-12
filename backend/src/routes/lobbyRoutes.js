@@ -4,20 +4,19 @@ const crypto = require('crypto')
 const prisma = require('../db')
 const { AccessToken, RoomServiceClient } = require('livekit-server-sdk')
 
+let cachedHttpUrl = null
 function getLiveKitHttpUrl() {
+    if (cachedHttpUrl !== null) return cachedHttpUrl
     const rawUrl = process.env.LIVEKIT_URL || ''
-    return rawUrl
+    cachedHttpUrl = rawUrl
         .replace('wss://', 'https://')
         .replace('ws://', 'http://')
+    return cachedHttpUrl
 }
 
-/**
- * POST /api/lobby/create
- * Host creates a named convoy with trip details.
- */
 router.post('/create', async (req, res, next) => {
     const hostId = req.user.uid
-    const { convoyName, origin, destination, estimatedDurationMin, meetupPoint } = req.body
+    const { convoyName } = req.body
 
     if (!convoyName) {
         return res.status(400).json({ error: 'convoyName is required' })
@@ -46,11 +45,6 @@ router.post('/create', async (req, res, next) => {
     }
 })
 
-/**
- * GET /api/lobby/:roomName/status
- * Host polls this to monitor member acceptances.
- * Host can always start (solo start allowed).
- */
 router.get('/:roomName/status', async (req, res, next) => {
     const { roomName } = req.params
     const requesterId = req.user.uid
@@ -76,18 +70,31 @@ router.get('/:roomName/status', async (req, res, next) => {
             return res.status(403).json({ error: 'Only the host can view lobby status' })
         }
 
-        const summary = {
-            roomId: room.id,
-            convoyName: room.name,
-            invites: room.invites.map(inv => ({
+        let acceptedCount = 0
+        let pendingCount = 0
+        let declinedCount = 0
+
+        const formattedInvites = new Array(room.invites.length)
+        for (let i = 0; i < room.invites.length; i++) {
+            const inv = room.invites[i]
+            formattedInvites[i] = {
                 inviteId: inv.id,
                 status: inv.status,
                 invitee: inv.invitee,
-            })),
-            acceptedCount: room.invites.filter(i => i.status === 'ACCEPTED').length,
-            pendingCount:  room.invites.filter(i => i.status === 'PENDING').length,
-            declinedCount: room.invites.filter(i => i.status === 'DECLINED').length,
-            canStart: true, // Host is always permitted to start (including solo rides)
+            }
+            if (inv.status === 'ACCEPTED') acceptedCount++
+            else if (inv.status === 'PENDING') pendingCount++
+            else if (inv.status === 'DECLINED') declinedCount++
+        }
+
+        const summary = {
+            roomId: room.id,
+            convoyName: room.name,
+            invites: formattedInvites,
+            acceptedCount,
+            pendingCount,
+            declinedCount,
+            canStart: true,
         }
 
         res.json(summary)
@@ -96,11 +103,6 @@ router.get('/:roomName/status', async (req, res, next) => {
     }
 })
 
-/**
- * POST /api/lobby/:roomName/start
- * Host taps "Start Ride". Generates LiveKit token for the host.
- * Solo start is permitted.
- */
 router.post('/:roomName/start', async (req, res, next) => {
     const { roomName } = req.params
     const user = req.user
@@ -113,7 +115,6 @@ router.post('/:roomName/start', async (req, res, next) => {
         if (!room) return res.status(404).json({ error: 'Room not found' })
         if (room.ownerId !== user.uid) return res.status(403).json({ error: 'Only the host can start the ride' })
 
-        // Generate LiveKit token for host
         const at = new AccessToken(
             process.env.LIVEKIT_API_KEY,
             process.env.LIVEKIT_API_SECRET,
@@ -128,10 +129,6 @@ router.post('/:roomName/start', async (req, res, next) => {
     }
 })
 
-/**
- * POST /api/lobby/join-token
- * Joiner calls this AFTER accepting an invite.
- */
 router.post('/join-token', async (req, res, next) => {
     const { roomName } = req.body
     const user = req.user
@@ -142,17 +139,21 @@ router.post('/join-token', async (req, res, next) => {
         const room = await prisma.room.findUnique({ where: { name: roomName } })
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
-        const invite = await prisma.rideInvite.findFirst({
-            where: {
-                roomId: room.id,
-                inviteeId: user.uid,
-                status: 'ACCEPTED'
-            }
-        })
-
         const isHost = room.ownerId === user.uid
+        let isAuthorized = isHost
 
-        if (!invite && !isHost) {
+        if (!isAuthorized) {
+            const invite = await prisma.rideInvite.findFirst({
+                where: {
+                    roomId: room.id,
+                    inviteeId: user.uid,
+                    status: 'ACCEPTED'
+                }
+            })
+            if (invite) isAuthorized = true
+        }
+
+        if (!isAuthorized) {
             return res.status(403).json({ error: 'No accepted invite found for this room' })
         }
 
@@ -170,10 +171,6 @@ router.post('/join-token', async (req, res, next) => {
     }
 })
 
-/**
- * POST /api/lobby/:roomName/share-link
- * Generates a shareable join token valid for 24 hours.
- */
 router.post('/:roomName/share-link', async (req, res, next) => {
     const { roomName } = req.params
     const user = req.user
@@ -182,17 +179,20 @@ router.post('/:roomName/share-link', async (req, res, next) => {
         const room = await prisma.room.findUnique({ where: { name: roomName } })
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
-        // Caller must be room owner or accepted participant
         const isHost = room.ownerId === user.uid
-        const isMember = await prisma.rideInvite.findFirst({
-            where: { roomId: room.id, inviteeId: user.uid, status: 'ACCEPTED' }
-        })
+        let isAuthorized = isHost
 
-        if (!isHost && !isMember) {
+        if (!isAuthorized) {
+            const isMember = await prisma.rideInvite.findFirst({
+                where: { roomId: room.id, inviteeId: user.uid, status: 'ACCEPTED' }
+            })
+            if (isMember) isAuthorized = true
+        }
+
+        if (!isAuthorized) {
             return res.status(403).json({ error: 'Only convoy participants can share join links' })
         }
 
-        // Generate 16-character hex token
         const token = crypto.randomBytes(8).toString('hex')
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
@@ -214,12 +214,6 @@ router.post('/:roomName/share-link', async (req, res, next) => {
     }
 })
 
-/**
- * POST /api/lobby/join-via-token
- * Validates a share link token, automatically records user as ACCEPTED,
- * defaulting inviterId to room.ownerId (preserving referential integrity).
- * Returns LiveKit credentials in identical shape to join-token.
- */
 router.post('/join-via-token', async (req, res, next) => {
     const { token } = req.body
     const user = req.user
@@ -242,8 +236,6 @@ router.post('/join-via-token', async (req, res, next) => {
 
         const room = joinTokenRecord.room
 
-        // Record or update user's invite record with status = ACCEPTED.
-        // inviterId defaults explicitly to room.ownerId (the convoy host).
         const existingInvite = await prisma.rideInvite.findFirst({
             where: { roomId: room.id, inviteeId: user.uid }
         })
@@ -257,14 +249,13 @@ router.post('/join-via-token', async (req, res, next) => {
             await prisma.rideInvite.create({
                 data: {
                     roomId: room.id,
-                    inviterId: room.ownerId, // Explicit default preserves User FK
+                    inviterId: room.ownerId,
                     inviteeId: user.uid,
                     status: 'ACCEPTED'
                 }
             })
         }
 
-        // Mint LiveKit token
         const at = new AccessToken(
             process.env.LIVEKIT_API_KEY,
             process.env.LIVEKIT_API_SECRET,
@@ -283,11 +274,6 @@ router.post('/join-via-token', async (req, res, next) => {
     }
 })
 
-/**
- * DELETE /api/lobby/:roomName/riders/:userId
- * Host removes a rider from the convoy.
- * Sets RideInvite to REMOVED and disconnects audio via LiveKit RoomServiceClient.
- */
 router.delete('/:roomName/riders/:userId', async (req, res, next) => {
     const { roomName, userId } = req.params
     const hostId = req.user.uid
@@ -300,13 +286,11 @@ router.delete('/:roomName/riders/:userId', async (req, res, next) => {
             return res.status(403).json({ error: 'Only the host can remove riders' })
         }
 
-        // 1. Mark invite as REMOVED in database
         await prisma.rideInvite.updateMany({
             where: { roomId: room.id, inviteeId: userId },
             data: { status: 'REMOVED' }
         })
 
-        // 2. Disconnect rider from LiveKit session if active
         try {
             const httpUrl = getLiveKitHttpUrl()
             if (httpUrl && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET) {
@@ -323,11 +307,6 @@ router.delete('/:roomName/riders/:userId', async (req, res, next) => {
     }
 })
 
-/**
- * POST /api/lobby/:roomName/end
- * Host closes the ride for everyone.
- * Disconnects all active participants via LiveKit deleteRoom.
- */
 router.post('/:roomName/end', async (req, res, next) => {
     const { roomName } = req.params
     const hostId = req.user.uid
@@ -356,10 +335,6 @@ router.post('/:roomName/end', async (req, res, next) => {
     }
 })
 
-/**
- * POST /api/lobby/:roomName/transfer-host
- * Host transfers ownership to another accepted rider.
- */
 router.post('/:roomName/transfer-host', async (req, res, next) => {
     const { roomName } = req.params
     const hostId = req.user.uid

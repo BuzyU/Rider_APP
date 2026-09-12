@@ -14,7 +14,7 @@ export default function TrustBanner() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         >
           <h2 className={styles.quote}>
-            "The first intercom app that actually keeps the convoy together."
+            &ldquo;The first intercom app that actually keeps the convoy together.&rdquo;
           </h2>
           <p className={styles.author}>Built by riders, for riders. Join the thousands already on the waitlist.</p>
           

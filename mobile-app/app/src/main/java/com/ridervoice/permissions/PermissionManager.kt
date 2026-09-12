@@ -4,13 +4,12 @@ import android.Manifest
 import android.os.Build
 
 object PermissionManager {
-    // Requested at launch: Voice and Bluetooth
+
     val requiredPermissions = arrayOf(
         Manifest.permission.RECORD_AUDIO,
         Manifest.permission.BLUETOOTH_CONNECT
     )
 
-    // Requested at point-of-use (Ride/Room start): Location and Notifications
     val ridePermissions: Array<String>
         get() {
             val list = mutableListOf(
@@ -25,4 +24,3 @@ object PermissionManager {
 
     val backgroundLocationPermission: String = Manifest.permission.ACCESS_BACKGROUND_LOCATION
 }
-

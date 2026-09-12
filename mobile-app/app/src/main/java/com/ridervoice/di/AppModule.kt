@@ -40,7 +40,7 @@ object AppModule {
 
         return builder
             .addInterceptor { chain ->
-                // Blocking call in interceptor to fetch Firebase token
+
                 var token: String? = null
                 val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
                 if (user != null) {
@@ -52,7 +52,7 @@ object AppModule {
                             val task = com.google.android.gms.tasks.Tasks.await(user.getIdToken(false))
                             token = task.token
                             AuthTokenCache.cachedToken = token
-                            AuthTokenCache.expiryTime = now + 45 * 60 * 1000 // 45 mins
+                            AuthTokenCache.expiryTime = now + 45 * 60 * 1000
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }
@@ -63,7 +63,7 @@ object AppModule {
                 if (token != null) {
                     requestBuilder.addHeader("Authorization", "Bearer $token")
                 }
-                
+
                 chain.proceed(requestBuilder.build())
             }
             .build()

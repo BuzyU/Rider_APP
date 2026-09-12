@@ -28,8 +28,7 @@ class DeviceSetupViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        // Optional: audioDeviceRouter.stop() if we want it to stop scanning.
-        // We'll leave it running since they might transition straight to HUD.
+
     }
 
     fun finishSetup() {

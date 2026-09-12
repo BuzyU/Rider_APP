@@ -33,7 +33,7 @@ fun UpdateDialog(
 ) {
     when (uiState) {
         is UpdateUiState.Idle -> {
-            // Nothing to display
+
         }
 
         is UpdateUiState.Checking -> {
@@ -137,7 +137,7 @@ fun UpdateDialog(
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Version Diff Card
+
                         Surface(
                             color = Gunmetal,
                             shape = RoundedCornerShape(8.dp),
@@ -163,7 +163,6 @@ fun UpdateDialog(
                             }
                         }
 
-                        // Changelog Section
                         Text(
                             text = "WHAT'S NEW",
                             color = NeonOrange,
@@ -254,7 +253,7 @@ fun UpdateDialog(
 
         is UpdateUiState.Downloading -> {
             AlertDialog(
-                onDismissRequest = {}, // In-progress download should not dismiss on outside tap
+                onDismissRequest = {},
                 containerColor = DarkSlate,
                 title = {
                     Column {
@@ -284,7 +283,6 @@ fun UpdateDialog(
                             fontWeight = FontWeight.Bold
                         )
 
-                        // Progress bar
                         LinearProgressIndicator(
                             progress = (uiState.progressPercent / 100f).coerceIn(0f, 1f),
                             color = NeonOrange,
@@ -294,7 +292,6 @@ fun UpdateDialog(
                                 .height(8.dp)
                         )
 
-                        // Progress metrics
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -313,7 +310,6 @@ fun UpdateDialog(
                             )
                         }
 
-                        // Byte counts
                         val dlMb = "%.1f MB".format(uiState.downloadedBytes.toDouble() / (1024.0 * 1024.0))
                         val totalMb = "%.1f MB".format(uiState.totalBytes.toDouble() / (1024.0 * 1024.0))
                         Text(

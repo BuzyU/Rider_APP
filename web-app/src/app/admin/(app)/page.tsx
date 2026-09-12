@@ -3,7 +3,7 @@ import { supabaseAdmin } from "@/utils/supabase/admin";
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
-  const [ridesCount, roomsCount, usersCount, inviteCount, rides] = await Promise.all([
+  const [, roomsCount, usersCount, inviteCount, rides] = await Promise.all([
     supabaseAdmin.from("RideSession").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("Room").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("User").select("id", { count: "exact", head: true }),

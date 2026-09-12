@@ -39,9 +39,7 @@ class HostSetupViewModel @Inject constructor(
                 )
                 val response = apiService.createConvoy(req)
                 if (response.isSuccessful && response.body() != null) {
-                    // BUG FIX: Use convoyName (the human-readable name), NOT roomId (UUID).
-                    // All downstream APIs (lobby status, start ride, invite friends) look up
-                    // rooms by Room.name, not Room.id. Passing a UUID causes 404 everywhere.
+
                     _createdConvoyName.value = response.body()!!.convoyName
                 } else {
                     val raw = response.errorBody()?.string()

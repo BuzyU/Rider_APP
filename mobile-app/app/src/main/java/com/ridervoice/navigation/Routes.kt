@@ -1,5 +1,5 @@
 package com.ridervoice.navigation
- 
+
 object Routes {
     const val SPLASH         = "splash"
     const val LOGIN          = "login"
@@ -9,17 +9,14 @@ object Routes {
     const val RIDE_STATS     = "ride_stats"
     const val SETTINGS       = "settings"
     const val ACCOUNT        = "account"
- 
-    // Host flow
+
     const val HOST_SETUP     = "host_setup"
     const val INVITE_FRIENDS = "invite_friends/{convoyName}"
     const val LOBBY          = "lobby/{convoyName}"
- 
-    // Join flow
+
     const val INVITES_INBOX  = "invites_inbox"
     const val REGISTER       = "register"
- 
-    // Shared
+
     const val DEVICE_SETUP   = "device_setup/{convoyName}/{isHost}"
     const val ACTIVE_RIDE_HUD = "active_ride_hud/{roomName}/{userName}"
     const val SOS            = "sos/{roomName}"
@@ -28,7 +25,7 @@ object Routes {
     const val JOIN_VIA_TOKEN  = "join_via_token/{token}"
     const val HEADSET_SETTINGS = "headset_settings"
     const val RIDE_REPLAY     = "ride_replay/{rideId}"
- 
+
     fun inviteFriendsPath(convoyName: String): String {
         val safe = convoyName.ifBlank { "Convoy" }
         return "invite_friends/${android.net.Uri.encode(safe)}"

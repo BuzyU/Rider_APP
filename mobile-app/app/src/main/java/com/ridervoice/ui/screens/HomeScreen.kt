@@ -59,7 +59,6 @@ fun HomeScreen(
         viewModel.refreshActiveRideState()
     }
 
-    // ── LOGOUT CONFIRMATION DIALOG ───────────────────────────────────────────
     if (showLogoutConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutConfirmDialog = false },
@@ -129,7 +128,6 @@ fun HomeScreen(
             ) {
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Top Header with Callsign Plate and Drawer Avatar
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -154,7 +152,6 @@ fun HomeScreen(
                         )
                     }
 
-                    // Profile Avatar Button
                     Box(
                         modifier = Modifier
                             .size(46.dp)
@@ -175,7 +172,6 @@ fun HomeScreen(
                     }
                 }
 
-                // Persistent OEM Battery Optimization Warning Banner
                 if (showBatteryWarning) {
                     Spacer(modifier = Modifier.height(14.dp))
                     Surface(
@@ -206,7 +202,6 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Transceiver Channel Monitor / Active Ride Window
                 Surface(
                     color = if (uiState.hasActiveRide) DarkSlate else DarkSlate.copy(alpha = 0.6f),
                     shape = RoundedCornerShape(16.dp),
@@ -284,7 +279,6 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Modular Transceiver Rack Rows
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.weight(1f)
@@ -311,7 +305,6 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Prominent Emergency SOS Trigger Bar on Dashboard
                 Surface(
                     color = HazardContainer,
                     shape = RoundedCornerShape(12.dp),

@@ -34,24 +34,18 @@ class VoiceForegroundService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private val channelId = "tactical_voice_channel"
     private val notificationId = 1
-    
-    // We only hold a wake lock if absolutely necessary, but we rely mostly on foreground status.
+
     private var wakeLock: PowerManager.WakeLock? = null
 
-    // State for notification
     private var currentConvoyState: String = "Connecting..."
     private var currentActiveSpeaker: String = "Nobody"
     private var isMuted: Boolean = false
 
-    // Debouncing mechanism
     private var updateJob: Job? = null
 
     @SuppressLint("WakelockTimeout")
     override fun onCreate() {
         super.onCreate()
-        
-        // Use weakest possible wake lock strategy: rely primarily on foreground service.
-        // We only grab a partial wake lock if telemetry strictly requires it, but for now we trust the OS.
 
         try {
             createNotificationChannel()
@@ -68,7 +62,6 @@ class VoiceForegroundService : Service() {
             android.util.Log.e("VoiceForegroundService", "startForeground failed", e)
         }
 
-        // Observe LiveKit connection state
         serviceScope.launch {
             liveKitManager.connectionState.collectLatest { state ->
                 currentConvoyState = when (state) {
@@ -82,7 +75,6 @@ class VoiceForegroundService : Service() {
             }
         }
 
-        // Use the real active speaker flow from LiveKitManager
         serviceScope.launch {
             liveKitManager.activeSpeaker.collectLatest { speaker ->
                 currentActiveSpeaker = speaker ?: "Nobody"
@@ -104,13 +96,13 @@ class VoiceForegroundService : Service() {
                 updateNotificationImmediate()
             }
             "ACTION_PING" -> {
-                // Send regroup ping to squad
+
             }
             "ACTION_HAZARD" -> {
-                // Drop hazard pin at current telemetry location
+
             }
         }
-        
+
         return START_REDELIVER_INTENT
     }
 
@@ -119,7 +111,7 @@ class VoiceForegroundService : Service() {
             val channel = NotificationChannel(
                 channelId,
                 "Tactical Convoy HUD",
-                NotificationManager.IMPORTANCE_LOW // Low importance avoids constant popping, keeping it stable
+                NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Convoy communication and telemetry overlay"
             }
@@ -131,7 +123,7 @@ class VoiceForegroundService : Service() {
     private fun debouncedUpdateNotification() {
         if (updateJob?.isActive == true) return
         updateJob = serviceScope.launch {
-            delay(500) // Rate-limit updates to max twice per second
+            delay(500)
             updateNotificationImmediate()
         }
     }
@@ -150,29 +142,25 @@ class VoiceForegroundService : Service() {
             PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Custom Layouts
         val collapsedViews = RemoteViews(packageName, R.layout.notification_tactical_collapsed)
         val expandedViews = RemoteViews(packageName, R.layout.notification_tactical_expanded)
 
-        // Update Text
         collapsedViews.setTextViewText(R.id.text_convoy_status, currentConvoyState)
         collapsedViews.setTextViewText(R.id.text_active_speaker, "Active: $currentActiveSpeaker")
-        
+
         expandedViews.setTextViewText(R.id.text_convoy_status_expanded, currentConvoyState)
         expandedViews.setTextViewText(R.id.text_active_speaker_expanded, "Active Speaker: $currentActiveSpeaker")
 
-        // Update Icons (Mute state)
         val muteIcon = if (isMuted) android.R.drawable.ic_lock_silent_mode else android.R.drawable.ic_btn_speak_now
         collapsedViews.setImageViewResource(R.id.btn_mute, muteIcon)
         expandedViews.setImageViewResource(R.id.btn_mute_expanded, muteIcon)
 
-        // Intents for Actions
         val muteIntent = PendingIntent.getService(this, 1, Intent(this, VoiceForegroundService::class.java).apply { action = "ACTION_MUTE" }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val pingIntent = PendingIntent.getService(this, 2, Intent(this, VoiceForegroundService::class.java).apply { action = "ACTION_PING" }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val hazardIntent = PendingIntent.getService(this, 3, Intent(this, VoiceForegroundService::class.java).apply { action = "ACTION_HAZARD" }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
         collapsedViews.setOnClickPendingIntent(R.id.btn_mute, muteIntent)
-        
+
         expandedViews.setOnClickPendingIntent(R.id.btn_mute_expanded, muteIntent)
         expandedViews.setOnClickPendingIntent(R.id.btn_ping, pingIntent)
         expandedViews.setOnClickPendingIntent(R.id.btn_hazard, hazardIntent)
@@ -191,7 +179,7 @@ class VoiceForegroundService : Service() {
             .setStyle(Notification.DecoratedCustomViewStyle())
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setOnlyAlertOnce(true) // Prevents vibration/sound on every update
+            .setOnlyAlertOnce(true)
             .build()
     }
 

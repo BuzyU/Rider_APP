@@ -57,7 +57,6 @@ fun RegisterScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    // Validation state
     val passwordsMatch = password == confirmPassword
     val passwordLongEnough = password.length >= 6
     val canRegister = email.isNotBlank() && passwordLongEnough && passwordsMatch && !isLoading
@@ -101,7 +100,7 @@ fun RegisterScreen(
                     .padding(horizontal = 24.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Header Badge
+
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = Gunmetal,
@@ -134,7 +133,6 @@ fun RegisterScreen(
                     modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
                 )
 
-                // ── Error Banner ───────────────────────────────────────────
                 AnimatedVisibility(
                     visible = errorMessage != null,
                     enter = fadeIn(),
@@ -185,7 +183,6 @@ fun RegisterScreen(
                     }
                 }
 
-                // ── Callsign / Handle ──────────────────────────────────────
                 OutlinedTextField(
                     value = handle,
                     onValueChange = { handle = it.trim().removePrefix("@") },
@@ -221,7 +218,6 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // ── Email ──────────────────────────────────────────────────
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it.trim() },
@@ -247,7 +243,6 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // ── Password ───────────────────────────────────────────────
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -292,7 +287,6 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // ── Confirm password ───────────────────────────────────────
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
@@ -340,7 +334,6 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // ── Create Account button ──────────────────────────────────
                 Button(
                     onClick = {
                         focusManager.clearFocus()

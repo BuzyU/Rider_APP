@@ -72,7 +72,6 @@ fun LoginScreen(
     var showForgotPassword by remember { mutableStateOf(false) }
     var forgotEmail by remember { mutableStateOf("") }
 
-    // Intercept hardware/system back button when on password reset view
     BackHandler(enabled = showForgotPassword) {
         showForgotPassword = false
     }
@@ -139,7 +138,6 @@ fun LoginScreen(
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Transceiver Brand Badge
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = Gunmetal,
@@ -157,7 +155,6 @@ fun LoginScreen(
                     )
                 }
 
-                // Logo / Title
                 Text(
                     text = "RIDERVOICE",
                     color = TextPrimary,
@@ -176,7 +173,6 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(28.dp))
 
-                // Persistent Inline Error Banner
                 AnimatedVisibility(
                     visible = errorMessage != null,
                     enter = fadeIn(),
@@ -228,7 +224,7 @@ fun LoginScreen(
                 }
 
                 if (!showForgotPassword) {
-                    // Header Subtext
+
                     Text(
                         text = "COMMUNICATIONS CONSOLE LOGIN",
                         color = NeonOrange,
@@ -242,7 +238,6 @@ fun LoginScreen(
                         modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
                     )
 
-                    // ── Email field ────────────────────────────────────────
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it.trim() },
@@ -268,7 +263,6 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // ── Password field ─────────────────────────────────────
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
@@ -307,7 +301,6 @@ fun LoginScreen(
                         )
                     )
 
-                    // ── Permanent Forgot password link (minimum 48dp touch target) ───
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -333,7 +326,6 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // ── Sign In button (PTT-style bold action) ──────────────
                     Button(
                         onClick = {
                             focusManager.clearFocus()
@@ -369,7 +361,6 @@ fun LoginScreen(
                         }
                     }
 
-                    // ── Divider ────────────────────────────────────────────
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -387,7 +378,6 @@ fun LoginScreen(
                         Divider(modifier = Modifier.weight(1f), color = BorderColor)
                     }
 
-                    // ── Google button ──────────────────────────────────────
                     OutlinedButton(
                         onClick = { if (!isLoading) launchGoogleSignIn() },
                         modifier = Modifier
@@ -410,7 +400,6 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // ── Phone OTP & Guest Actions Row ──────────────────────
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -465,7 +454,6 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // ── New sign up ────────────────────────────────────────
                     Row(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
@@ -493,7 +481,7 @@ fun LoginScreen(
                         }
                     }
                 } else {
-                    // ── Forgot Password flow ───────────────────────────────
+
                     Text(
                         text = "RESET FREQUENCY KEY",
                         color = TextPrimary,

@@ -54,7 +54,7 @@ fun JoinRoomScreen(
             .fillMaxSize()
             .background(GraphiteBase)
     ) {
-        // Top Bar
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -90,7 +90,7 @@ fun JoinRoomScreen(
                 .padding(horizontal = 24.dp)
         ) {
             if (activeToken != null) {
-                // Token Auto-Join State
+
                 Spacer(modifier = Modifier.height(32.dp))
                 Surface(
                     color = DarkSlate,
@@ -167,7 +167,6 @@ fun JoinRoomScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Callsign / Name field
                 OutlinedTextField(
                     value = userName,
                     onValueChange = { userName = it },
@@ -186,7 +185,6 @@ fun JoinRoomScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Room Code field
                 OutlinedTextField(
                     value = roomCode,
                     onValueChange = { roomCode = it.uppercase() },

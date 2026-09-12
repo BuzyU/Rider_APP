@@ -24,10 +24,12 @@ class LobbyViewModel @Inject constructor(
     val error = _error.asStateFlow()
 
     private var isPolling = false
+    private var pollingJob: kotlinx.coroutines.Job? = null
 
     fun startPolling(roomName: String) {
+        pollingJob?.cancel()
         isPolling = true
-        viewModelScope.launch {
+        pollingJob = viewModelScope.launch {
             while (isPolling) {
                 try {
                     val response = apiService.getLobbyStatus(roomName)
@@ -37,13 +39,15 @@ class LobbyViewModel @Inject constructor(
                 } catch (e: Exception) {
                     _error.value = e.message
                 }
-                delay(3000) // Poll every 3 seconds
+                delay(3000)
             }
         }
     }
 
     fun stopPolling() {
         isPolling = false
+        pollingJob?.cancel()
+        pollingJob = null
     }
 
     private val _shareLink = MutableStateFlow<String?>(null)
@@ -65,11 +69,11 @@ class LobbyViewModel @Inject constructor(
                 if (res.isSuccessful && res.body() != null) {
                     _shareLink.value = res.body()!!.shareUrl
                 } else {
-                    // Resilient fallback: direct convoy room URI ensures rider invites work immediately
+
                     _shareLink.value = "ridervoice://join/${android.net.Uri.encode(safeRoom)}"
                 }
             } catch (e: Exception) {
-                // Network or offline fallback
+
                 _shareLink.value = "ridervoice://join/${android.net.Uri.encode(safeRoom)}"
             } finally {
                 _isGeneratingLink.value = false
@@ -82,7 +86,7 @@ class LobbyViewModel @Inject constructor(
             try {
                 val res = apiService.removeRiderFromConvoy(roomName, userId)
                 if (res.isSuccessful) {
-                    // Trigger immediate status refresh
+
                     val statusRes = apiService.getLobbyStatus(roomName)
                     if (statusRes.isSuccessful) {
                         _lobbyStatus.value = statusRes.body()

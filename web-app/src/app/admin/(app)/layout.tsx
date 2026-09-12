@@ -38,7 +38,6 @@ export default async function AdminAppLayout({
     redirect("/admin/login");
   }
 
-  // Fetch real counts using head: true, count: 'exact'
   let userCount: number | null = null;
   let rideCount: number | null = null;
 
@@ -50,7 +49,6 @@ export default async function AdminAppLayout({
     userCount = uCount;
     rideCount = rCount;
   } catch {
-    // If query fails, degrade gracefully without fake numbers
   }
 
   const navItems = [

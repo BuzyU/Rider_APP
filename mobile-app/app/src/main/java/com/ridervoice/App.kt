@@ -18,7 +18,6 @@ class App : Application() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            // 1. Emergency Channel (Bypasses DND if permitted, Max Priority)
             val emergencyChannel = NotificationChannel(
                 "CHANNEL_EMERGENCY",
                 "Emergency & SOS Alerts",
@@ -28,7 +27,6 @@ class App : Application() {
                 setBypassDnd(true)
             }
 
-            // 2. Convoy Channel (High Priority, Wakes Screen)
             val convoyChannel = NotificationChannel(
                 "CHANNEL_CONVOY",
                 "Convoy Invites & Drops",
@@ -37,7 +35,6 @@ class App : Application() {
                 description = "Tactical ride invites and unexpected disconnects."
             }
 
-            // 3. Squad Channel (Default Priority)
             val squadChannel = NotificationChannel(
                 "CHANNEL_SQUAD",
                 "Squad Activity",
@@ -46,7 +43,6 @@ class App : Application() {
                 description = "Friend requests and squad presence."
             }
 
-            // 4. System Channel (Low Priority)
             val systemChannel = NotificationChannel(
                 "CHANNEL_SYSTEM",
                 "System Status",

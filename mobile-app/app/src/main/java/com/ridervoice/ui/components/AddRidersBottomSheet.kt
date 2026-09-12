@@ -77,7 +77,7 @@ fun AddRidersBottomSheet(
                         .fillMaxWidth()
                         .padding(bottom = 24.dp)
                 ) {
-                    // Drag handle aesthetic
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -92,7 +92,6 @@ fun AddRidersBottomSheet(
                         )
                     }
 
-                    // Header
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -117,7 +116,6 @@ fun AddRidersBottomSheet(
                         }
                     }
 
-                    // Tab Bar: "From Squad" vs "Share Link"
                     TabRow(
                         selectedTabIndex = selectedTab,
                         containerColor = DarkSlate,
@@ -169,21 +167,20 @@ fun AddRidersBottomSheet(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Tab Content
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 320.dp, max = 500.dp)
                     ) {
                         if (selectedTab == 0) {
-                            // Squad List Tab
+
                             InviteFriendsContent(
                                 convoyName = convoyName,
-                                onInvitesSent = null, // In bottom sheet, invites are sent directly per row
+                                onInvitesSent = null,
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
-                            // Share Link Tab
+
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -242,7 +239,6 @@ fun AddRidersBottomSheet(
                                 } else if (shareLink != null) {
                                     val activeLink = shareLink!!
 
-                                    // Token URL Display Box
                                     Surface(
                                         color = Gunmetal,
                                         shape = RoundedCornerShape(8.dp),
@@ -280,7 +276,6 @@ fun AddRidersBottomSheet(
                                         }
                                     }
 
-                                    // Share Action Buttons
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -343,7 +338,7 @@ fun AddRidersBottomSheet(
                                         }
                                     }
                                 } else {
-                                    // Fallback / error state
+
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()

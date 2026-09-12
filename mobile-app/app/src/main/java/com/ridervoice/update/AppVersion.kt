@@ -1,13 +1,5 @@
 package com.ridervoice.update
 
-/**
- * Robust, semantic multi-component version representation for RiderVoice.
- * Correctly compares version strings like:
- * - 1.10.0 > 1.9.0
- * - 1.3.4 > 1.3
- * - 0.1.3.4 > 0.1.3
- * - v1.3.4 == 1.3.4
- */
 data class AppVersion(
     val raw: String,
     val parts: List<Int>
@@ -19,7 +11,6 @@ data class AppVersion(
                 return AppVersion(raw = "0.0.0", parts = listOf(0, 0, 0))
             }
 
-            // Strip leading 'v' or 'V' and any pre-release/build suffixes like "-beta", "+build123"
             val clean = versionStr.trim()
                 .removePrefix("v")
                 .removePrefix("V")

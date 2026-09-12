@@ -63,7 +63,6 @@ class AuthRepository @Inject constructor() {
         }
     }
 
-    /** Sign in with email + password. Returns null on success, error message on failure. */
     suspend fun signInWithEmail(email: String, password: String): String? {
         return try {
             auth.signInWithEmailAndPassword(email, password).await()
@@ -77,7 +76,6 @@ class AuthRepository @Inject constructor() {
         }
     }
 
-    /** Create a new account with email + password. Returns null on success, error message on failure. */
     suspend fun createAccountWithEmail(email: String, password: String): String? {
         return try {
             auth.createUserWithEmailAndPassword(email, password).await()
@@ -91,7 +89,6 @@ class AuthRepository @Inject constructor() {
         }
     }
 
-    /** Send password reset email. Returns null on success, error message on failure. */
     suspend fun sendPasswordResetEmail(email: String): String? {
         return try {
             auth.sendPasswordResetEmail(email).await()

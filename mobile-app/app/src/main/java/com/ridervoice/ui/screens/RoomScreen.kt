@@ -90,17 +90,14 @@ fun RoomScreen(
         onLeave()
     }
 
-    // Intercept hardware/system back button with confirmation
     BackHandler {
         showLeaveConfirmDialog = true
     }
 
-    // Point-of-use runtime permissions: Background location launcher (API 29+)
     val bgLocationLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
     ) { _ -> }
 
-    // Point-of-use runtime permissions: Location + Notifications
     val ridePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -114,7 +111,6 @@ fun RoomScreen(
         ridePermissionLauncher.launch(com.ridervoice.permissions.PermissionManager.ridePermissions)
     }
 
-    // Start session
     LaunchedEffect(roomName, userName) {
         try {
             val hasRecordAudio = androidx.core.content.ContextCompat.checkSelfPermission(
@@ -134,7 +130,6 @@ fun RoomScreen(
         viewModel.joinRoom(roomName, userName)
     }
 
-    // ── LEAVE CONFIRMATION DIALOG (HOST VS RIDER SEMANTICS) ───────────────────
     if (showLeaveConfirmDialog) {
         if (isHost) {
             AlertDialog(
@@ -259,7 +254,6 @@ fun RoomScreen(
         }
     }
 
-    // ── AUDIO ROUTE SELECTOR DIALOG ─────────────────────────────────────────
     if (showAudioRoutePicker) {
         AlertDialog(
             onDismissRequest = { showAudioRoutePicker = false },
@@ -335,7 +329,6 @@ fun RoomScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(GraphiteBase)) {
 
-        // ── Background: navigation delegation placeholder ───────────────────
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -360,7 +353,6 @@ fun RoomScreen(
             }
         }
 
-        // ── Top HUD ────────────────────────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -368,10 +360,9 @@ fun RoomScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Live / connection status
+
             ConnectionPill(connectionState)
 
-            // Room info
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = roomName.uppercase(),
@@ -386,13 +377,12 @@ fun RoomScreen(
                 )
             }
 
-            // Right side: Audio device badge + Separated LEAVE button
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.clickable { showAudioRoutePicker = true }) {
                     AudioDeviceBadge(activeDevice, routerState)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                // Cleanly separated LEAVE button on top header (safe from SOS)
+
                 IconButton(
                     onClick = { showLeaveConfirmDialog = true },
                     modifier = Modifier
@@ -412,7 +402,6 @@ fun RoomScreen(
             }
         }
 
-        // ── Error banner (dismissible) ───────────────────────────────────────
         error?.let { msg ->
             Box(
                 modifier = Modifier
@@ -440,7 +429,6 @@ fun RoomScreen(
             }
         }
 
-        // ── S-Meter / VU Audio Status Bar (below top HUD) ───────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -453,7 +441,7 @@ fun RoomScreen(
         ) {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // S-Meter / VU Segmented Ladder
+
                     SegmentedVuMeter(
                         amplitude = amplitude,
                         noiseFloor = noiseFloor,
@@ -471,7 +459,6 @@ fun RoomScreen(
             }
         }
 
-        // ── Bottom voice channel console ────────────────────────────────────
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -481,7 +468,7 @@ fun RoomScreen(
                 .border(1.dp, BorderColor, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            // Drag handle
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -499,7 +486,7 @@ fun RoomScreen(
             }
 
             if (isVoiceChannelExpanded) {
-                // Header
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -533,7 +520,7 @@ fun RoomScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
             } else {
-                // Collapsed: active speaker preview
+
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -568,8 +555,6 @@ fun RoomScreen(
                 }
             }
 
-            // ── TACTICAL CONTROLS RACK ───────────────────────────────────────
-            // Separated controls: Mute + Deafen on left, Perforated PTT in center, Guarded SOS on right
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -577,7 +562,7 @@ fun RoomScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 1. MUTE TOGGLE (Changed LIVE color off red to ElectricCyan / RF Teal)
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(end = 4.dp)
@@ -612,7 +597,6 @@ fun RoomScreen(
                     )
                 }
 
-                // 2. DEAFEN TOGGLE (Silence incoming chatter)
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(end = 6.dp)
@@ -647,7 +631,6 @@ fun RoomScreen(
                     )
                 }
 
-                // 3. PTT CAPSULE BUTTON (Perforated Palm-Mic Grille)
                 PttPerforatedButton(
                     isPressed = isPttPressed,
                     isVoxOpen = isVoxOpen,
@@ -665,7 +648,6 @@ fun RoomScreen(
                     }
                 )
 
-                // 4. GUARDED SOS SWITCH (Separated, unmistakable hazard chamber)
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(start = 6.dp)
@@ -700,8 +682,6 @@ fun RoomScreen(
         }
     }
 }
-
-// ── Retro S-Meter / VU Segmented Gauge ─────────────────────────────────────────
 
 @Composable
 private fun SegmentedVuMeter(
@@ -753,8 +733,6 @@ private fun SegmentedVuMeter(
         }
     }
 }
-
-// ── Retro Perforated Palm-Mic PTT Capsule ──────────────────────────────────────
 
 @Composable
 private fun PttPerforatedButton(
@@ -810,7 +788,7 @@ private fun PttPerforatedButton(
             .semantics { contentDescription = "Push To Talk Radio Capsule" },
         contentAlignment = Alignment.Center
     ) {
-        // Canvas Perforated Mic Grille
+
         Canvas(modifier = Modifier.fillMaxSize()) {
             val stepX = 14.dp.toPx()
             val stepY = 10.dp.toPx()
@@ -831,7 +809,6 @@ private fun PttPerforatedButton(
             }
         }
 
-        // Center Callout Plate
         Surface(
             color = if (isPressed) NeonOrange else Gunmetal.copy(alpha = 0.9f),
             shape = RoundedCornerShape(12.dp),
@@ -863,8 +840,6 @@ private fun PttPerforatedButton(
         }
     }
 }
-
-// ── Sub-components ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun ConnectionPill(state: ConnectionState) {

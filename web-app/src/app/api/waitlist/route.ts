@@ -14,7 +14,6 @@ export async function POST(request: Request) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Deduplicate against existing waitlist entries
     const { data: existing } = await supabaseAdmin
       .from('waitlist')
       .select('id')
@@ -43,12 +42,12 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, message: 'Added to waitlist' });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Waitlist API Error:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
-      { error: error?.message || 'Internal server error' },
+      { error: message },
       { status: 500 }
     );
   }
 }
-

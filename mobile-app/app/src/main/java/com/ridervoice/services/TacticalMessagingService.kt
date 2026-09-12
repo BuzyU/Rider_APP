@@ -31,16 +31,6 @@ class TacticalMessagingService : FirebaseMessagingService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    /**
-     * Called when FCM issues a new registration token — happens on:
-     *   - First app install
-     *   - Token expiry (every few weeks)
-     *   - User restores backup to new device
-     *
-     * BUG FIX: Original had TODO comment and did nothing.
-     * Without uploading the new token, push notifications stop working permanently
-     * after the first rotation.
-     */
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d(TAG, "FCM token refreshed — uploading to backend")
@@ -50,8 +40,7 @@ class TacticalMessagingService : FirebaseMessagingService() {
     private fun uploadTokenToBackend(token: String) {
         val user = FirebaseAuth.getInstance().currentUser
         if (user == null) {
-            // Not logged in yet — token will be uploaded after login
-            // Store locally and retry after sign-in (handled in MainActivity/LoginScreen)
+
             Log.w(TAG, "No user signed in — deferring token upload")
             return
         }
@@ -72,7 +61,7 @@ class TacticalMessagingService : FirebaseMessagingService() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Token upload exception: ${e.message}")
-                // Non-fatal: next app launch will retry via MainActivity
+
             }
         }
     }

@@ -60,7 +60,6 @@ class EmergencyAlertActivity : ComponentActivity() {
         val alertType = intent.getStringExtra("alertType") ?: "CRASH SUSPECTED"
         val roomName = intent.getStringExtra("roomName") ?: "GLOBAL"
 
-        // Haptic emergency alarm pattern (vibrate 500ms, pause 200ms)
         startAlarmVibration()
 
         setContent {
@@ -167,14 +166,13 @@ fun EmergencyAlertContent(
     var dispatchStatus by remember { mutableStateOf<String?>(null) }
     var isCancelling by remember { mutableStateOf(false) }
 
-    // Active 10s countdown coroutine
     LaunchedEffect(isDispatched) {
         if (!isDispatched) {
             while (secondsRemaining > 0) {
                 delay(1000L)
                 secondsRemaining--
             }
-            // Trigger emergency broadcast on expiry
+
             isDispatching = true
             onTriggerDispatch(roomName) { success, err ->
                 isDispatching = false
@@ -187,12 +185,12 @@ fun EmergencyAlertContent(
     val bgModifier = if (isDark) {
         Modifier
             .fillMaxSize()
-            .background(Color(0xFF1A0808)) // Deep cockpit alarm chamber
+            .background(Color(0xFF1A0808))
     } else {
         Modifier
             .fillMaxSize()
             .background(LightPalette.Surface)
-            .border(8.dp, AlertRed) // Safety-hazard border in bright daylight
+            .border(8.dp, AlertRed)
     }
 
     Box(modifier = bgModifier, contentAlignment = Alignment.Center) {
@@ -204,7 +202,7 @@ fun EmergencyAlertContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Header: Beacon Alert
+
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
@@ -244,7 +242,6 @@ fun EmergencyAlertContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Central Mechanical Sweep Countdown Gauge
             Box(
                 modifier = Modifier.size(180.dp),
                 contentAlignment = Alignment.Center
@@ -254,12 +251,12 @@ fun EmergencyAlertContent(
                 val trackColor = if (isDark) Color(0xFF331010) else LightPalette.SurfaceAlt
 
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    // Track
+
                     drawCircle(
                         color = trackColor,
                         style = Stroke(width = 10.dp.toPx())
                     )
-                    // Sweep arc
+
                     drawArc(
                         color = meterColor,
                         startAngle = -90f,
@@ -300,7 +297,6 @@ fun EmergencyAlertContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Telemetry / Status plate
             Surface(
                 color = if (isDark) DarkPalette.Surface else LightPalette.SurfaceAlt,
                 shape = RoundedCornerShape(8.dp),
@@ -335,12 +331,11 @@ fun EmergencyAlertContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Action Buttons
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Primary: Immediate Dispatch Override (if not already sent)
+
                 if (!isDispatched) {
                     Button(
                         onClick = {
@@ -377,7 +372,6 @@ fun EmergencyAlertContent(
                     }
                 }
 
-                // Call 911 Direct Dial
                 Button(
                     onClick = onCall911,
                     modifier = Modifier
@@ -402,7 +396,6 @@ fun EmergencyAlertContent(
                     )
                 }
 
-                // Heavy Tactile Cancel Bar ("I'M OKAY")
                 Button(
                     onClick = {
                         isCancelling = true

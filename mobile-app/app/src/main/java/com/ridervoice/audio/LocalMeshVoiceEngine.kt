@@ -9,10 +9,6 @@ import livekit.org.webrtc.*
 import livekit.org.webrtc.audio.AudioDeviceModule
 import livekit.org.webrtc.audio.JavaAudioDeviceModule
 
-/**
- * An offline WebRTC engine that manages Peer-to-Peer connections for the Wi-Fi Direct Mesh.
- * This completely bypasses LiveKit cloud servers.
- */
 class LocalMeshVoiceEngine(
     private val context: Context,
     private val voxEngine: VoxEngine
@@ -23,7 +19,6 @@ class LocalMeshVoiceEngine(
     private var eglBase: EglBase? = null
     private var localAudioTrack: AudioTrack? = null
 
-    // A map of connected peers (MAC address -> PeerConnection)
     private val peerConnections = mutableMapOf<String, PeerConnection>()
 
     private val _isConnected = MutableStateFlow(false)
@@ -71,26 +66,21 @@ class LocalMeshVoiceEngine(
         localAudioTrack = null
     }
 
-    /**
-     * Connect to a specific peer in the Wi-Fi Direct mesh.
-     * This will be called by the WifiDirectManager once IP sockets are established.
-     */
     fun createPeerConnection(peerId: String, observer: PeerConnection.Observer): PeerConnection? {
-        val rtcConfig = PeerConnection.RTCConfiguration(emptyList()) // No STUN/TURN needed for local IP
-        
+        val rtcConfig = PeerConnection.RTCConfiguration(emptyList())
+
         val pc = factory?.createPeerConnection(rtcConfig, observer)
-        
-        // Add our local audio track so the peer can hear us
+
         localAudioTrack?.let { track ->
             pc?.addTrack(track, listOf("offline_mesh_audio_stream"))
         }
 
         pc?.let { peerConnections[peerId] = it }
-        
+
         _isConnected.value = peerConnections.isNotEmpty()
         return pc
     }
-    
+
     fun removePeer(peerId: String) {
         peerConnections[peerId]?.close()
         peerConnections.remove(peerId)
@@ -106,8 +96,6 @@ class LocalMeshVoiceEngine(
         eglBase?.release()
         _isConnected.value = false
     }
-
-    // ── SDP and ICE Handling ──────────────────────────────────────────────────
 
     fun createOffer(peerId: String, callback: (SessionDescription?) -> Unit) {
         val pc = peerConnections[peerId] ?: return

@@ -31,26 +31,19 @@ class AuthViewModel @Inject constructor(
     private val _otpSent = MutableStateFlow(false)
     val otpSent: StateFlow<Boolean> = _otpSent.asStateFlow()
 
-    // Tracks consecutive wrong-password attempts to reveal "Forgot password?"
     private val _wrongPasswordCount = MutableStateFlow(0)
     val wrongPasswordCount: StateFlow<Int> = _wrongPasswordCount.asStateFlow()
 
-    // Signals a successful password reset email dispatch
     private val _resetEmailSent = MutableStateFlow(false)
     val resetEmailSent: StateFlow<Boolean> = _resetEmailSent.asStateFlow()
 
     private var _verificationId: String? = null
 
-    /**
-     * Auto-provisions a unique handle/profile row on first login so features that
-     * depend on `handle` (add-friend-by-handle, search) work immediately.
-     * Non-fatal: a failure here must never block the user from reaching the app.
-     */
     private suspend fun ensureProfile(customHandle: String? = null) {
         val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser ?: return
         try {
             val existing = apiService.getMyProfile()
-            if (existing.isSuccessful && existing.body()?.handle != null && customHandle == null) return // already provisioned
+            if (existing.isSuccessful && existing.body()?.handle != null && customHandle == null) return
 
             val autoHandle = if (!customHandle.isNullOrBlank()) customHandle else ("rider" + user.uid.takeLast(6))
             apiService.upsertProfile(
@@ -112,7 +105,6 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    /** Sign in with email + password. Increments wrong-password counter for Forgot Password reveal. */
     fun signInWithEmail(email: String, password: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -124,7 +116,7 @@ class AuthViewModel @Inject constructor(
                 ensureProfile()
                 _loginSuccess.value = true
             } else {
-                // Count wrong-password attempts specifically to reveal "Forgot password?"
+
                 if (error.contains("Wrong password", ignoreCase = true) ||
                     error.contains("password", ignoreCase = true)
                 ) {
@@ -136,7 +128,6 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    /** Register a new account with email + password. */
     fun createAccountWithEmail(email: String, password: String, handle: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -153,7 +144,6 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    /** Send password-reset email. */
     fun sendPasswordReset(email: String) {
         viewModelScope.launch {
             _isLoading.value = true

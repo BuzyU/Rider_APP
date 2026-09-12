@@ -19,20 +19,16 @@ enum class NetworkEngineState {
     TRANSITIONING
 }
 
-/**
- * The "Brain" of the dual-engine architecture.
- * Monitors cellular connectivity and triggers the handoff between LiveKit and Wi-Fi Direct Mesh.
- */
 class NetworkHandoffManager(
     private val context: Context,
-    private val liveKitEngine: VoxEngine, // The online engine
-    private val localMeshEngine: LocalMeshVoiceEngine, // The offline engine
+    private val liveKitEngine: VoxEngine,
+    private val localMeshEngine: LocalMeshVoiceEngine,
     private val wifiDirectManager: WifiDirectManager
 ) {
     private val TAG = "NetworkHandoffManager"
 
     private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    
+
     private val _engineState = MutableStateFlow(NetworkEngineState.LIVEKIT_ONLINE)
     val engineState = _engineState.asStateFlow()
 
@@ -60,18 +56,15 @@ class NetworkHandoffManager(
 
     private fun switchToOnlineEngine() {
         if (_engineState.value == NetworkEngineState.LIVEKIT_ONLINE) return
-        
+
         scope.launch {
             _engineState.value = NetworkEngineState.TRANSITIONING
             Log.d(TAG, "Tearing down Wi-Fi Direct Mesh...")
-            
-            // 1. Stop Offline Engine
+
             localMeshEngine.stopLocalAudio()
             wifiDirectManager.cleanup()
-            
-            // 2. Start LiveKit Engine
+
             Log.d(TAG, "Reconnecting to LiveKit SFU...")
-            // liveKitEngine.connect(...) would be called here by the ViewModel
 
             _engineState.value = NetworkEngineState.LIVEKIT_ONLINE
         }
@@ -83,19 +76,14 @@ class NetworkHandoffManager(
         scope.launch {
             _engineState.value = NetworkEngineState.TRANSITIONING
             Log.d(TAG, "Disconnecting from LiveKit...")
-            
-            // 1. Stop LiveKit Engine
-            liveKitEngine.setVoxEnabled(false)
-            // liveKitEngine.disconnect() would be called here by the ViewModel
 
-            // 2. Start Offline Engine
+            liveKitEngine.setVoxEnabled(false)
+
             Log.d(TAG, "Initializing Wi-Fi Direct Mesh...")
             wifiDirectManager.initialize()
             localMeshEngine.initialize()
             localMeshEngine.startLocalAudio()
-            
-            // 3. Become Group Owner if we are the centroid
-            // (In reality, we'd pass the actual list of recent GPS coordinates)
+
             val amIOwner = wifiDirectManager.electGroupOwner(emptyList(), "my_id")
             if (amIOwner) {
                 wifiDirectManager.startSignalingServer()

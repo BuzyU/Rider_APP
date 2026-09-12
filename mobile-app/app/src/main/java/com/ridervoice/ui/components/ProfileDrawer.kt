@@ -42,7 +42,7 @@ fun ProfileDrawer(
             .border(1.dp, BorderColor)
             .padding(24.dp)
     ) {
-        // Avatar / Call-Sign Section (Clickable to open Account)
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -92,7 +92,6 @@ fun ProfileDrawer(
         Divider(color = BorderColor, thickness = 1.dp)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Transceiver / Ride Telemetry Section
         Text(
             text = "TELEMETRY LOGBOOK",
             color = NeonOrange,
@@ -100,7 +99,7 @@ fun ProfileDrawer(
             letterSpacing = 1.sp
         )
         Spacer(modifier = Modifier.height(14.dp))
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -114,7 +113,6 @@ fun ProfileDrawer(
         Divider(color = BorderColor, thickness = 1.dp)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Menu Items
         DrawerMenuItem(
             icon = Icons.Default.AccountCircle,
             text = "Operator Dossier (Account)",
@@ -131,9 +129,9 @@ fun ProfileDrawer(
             text = "Audio & Helmet Setup",
             onClick = onDeviceSetupClick
         )
-        
+
         Spacer(modifier = Modifier.weight(1f))
-        
+
         DrawerMenuItem(
             icon = Icons.Default.Logout,
             text = "Disengage (Sign Out)",

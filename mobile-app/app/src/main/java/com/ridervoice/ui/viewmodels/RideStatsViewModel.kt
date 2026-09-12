@@ -49,7 +49,7 @@ class RideStatsViewModel @Inject constructor(
 
                 val totalKm = totalDistMeters / 1000f
                 val avgSpeedKmh = if (totalDurationSec > 0) (totalKm / (totalDurationSec / 3600f)) else 0f
-                
+
                 val hours = totalDurationSec / 3600
                 val mins = (totalDurationSec % 3600) / 60
                 val secs = totalDurationSec % 60
@@ -60,11 +60,11 @@ class RideStatsViewModel @Inject constructor(
                     totalTime = timeStr,
                     avgSpeed = String.format(Locale.US, "%.0f", avgSpeedKmh),
                     topSpeed = topSpeedStr,
-                    speedDataPoints = emptyList() // Needs full waypoint query to plot
+                    speedDataPoints = emptyList()
                 )
             }
         }
-        
+
         syncRides()
     }
 
@@ -76,12 +76,12 @@ class RideStatsViewModel @Inject constructor(
                     val rides = response.body() ?: emptyList()
                     val formatter = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
                     formatter.timeZone = java.util.TimeZone.getTimeZone("UTC")
-                    
+
                     rides.forEach { rideResponse ->
                         try {
                             val startMs = formatter.parse(rideResponse.startTime)?.time ?: return@forEach
                             val endMs = rideResponse.endTime?.let { formatter.parse(it)?.time }
-                            
+
                             val existing = rideDao.getSessionById(rideResponse.id)
                             val resolvedRoomName = rideResponse.roomName?.takeIf { it.isNotBlank() }
                                 ?: existing?.roomName?.takeIf { it.isNotBlank() }
@@ -97,12 +97,12 @@ class RideStatsViewModel @Inject constructor(
                             )
                             rideDao.insertSession(entity)
                         } catch (e: Exception) {
-                            // Date parse error for single ride, skip
+
                         }
                     }
                 }
             } catch (e: Exception) {
-                // Ignore sync errors for now
+
             }
         }
     }

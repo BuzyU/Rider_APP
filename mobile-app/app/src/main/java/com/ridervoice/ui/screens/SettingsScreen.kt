@@ -49,7 +49,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .background(GraphiteBase)
         ) {
-            // Top App Bar
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -125,7 +125,7 @@ fun SettingsScreen(
                         icon = Icons.Default.VolumeUp,
                         onClick = { showOptionsDialog = "audioOutput" to listOf("Auto", "Bluetooth SCO", "Wired", "Earpiece") }
                     )
-                    // CRITICAL FIX: Link to Headset Hardware Settings!
+
                     SettingsItemValue(
                         label = "Helmet Headset Hardware Controls",
                         value = "Cardo / Sena / PTT",
@@ -206,7 +206,6 @@ fun SettingsScreen(
             }
         }
 
-        // In-App Update Dialog HUD
         val updateState by updateViewModel.uiState.collectAsState()
         UpdateDialog(
             uiState = updateState,
@@ -219,7 +218,6 @@ fun SettingsScreen(
             onDismiss = { updateViewModel.dismiss() }
         )
 
-        // Sign out confirmation dialog
         if (showSignOutConfirmDialog) {
             AlertDialog(
                 onDismissRequest = { showSignOutConfirmDialog = false },
@@ -258,7 +256,6 @@ fun SettingsScreen(
             )
         }
 
-        // Option Selector Dialog (with selection checkmarks!)
         showOptionsDialog?.let { (key, options) ->
             val currentValue = when (key) {
                 "micSensitivity"  -> settingsState.micSensitivity

@@ -30,7 +30,6 @@ fun HeadsetSettingsScreen(onBackClick: () -> Unit) {
     val isDark = ThemeState.isDarkTheme
     val prefs = remember { context.getSharedPreferences("headset_prefs", Context.MODE_PRIVATE) }
 
-    // CRITICAL FIX: Persisted SharedPreferences Toggles!
     var enableHardwarePtt by remember {
         mutableStateOf(prefs.getBoolean("enableHardwarePtt", true))
     }
@@ -101,7 +100,6 @@ fun HeadsetSettingsScreen(onBackClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // General PTT
             SettingsSwitchCard(
                 title = "Enable Hardware PTT",
                 description = "Intercept helmet Play/Pause and media buttons to toggle radio transmit.",
@@ -156,7 +154,6 @@ fun HeadsetSettingsScreen(onBackClick: () -> Unit) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Headset Button Diagnostic / Test Tool
             Text(
                 text = "HARDWARE BUTTON DIAGNOSTIC",
                 color = TextSecondary,

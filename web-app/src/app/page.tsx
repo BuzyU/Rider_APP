@@ -15,14 +15,10 @@ export default function Home() {
         <Hero />
         <TrustLogos />
         <TrustBanner />
-        
         <Features />
-        
         <MapPreview />
-        
         <Roadmap />
 
-        {/* Final Waitlist Section */}
         <section className="section" style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
           <div className="container" style={{ maxWidth: '600px' }}>
             <h2 className="section-title">Ride connected.</h2>

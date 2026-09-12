@@ -26,7 +26,7 @@ class NetworkResilienceManager @Inject constructor(
     val networkHealth: StateFlow<NetworkHealth> = _networkHealth
 
     private var transitionJob: Job? = null
-    private val HYSTERESIS_MS = 3000L // Require 3s of stability before fully reconnecting
+    private val HYSTERESIS_MS = 3000L
 
     init {
         startMonitoring()
@@ -38,16 +38,16 @@ class NetworkResilienceManager @Inject constructor(
             .build()
 
         connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
-            
+
             override fun onAvailable(network: Network) {
-                // Network returned. Apply Hysteresis to prevent flickering on mountain roads.
+
                 transitionJob?.cancel()
                 transitionJob = CoroutineScope(Dispatchers.IO).launch {
                     val caps = connectivityManager.getNetworkCapabilities(network)
                     if (isDegraded(caps)) {
                         _networkHealth.value = NetworkHealth.DEGRADED
                     } else {
-                        _networkHealth.value = NetworkHealth.RECONNECTING // Show UI "Stabilizing..."
+                        _networkHealth.value = NetworkHealth.RECONNECTING
                         delay(HYSTERESIS_MS)
                         _networkHealth.value = NetworkHealth.CONNECTED
                     }
@@ -61,7 +61,7 @@ class NetworkResilienceManager @Inject constructor(
             }
 
             override fun onLost(network: Network) {
-                // Instant transition to reconnecting so UI adapts instantly
+
                 transitionJob?.cancel()
                 _networkHealth.value = NetworkHealth.RECONNECTING
             }
@@ -70,12 +70,11 @@ class NetworkResilienceManager @Inject constructor(
 
     private fun isDegraded(caps: NetworkCapabilities?): Boolean {
         if (caps == null) return true
-        // If not LTE/Wifi or heavily restricted
-        val hasGoodTransport = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || 
+
+        val hasGoodTransport = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
                                caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
         val isCongested = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_CONGESTED)
-        
-        // This is a naive heuristic for 'Degraded' - weak signal or congestion
+
         return !hasGoodTransport || isCongested
     }
 }

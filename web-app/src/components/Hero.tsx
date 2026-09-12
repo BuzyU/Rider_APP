@@ -48,10 +48,8 @@ export default function Hero() {
             transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className={styles.phoneMockup}>
-              {/* Phone Hardware UI */}
               <div className={styles.dynamicIsland}></div>
               
-              {/* App UI: Active Call */}
               <div className={styles.appUI}>
                 <div className={styles.appHeader}>
                   <span className={styles.time}>9:41</span>

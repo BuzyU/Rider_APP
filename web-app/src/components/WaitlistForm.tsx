@@ -31,9 +31,10 @@ export default function WaitlistForm({ id = 'waitlist-form' }: { id?: string }) 
       setStatus('success');
       setMessage('You are on the list. Keep an eye on your inbox.');
       setEmail('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus('error');
-      setMessage(err.message || 'Failed to join waitlist. Please try again.');
+      const msg = err instanceof Error ? err.message : 'Failed to join waitlist. Please try again.';
+      setMessage(msg);
     }
   };
 

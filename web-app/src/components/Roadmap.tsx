@@ -8,7 +8,7 @@ export default function Roadmap() {
       <div className="container">
         <div className={styles.header}>
           <h2 className="section-title">Coming soon to the ride.</h2>
-          <p className="section-desc">We're just getting started. Here's a look at what we're building next to make group riding even better.</p>
+          <p className="section-desc">We&apos;re just getting started. Here&apos;s a look at what we&apos;re building next to make group riding even better.</p>
         </div>
       </div>
     </section>

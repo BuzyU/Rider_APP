@@ -33,13 +33,12 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class RideInviteActivity : ComponentActivity() {
-    
+
     @Inject lateinit var apiService: ApiService
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // Wakes the screen even if locked
+
         setShowWhenLocked(true)
         setTurnScreenOn(true)
 
@@ -65,7 +64,7 @@ class RideInviteActivity : ComponentActivity() {
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Header Badge
+
                     Surface(
                         shape = RoundedCornerShape(4.dp),
                         color = Gunmetal,
@@ -82,7 +81,7 @@ class RideInviteActivity : ComponentActivity() {
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
@@ -93,7 +92,7 @@ class RideInviteActivity : ComponentActivity() {
                         fontWeight = FontWeight.Black,
                         letterSpacing = 1.sp
                     )
-                    
+
                     Text(
                         text = "requests you to tune into frequency",
                         color = TextSecondary,
@@ -101,7 +100,7 @@ class RideInviteActivity : ComponentActivity() {
                         fontFamily = InterFamily,
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
-                    
+
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = Gunmetal,
@@ -118,7 +117,6 @@ class RideInviteActivity : ComponentActivity() {
                         )
                     }
 
-                    // Error Alert with Retry
                     errorMessage?.let { error ->
                         Spacer(modifier = Modifier.height(16.dp))
                         Surface(
@@ -148,29 +146,26 @@ class RideInviteActivity : ComponentActivity() {
                             }
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(48.dp))
-                    
-                    // Giant Glove-Friendly JOIN Button
+
                     Button(
                         onClick = {
                             isJoining = true
                             errorMessage = null
                             scope.launch {
                                 try {
-                                    // 1. Accept invite
+
                                     if (inviteId.isNotBlank()) {
                                         apiService.respondToInvite(InviteRespondRequest(inviteId, "ACCEPTED"))
                                     }
 
-                                    // 2. Fetch LiveKit token
                                     val tokenRes = apiService.getJoinToken(JoinTokenRequest(roomName))
                                     if (tokenRes.isSuccessful && tokenRes.body() != null) {
                                         RideSession.livekitToken = tokenRes.body()!!.token
                                         RideSession.livekitUrl = tokenRes.body()!!.livekitUrl
                                     }
 
-                                    // 3. Launch app with navigation extras
                                     val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
                                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                                         putExtra("NAV_ROUTE", Routes.activeRideHudPath(roomName, inviter))
@@ -211,10 +206,9 @@ class RideInviteActivity : ComponentActivity() {
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Giant Glove-Friendly DECLINE Button (Notifies backend)
+
                     Button(
                         onClick = {
                             isDeclining = true

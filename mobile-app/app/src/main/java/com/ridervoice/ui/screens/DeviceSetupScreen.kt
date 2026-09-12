@@ -49,9 +49,8 @@ fun DeviceSetupScreen(
     val activeDevice by viewModel.activeDevice.collectAsState()
     val isDark = ThemeState.isDarkTheme
 
-    var selectedRouteType by remember { mutableStateOf("BLUETOOTH") } // BLUETOOTH, SPEAKER, WIRED
+    var selectedRouteType by remember { mutableStateOf("BLUETOOTH") }
 
-    // Sample list of paired / discovered intercoms
     var discoveredDevices by remember {
         mutableStateOf(
             listOf(
@@ -67,7 +66,7 @@ fun DeviceSetupScreen(
             .fillMaxSize()
             .background(GraphiteBase)
     ) {
-        // Top App Bar
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -103,7 +102,6 @@ fun DeviceSetupScreen(
             item {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Radar / Device Status Circle
                 Box(
                     modifier = Modifier.size(190.dp),
                     contentAlignment = Alignment.Center
@@ -177,7 +175,6 @@ fun DeviceSetupScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // 3-Way Manual Audio Route Selector Chips
                 Text(
                     text = "MANUAL AUDIO ROUTE OVERRIDE",
                     color = TextSecondary,
@@ -214,7 +211,6 @@ fun DeviceSetupScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Discovered / Paired Intercoms Section
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -226,7 +222,7 @@ fun DeviceSetupScreen(
                         style = MaterialTheme.typography.labelSmall,
                         letterSpacing = 1.sp
                     )
-                    TextButton(onClick = { /* trigger scan */ }, contentPadding = PaddingValues(0.dp)) {
+                    TextButton(onClick = {  }, contentPadding = PaddingValues(0.dp)) {
                         Icon(Icons.Default.Refresh, contentDescription = null, tint = NeonOrange, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("RESCAN", color = NeonOrange, style = MaterialTheme.typography.labelSmall)
@@ -236,7 +232,6 @@ fun DeviceSetupScreen(
                 Spacer(modifier = Modifier.height(6.dp))
             }
 
-            // List of discovered devices
             items(discoveredDevices) { device ->
                 Surface(
                     color = DarkSlate,
@@ -323,7 +318,6 @@ fun DeviceSetupScreen(
             }
         }
 
-        // Dynamic Bottom Button
         val buttonLabel = when {
             convoyName == "GLOBAL" -> "DONE"
             isHost                 -> "CONTINUE TO LOBBY"

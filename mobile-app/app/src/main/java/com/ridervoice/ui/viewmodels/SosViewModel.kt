@@ -12,11 +12,11 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-sealed class SosState { 
+sealed class SosState {
     object Idle : SosState()
     object Sending : SosState()
     object Sent : SosState()
-    data class Failed(val message: String) : SosState() 
+    data class Failed(val message: String) : SosState()
 }
 
 @HiltViewModel
@@ -47,4 +47,3 @@ class SosViewModel @Inject constructor(
         }
     }
 }
-

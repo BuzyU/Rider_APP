@@ -34,7 +34,6 @@ fun RiderVoiceTheme(content: @Composable () -> Unit) {
     val isDark = ThemeState.isDarkTheme
     val target = if (isDark) DarkScheme else LightScheme
 
-    // Smooth color crossfade instead of an instant, jarring flip
     val animatedBg by animateColorAsState(target.background, tween(300), label = "bg")
 
     val view = LocalView.current

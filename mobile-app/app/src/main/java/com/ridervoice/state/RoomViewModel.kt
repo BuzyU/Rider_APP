@@ -43,25 +43,18 @@ class RoomViewModel @Inject constructor(
     private val serviceWatchdog: ServiceWatchdog
 ) : ViewModel() {
 
-    // ── LiveKit / connection ──────────────────────────────────────────────────
-
     val connectionState: StateFlow<ConnectionState> = liveKitManager.connectionState
     val remoteLocations: StateFlow<Map<String, RiderLocation>> = liveKitManager.remoteLocations
     val networkHealth: StateFlow<NetworkHealth> = networkResilienceManager.networkHealth
     val isMicEnabled: StateFlow<Boolean> = liveKitManager.isMicEnabled
 
-    // ── Audio device ──────────────────────────────────────────────────────────
-
     val activeAudioDevice: StateFlow<AudioDevice> = audioDeviceRouter.activeDevice
     val audioRouterState: StateFlow<RouterState> = audioDeviceRouter.routerState
-
-    // ── VOX ───────────────────────────────────────────────────────────────────
 
     val isVoxOpen: StateFlow<Boolean> = voxEngine.isMicOpen
     val noiseFloor: StateFlow<Float> = voxEngine.noiseFloor
     val currentAmplitude: StateFlow<Float> = voxEngine.currentAmplitude
 
-    // Derive a human-readable status line for the HUD
     val audioStatusLine: StateFlow<String> = combine(
         activeAudioDevice,
         connectionState,
@@ -75,8 +68,6 @@ class RoomViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "Initialising audio…")
 
-    // ── Participants (with Ghost Rider logic) ─────────────────────────────────
-
     private val _participants = MutableStateFlow<List<Participant>>(emptyList())
     val participants: StateFlow<List<Participant>> = _participants
 
@@ -86,19 +77,18 @@ class RoomViewModel @Inject constructor(
     private var currentUserName = ""
 
     init {
-        // Sync participant list with Ghost Rider state machine
+
         liveKitManager.participants
             .onEach { activeIdentities ->
                 val now = System.currentTimeMillis()
                 val current = _participants.value.toMutableList()
 
-                // Mark absent riders as ghosts
                 current.forEachIndexed { idx, p ->
                     if (!activeIdentities.contains(p.identity) && !p.isGhost) {
                         current[idx] = p.copy(isGhost = true, disconnectedAt = now)
                     }
                 }
-                // Add or un-ghost returning riders
+
                 activeIdentities.forEach { identity ->
                     val idx = current.indexOfFirst { it.identity == identity }
                     if (idx >= 0) {
@@ -111,13 +101,12 @@ class RoomViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        // Broadcast local GPS location when we have a fix and are connected
         locationService.currentLocation
             .filterNotNull()
             .onEach { loc ->
-                // Update VOX engine with current speed to adjust for wind noise
+
                 voxEngine.updateSpeed(loc.speed)
-                
+
                 if (liveKitManager.connectionState.value == ConnectionState.CONNECTED) {
                     liveKitManager.publishLocation(
                         RiderLocation(
@@ -133,12 +122,10 @@ class RoomViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        // Throttle telemetry on weak network
         networkResilienceManager.networkHealth
             .onEach { health -> locationService.setNetworkDegraded(health == NetworkHealth.DEGRADED) }
             .launchIn(viewModelScope)
 
-        // Ghost purge: remove ghosts after 15 minutes
         viewModelScope.launch {
             while (true) {
                 kotlinx.coroutines.delay(60_000)
@@ -151,8 +138,6 @@ class RoomViewModel @Inject constructor(
             }
         }
     }
-
-    // ── Session management ────────────────────────────────────────────────────
 
     fun joinRoom(roomName: String, userName: String) {
         currentUserName = userName
@@ -172,7 +157,7 @@ class RoomViewModel @Inject constructor(
         viewModelScope.launch {
             _error.value = null
             try {
-                // LiveKitManager.connect() starts AudioDeviceRouter + VoxEngine internally
+
                 liveKitManager.connect(url, token)
             } catch (e: Exception) {
                 _error.value = "Connection error: ${e.message}"
@@ -180,20 +165,10 @@ class RoomViewModel @Inject constructor(
         }
     }
 
-    // ── PTT ───────────────────────────────────────────────────────────────────
-
-    /**
-     * Called by RoomScreen PTT button or HardwarePTTManager.
-     * Delegates to LiveKitManager which delegates to VoxEngine.
-     */
     fun onPttPressed(pressed: Boolean) {
         liveKitManager.onPttPressed(pressed)
     }
 
-    /**
-     * Legacy toggle-mute for the UI button.
-     * If PTT/VOX is managing the mic, this is a manual override.
-     */
     fun toggleMute() {
         viewModelScope.launch {
             val newState = !isMicEnabled.value
@@ -201,11 +176,6 @@ class RoomViewModel @Inject constructor(
         }
     }
 
-    // ── VOX sensitivity (from settings) ──────────────────────────────────────
-
-    /**
-     * @param sensitivity 0.0 = most sensitive, 1.0 = least sensitive
-     */
     fun setVoxSensitivity(sensitivity: Float) {
         voxEngine.setSensitivity(sensitivity)
     }
@@ -213,8 +183,6 @@ class RoomViewModel @Inject constructor(
     fun setVoxEnabled(enabled: Boolean) {
         voxEngine.setVoxEnabled(enabled)
     }
-
-    // ── Force device re-scan (settings button) ────────────────────────────────
 
     fun rescanAudioDevices() {
         audioDeviceRouter.reEvaluatePriority()
@@ -269,6 +237,6 @@ class RoomViewModel @Inject constructor(
         rideRecorder.stopRecording()
         thermalManager.stopMonitoring()
         serviceWatchdog.stopMonitoring()
-        // liveKitManager.disconnect() stops audioDeviceRouter + voxEngine internally
+
     }
 }

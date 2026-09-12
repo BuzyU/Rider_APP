@@ -25,7 +25,6 @@ val BarlowCondensedFamily = FontFamily(
     Font(googleFont = fontBarlowCondensed, fontProvider = provider, weight = FontWeight.Bold)
 )
 
-// Backwards compatibility alias for OrbitronFamily
 val OrbitronFamily = BarlowCondensedFamily
 
 val SpaceMonoFamily = FontFamily(
@@ -90,4 +89,3 @@ val Typography = Typography(
         letterSpacing = 0.2.sp
     )
 )
-

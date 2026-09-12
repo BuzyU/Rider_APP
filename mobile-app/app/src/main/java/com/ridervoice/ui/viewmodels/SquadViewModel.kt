@@ -57,11 +57,11 @@ class SquadViewModel @Inject constructor(
         viewModelScope.launch {
             val cleanHandle = friendHandle.removePrefix("@").trim()
             if (cleanHandle.isEmpty()) return@launch
-            
+
             _uiState.update { it.copy(isLoading = true) }
             val result = squadRepository.addFriend(userId, cleanHandle)
             if (result.isSuccess) {
-                // Refresh list
+
                 fetchData(userId)
             } else {
                 _uiState.update {

@@ -1,5 +1,5 @@
 package com.ridervoice.services
- 
+
 import android.util.Log
 import com.ridervoice.data.local.RideDao
 import com.ridervoice.data.local.entities.ConvoyEventEntity
@@ -16,14 +16,14 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
- 
+
 data class RideSummary(
     val sessionId: String,
     val durationMinutes: Int,
     val distanceKm: Float,
     val topSpeedKmh: Float
 )
- 
+
 @Singleton
 class RideRecorder @Inject constructor(
     private val rideDao: RideDao,
@@ -32,39 +32,34 @@ class RideRecorder @Inject constructor(
     companion object {
         private const val TAG = "RideRecorder"
         private const val MIN_DISTANCE_METERS = 20.0
-        private const val HIGH_SPEED_MPS = 36.1f  // ~130 km/h
+        private const val HIGH_SPEED_MPS = 36.1f
     }
- 
+
     private val recorderScope = CoroutineScope(Dispatchers.IO)
- 
+
     private var recordingJob: Job? = null
- 
-    // BUG FIX: currentSessionId was set INSIDE the async launch{} body.
-    // If stopRecording() was called before the launch ran (e.g. user immediately
-    // backs out), currentSessionId was null and the session endTime was never saved.
-    // Fix: create the UUID before launching, pass it into the coroutine.
+
     private var currentSessionId: String? = null
- 
+
     private var lastLat = 0.0
     private var lastLng = 0.0
     private var totalDistanceMeters = 0f
- 
+
     private val _lastSummary = MutableStateFlow<RideSummary?>(null)
     val lastSummary: StateFlow<RideSummary?> = _lastSummary
- 
+
     fun startRecording(roomName: String) {
         if (recordingJob != null) {
             Log.w(TAG, "Already recording — ignoring startRecording()")
             return
         }
- 
-        // Generate ID synchronously BEFORE the async block
+
         val sessionId = UUID.randomUUID().toString()
         currentSessionId = sessionId
         lastLat = 0.0
         lastLng = 0.0
         totalDistanceMeters = 0f
- 
+
         recorderScope.launch {
             val session = RideSessionEntity(
                 id        = sessionId,
@@ -74,23 +69,23 @@ class RideRecorder @Inject constructor(
             rideDao.insertSession(session)
             Log.i(TAG, "✅ Ride recording started: $sessionId")
         }
- 
+
         recordingJob = locationService.currentLocation
             .onEach { loc ->
                 val sid = currentSessionId ?: return@onEach
                 if (loc == null) return@onEach
- 
+
                 val dist = if (lastLat == 0.0 && lastLng == 0.0) {
-                    Double.MAX_VALUE  // always log the very first point
+                    Double.MAX_VALUE
                 } else {
                     haversineMeters(lastLat, lastLng, loc.latitude, loc.longitude)
                 }
- 
+
                 if (dist >= MIN_DISTANCE_METERS) {
                     lastLat = loc.latitude
                     lastLng = loc.longitude
-                    totalDistanceMeters += dist.toFloat().coerceAtMost(1_000f) // sanity cap per point
- 
+                    totalDistanceMeters += dist.toFloat().coerceAtMost(1_000f)
+
                     rideDao.insertWaypoint(
                         RawWaypointEntity(
                             sessionId = sid,
@@ -101,7 +96,7 @@ class RideRecorder @Inject constructor(
                             timestamp = System.currentTimeMillis()
                         )
                     )
- 
+
                     if (loc.speed > HIGH_SPEED_MPS) {
                         rideDao.insertEvent(
                             ConvoyEventEntity(
@@ -117,17 +112,16 @@ class RideRecorder @Inject constructor(
             }
             .launchIn(recorderScope)
     }
- 
+
     fun stopRecording() {
         recordingJob?.cancel()
         recordingJob = null
- 
+
         val sid = currentSessionId ?: return
         currentSessionId = null
- 
+
         recorderScope.launch {
-            // Fetch the existing session then update it — Room doesn't support
-            // partial upsert by PK alone without fetching first.
+
             val existing = rideDao.getSessionById(sid) ?: return@launch
             val endTime = System.currentTimeMillis()
             rideDao.updateSession(
@@ -137,7 +131,7 @@ class RideRecorder @Inject constructor(
                     isSynced             = false
                 )
             )
- 
+
             val maxSpeedMps = rideDao.getMaxSpeed(sid) ?: 0f
             _lastSummary.value = RideSummary(
                 sessionId       = sid,
@@ -145,12 +139,11 @@ class RideRecorder @Inject constructor(
                 distanceKm      = totalDistanceMeters / 1000f,
                 topSpeedKmh     = maxSpeedMps * 3.6f
             )
- 
+
             Log.i(TAG, "Ride recording stopped: $sid (${totalDistanceMeters / 1000f} km)")
         }
     }
- 
-    /** Deletes the most recently recorded session (called when the user discards a ride summary). */
+
     fun discardLastSession() {
         val summary = _lastSummary.value ?: return
         _lastSummary.value = null
@@ -160,12 +153,11 @@ class RideRecorder @Inject constructor(
             Log.i(TAG, "Discarded ride session: ${summary.sessionId}")
         }
     }
- 
-    /** Clears the pending summary once the user has saved it — call after navigating away. */
+
     fun clearSummary() {
         _lastSummary.value = null
     }
- 
+
     private fun haversineMeters(
         lat1: Double, lon1: Double,
         lat2: Double, lon2: Double

@@ -32,7 +32,6 @@ class UpdateManager @Inject constructor(
         private const val GITHUB_API_URL = "https://api.github.com/repos/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/latest"
     }
 
-    // Dedicated clean OkHttpClient instance without Firebase auth interceptor
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -63,9 +62,6 @@ class UpdateManager @Inject constructor(
             }
         }
 
-    /**
-     * Checks the official GitHub repository for new releases.
-     */
     fun checkForUpdates(scope: CoroutineScope) {
         if (_uiState.value is UpdateUiState.Checking || _uiState.value is UpdateUiState.Downloading) return
 
@@ -99,14 +95,12 @@ class UpdateManager @Inject constructor(
 
                 val release = gson.fromJson(responseBody, GitHubRelease::class.java)
 
-                // 1. Locate compatible APK asset
                 val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
                 if (apkAsset == null) {
                     _uiState.value = UpdateUiState.Error("The latest release (${release.tagName}) does not contain an APK asset.")
                     return@launch
                 }
 
-                // 2. Locate optional SHA-256 checksum asset or parse from release body
                 var sha256Checksum: String? = null
                 val shaAsset = release.assets.firstOrNull {
                     it.name.endsWith(".sha256", ignoreCase = true) || it.name.contains("checksum", ignoreCase = true)
@@ -118,7 +112,7 @@ class UpdateManager @Inject constructor(
                         val shaResp = httpClient.newCall(shaReq).execute()
                         val shaContent = shaResp.body?.string()?.trim()
                         if (!shaContent.isNullOrBlank()) {
-                            // Extract first 64-character hex string
+
                             val match = Regex("[a-fA-F0-9]{64}").find(shaContent)
                             sha256Checksum = match?.value
                         }
@@ -164,9 +158,6 @@ class UpdateManager @Inject constructor(
         }
     }
 
-    /**
-     * User clicked "Download Now" -> transition to download confirmation.
-     */
     fun promptDownloadConfirmation(releaseInfo: AppReleaseInfo) {
         _uiState.value = UpdateUiState.ConfirmDownload(
             releaseInfo = releaseInfo,
@@ -174,17 +165,13 @@ class UpdateManager @Inject constructor(
         )
     }
 
-    /**
-     * User confirmed download -> begins streaming download inside the app.
-     */
     fun startDownload(releaseInfo: AppReleaseInfo, scope: CoroutineScope) {
         downloadJob?.cancel()
 
         val updatesDir = File(context.cacheDir, "updates").apply { mkdirs() }
-        // Clean out any stale previously downloaded APKs to ensure fresh verification
+
         updatesDir.listFiles()?.forEach { try { it.delete() } catch (ignored: Exception) {} }
 
-        // Storage space check (APK size + 20 MB headroom)
         val requiredBytes = if (releaseInfo.apkSizeBytes > 0) releaseInfo.apkSizeBytes + 20_000_000 else 80_000_000
         if (updatesDir.usableSpace < requiredBytes) {
             _uiState.value = UpdateUiState.Error("Insufficient storage space on device to download update.")
@@ -227,7 +214,7 @@ class UpdateManager @Inject constructor(
                         var currentSpeedText = "Calculating..."
 
                         while (input.read(buffer).also { bytesRead = it } != -1) {
-                            ensureActive() // Cooperate with coroutine cancellation
+                            ensureActive()
 
                             output.write(buffer, 0, bytesRead)
                             totalDownloaded += bytesRead
@@ -257,7 +244,6 @@ class UpdateManager @Inject constructor(
                     }
                 }
 
-                // Download complete -> verify APK
                 verifyAndPrepareInstall(tempFile, releaseInfo)
 
             } catch (e: CancellationException) {
@@ -276,21 +262,17 @@ class UpdateManager @Inject constructor(
         _uiState.value = UpdateUiState.Idle
     }
 
-    /**
-     * Validates file integrity, SHA-256 hash, and Android package identity.
-     */
     private fun verifyAndPrepareInstall(tempFile: File, releaseInfo: AppReleaseInfo) {
         _uiState.value = UpdateUiState.Verifying(releaseInfo)
 
         try {
-            // 1. Physical file check
+
             if (!tempFile.exists() || tempFile.length() <= 0) {
                 tempFile.delete()
                 _uiState.value = UpdateUiState.Error("Downloaded update file is missing or empty.")
                 return
             }
 
-            // 2. SHA-256 checksum verification if provided
             if (!releaseInfo.sha256Checksum.isNullOrBlank()) {
                 val computedHash = calculateSha256(tempFile)
                 if (!computedHash.equals(releaseInfo.sha256Checksum.trim(), ignoreCase = true)) {
@@ -300,7 +282,6 @@ class UpdateManager @Inject constructor(
                 }
             }
 
-            // 3. Android Package Manager Archive inspection
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 context.packageManager.getPackageArchiveInfo(
                     tempFile.absolutePath,
@@ -317,7 +298,6 @@ class UpdateManager @Inject constructor(
                 return
             }
 
-            // 4. Application ID match check
             if (packageInfo.packageName != context.packageName) {
                 tempFile.delete()
                 _uiState.value = UpdateUiState.Error(
@@ -326,7 +306,6 @@ class UpdateManager @Inject constructor(
                 return
             }
 
-            // 5. Dual downgrade check (Semantic versionName AND raw versionCode)
             val archiveVersion = AppVersion.parse(packageInfo.versionName)
             val installedVersion = AppVersion.parse(currentVersionName)
 
@@ -345,7 +324,6 @@ class UpdateManager @Inject constructor(
                 return
             }
 
-            // Move to final predictable filename
             val updatesDir = File(context.cacheDir, "updates").apply { mkdirs() }
             val finalApkFile = File(updatesDir, "Rider_APP-v${releaseInfo.versionName}.apk")
             if (finalApkFile.exists()) finalApkFile.delete()
@@ -364,16 +342,12 @@ class UpdateManager @Inject constructor(
         }
     }
 
-    /**
-     * Launches the system package installer intent using FileProvider.
-     */
     fun installUpdate(apkFile: File, releaseInfo: AppReleaseInfo) {
         if (!apkFile.exists()) {
             _uiState.value = UpdateUiState.Error("Installation file could not be found.")
             return
         }
 
-        // On Android 8.0+ (API 26+), check unknown sources permission
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!context.packageManager.canRequestPackageInstalls()) {
                 _uiState.value = UpdateUiState.RequestUnknownSourcesPermission(apkFile, releaseInfo)
@@ -402,9 +376,6 @@ class UpdateManager @Inject constructor(
         }
     }
 
-    /**
-     * Opens system setting allowing RiderVoice to install unknown apps.
-     */
     fun openUnknownSourcesSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {

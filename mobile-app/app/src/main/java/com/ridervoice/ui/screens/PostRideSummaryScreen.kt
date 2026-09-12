@@ -29,13 +29,12 @@ fun PostRideSummaryScreen(
     onDiscard: () -> Unit
 ) {
     val isDark = ThemeState.isDarkTheme
-    var selectedPrivacy by remember { mutableStateOf("SQUAD") } // SQUAD, PRIVATE
+    var selectedPrivacy by remember { mutableStateOf("SQUAD") }
     var rideTitle by remember { mutableStateOf("") }
     var rideNotes by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
     var showDiscardConfirmDialog by remember { mutableStateOf(false) }
 
-    // CRITICAL FIX: Discard Confirmation Dialog!
     if (showDiscardConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardConfirmDialog = false },
@@ -108,7 +107,6 @@ fun PostRideSummaryScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Stats Grid with Units!
                 Surface(
                     color = Gunmetal,
                     shape = RoundedCornerShape(12.dp),
@@ -123,14 +121,13 @@ fun PostRideSummaryScreen(
                     ) {
                         StatBox("TIME", "${durationMinutes}M")
                         StatBox("DISTANCE", "${String.format("%.1f", distanceKm)} KM")
-                        // CRITICAL FIX: Added explicit km/h unit!
+
                         StatBox("TOP SPEED", "${String.format("%.0f", topSpeed)} KM/H")
                     }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Ride Title & Notes
                 OutlinedTextField(
                     value = rideTitle,
                     onValueChange = { rideTitle = it },
@@ -165,7 +162,6 @@ fun PostRideSummaryScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Privacy Selection
                 Text(
                     text = "TELEMETRY PRIVACY LEVEL",
                     color = TextSecondary,
@@ -192,7 +188,6 @@ fun PostRideSummaryScreen(
 
                 Spacer(modifier = Modifier.height(28.dp))
 
-                // Actions: Save to Logbook
                 Button(
                     onClick = {
                         isSaving = true
@@ -231,7 +226,6 @@ fun PostRideSummaryScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Discard Button (with confirmation)
                 OutlinedButton(
                     onClick = { showDiscardConfirmDialog = true },
                     shape = RoundedCornerShape(8.dp),

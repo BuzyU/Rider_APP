@@ -1,14 +1,9 @@
 const express = require('express')
-const router  = express.Router()
-const prisma  = require('../db')
+const router = express.Router()
+const prisma = require('../db')
 
-/**
- * POST /api/friends/request
- * Sends a friend request FROM the authenticated user TO addresseeId.
- * requesterId is always taken from req.user.uid — never from the body.
- */
 router.post('/request', async (req, res, next) => {
-    const requesterId = req.user.uid           // ← always the authenticated caller
+    const requesterId = req.user.uid
     const { addresseeId, handle } = req.body
 
     if (!addresseeId && !handle) {
@@ -32,24 +27,11 @@ router.post('/request', async (req, res, next) => {
             return res.status(400).json({ error: 'Cannot add yourself to squad' })
         }
 
-        // Check if addressee exists (in case addresseeId was passed directly)
         const addressee = await prisma.user.findUnique({ where: { id: targetId } })
         if (!addressee) {
             return res.status(404).json({ error: 'Rider not found' })
         }
 
-        // Ensure requester user record exists in Supabase
-        await prisma.user.upsert({
-            where: { id: requesterId },
-            update: {},
-            create: {
-                id: requesterId,
-                email: req.user.email || null,
-                displayName: req.user.name || (req.user.email ? req.user.email.split('@')[0] : 'Rider')
-            }
-        }).catch(() => {})
-
-        // Check if friendship already exists
         const existing = await prisma.friendship.findFirst({
             where: {
                 OR: [
@@ -78,13 +60,8 @@ router.post('/request', async (req, res, next) => {
     }
 })
 
-/**
- * POST /api/friends/accept
- * Accepts a friend request sent TO the authenticated user.
- * Only the addressee can accept — prevents any user from accepting on behalf of others.
- */
 router.post('/accept', async (req, res, next) => {
-    const addresseeId = req.user.uid           // ← must be the person who received the request
+    const addresseeId = req.user.uid
     const { requesterId } = req.body
 
     if (!requesterId) {
@@ -105,7 +82,7 @@ router.post('/accept', async (req, res, next) => {
 
         const updated = await prisma.friendship.update({
             where: { requesterId_addresseeId: { requesterId, addresseeId } },
-            data:  { status: 'ACCEPTED' }
+            data: { status: 'ACCEPTED' }
         })
         res.json(updated)
     } catch (error) {
@@ -113,20 +90,16 @@ router.post('/accept', async (req, res, next) => {
     }
 })
 
-/**
- * DELETE /api/friends/:friendId
- * Removes a friendship. Either party can remove.
- */
 router.delete('/:friendId', async (req, res, next) => {
-    const userId   = req.user.uid
+    const userId = req.user.uid
     const friendId = req.params.friendId
 
     try {
         await prisma.friendship.deleteMany({
             where: {
                 OR: [
-                    { requesterId: userId,   addresseeId: friendId },
-                    { requesterId: friendId, addresseeId: userId   }
+                    { requesterId: userId, addresseeId: friendId },
+                    { requesterId: friendId, addresseeId: userId }
                 ],
                 status: 'ACCEPTED'
             }
@@ -137,20 +110,14 @@ router.delete('/:friendId', async (req, res, next) => {
     }
 })
 
-/**
- * GET /api/friends/list/:userId
- * Only returns results if :userId matches the authenticated caller.
- */
 router.get('/list/:userId', async (req, res, next) => {
     const { userId } = req.params
 
-    // Users can only fetch their own friend list
     if (userId !== req.user.uid) {
         return res.status(403).json({ error: 'Forbidden' })
     }
 
     try {
-        // Auto-upgrade any PENDING friendships for this user to ACCEPTED
         await prisma.friendship.updateMany({
             where: {
                 status: 'PENDING',
@@ -179,10 +146,6 @@ router.get('/list/:userId', async (req, res, next) => {
     }
 })
 
-/**
- * GET /api/friends/pending
- * Returns incoming friend requests for the authenticated user.
- */
 router.get('/pending', async (req, res, next) => {
     try {
         const requests = await prisma.friendship.findMany({

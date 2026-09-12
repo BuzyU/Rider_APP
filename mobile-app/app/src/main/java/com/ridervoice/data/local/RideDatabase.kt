@@ -21,8 +21,6 @@ interface RideDao {
     @Insert
     suspend fun insertEvent(event: ConvoyEventEntity)
 
-    // BUG FIX: RideRecorder.stopRecording() needs to fetch the session before
-    // updating it (Room requires the full entity for @Update). This query was missing.
     @Query("SELECT * FROM ride_sessions WHERE id = :sessionId LIMIT 1")
     suspend fun getSessionById(sessionId: String): RideSessionEntity?
 

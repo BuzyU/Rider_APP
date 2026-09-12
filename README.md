@@ -5,7 +5,7 @@
 RiderVoice is a Jetpack Compose Android application designed for motorcycle convoys. It enables hands-free push-to-talk (PTT) communication over WebRTC, squad coordination, active ride telemetry, and over-the-air (OTA) application updates. It is backed by a Node.js Express REST API, Prisma PostgreSQL (Supabase), and LiveKit for real-time audio.
 
 > **Latest Release:** [**v0.0.3 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3)  
-> For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+> For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md).
 
 ---
 
@@ -29,6 +29,7 @@ You can download the latest signed APK directly from GitHub Releases:
 - 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3/Rider_APP-v0.0.3.apk.sha256)
 
 ### Sideloading Instructions:
+
 1. Download `Rider_APP-v0.0.3.apk` onto your Android phone (or transfer via USB/Quick Share).
 2. Open your device's **Files** app and tap the APK.
 3. If prompted by Android, toggle **"Allow from this source"**.
@@ -38,18 +39,18 @@ You can download the latest signed APK directly from GitHub Releases:
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|---|---|
-| **Mobile Architecture** | Kotlin 1.9, Jetpack Compose, Material 3, Clean Architecture |
-| **Dependency Injection** | Dagger Hilt 2.48, KSP |
-| **Networking & HTTP** | Retrofit 2, OkHttp 4, Gson |
-| **Voice & Signaling** | LiveKit Android SDK 2.25, WebRTC |
-| **Mapping & Geospatial** | Mapbox Maps SDK 11.2 + Compose Extension |
+| Layer                     | Technology                                                               |
+| ------------------------- | ------------------------------------------------------------------------ |
+| **Mobile Architecture**   | Kotlin 1.9, Jetpack Compose, Material 3, Clean Architecture              |
+| **Dependency Injection**  | Dagger Hilt 2.48, KSP                                                    |
+| **Networking & HTTP**     | Retrofit 2, OkHttp 4, Gson                                               |
+| **Voice & Signaling**     | LiveKit Android SDK 2.25, WebRTC                                         |
+| **Mapping & Geospatial**  | Mapbox Maps SDK 11.2 + Compose Extension                                 |
 | **Authentication & Push** | Firebase Authentication (Google Sign-In), Firebase Cloud Messaging (FCM) |
-| **Local Persistence** | Room Database 2.6, EncryptedSharedPreferences |
-| **Backend REST API** | Node.js, Express 4, Prisma ORM 5 |
-| **Database** | PostgreSQL via Supabase |
-| **CI/CD Pipeline** | GitHub Actions (automated tag-driven release builds) |
+| **Local Persistence**     | Room Database 2.6, EncryptedSharedPreferences                            |
+| **Backend REST API**      | Node.js, Express 4, Prisma ORM 5                                         |
+| **Database**              | PostgreSQL via Supabase                                                  |
+| **CI/CD Pipeline**        | GitHub Actions (automated tag-driven release builds)                     |
 
 ---
 
@@ -76,22 +77,22 @@ Rider_APP/
 
 ### Screens
 
-| Screen | Route | Description |
-|---|---|---|
-| `SplashScreen` | `Routes.SPLASH` | Authenticates session and routes to Home or Login |
-| `LoginScreen` | `Routes.LOGIN` | Firebase Google Sign-In & credential authentication |
-| `HomeScreen` | `Routes.HOME` | Transceiver dashboard – active convoys, call-sign plate, drawer |
-| `AccountScreen` | `Routes.ACCOUNT` | **Operator Dossier** – Call-sign, bio, bike model, high-res avatar, OTA status |
-| `HostSetupScreen` | `Routes.HOST_SETUP` | Convoy name, origin, destination, and meetup configuration |
-| `LobbyScreen` | `Routes.LOBBY` | Real-time convoy staging lobby with Add Riders bottom sheet & ejection |
-| `InviteFriendsScreen` | `Routes.INVITE_FRIENDS` | Search and recruit riders by `@handle` from squad list |
-| `JoinRoomScreen` | `Routes.JOIN_ROOM` | Join convoy via 6-digit code or cryptographic deep link token |
-| `RoomScreen` | `Routes.ACTIVE_RIDE_HUD` | Active ride telemetry, Mapbox HUD, LiveKit PTT voice, and SOS |
-| `DeviceSetupScreen` | `Routes.DEVICE_SETUP` | Bluetooth headset and audio output routing setup |
-| `SettingsScreen` | `Routes.SETTINGS` | Audio thresholds, HUD night modes, and **Firmware OTA updates** |
-| `SquadScreen` | `Routes.SQUAD` | Friends list, pending invitations, and call-sign search |
-| `RideStatsScreen` | `Routes.RIDE_STATS` | Ride logbook telemetry and historical ride replay |
-| `SosScreen` | `Routes.SOS` | Emergency alert broadcast interface |
+| Screen                | Route                    | Description                                                                    |
+| --------------------- | ------------------------ | ------------------------------------------------------------------------------ |
+| `SplashScreen`        | `Routes.SPLASH`          | Authenticates session and routes to Home or Login                              |
+| `LoginScreen`         | `Routes.LOGIN`           | Firebase Google Sign-In & credential authentication                            |
+| `HomeScreen`          | `Routes.HOME`            | Transceiver dashboard – active convoys, call-sign plate, drawer                |
+| `AccountScreen`       | `Routes.ACCOUNT`         | **Operator Dossier** – Call-sign, bio, bike model, high-res avatar, OTA status |
+| `HostSetupScreen`     | `Routes.HOST_SETUP`      | Convoy name, origin, destination, and meetup configuration                     |
+| `LobbyScreen`         | `Routes.LOBBY`           | Real-time convoy staging lobby with Add Riders bottom sheet & ejection         |
+| `InviteFriendsScreen` | `Routes.INVITE_FRIENDS`  | Search and recruit riders by `@handle` from squad list                         |
+| `JoinRoomScreen`      | `Routes.JOIN_ROOM`       | Join convoy via 6-digit code or cryptographic deep link token                  |
+| `RoomScreen`          | `Routes.ACTIVE_RIDE_HUD` | Active ride telemetry, Mapbox HUD, LiveKit PTT voice, and SOS                  |
+| `DeviceSetupScreen`   | `Routes.DEVICE_SETUP`    | Bluetooth headset and audio output routing setup                               |
+| `SettingsScreen`      | `Routes.SETTINGS`        | Audio thresholds, HUD night modes, and **Firmware OTA updates**                |
+| `SquadScreen`         | `Routes.SQUAD`           | Friends list, pending invitations, and call-sign search                        |
+| `RideStatsScreen`     | `Routes.RIDE_STATS`      | Ride logbook telemetry and historical ride replay                              |
+| `SosScreen`           | `Routes.SOS`             | Emergency alert broadcast interface                                            |
 
 ---
 
@@ -100,12 +101,14 @@ Rider_APP/
 Base URL is configured via environment variables. All authenticated routes require a Firebase JWT token in the `Authorization: Bearer <token>` header.
 
 ### User & Dossier
+
 - `GET /api/users/me` – Retrieves authenticated operator profile (handle, phone, email, bio, bike model).
 - `POST /api/users/profile` – Creates or updates rider dossier details.
 - `GET /api/users/search?handle=@callsign` – Public search for riders by handle.
 - `POST /api/users/fcm-token` – Registers Firebase Cloud Messaging push token.
 
 ### Convoy & Lobby Management
+
 - `POST /api/lobby/create` – Creates a named convoy room.
 - `GET /api/lobby/:roomName/status` – Polls live rider statuses (supports solo departure).
 - `POST /api/lobby/:roomName/start` – Initiates convoy voice session and issues LiveKit JWT.
@@ -136,6 +139,7 @@ RiderVoice features an integrated over-the-air (OTA) update system adhering stri
 RiderVoice uses tag-triggered GitHub Actions workflows to build, sign, verify, and publish releases.
 
 ### Version Code Formula
+
 The build system derives a strictly monotonic 32-bit integer `versionCode` from the semantic tag:
 $$\text{versionCode} = (\text{major} \times 10{,}000{,}000) + (\text{minor} \times 100{,}000) + (\text{patch} \times 1{,}000) + \text{build}$$
 
@@ -145,13 +149,16 @@ $$\text{versionCode} = (\text{major} \times 10{,}000{,}000) + (\text{minor} \tim
 - `1.10.0` → `11,000,000`
 
 ### Hard Bucket Bounds Guard
+
 To prevent silent ordering collisions, both the GitHub Actions workflow and Gradle enforce hard bounds that **fail the build** if limits are exceeded:
+
 - `major`: `0..200`
 - `minor`: `0..99`
 - `patch`: `0..99`
 - `build`: `0..999`
 
 ### How to Publish a Release:
+
 ```bash
 # 1. Commit changes
 git add -A
@@ -164,6 +171,7 @@ git tag v0.0.3
 git push origin main
 git push origin v0.0.3
 ```
+
 GitHub Actions will automatically build `Rider_APP-v0.0.3.apk`, compute its `.sha256` checksum, and publish a new release to GitHub.
 
 ---
@@ -171,12 +179,14 @@ GitHub Actions will automatically build `Rider_APP-v0.0.3.apk`, compute its `.sh
 ## 💻 Local Development Setup
 
 ### Prerequisites
+
 - **Android Studio** (Hedgehog 2023.1.1 or newer)
 - **JDK 17** (Temurin / Adoptium recommended)
 - **Node.js 18+** & **npm**
 - **Docker** (optional, for local LiveKit server)
 
 ### 1. Run Backend
+
 ```bash
 cd backend
 npm install
@@ -185,9 +195,11 @@ npm run dev
 ```
 
 ### 2. Run Android App
+
 1. Place your `google-services.json` in `mobile-app/app/`.
 2. Connect an Android device or launch an emulator.
 3. Build and install:
+
 ```powershell
 cd mobile-app
 .\gradlew clean assembleDebug installDebug

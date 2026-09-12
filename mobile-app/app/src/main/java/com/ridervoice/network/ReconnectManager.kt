@@ -24,12 +24,9 @@ class ReconnectManager(
                 try {
                     reconnectAction()
                     attempts = 0
-                    return@launch  // success — stop retrying
+                    return@launch
                 } catch (e: CancellationException) {
-                    // BUG FIX: CancellationException must NOT be caught and retried.
-                    // Swallowing it prevents coroutine cancellation from propagating,
-                    // causing the reconnect loop to run indefinitely even after the
-                    // user has left the room.
+
                     throw e
                 } catch (e: Exception) {
                     attempts++
@@ -37,7 +34,7 @@ class ReconnectManager(
                     delay(backoffMs)
                 }
             }
-            // Exhausted retries — caller should observe connectionState = FAILED
+
         }
     }
 

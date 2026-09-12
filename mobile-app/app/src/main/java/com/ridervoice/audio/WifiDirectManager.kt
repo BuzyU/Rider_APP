@@ -30,21 +30,20 @@ class WifiDirectManager(
     private val localMeshVoiceEngine: LocalMeshVoiceEngine
 ) {
     private val TAG = "WifiDirectManager"
-    
+
     private val manager: WifiP2pManager? by lazy(LazyThreadSafetyMode.NONE) {
         context.getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager?
     }
-    
+
     private var channel: WifiP2pManager.Channel? = null
     private var receiver: BroadcastReceiver? = null
-    
+
     private val _isGroupOwner = MutableStateFlow(false)
     val isGroupOwner = _isGroupOwner.asStateFlow()
-    
+
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var serverSocket: ServerSocket? = null
-    
-    // Signaling state
+
     private val connectedClients = mutableListOf<Socket>()
 
     fun initialize() {
@@ -52,12 +51,9 @@ class WifiDirectManager(
         Log.d(TAG, "WifiDirectManager initialized")
     }
 
-    /**
-     * Determines which rider should be the Group Owner (Hotspot) based on the geographic center.
-     */
     fun electGroupOwner(riders: List<RiderLocation>, myId: String): Boolean {
         if (riders.isEmpty()) return true
-        
+
         var x = 0.0
         var y = 0.0
         var z = 0.0
@@ -82,7 +78,6 @@ class WifiDirectManager(
         val centerLatDeg = Math.toDegrees(centralLat)
         val centerLngDeg = Math.toDegrees(centralLng)
 
-        // Find the rider closest to this center
         var closestId = myId
         var minDistance = Double.MAX_VALUE
 
@@ -100,7 +95,7 @@ class WifiDirectManager(
     }
 
     private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val R = 6371e3 // metres
+        val R = 6371e3
         val phi1 = lat1 * Math.PI / 180
         val phi2 = lat2 * Math.PI / 180
         val deltaPhi = (lat2 - lat1) * Math.PI / 180
@@ -114,22 +109,19 @@ class WifiDirectManager(
         return R * c
     }
 
-    // ── Local Socket Signaling ──────────────────────────────────────────────────
-
     fun startSignalingServer() {
         if (!_isGroupOwner.value) return
-        
+
         scope.launch {
             try {
                 serverSocket = ServerSocket(8888)
                 Log.d(TAG, "Signaling server started on port 8888")
-                
+
                 while (isActive) {
                     val client = serverSocket?.accept() ?: break
                     connectedClients.add(client)
                     Log.d(TAG, "Client connected: ${client.inetAddress.hostAddress}")
-                    
-                    // Handle client messages in a new coroutine
+
                     launch { handleClientSignaling(client) }
                 }
             } catch (e: Exception) {
@@ -137,18 +129,17 @@ class WifiDirectManager(
             }
         }
     }
-    
+
     private suspend fun handleClientSignaling(client: Socket) {
         withContext(Dispatchers.IO) {
             try {
                 val input = ObjectInputStream(client.getInputStream())
                 val output = ObjectOutputStream(client.getOutputStream())
-                
-                // Keep reading WebRTC SDP/ICE payloads and forward them
+
                 while (isActive && !client.isClosed) {
                     val payload = input.readUTF()
                     Log.d(TAG, "Received signaling payload: $payload")
-                    // In a full implementation, we'd deserialize this and pass to LocalMeshVoiceEngine
+
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Client disconnected", e)
@@ -158,13 +149,13 @@ class WifiDirectManager(
             }
         }
     }
-    
+
     fun cleanup() {
         scope.cancel()
         serverSocket?.close()
         connectedClients.forEach { it.close() }
         connectedClients.clear()
-        
+
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             manager?.removeGroup(channel, object : WifiP2pManager.ActionListener {
                 override fun onSuccess() {}

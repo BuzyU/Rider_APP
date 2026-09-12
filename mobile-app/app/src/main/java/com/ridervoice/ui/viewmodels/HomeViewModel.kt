@@ -50,7 +50,7 @@ class HomeViewModel @Inject constructor(
             audioDeviceRouter.routerState.collectLatest { state ->
                 val configured = securePrefs.isDeviceConfigured()
                 val isConnected = state == RouterState.ACTIVE
-                
+
                 _uiState.value = _uiState.value.copy(
                     isDeviceConnected = isConnected,
                     deviceStatus = when {

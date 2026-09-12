@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing idToken" }, { status: 400 });
   }
 
-  const expiresIn = 1000 * 60 * 60 * 24 * 5; // 5 days
+  const expiresIn = 1000 * 60 * 60 * 24 * 5;
 
   try {
     const decoded = await adminAuth().verifyIdToken(idToken);
@@ -45,9 +45,10 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: `Auth error: ${error?.message || "Unknown error"}` },
+      { error: `Auth error: ${message}` },
       { status: 401 }
     );
   }

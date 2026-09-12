@@ -54,7 +54,7 @@ class InviteFriendsViewModel @Inject constructor(
                     inviteeId = friendId
                 )
                 apiService.sendRideInvite(req)
-                // Optionally mark friend as invited in UI state
+
             } catch (e: Exception) {
                 _error.value = "Failed to send invite: ${e.message}"
             }

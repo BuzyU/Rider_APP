@@ -1,31 +1,43 @@
 const requests = new Map()
 
-// Periodic eviction to prevent unbounded memory growth from stale IP keys
 function sweepExpiredIps(now = Date.now()) {
     for (const [ip, timestamps] of requests.entries()) {
-        const active = timestamps.filter(time => now - time < 60000)
-        if (active.length === 0) {
+        const cutoff = now - 60000
+        let firstValidIndex = 0
+        while (firstValidIndex < timestamps.length && timestamps[firstValidIndex] <= cutoff) {
+            firstValidIndex++
+        }
+        if (firstValidIndex >= timestamps.length) {
             requests.delete(ip)
-        } else {
-            requests.set(ip, active)
+        } else if (firstValidIndex > 0) {
+            requests.set(ip, timestamps.slice(firstValidIndex))
         }
     }
 }
 
 const sweepInterval = setInterval(() => sweepExpiredIps(), 2 * 60 * 1000)
-if (sweepInterval.unref) sweepInterval.unref() // Don't keep event loop alive on shutdown
+if (sweepInterval.unref) sweepInterval.unref()
 
 const rateLimiter = (req, res, next) => {
     const ip = req.ip
     const now = Date.now()
+    const cutoff = now - 60000
 
-    if (!requests.has(ip)) {
-        requests.set(ip, [])
+    let timestamps = requests.get(ip)
+    if (!timestamps) {
+        timestamps = [now]
+        requests.set(ip, timestamps)
+        return next()
     }
 
-    const timestamps = requests
-        .get(ip)
-        .filter(time => now - time < 60000)
+    let firstValidIndex = 0
+    while (firstValidIndex < timestamps.length && timestamps[firstValidIndex] <= cutoff) {
+        firstValidIndex++
+    }
+
+    if (firstValidIndex > 0) {
+        timestamps = timestamps.slice(firstValidIndex)
+    }
 
     timestamps.push(now)
     requests.set(ip, timestamps)
@@ -41,4 +53,3 @@ rateLimiter._requests = requests
 rateLimiter._sweep = sweepExpiredIps
 
 module.exports = rateLimiter
-

@@ -32,7 +32,6 @@ class MainActivity : ComponentActivity() {
 
     private val showPermissionRationale = mutableStateOf(false)
 
-    // Request required permissions at startup
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -45,10 +44,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Request RECORD_AUDIO + BLUETOOTH_CONNECT before entering the app
         permissionLauncher.launch(PermissionManager.requiredPermissions)
 
-        // Restore saved theme choice. Defaults to LIGHT — never reads system dark mode.
         com.ridervoice.ui.theme.ThemeState.set(securePreferences.getBoolean("dark_theme_enabled", false))
 
         val uriData = intent?.data
@@ -70,7 +67,6 @@ class MainActivity : ComponentActivity() {
                 val showUpdateSuccessDialog = remember { mutableStateOf(false) }
                 val updatedVersionName = remember { mutableStateOf("") }
 
-                // Post-update installation detection
                 LaunchedEffect(Unit) {
                     val lastRecordedVersion = securePreferences.getString("installed_version_name", "")
                     val currentVersion = BuildConfig.VERSION_NAME
@@ -83,13 +79,12 @@ class MainActivity : ComponentActivity() {
                             showUpdateSuccessDialog.value = true
                         }
                     }
-                    // Persist current version so the dialog only appears once
+
                     securePreferences.saveString("installed_version_name", currentVersion)
                 }
 
                 NavGraph(startRoute = initialRoute)
 
-                // Post-update success dialog (shown once)
                 if (showUpdateSuccessDialog.value) {
                     AlertDialog(
                         onDismissRequest = { showUpdateSuccessDialog.value = false },
@@ -157,4 +152,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-

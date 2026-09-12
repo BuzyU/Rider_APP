@@ -71,7 +71,7 @@ fun SosScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Header
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -97,7 +97,6 @@ fun SosScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Title
             Text(
                 text = "EMERGENCY TRANSMIT",
                 color = AlertRed,
@@ -107,10 +106,9 @@ fun SosScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Central State Handling
             when (state) {
                 is SosState.Sent -> {
-                    // CRITICAL FIX: Sent State Handled!
+
                     Surface(
                         color = if (isDark) DarkPalette.Surface else LightPalette.SurfaceAlt,
                         shape = RoundedCornerShape(16.dp),
@@ -189,7 +187,7 @@ fun SosScreen(
                 }
 
                 is SosState.Idle -> {
-                    // Countdown Circle
+
                     Box(
                         modifier = Modifier.size(240.dp),
                         contentAlignment = Alignment.Center
@@ -235,12 +233,11 @@ fun SosScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action Buttons Console
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Call 911 Direct Dial Button
+
                 Button(
                     onClick = {
                         val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:911"))
@@ -265,7 +262,6 @@ fun SosScreen(
                     )
                 }
 
-                // Send SOS Now (if not yet sent)
                 if (state !is SosState.Sent) {
                     Button(
                         onClick = onSend,
@@ -288,7 +284,6 @@ fun SosScreen(
                     }
                 }
 
-                // CRITICAL FIX: Giant glove-friendly Cancel Bar replacing tiny text button!
                 Button(
                     onClick = onCancelClick,
                     modifier = Modifier

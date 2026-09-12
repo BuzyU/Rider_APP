@@ -1,7 +1,6 @@
 package com.ridervoice.di
 
 import com.ridervoice.network.ApiService
-import com.ridervoice.security.AuthRepository
 import com.ridervoice.utils.Constants
 import dagger.Module
 import dagger.Provides
@@ -29,7 +28,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(authRepository: AuthRepository): OkHttpClient {
+    fun provideOkHttpClient(): OkHttpClient {
         val builder = OkHttpClient.Builder()
 
         if (com.ridervoice.BuildConfig.DEBUG) {

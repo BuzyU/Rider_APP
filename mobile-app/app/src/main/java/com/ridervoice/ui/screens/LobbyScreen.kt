@@ -226,7 +226,10 @@ fun LobbyScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
-                            onClick = { showAddRidersSheet = true },
+                            onClick = {
+                                showAddRidersSheet = true
+                                onInviteMoreClick()
+                            },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)

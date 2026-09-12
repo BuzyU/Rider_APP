@@ -16,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -85,7 +84,6 @@ fun InviteFriendsContent(
     onNavigateToSquad: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val isDark = ThemeState.isDarkTheme
 
     val friends by viewModel.friends.collectAsState()
@@ -255,6 +253,12 @@ fun InviteFriendsContent(
                                     color = if (isDark) Color.Black else Color.White,
                                     style = MaterialTheme.typography.labelLarge
                                 )
+                            }
+                            if (onNavigateToSquad != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                TextButton(onClick = onNavigateToSquad) {
+                                    Text("MANAGE SQUAD ROSTER →", color = ElectricCyan, style = MaterialTheme.typography.labelMedium)
+                                }
                             }
                         }
                     }

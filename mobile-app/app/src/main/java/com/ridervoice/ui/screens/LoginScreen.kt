@@ -379,7 +379,12 @@ fun LoginScreen(
                     }
 
                     OutlinedButton(
-                        onClick = { if (!isLoading) launchGoogleSignIn() },
+                        onClick = {
+                            if (!isLoading) {
+                                onGoogleSignInClick()
+                                launchGoogleSignIn()
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),

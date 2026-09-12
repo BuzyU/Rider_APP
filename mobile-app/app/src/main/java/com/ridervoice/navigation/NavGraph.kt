@@ -290,7 +290,7 @@ fun NavGraph(
         }
         composable(Routes.JOIN_ROOM) {
             JoinRoomScreen(
-                onJoin = { roomCode, userName ->
+                onJoin = { roomCode, _ ->
                     navController.navigate(Routes.deviceSetupPath(roomCode, isHost = false))
                 },
                 onBackClick = { navController.popBackStack() }
@@ -303,7 +303,7 @@ fun NavGraph(
             val token = backStackEntry.arguments?.getString("token") ?: ""
             JoinRoomScreen(
                 initialToken = token,
-                onJoin = { roomCode, userName ->
+                onJoin = { roomCode, _ ->
                     navController.navigate(Routes.deviceSetupPath(roomCode, isHost = false))
                 },
                 onBackClick = { navController.popBackStack() }

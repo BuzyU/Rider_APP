@@ -89,6 +89,13 @@ fun AccountScreen(
                         tint = ElectricCyan
                     )
                 }
+                IconButton(onClick = onNavigateToSettings) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = TextSecondary
+                    )
+                }
             }
 
             if (uiState.isLoading) {

@@ -252,12 +252,23 @@ fun RideReplayScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "TACTICAL TIMELINE",
-                            color = NeonOrange,
-                            style = MaterialTheme.typography.labelSmall,
-                            letterSpacing = 1.sp
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "TACTICAL TIMELINE",
+                                color = NeonOrange,
+                                style = MaterialTheme.typography.labelSmall,
+                                letterSpacing = 1.sp
+                            )
+                            if (events.isNotEmpty()) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "${events.size} EVENTS",
+                                    color = ElectricCyan,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
                         Text(
                             text = "${(timelineProgress * 100).toInt()}% COMPLETE",
                             color = TextSecondary,

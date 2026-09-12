@@ -28,7 +28,7 @@ import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportS
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.RoutePlannerViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, com.mapbox.maps.MapboxExperimental::class)
 @Composable
 fun RoutePlannerScreen(
     viewModel: RoutePlannerViewModel = hiltViewModel(),

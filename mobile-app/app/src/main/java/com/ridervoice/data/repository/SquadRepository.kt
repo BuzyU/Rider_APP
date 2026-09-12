@@ -35,6 +35,7 @@ class SquadRepository @Inject constructor(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     suspend fun addFriend(userId: String, handle: String): Result<Unit> {
         return try {
             val request = com.ridervoice.models.FriendRequest(handle = handle)

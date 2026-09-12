@@ -32,8 +32,6 @@ fun ProfileDrawer(
     onDeviceSetupClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
-    val isDark = ThemeState.isDarkTheme
-
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -75,6 +73,13 @@ fun ProfileDrawer(
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Black
                 )
+                Text(
+                    text = riderName,
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(TechGreen))
                     Spacer(modifier = Modifier.width(4.dp))

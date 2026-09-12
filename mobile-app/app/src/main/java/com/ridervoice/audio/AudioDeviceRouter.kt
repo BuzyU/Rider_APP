@@ -3,6 +3,7 @@ package com.ridervoice.audio
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHeadset
+import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -150,7 +151,8 @@ class AudioDeviceRouter @Inject constructor(
             )
         }
 
-        val btAdapter = BluetoothAdapter.getDefaultAdapter()
+        val btManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val btAdapter = btManager?.adapter ?: @Suppress("DEPRECATION") BluetoothAdapter.getDefaultAdapter()
         if (hasBluetoothConnectPermission()) {
             try {
                 btAdapter?.getProfileProxy(context, bluetoothProfileListener, BluetoothProfile.HEADSET)
@@ -160,6 +162,7 @@ class AudioDeviceRouter @Inject constructor(
         }
 
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        @Suppress("DEPRECATION")
         audioManager.isSpeakerphoneOn = false
 
         reEvaluatePriority()
@@ -184,8 +187,9 @@ class AudioDeviceRouter @Inject constructor(
             }
         }
 
-        BluetoothAdapter.getDefaultAdapter()
-            ?.closeProfileProxy(BluetoothProfile.HEADSET, bluetoothHeadset)
+        val btManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val btAdapter = btManager?.adapter ?: @Suppress("DEPRECATION") BluetoothAdapter.getDefaultAdapter()
+        btAdapter?.closeProfileProxy(BluetoothProfile.HEADSET, bluetoothHeadset)
         bluetoothHeadset = null
 
         audioManager.mode = AudioManager.MODE_NORMAL
@@ -237,6 +241,7 @@ class AudioDeviceRouter @Inject constructor(
 
     private fun reEvaluateLegacy(skipBluetooth: Boolean) {
 
+        @Suppress("DEPRECATION")
         val isWiredConnected = audioManager.isWiredHeadsetOn
 
         when {
@@ -317,6 +322,7 @@ class AudioDeviceRouter @Inject constructor(
     private fun safelyMuteVoiceCall() {
         val prev = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
         audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, 0, 0)
+        @Suppress("DEPRECATION")
         audioManager.isSpeakerphoneOn = false
         scope.launch {
             delay(200)

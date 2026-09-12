@@ -27,7 +27,6 @@ import com.ridervoice.ui.theme.*
 @Composable
 fun HeadsetSettingsScreen(onBackClick: () -> Unit) {
     val context = LocalContext.current
-    val isDark = ThemeState.isDarkTheme
     val prefs = remember { context.getSharedPreferences("headset_prefs", Context.MODE_PRIVATE) }
 
     var enableHardwarePtt by remember {

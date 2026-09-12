@@ -211,7 +211,6 @@ class UpdateManager @Inject constructor(
                         var totalDownloaded = 0L
                         var lastTimestamp = System.currentTimeMillis()
                         var bytesSinceLastTimestamp = 0L
-                        var currentSpeedText = "Calculating..."
 
                         while (input.read(buffer).also { bytesRead = it } != -1) {
                             ensureActive()
@@ -224,7 +223,7 @@ class UpdateManager @Inject constructor(
                             val elapsed = now - lastTimestamp
                             if (elapsed >= 800) {
                                 val speedBps = (bytesSinceLastTimestamp.toDouble() / (elapsed / 1000.0)).toLong()
-                                currentSpeedText = formatSpeed(speedBps)
+                                val currentSpeedText = formatSpeed(speedBps)
                                 lastTimestamp = now
                                 bytesSinceLastTimestamp = 0L
 

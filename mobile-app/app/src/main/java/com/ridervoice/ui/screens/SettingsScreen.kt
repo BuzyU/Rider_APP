@@ -38,7 +38,6 @@ fun SettingsScreen(
     onSignOutSuccess: () -> Unit = {}
 ) {
     val settingsState by settingsViewModel.settingsState.collectAsState()
-    val isDark = ThemeState.isDarkTheme
 
     var showOptionsDialog by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
     var showSignOutConfirmDialog by remember { mutableStateOf(false) }

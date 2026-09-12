@@ -260,6 +260,21 @@ fun HostSetupScreen(
                 }
             }
 
+            OutlinedButton(
+                onClick = onImportRouteClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+            ) {
+                Icon(Icons.Default.Map, contentDescription = "Import Route", tint = ElectricCyan, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("IMPORT PLANNED ROUTE", color = TextPrimary, style = MaterialTheme.typography.labelMedium)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Button(
                 onClick = {
                     viewModel.createConvoy(

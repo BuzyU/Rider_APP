@@ -134,7 +134,7 @@ class WifiDirectManager(
         withContext(Dispatchers.IO) {
             try {
                 val input = ObjectInputStream(client.getInputStream())
-                val output = ObjectOutputStream(client.getOutputStream())
+                ObjectOutputStream(client.getOutputStream())
 
                 while (isActive && !client.isClosed) {
                     val payload = input.readUTF()

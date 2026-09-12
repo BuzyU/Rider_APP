@@ -21,28 +21,38 @@ router.post('/invite', async (req, res, next) => {
                     { id: roomId },
                     { name: roomId }
                 ]
-            }
+            },
+            select: { id: true, name: true }
         })
         if (!room) {
             return res.status(404).json({ error: 'Room not found' })
         }
 
-        const isFriend = await prisma.friendship.findFirst({
-            where: {
-                status: 'ACCEPTED',
-                OR: [
-                    { requesterId: inviterId, addresseeId: inviteeId },
-                    { requesterId: inviteeId, addresseeId: inviterId }
-                ]
-            }
-        })
+        const [isFriend, existingInvite, inviter] = await Promise.all([
+            prisma.friendship.findFirst({
+                where: {
+                    status: 'ACCEPTED',
+                    OR: [
+                        { requesterId: inviterId, addresseeId: inviteeId },
+                        { requesterId: inviteeId, addresseeId: inviterId }
+                    ]
+                },
+                select: { id: true }
+            }),
+            prisma.rideInvite.findFirst({
+                where: { roomId: room.id, inviterId, inviteeId, status: 'PENDING' },
+                select: { id: true }
+            }),
+            prisma.user.findUnique({
+                where: { id: inviterId },
+                select: { handle: true, displayName: true }
+            })
+        ])
+
         if (!isFriend) {
             return res.status(403).json({ error: 'Can only invite friends' })
         }
 
-        const existingInvite = await prisma.rideInvite.findFirst({
-            where: { roomId: room.id, inviterId, inviteeId, status: 'PENDING' }
-        })
         if (existingInvite) {
             return res.status(409).json({ error: 'Invite already pending' })
         }
@@ -51,13 +61,12 @@ router.post('/invite', async (req, res, next) => {
             data: { roomId: room.id, inviterId, inviteeId, status: 'PENDING' }
         })
 
-        const inviter = await prisma.user.findUnique({ where: { id: inviterId } })
         if (inviter) {
-            await notificationService.sendRideInvite(
+            notificationService.sendRideInvite(
                 inviter.handle || inviter.displayName || 'A rider',
                 inviteeId,
                 room.name
-            )
+            ).catch(err => console.error('[Notification] sendRideInvite non-fatal error:', err.message))
         }
 
         res.status(201).json(invite)
@@ -75,7 +84,10 @@ router.post('/respond', async (req, res, next) => {
     }
 
     try {
-        const invite = await prisma.rideInvite.findUnique({ where: { id: inviteId } })
+        const invite = await prisma.rideInvite.findUnique({
+            where: { id: inviteId },
+            select: { id: true, inviteeId: true, status: true }
+        })
         if (!invite || invite.inviteeId !== inviteeId) {
             return res.status(403).json({ error: 'Not your invite' })
         }
@@ -103,22 +115,37 @@ router.get('/invites/:userId', async (req, res, next) => {
     try {
         const invites = await prisma.rideInvite.findMany({
             where: { inviteeId: userId, status: 'PENDING' },
-            include: {
+            select: {
+                id: true,
+                roomId: true,
+                inviterId: true,
+                inviteeId: true,
+                status: true,
+                createdAt: true,
                 inviter: { select: { handle: true, displayName: true } },
                 room: { select: { name: true } }
             }
         })
 
-        const formatted = invites.map(i => ({
-            ...i,
-            inviter: {
-                handle: i.inviter?.handle || i.inviter?.displayName || 'Rider',
-                displayName: i.inviter?.displayName || null
-            },
-            room: {
-                name: i.room?.name || 'Convoy'
+        const formatted = new Array(invites.length)
+        for (let i = 0; i < invites.length; i++) {
+            const inv = invites[i]
+            formatted[i] = {
+                id: inv.id,
+                roomId: inv.roomId,
+                inviterId: inv.inviterId,
+                inviteeId: inv.inviteeId,
+                status: inv.status,
+                createdAt: inv.createdAt,
+                inviter: {
+                    handle: inv.inviter?.handle || inv.inviter?.displayName || 'Rider',
+                    displayName: inv.inviter?.displayName || null
+                },
+                room: {
+                    name: inv.room?.name || 'Convoy'
+                }
             }
-        }))
+        }
 
         res.json(formatted)
     } catch (error) {

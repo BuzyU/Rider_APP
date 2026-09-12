@@ -15,7 +15,8 @@ router.post('/request', async (req, res, next) => {
         if (handle) {
             const cleanHandle = handle.startsWith('@') ? handle.substring(1).trim() : handle.trim()
             const userByHandle = await prisma.user.findFirst({
-                where: { handle: { equals: cleanHandle, mode: 'insensitive' } }
+                where: { handle: { equals: cleanHandle, mode: 'insensitive' } },
+                select: { id: true }
             })
             if (!userByHandle) {
                 return res.status(404).json({ error: `Rider @${cleanHandle} not found` })
@@ -27,7 +28,10 @@ router.post('/request', async (req, res, next) => {
             return res.status(400).json({ error: 'Cannot add yourself to squad' })
         }
 
-        const addressee = await prisma.user.findUnique({ where: { id: targetId } })
+        const addressee = await prisma.user.findUnique({
+            where: { id: targetId },
+            select: { id: true }
+        })
         if (!addressee) {
             return res.status(404).json({ error: 'Rider not found' })
         }
@@ -38,8 +42,10 @@ router.post('/request', async (req, res, next) => {
                     { requesterId, addresseeId: targetId },
                     { requesterId: targetId, addresseeId: requesterId }
                 ]
-            }
+            },
+            select: { id: true, status: true, requesterId: true, addresseeId: true, createdAt: true }
         })
+
         if (existing) {
             if (existing.status !== 'ACCEPTED') {
                 const updated = await prisma.friendship.update({
@@ -70,7 +76,8 @@ router.post('/accept', async (req, res, next) => {
 
     try {
         const friendship = await prisma.friendship.findUnique({
-            where: { requesterId_addresseeId: { requesterId, addresseeId } }
+            where: { requesterId_addresseeId: { requesterId, addresseeId } },
+            select: { id: true, status: true }
         })
 
         if (!friendship) {
@@ -118,28 +125,29 @@ router.get('/list/:userId', async (req, res, next) => {
     }
 
     try {
-        await prisma.friendship.updateMany({
-            where: {
-                status: 'PENDING',
-                OR: [{ requesterId: userId }, { addresseeId: userId }]
-            },
-            data: { status: 'ACCEPTED' }
-        }).catch(() => {})
-
         const friends = await prisma.friendship.findMany({
             where: {
                 status: 'ACCEPTED',
                 OR: [{ requesterId: userId }, { addresseeId: userId }]
             },
-            include: {
+            select: {
+                requesterId: true,
                 requester: { select: { id: true, handle: true, displayName: true, bikeModel: true } },
                 addressee: { select: { id: true, handle: true, displayName: true, bikeModel: true } }
             }
         })
 
-        const friendList = friends.map(f =>
-            f.requesterId === userId ? f.addressee : f.requester
-        )
+        const friendList = new Array(friends.length)
+        for (let i = 0; i < friends.length; i++) {
+            const f = friends[i]
+            const u = f.requesterId === userId ? f.addressee : f.requester
+            friendList[i] = {
+                id: u.id,
+                handle: u.handle || u.displayName || 'Rider',
+                displayName: u.displayName || null,
+                bikeModel: u.bikeModel || null
+            }
+        }
         res.json(friendList)
     } catch (error) {
         next(error)
@@ -150,7 +158,12 @@ router.get('/pending', async (req, res, next) => {
     try {
         const requests = await prisma.friendship.findMany({
             where: { addresseeId: req.user.uid, status: 'PENDING' },
-            include: {
+            select: {
+                id: true,
+                requesterId: true,
+                addresseeId: true,
+                status: true,
+                createdAt: true,
                 requester: { select: { id: true, handle: true, displayName: true } }
             }
         })

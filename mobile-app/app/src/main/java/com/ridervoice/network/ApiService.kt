@@ -79,10 +79,13 @@ interface ApiService {
     suspend fun getRoomToken(@Body body: RoomTokenRequest): Response<RoomData>
 
     @POST("/api/emergency/alert")
-    suspend fun sendSosAlert(@Body body: com.ridervoice.models.SosAlertRequest): Response<Any>
+    suspend fun sendSosAlert(@Body body: com.ridervoice.models.SosAlertRequest): Response<com.ridervoice.models.SosAlertResponse>
 
     @POST("/api/emergency/cancel")
-    suspend fun cancelEmergencyAlert(@Body body: com.ridervoice.models.CancelAlertRequest): Response<Any>
+    suspend fun cancelEmergencyAlert(@Body body: com.ridervoice.models.CancelAlertRequest): Response<com.ridervoice.models.CancelAlertResponse>
+
+    @POST("/api/rides/sync")
+    suspend fun syncRide(@Body body: com.ridervoice.models.SyncRideRequest): Response<com.ridervoice.models.SyncRideResponse>
 
     @GET("/api/rides/history")
     suspend fun getRideHistory(): Response<List<com.ridervoice.models.RideHistoryResponse>>

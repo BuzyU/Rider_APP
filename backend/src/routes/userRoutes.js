@@ -25,9 +25,22 @@ router.post('/profile', async (req, res, next) => {
                 bikeModel: bikeModel || null,
                 bio: bio || null,
                 phone: phone || null
+            },
+            select: {
+                id: true,
+                handle: true,
+                displayName: true,
+                bikeModel: true,
+                bio: true,
+                email: true,
+                phone: true,
+                createdAt: true
             }
         })
-        res.json(user)
+        res.json({
+            ...user,
+            createdAt: user.createdAt ? user.createdAt.toISOString() : null
+        })
     } catch (error) {
         if (error.code === 'P2002') {
             return res.status(409).json({ error: 'Handle already taken' })
@@ -47,10 +60,22 @@ router.get('/search', async (req, res, next) => {
     try {
         const user = await prisma.user.findFirst({
             where: { handle: { equals: cleanHandle, mode: 'insensitive' } },
-            select: { id: true, handle: true, displayName: true, bikeModel: true, bio: true }
+            select: {
+                id: true,
+                handle: true,
+                displayName: true,
+                bikeModel: true,
+                bio: true,
+                email: true,
+                phone: true,
+                createdAt: true
+            }
         })
         if (!user) return res.status(404).json({ error: 'Rider not found' })
-        res.json(user)
+        res.json({
+            ...user,
+            createdAt: user.createdAt ? user.createdAt.toISOString() : null
+        })
     } catch (error) {
         next(error)
     }
@@ -72,7 +97,10 @@ router.get('/me', async (req, res, next) => {
             }
         })
         if (!user) return res.status(404).json({ error: 'Profile not found. Call POST /profile first.' })
-        res.json(user)
+        res.json({
+            ...user,
+            createdAt: user.createdAt ? user.createdAt.toISOString() : null
+        })
     } catch (error) {
         next(error)
     }
@@ -89,7 +117,8 @@ router.post('/fcm-token', async (req, res, next) => {
         const device = await prisma.deviceToken.upsert({
             where: { token },
             update: { userId, platform, updatedAt: new Date() },
-            create: { userId, token, platform }
+            create: { userId, token, platform },
+            select: { id: true, userId: true, token: true, platform: true }
         })
         res.json(device)
     } catch (error) {

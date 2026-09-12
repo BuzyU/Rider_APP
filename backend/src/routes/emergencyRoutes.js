@@ -43,12 +43,28 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
     try {
         const room = await prisma.room.findUnique({
             where: { name: roomName },
-            include: { invites: { where: { status: 'ACCEPTED' } } }
+            select: {
+                id: true,
+                name: true,
+                ownerId: true,
+                invites: {
+                    where: { status: 'ACCEPTED' },
+                    select: { inviteeId: true }
+                }
+            }
         })
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
-        const recipientIds = new Set([room.ownerId, ...room.invites.map(i => i.inviteeId)])
-        recipientIds.delete(userId)
+        const recipientIds = new Set()
+        if (room.ownerId !== userId) {
+            recipientIds.add(room.ownerId)
+        }
+        for (let i = 0; i < room.invites.length; i++) {
+            const inviteeId = room.invites[i].inviteeId
+            if (inviteeId !== userId) {
+                recipientIds.add(inviteeId)
+            }
+        }
 
         const recipientList = Array.from(recipientIds)
         const parsedLat = typeof lat === 'number' ? lat : (lat ? parseFloat(lat) : null)
@@ -63,10 +79,13 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
                 lng: parsedLng,
                 recipients: recipientList,
                 status: 'SENT'
-            }
+            },
+            select: { id: true }
         })
 
-        await notificationService.sendEmergencyAlert(recipientList, 'SOS', parsedLat, parsedLng)
+        notificationService.sendEmergencyAlert(recipientList, 'SOS', parsedLat, parsedLng)
+            .catch(err => console.error('[Emergency] sendEmergencyAlert non-fatal error:', err.message))
+
         res.status(200).json({ sent: true, alertId: alert.id })
     } catch (error) {
         next(error)

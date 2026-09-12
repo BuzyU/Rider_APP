@@ -41,6 +41,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -118,13 +119,17 @@ class EmergencyAlertActivity : ComponentActivity() {
                         lng = loc?.longitude
                     )
                 )
-                if (response.isSuccessful) {
-                    onResult(true, null)
-                } else {
-                    onResult(false, "Dispatch error: ${response.code()}")
+                withContext(Dispatchers.Main) {
+                    if (response.isSuccessful) {
+                        onResult(true, null)
+                    } else {
+                        onResult(false, "Dispatch error: ${response.code()}")
+                    }
                 }
             } catch (e: Exception) {
-                onResult(false, e.message ?: "Network failure")
+                withContext(Dispatchers.Main) {
+                    onResult(false, e.message ?: "Network failure")
+                }
             }
         }
     }

@@ -60,6 +60,7 @@ class RideStatsViewModel @Inject constructor(
                     totalTime = timeStr,
                     avgSpeed = String.format(Locale.US, "%.0f", avgSpeedKmh),
                     topSpeed = topSpeedStr,
+                    totalRidesCount = sessions.size,
                     speedDataPoints = emptyList()
                 )
             }
@@ -71,16 +72,49 @@ class RideStatsViewModel @Inject constructor(
     private fun syncRides() {
         viewModelScope.launch {
             try {
+                val unsynced = rideDao.getUnsyncedSessions()
+                for (session in unsynced) {
+                    if (session.endTime == null) continue
+                    val startIso = java.time.Instant.ofEpochMilli(session.startTime).toString()
+                    val endIso = java.time.Instant.ofEpochMilli(session.endTime).toString()
+                    val syncReq = com.ridervoice.models.SyncRideRequest(
+                        roomName = session.roomName,
+                        startTime = startIso,
+                        endTime = endIso,
+                        distanceKm = session.totalDistanceMeters / 1000f,
+                        privacyState = "PRIVATE"
+                    )
+                    val syncRes = apiService.syncRide(syncReq)
+                    if (syncRes.isSuccessful) {
+                        rideDao.updateSession(session.copy(isSynced = true))
+                    }
+                }
+            } catch (_: Exception) {
+            }
+
+            try {
                 val response = apiService.getRideHistory()
                 if (response.isSuccessful) {
                     val rides = response.body() ?: emptyList()
-                    val formatter = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-                    formatter.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                    val fallbackFormatter = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                        timeZone = java.util.TimeZone.getTimeZone("UTC")
+                    }
 
-                    rides.forEach { rideResponse ->
+                    for (rideResponse in rides) {
                         try {
-                            val startMs = formatter.parse(rideResponse.startTime)?.time ?: return@forEach
-                            val endMs = rideResponse.endTime?.let { formatter.parse(it)?.time }
+                            val startMs = try {
+                                java.time.Instant.parse(rideResponse.startTime).toEpochMilli()
+                            } catch (_: Exception) {
+                                fallbackFormatter.parse(rideResponse.startTime)?.time ?: continue
+                            }
+
+                            val endMs = rideResponse.endTime?.let {
+                                try {
+                                    java.time.Instant.parse(it).toEpochMilli()
+                                } catch (_: Exception) {
+                                    fallbackFormatter.parse(it)?.time
+                                }
+                            }
 
                             val existing = rideDao.getSessionById(rideResponse.id)
                             val resolvedRoomName = rideResponse.roomName?.takeIf { it.isNotBlank() }
@@ -96,13 +130,11 @@ class RideStatsViewModel @Inject constructor(
                                 isSynced = true
                             )
                             rideDao.insertSession(entity)
-                        } catch (e: Exception) {
-
+                        } catch (_: Exception) {
                         }
                     }
                 }
-            } catch (e: Exception) {
-
+            } catch (_: Exception) {
             }
         }
     }

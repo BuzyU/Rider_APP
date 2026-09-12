@@ -164,6 +164,8 @@ class RideInviteActivity : ComponentActivity() {
                                     if (tokenRes.isSuccessful && tokenRes.body() != null) {
                                         RideSession.livekitToken = tokenRes.body()!!.token
                                         RideSession.livekitUrl = tokenRes.body()!!.livekitUrl
+                                        RideSession.activeRoomName = roomName
+                                        RideSession.isHost = false
                                     }
 
                                     val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {

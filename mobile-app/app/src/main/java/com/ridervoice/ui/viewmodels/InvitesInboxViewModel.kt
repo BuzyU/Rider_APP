@@ -62,10 +62,10 @@ class InvitesInboxViewModel @Inject constructor(
                         val tokenRes = apiService.getJoinToken(tokenReq)
                         if (tokenRes.isSuccessful && tokenRes.body() != null) {
                             val body = tokenRes.body()!!
-
                             com.ridervoice.models.RideSession.livekitToken = body.token
                             com.ridervoice.models.RideSession.livekitUrl = body.livekitUrl
-
+                            com.ridervoice.models.RideSession.activeRoomName = invite.room.name
+                            com.ridervoice.models.RideSession.isHost = false
                             onAcceptSuccess(invite.room.name)
                         } else {
                             _error.value = "Failed to get join token"

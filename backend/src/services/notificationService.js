@@ -4,17 +4,22 @@ const prisma = require('../db')
 class NotificationService {
     async sendToUser(userId, payload) {
         try {
-            const tokens = await prisma.deviceToken.findMany({ where: { userId } })
+            const tokens = await prisma.deviceToken.findMany({
+                where: { userId },
+                select: { token: true }
+            })
             if (tokens.length === 0) return
 
-            const messages = tokens.map(t => ({
-                token: t.token,
-                data: payload.data,
-                android: { priority: 'high' }
-            }))
+            const messages = new Array(tokens.length)
+            for (let i = 0; i < tokens.length; i++) {
+                messages[i] = {
+                    token: tokens[i].token,
+                    data: payload.data,
+                    android: { priority: 'high' }
+                }
+            }
 
             const response = await admin.messaging().sendEach(messages)
-            console.log(`FCM: ${response.successCount}/${messages.length} delivered to ${userId}`)
 
             const staleTokens = []
             for (let i = 0; i < response.responses.length; i++) {
@@ -34,7 +39,6 @@ class NotificationService {
                 await prisma.deviceToken.deleteMany({
                     where: { token: { in: staleTokens } }
                 })
-                console.log(`FCM: removed ${staleTokens.length} stale token(s) for ${userId}`)
             }
 
         } catch (error) {

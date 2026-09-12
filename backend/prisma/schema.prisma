@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,17 +8,16 @@ datasource db {
 }
 
 model User {
-  id          String   @id // Firebase UID
+  id          String   @id
   email       String?  @unique
   phone       String?  @unique
-  handle      String?  @unique // e.g., @NightRider99
+  handle      String?  @unique
   displayName String?
-  bikeModel   String?  // e.g., "Yamaha MT-07"
+  bikeModel   String?
   bio         String?
   role        user_role @default(CUSTOMER)
   createdAt   DateTime @default(now())
 
-  // Relations
   sentFriendRequests     Friendship[]  @relation("Requester")
   receivedFriendRequests Friendship[]  @relation("Addressee")
   sentInvites            RideInvite[]  @relation("Inviter")
@@ -35,10 +31,12 @@ model DeviceToken {
   id        String   @id @default(uuid())
   userId    String
   token     String   @unique
-  platform  String   // "android" or "ios"
+  platform  String
   updatedAt DateTime @updatedAt
 
   user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 enum FriendStatus {
@@ -58,17 +56,21 @@ model Friendship {
   addressee   User @relation("Addressee", fields: [addresseeId], references: [id])
   
   @@unique([requesterId, addresseeId])
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
 }
 
 model Room {
   id        String       @id @default(uuid())
-  name      String       @unique // e.g., "PUNE NIGHT RIDERS"
+  name      String       @unique
   ownerId   String
   createdAt DateTime     @default(now())
   
   invites    RideInvite[]
   alerts     EmergencyAlert[]
   joinTokens RoomJoinToken[]
+
+  @@index([ownerId])
 }
 
 enum InviteStatus {
@@ -86,6 +88,8 @@ model RoomJoinToken {
   createdAt DateTime @default(now())
 
   room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
 }
 
 model RideInvite {
@@ -99,6 +103,10 @@ model RideInvite {
   room        Room @relation(fields: [roomId], references: [id])
   inviter     User @relation("Inviter", fields: [inviterId], references: [id])
   invitee     User @relation("Invitee", fields: [inviteeId], references: [id])
+
+  @@index([roomId, status])
+  @@index([inviteeId, status])
+  @@index([inviterId, status])
 }
 
 model RideSession {
@@ -108,22 +116,26 @@ model RideSession {
   startTime    DateTime
   endTime      DateTime?
   distanceKm   Float
-  privacyState String         @default("PRIVATE") // PRIVATE, SQUAD, PUBLIC
-  routeJson    String?        // Compressed GeoJSON LineString
+  privacyState String         @default("PRIVATE")
+  routeJson    String?
   
   user         User           @relation(fields: [riderId], references: [id])
   events       ConvoyEvent[]
+
+  @@index([riderId, startTime(sort: Desc)])
 }
 
 model ConvoyEvent {
   id        String   @id @default(uuid())
   rideId    String
-  type      String   // STOP, RECONNECT, SPLIT, HIGH_SPEED
+  type      String
   lat       Float
   lng       Float
   timestamp DateTime
 
   ride      RideSession @relation(fields: [rideId], references: [id])
+
+  @@index([rideId])
 }
 
 model EmergencyAlert {
@@ -134,11 +146,14 @@ model EmergencyAlert {
   lat        Float?
   lng        Float?
   recipients String[]
-  status     String   @default("SENT") // SENT, FAILED
+  status     String   @default("SENT")
   createdAt  DateTime @default(now())
 
   sender     User     @relation("AlertSender", fields: [senderId], references: [id])
   room       Room     @relation(fields: [roomId], references: [id])
+
+  @@index([roomName, senderId])
+  @@index([senderId])
 }
 
 enum user_role {

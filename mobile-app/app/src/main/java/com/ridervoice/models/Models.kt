@@ -179,3 +179,35 @@ data class RideHistoryResponse(
     val routeJson: String?,
     val roomName: String? = null
 )
+
+data class SosAlertResponse(
+    val sent: Boolean,
+    val alertId: String? = null
+)
+
+data class CancelAlertResponse(
+    val cancelled: Boolean,
+    val reason: String? = null
+)
+
+data class SyncRideRequest(
+    val roomName: String? = null,
+    val startTime: String,
+    val endTime: String? = null,
+    val distanceKm: Float = 0f,
+    val privacyState: String = "PRIVATE",
+    val routeJson: String? = null,
+    val events: List<SyncRideEvent>? = null
+)
+
+data class SyncRideEvent(
+    val eventType: String,
+    val lat: Double,
+    val lng: Double,
+    val timestamp: String
+)
+
+data class SyncRideResponse(
+    val success: Boolean,
+    val rideId: String
+)

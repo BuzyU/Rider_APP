@@ -23,7 +23,10 @@ router.post('/create', async (req, res, next) => {
     }
 
     try {
-        const existing = await prisma.room.findUnique({ where: { name: convoyName } })
+        const existing = await prisma.room.findUnique({
+            where: { name: convoyName },
+            select: { id: true }
+        })
         if (existing) {
             return res.status(409).json({ error: 'A convoy with that name already exists' })
         }
@@ -32,6 +35,10 @@ router.post('/create', async (req, res, next) => {
             data: {
                 name: convoyName,
                 ownerId: hostId,
+            },
+            select: {
+                id: true,
+                name: true
             }
         })
 
@@ -52,10 +59,15 @@ router.get('/:roomName/status', async (req, res, next) => {
     try {
         const room = await prisma.room.findUnique({
             where: { name: roomName },
-            include: {
+            select: {
+                id: true,
+                name: true,
+                ownerId: true,
                 invites: {
                     where: { status: { not: 'REMOVED' } },
-                    include: {
+                    select: {
+                        id: true,
+                        status: true,
                         invitee: {
                             select: { id: true, handle: true, displayName: true, bikeModel: true }
                         }
@@ -80,7 +92,12 @@ router.get('/:roomName/status', async (req, res, next) => {
             formattedInvites[i] = {
                 inviteId: inv.id,
                 status: inv.status,
-                invitee: inv.invitee,
+                invitee: {
+                    id: inv.invitee.id,
+                    handle: inv.invitee.handle || inv.invitee.displayName || 'Rider',
+                    displayName: inv.invitee.displayName,
+                    bikeModel: inv.invitee.bikeModel
+                },
             }
             if (inv.status === 'ACCEPTED') acceptedCount++
             else if (inv.status === 'PENDING') pendingCount++
@@ -109,7 +126,8 @@ router.post('/:roomName/start', async (req, res, next) => {
 
     try {
         const room = await prisma.room.findUnique({
-            where: { name: roomName }
+            where: { name: roomName },
+            select: { ownerId: true }
         })
 
         if (!room) return res.status(404).json({ error: 'Room not found' })
@@ -136,23 +154,21 @@ router.post('/join-token', async (req, res, next) => {
     if (!roomName) return res.status(400).json({ error: 'roomName is required' })
 
     try {
-        const room = await prisma.room.findUnique({ where: { name: roomName } })
+        const room = await prisma.room.findUnique({
+            where: { name: roomName },
+            select: {
+                id: true,
+                ownerId: true,
+                invites: {
+                    where: { inviteeId: user.uid, status: 'ACCEPTED' },
+                    select: { id: true },
+                    take: 1
+                }
+            }
+        })
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
-        const isHost = room.ownerId === user.uid
-        let isAuthorized = isHost
-
-        if (!isAuthorized) {
-            const invite = await prisma.rideInvite.findFirst({
-                where: {
-                    roomId: room.id,
-                    inviteeId: user.uid,
-                    status: 'ACCEPTED'
-                }
-            })
-            if (invite) isAuthorized = true
-        }
-
+        const isAuthorized = room.ownerId === user.uid || room.invites.length > 0
         if (!isAuthorized) {
             return res.status(403).json({ error: 'No accepted invite found for this room' })
         }
@@ -176,19 +192,21 @@ router.post('/:roomName/share-link', async (req, res, next) => {
     const user = req.user
 
     try {
-        const room = await prisma.room.findUnique({ where: { name: roomName } })
+        const room = await prisma.room.findUnique({
+            where: { name: roomName },
+            select: {
+                id: true,
+                ownerId: true,
+                invites: {
+                    where: { inviteeId: user.uid, status: 'ACCEPTED' },
+                    select: { id: true },
+                    take: 1
+                }
+            }
+        })
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
-        const isHost = room.ownerId === user.uid
-        let isAuthorized = isHost
-
-        if (!isAuthorized) {
-            const isMember = await prisma.rideInvite.findFirst({
-                where: { roomId: room.id, inviteeId: user.uid, status: 'ACCEPTED' }
-            })
-            if (isMember) isAuthorized = true
-        }
-
+        const isAuthorized = room.ownerId === user.uid || room.invites.length > 0
         if (!isAuthorized) {
             return res.status(403).json({ error: 'Only convoy participants can share join links' })
         }
@@ -201,7 +219,8 @@ router.post('/:roomName/share-link', async (req, res, next) => {
                 roomId: room.id,
                 token,
                 expiresAt
-            }
+            },
+            select: { id: true }
         })
 
         res.json({
@@ -223,7 +242,16 @@ router.post('/join-via-token', async (req, res, next) => {
     try {
         const joinTokenRecord = await prisma.roomJoinToken.findUnique({
             where: { token },
-            include: { room: true }
+            select: {
+                expiresAt: true,
+                room: {
+                    select: {
+                        id: true,
+                        name: true,
+                        ownerId: true
+                    }
+                }
+            }
         })
 
         if (!joinTokenRecord) {
@@ -237,13 +265,15 @@ router.post('/join-via-token', async (req, res, next) => {
         const room = joinTokenRecord.room
 
         const existingInvite = await prisma.rideInvite.findFirst({
-            where: { roomId: room.id, inviteeId: user.uid }
+            where: { roomId: room.id, inviteeId: user.uid },
+            select: { id: true }
         })
 
         if (existingInvite) {
             await prisma.rideInvite.update({
                 where: { id: existingInvite.id },
-                data: { status: 'ACCEPTED' }
+                data: { status: 'ACCEPTED' },
+                select: { id: true }
             })
         } else {
             await prisma.rideInvite.create({
@@ -252,7 +282,8 @@ router.post('/join-via-token', async (req, res, next) => {
                     inviterId: room.ownerId,
                     inviteeId: user.uid,
                     status: 'ACCEPTED'
-                }
+                },
+                select: { id: true }
             })
         }
 
@@ -279,7 +310,10 @@ router.delete('/:roomName/riders/:userId', async (req, res, next) => {
     const hostId = req.user.uid
 
     try {
-        const room = await prisma.room.findUnique({ where: { name: roomName } })
+        const room = await prisma.room.findUnique({
+            where: { name: roomName },
+            select: { id: true, ownerId: true }
+        })
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
         if (room.ownerId !== hostId) {
@@ -312,7 +346,10 @@ router.post('/:roomName/end', async (req, res, next) => {
     const hostId = req.user.uid
 
     try {
-        const room = await prisma.room.findUnique({ where: { name: roomName } })
+        const room = await prisma.room.findUnique({
+            where: { name: roomName },
+            select: { ownerId: true }
+        })
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
         if (room.ownerId !== hostId) {
@@ -343,7 +380,10 @@ router.post('/:roomName/transfer-host', async (req, res, next) => {
     if (!newHostId) return res.status(400).json({ error: 'newHostId is required' })
 
     try {
-        const room = await prisma.room.findUnique({ where: { name: roomName } })
+        const room = await prisma.room.findUnique({
+            where: { name: roomName },
+            select: { id: true, ownerId: true }
+        })
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
         if (room.ownerId !== hostId) {
@@ -352,7 +392,8 @@ router.post('/:roomName/transfer-host', async (req, res, next) => {
 
         await prisma.room.update({
             where: { id: room.id },
-            data: { ownerId: newHostId }
+            data: { ownerId: newHostId },
+            select: { id: true }
         })
 
         res.json({ success: true, newHostId })

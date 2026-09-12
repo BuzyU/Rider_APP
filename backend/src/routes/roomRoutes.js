@@ -15,16 +15,20 @@ router.post('/room/token', async (req, res) => {
 
         const existingRoom = await prisma.room.findUnique({
             where: { name: roomName },
-            include: { invites: { where: { status: 'ACCEPTED' } } }
+            select: {
+                id: true,
+                ownerId: true,
+                invites: {
+                    where: { inviteeId: user.uid, status: 'ACCEPTED' },
+                    select: { id: true },
+                    take: 1
+                }
+            }
         })
 
         if (existingRoom) {
-            const isOwner = existingRoom.ownerId === user.uid
-            const hasAcceptedInvite = isOwner || existingRoom.invites.some(
-                i => i.inviteeId === user.uid && (!i.status || i.status === 'ACCEPTED')
-            )
-
-            if (!hasAcceptedInvite) {
+            const isAuthorized = existingRoom.ownerId === user.uid || existingRoom.invites.length > 0
+            if (!isAuthorized) {
                 return res.status(403).json({ error: 'Access denied: you are not a member of this room' })
             }
         } else {
@@ -32,7 +36,8 @@ router.post('/room/token', async (req, res) => {
                 data: {
                     name: roomName,
                     ownerId: user.uid
-                }
+                },
+                select: { id: true }
             })
         }
 

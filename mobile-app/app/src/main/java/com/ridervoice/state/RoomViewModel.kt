@@ -45,6 +45,8 @@ class RoomViewModel @Inject constructor(
 
     val connectionState: StateFlow<ConnectionState> = liveKitManager.connectionState
     val remoteLocations: StateFlow<Map<String, RiderLocation>> = liveKitManager.remoteLocations
+    val activeSpeaker: StateFlow<String?> = liveKitManager.activeSpeaker
+    val currentLocation: StateFlow<android.location.Location?> = locationService.currentLocation
     val networkHealth: StateFlow<NetworkHealth> = networkResilienceManager.networkHealth
     val isMicEnabled: StateFlow<Boolean> = liveKitManager.isMicEnabled
 
@@ -77,10 +79,10 @@ class RoomViewModel @Inject constructor(
     private var currentUserName = ""
 
     init {
-
         liveKitManager.participants
             .onEach { activeIdentities ->
                 val now = System.currentTimeMillis()
+                val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
                 val current = _participants.value.toMutableList()
 
                 current.forEachIndexed { idx, p ->
@@ -91,10 +93,18 @@ class RoomViewModel @Inject constructor(
 
                 activeIdentities.forEach { identity ->
                     val idx = current.indexOfFirst { it.identity == identity }
+                    val name = if (identity == currentUid) {
+                        currentUserName.ifBlank { "You" }
+                    } else null
+
                     if (idx >= 0) {
-                        current[idx] = current[idx].copy(isGhost = false, disconnectedAt = null)
+                        current[idx] = current[idx].copy(
+                            isGhost = false,
+                            disconnectedAt = null,
+                            displayName = name ?: current[idx].displayName
+                        )
                     } else {
-                        current.add(Participant(identity = identity))
+                        current.add(Participant(identity = identity, displayName = name))
                     }
                 }
                 _participants.value = current
@@ -104,13 +114,15 @@ class RoomViewModel @Inject constructor(
         locationService.currentLocation
             .filterNotNull()
             .onEach { loc ->
+                val myIdentity = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                    ?: currentUserName
 
                 voxEngine.updateSpeed(loc.speed)
 
                 if (liveKitManager.connectionState.value == ConnectionState.CONNECTED) {
                     liveKitManager.publishLocation(
                         RiderLocation(
-                            riderId = currentUserName,
+                            riderId = myIdentity,
                             lat = loc.latitude,
                             lng = loc.longitude,
                             speed = loc.speed,

@@ -1,6 +1,7 @@
 package com.ridervoice.ui.screens
 
 import android.content.Intent
+import android.location.Location
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
@@ -61,6 +62,9 @@ fun RoomScreen(
 
     val connectionState by viewModel.connectionState.collectAsState()
     val participants by viewModel.participants.collectAsState()
+    val activeSpeaker by viewModel.activeSpeaker.collectAsState()
+    val remoteLocations by viewModel.remoteLocations.collectAsState()
+    val currentLocation by viewModel.currentLocation.collectAsState()
     val isMicEnabled by viewModel.isMicEnabled.collectAsState()
     val isVoxOpen by viewModel.isVoxOpen.collectAsState()
     val activeDevice by viewModel.activeAudioDevice.collectAsState()
@@ -371,9 +375,16 @@ fun RoomScreen(
                     letterSpacing = 1.sp
                 )
                 Text(
-                    text = "${participants.count { !it.isGhost }} RIDERS CONNECTED",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.labelSmall
+                    text = if (activeSpeaker != null) {
+                        val spk = participants.find { it.identity == activeSpeaker }
+                        val name = if (activeSpeaker == currentUid) "YOU" else (spk?.displayName ?: activeSpeaker ?: "UNKNOWN")
+                        "TRANSMITTING: $name"
+                    } else {
+                        "${participants.count { !it.isGhost }} RIDERS CONNECTED"
+                    },
+                    color = if (activeSpeaker != null) ElectricCyan else TextSecondary,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (activeSpeaker != null) FontWeight.Bold else FontWeight.Normal
                 )
             }
 
@@ -514,7 +525,31 @@ fun RoomScreen(
 
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     items(participants) { participant ->
-                        ParticipantCard(participant = participant, isFaded = participant.isGhost)
+                        val isCurrentUser = (participant.identity == currentUid)
+                        val isSpeaking = (activeSpeaker != null && activeSpeaker == participant.identity) || (isCurrentUser && (isPttPressed || isMicEnabled || isVoxOpen))
+                        val isParticipantHost = (isHost && isCurrentUser)
+                        val distanceMeters = if (isCurrentUser) null else {
+                            val rLoc = remoteLocations[participant.identity]
+                            if (rLoc != null && currentLocation != null) {
+                                val results = FloatArray(1)
+                                Location.distanceBetween(currentLocation!!.latitude, currentLocation!!.longitude, rLoc.lat, rLoc.lng, results)
+                                results[0]
+                            } else null
+                        }
+                        val speedKmh = if (isCurrentUser) {
+                            currentLocation?.takeIf { it.hasSpeed() }?.speed?.times(3.6f)
+                        } else {
+                            remoteLocations[participant.identity]?.speed?.times(3.6f)
+                        }
+                        ParticipantCard(
+                            participant = participant,
+                            isFaded = participant.isGhost,
+                            isSpeaking = isSpeaking,
+                            isCurrentUser = isCurrentUser,
+                            isHost = isParticipantHost,
+                            distanceMeters = distanceMeters,
+                            speedKmh = speedKmh
+                        )
                     }
                 }
 
@@ -544,9 +579,22 @@ fun RoomScreen(
                             fontSize = 13.sp
                         )
                         Text(
-                            text = if (isDeafened) "INCOMING AUDIO DEAFENED" else audioStatusLine,
-                            color = if (isDeafened) AlertRed else TextSecondary,
-                            style = MaterialTheme.typography.labelSmall
+                            text = when {
+                                isDeafened -> "INCOMING AUDIO DEAFENED"
+                                activeSpeaker != null -> {
+                                    val spk = participants.find { it.identity == activeSpeaker }
+                                    val name = if (activeSpeaker == currentUid) "YOU" else (spk?.displayName ?: activeSpeaker ?: "UNKNOWN")
+                                    "ACTIVE: $name"
+                                }
+                                else -> audioStatusLine
+                            },
+                            color = when {
+                                isDeafened -> AlertRed
+                                activeSpeaker != null -> ElectricCyan
+                                else -> TextSecondary
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (activeSpeaker != null) FontWeight.Bold else FontWeight.Normal
                         )
                     }
                     IconButton(onClick = { isVoiceChannelExpanded = true }) {

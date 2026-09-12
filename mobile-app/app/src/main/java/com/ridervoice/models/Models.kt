@@ -157,7 +157,8 @@ data class RoomDetails(val name: String)
 data class Participant(
     val identity: String,
     val isGhost: Boolean = false,
-    val disconnectedAt: Long? = null
+    val disconnectedAt: Long? = null,
+    val displayName: String? = null
 )
 
 data class RiderLocation(

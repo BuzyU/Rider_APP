@@ -49,7 +49,7 @@ class LiveKitManager @Inject constructor(
     private val _remoteLocations = MutableStateFlow<Map<String, RiderLocation>>(emptyMap())
     val remoteLocations: StateFlow<Map<String, RiderLocation>> = _remoteLocations
 
-    private val _activeSpeaker = MutableStateFlow<String?>("Nobody")
+    private val _activeSpeaker = MutableStateFlow<String?>(null)
     val activeSpeaker: StateFlow<String?> = _activeSpeaker
 
     private val _isMicEnabled = MutableStateFlow(false)
@@ -100,6 +100,7 @@ class LiveKitManager @Inject constructor(
             _connectionState.value = ConnectionState.CONNECTED
             reconnectAttempts = 0
             Log.d(TAG, "Room connected ✓")
+            updateParticipantList()
 
             newRoom.events.collect { event -> handleEvent(event) }
 
@@ -209,13 +210,15 @@ class LiveKitManager @Inject constructor(
                 Log.w(TAG, "Room disconnected (reason: ${event.error?.message})")
                 _connectionState.value = ConnectionState.DISCONNECTED
                 _remoteLocations.value = emptyMap()
+                _activeSpeaker.value = null
                 scheduleReconnect()
             }
             is RoomEvent.DataReceived -> {
                 try {
                     val json = String(event.data, Charsets.UTF_8)
                     val loc = gson.fromJson(json, RiderLocation::class.java)
-                    _remoteLocations.update { it + (loc.riderId to loc) }
+                    val peerId = event.participant?.identity?.value ?: loc.riderId
+                    _remoteLocations.update { it + (peerId to loc.copy(riderId = peerId)) }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to parse telemetry: ${e.message}")
                 }
@@ -224,17 +227,23 @@ class LiveKitManager @Inject constructor(
                 Log.d(TAG, "Remote track subscribed: ${event.track.kind}")
             }
             is RoomEvent.ActiveSpeakersChanged -> {
-                val speaker = event.speakers.firstOrNull()
-                _activeSpeaker.value = speaker?.identity?.value ?: "Nobody"
+                val speaker = event.speakers.firstOrNull()?.identity?.value
+                _activeSpeaker.value = if (!speaker.isNullOrBlank()) speaker else null
             }
             else -> {}
         }
     }
 
     private fun updateParticipantList() {
-        _participants.value = room?.remoteParticipants?.values
-            ?.map { it.identity?.value ?: it.sid.value }
+        val remotes = room?.remoteParticipants?.values
+            ?.mapNotNull { it.identity?.value ?: it.sid.value }
             ?: emptyList()
+        val local = room?.localParticipant?.identity?.value
+        _participants.value = if (!local.isNullOrBlank() && !remotes.contains(local)) {
+            listOf(local) + remotes
+        } else {
+            remotes
+        }
     }
 
     private fun scheduleReconnect() {
@@ -287,6 +296,7 @@ class LiveKitManager @Inject constructor(
 
         _connectionState.value = ConnectionState.DISCONNECTED
         _participants.value = emptyList()
+        _activeSpeaker.value = null
         _isMicEnabled.value = false
         Log.d(TAG, "Disconnected cleanly")
     }

@@ -91,8 +91,8 @@ class VoiceForegroundService : Service() {
                 return START_NOT_STICKY
             }
             "ACTION_MUTE" -> {
-                isMuted = !isMuted
-                serviceScope.launch { liveKitManager.setMicrophoneEnabled(!isMuted) }
+                isMuted = !liveKitManager.isUserMuted.value
+                liveKitManager.setUserMuted(isMuted)
                 updateNotificationImmediate()
             }
             "ACTION_PING" -> {

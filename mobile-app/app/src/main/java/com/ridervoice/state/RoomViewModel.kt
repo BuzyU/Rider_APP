@@ -18,6 +18,7 @@ import com.ridervoice.services.RideRecorder
 import com.ridervoice.services.ServiceWatchdog
 import com.ridervoice.services.ThermalManager
 import com.ridervoice.utils.Constants
+import com.ridervoice.security.SecurePreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,7 +41,8 @@ class RoomViewModel @Inject constructor(
     private val networkResilienceManager: NetworkResilienceManager,
     private val rideRecorder: RideRecorder,
     private val thermalManager: ThermalManager,
-    private val serviceWatchdog: ServiceWatchdog
+    private val serviceWatchdog: ServiceWatchdog,
+    private val securePrefs: SecurePreferences
 ) : ViewModel() {
 
     val connectionState: StateFlow<ConnectionState> = liveKitManager.connectionState
@@ -49,6 +51,7 @@ class RoomViewModel @Inject constructor(
     val currentLocation: StateFlow<android.location.Location?> = locationService.currentLocation
     val networkHealth: StateFlow<NetworkHealth> = networkResilienceManager.networkHealth
     val isMicEnabled: StateFlow<Boolean> = liveKitManager.isMicEnabled
+    val deafened: StateFlow<Boolean> = liveKitManager.deafened
 
     val activeAudioDevice: StateFlow<AudioDevice> = audioDeviceRouter.activeDevice
     val audioRouterState: StateFlow<RouterState> = audioDeviceRouter.routerState
@@ -158,6 +161,8 @@ class RoomViewModel @Inject constructor(
         thermalManager.startMonitoring(viewModelScope)
         serviceWatchdog.startMonitoring(viewModelScope)
 
+        applyAudioSettings()
+
         val token = com.ridervoice.models.RideSession.livekitToken
         val url = com.ridervoice.models.RideSession.livekitUrl.ifBlank { Constants.LIVEKIT_URL }
 
@@ -182,10 +187,24 @@ class RoomViewModel @Inject constructor(
     }
 
     fun toggleMute() {
-        viewModelScope.launch {
-            val newState = !isMicEnabled.value
-            liveKitManager.setMicrophoneEnabled(newState)
+        liveKitManager.setUserMuted(!liveKitManager.isUserMuted.value)
+    }
+
+    fun setDeafened(deafened: Boolean) {
+        liveKitManager.setDeafened(deafened)
+    }
+
+    /** Applied on join only (not live-updated while a ride is active). */
+    private fun applyAudioSettings() {
+        val sensitivity = when (securePrefs.getString("settings_vox_sensitivity", "Medium")) {
+            "Low" -> 0.2f
+            "High" -> 0.8f
+            else -> 0.5f
         }
+        voxEngine.setSensitivity(sensitivity)
+        // "Open mic" is the existing VOX on/off setting; defaults to enabled.
+        voxEngine.setVoxEnabled(securePrefs.getBoolean("settings_open_mic", true))
+        liveKitManager.noiseSuppressionEnabled = securePrefs.getBoolean("settings_noise_cancellation", true)
     }
 
     fun setVoxSensitivity(sensitivity: Float) {

@@ -76,7 +76,7 @@ fun RoomScreen(
 
     var isVoiceChannelExpanded by remember { mutableStateOf(false) }
     var isPttPressed by remember { mutableStateOf(false) }
-    var isDeafened by remember { mutableStateOf(false) }
+    val isDeafened by viewModel.deafened.collectAsState()
     var showLeaveConfirmDialog by remember { mutableStateOf(false) }
     var showAudioRoutePicker by remember { mutableStateOf(false) }
 
@@ -102,20 +102,7 @@ fun RoomScreen(
         contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
     ) { _ -> }
 
-    val ridePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val fineLocationGranted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] == true
-        if (fineLocationGranted && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            bgLocationLauncher.launch(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        ridePermissionLauncher.launch(com.ridervoice.permissions.PermissionManager.ridePermissions)
-    }
-
-    LaunchedEffect(roomName, userName) {
+    fun startVoiceServiceIfPermitted() {
         try {
             val hasRecordAudio = androidx.core.content.ContextCompat.checkSelfPermission(
                 context,
@@ -131,6 +118,26 @@ fun RoomScreen(
         } catch (e: Exception) {
             android.util.Log.e("RoomScreen", "Failed to start VoiceForegroundService", e)
         }
+    }
+
+    val ridePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] == true
+        if (fineLocationGranted && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            bgLocationLauncher.launch(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
+        if (permissions[android.Manifest.permission.RECORD_AUDIO] == true) {
+            startVoiceServiceIfPermitted()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        ridePermissionLauncher.launch(com.ridervoice.permissions.PermissionManager.ridePermissions)
+    }
+
+    LaunchedEffect(roomName, userName) {
+        startVoiceServiceIfPermitted()
         viewModel.joinRoom(roomName, userName)
     }
 
@@ -650,7 +657,7 @@ fun RoomScreen(
                     modifier = Modifier.padding(end = 6.dp)
                 ) {
                     FilledIconButton(
-                        onClick = { isDeafened = !isDeafened },
+                        onClick = { viewModel.setDeafened(!isDeafened) },
                         modifier = Modifier
                             .size(52.dp)
                             .border(

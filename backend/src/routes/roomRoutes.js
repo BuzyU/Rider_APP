@@ -51,7 +51,7 @@ router.post('/room/token', async (req, res) => {
             }
         )
 
-        at.addGrant({ roomJoin: true, room: roomName })
+        at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true, canPublishData: true })
         const token = await at.toJwt()
 
         res.json({ token, roomName })

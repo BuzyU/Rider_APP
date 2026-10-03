@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+      - 'V*'
 
 permissions:
   contents: write
@@ -30,8 +31,9 @@ jobs:
         id: versioning
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
-          # Strip leading 'v' or 'V'
+          # Strip leading 'v' or 'V' and optional dot
           VERSION_NAME="${TAG_NAME#[vV]}"
+          VERSION_NAME="${VERSION_NAME#.}"
           echo "Processing release tag: $TAG_NAME (versionName: $VERSION_NAME)"
 
           # Strip build suffixes/metadata for numerical parsing

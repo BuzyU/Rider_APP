@@ -56,7 +56,9 @@ class AppVersionTest {
     fun testPrefixVHandling() {
         val vPrefixed = AppVersion.parse("v1.3.4")
         val nonPrefixed = AppVersion.parse("1.3.4")
+        val vDotPrefixed = AppVersion.parse("V.1.3.4")
         assertEquals(0, vPrefixed.compareTo(nonPrefixed))
+        assertEquals(0, vDotPrefixed.compareTo(nonPrefixed))
     }
 
     @Test

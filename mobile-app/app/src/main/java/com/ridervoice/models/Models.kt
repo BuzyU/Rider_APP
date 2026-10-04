@@ -154,6 +154,7 @@ data class RideInvite(
 data class InviterDetails(val handle: String, val displayName: String?)
 data class RoomDetails(val name: String)
 
+@androidx.compose.runtime.Immutable
 data class Participant(
     val identity: String,
     val isGhost: Boolean = false,

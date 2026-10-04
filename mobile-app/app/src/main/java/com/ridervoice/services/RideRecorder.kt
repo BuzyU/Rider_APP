@@ -45,6 +45,11 @@ class RideRecorder @Inject constructor(
     private var lastLng = 0.0
     private var totalDistanceMeters = 0f
 
+    private val waypointBuffer = java.util.Collections.synchronizedList(mutableListOf<RawWaypointEntity>())
+    private var lastFlushTime = System.currentTimeMillis()
+    private val BUFFER_SIZE_LIMIT = 20
+    private val FLUSH_INTERVAL_MS = 10_000L
+
     private val _lastSummary = MutableStateFlow<RideSummary?>(null)
     val lastSummary: StateFlow<RideSummary?> = _lastSummary
 
@@ -59,6 +64,8 @@ class RideRecorder @Inject constructor(
         lastLat = 0.0
         lastLng = 0.0
         totalDistanceMeters = 0f
+        synchronized(waypointBuffer) { waypointBuffer.clear() }
+        lastFlushTime = System.currentTimeMillis()
 
         recorderScope.launch {
             val session = RideSessionEntity(
@@ -75,18 +82,17 @@ class RideRecorder @Inject constructor(
                 val sid = currentSessionId ?: return@onEach
                 if (loc == null) return@onEach
 
-                val dist = if (lastLat == 0.0 && lastLng == 0.0) {
-                    Double.MAX_VALUE
-                } else {
-                    haversineMeters(lastLat, lastLng, loc.latitude, loc.longitude)
-                }
+                val isFirstPoint = (lastLat == 0.0 && lastLng == 0.0)
+                val dist = if (isFirstPoint) 0.0 else haversineMeters(lastLat, lastLng, loc.latitude, loc.longitude)
 
-                if (dist >= MIN_DISTANCE_METERS) {
+                if (isFirstPoint || dist >= MIN_DISTANCE_METERS) {
                     lastLat = loc.latitude
                     lastLng = loc.longitude
-                    totalDistanceMeters += dist.toFloat().coerceAtMost(1_000f)
+                    if (!isFirstPoint) {
+                        totalDistanceMeters += dist.toFloat().coerceAtMost(1_000f)
+                    }
 
-                    rideDao.insertWaypoint(
+                    queueWaypoint(
                         RawWaypointEntity(
                             sessionId = sid,
                             lat       = loc.latitude,
@@ -113,6 +119,30 @@ class RideRecorder @Inject constructor(
             .launchIn(recorderScope)
     }
 
+    private suspend fun queueWaypoint(waypoint: RawWaypointEntity) {
+        waypointBuffer.add(waypoint)
+        val now = System.currentTimeMillis()
+        if (waypointBuffer.size >= BUFFER_SIZE_LIMIT || (now - lastFlushTime) >= FLUSH_INTERVAL_MS) {
+            flushWaypoints()
+        }
+    }
+
+    private suspend fun flushWaypoints() {
+        if (waypointBuffer.isEmpty()) return
+        val toFlush: List<RawWaypointEntity>
+        synchronized(waypointBuffer) {
+            if (waypointBuffer.isEmpty()) return
+            toFlush = ArrayList(waypointBuffer)
+            waypointBuffer.clear()
+        }
+        try {
+            rideDao.insertWaypoints(toFlush)
+            lastFlushTime = System.currentTimeMillis()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to flush waypoint batch: ${e.message}")
+        }
+    }
+
     fun stopRecording() {
         recordingJob?.cancel()
         recordingJob = null
@@ -121,6 +151,7 @@ class RideRecorder @Inject constructor(
         currentSessionId = null
 
         recorderScope.launch {
+            flushWaypoints()
 
             val existing = rideDao.getSessionById(sid) ?: return@launch
             val endTime = System.currentTimeMillis()

@@ -443,7 +443,7 @@ fun UpdateDialog(
                             color = TextPrimary
                         )
                         Text(
-                            text = "Tap 'Open Settings' to enable the toggle, then return to RiderVoice to continue installing the update.",
+                            text = "Turn on 'Allow from this source', then come back. The update will install automatically.",
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -451,10 +451,7 @@ fun UpdateDialog(
                 },
                 confirmButton = {
                     Button(
-                        onClick = {
-                            onOpenSettings()
-                            onDismiss()
-                        },
+                        onClick = { onOpenSettings() },
                         colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
                     ) {
                         Text("OPEN SETTINGS", color = Color.Black, fontWeight = FontWeight.Bold)

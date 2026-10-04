@@ -48,12 +48,32 @@ class VoiceForegroundService : Service() {
         super.onCreate()
 
         try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+            wakeLock = powerManager.newWakeLock(
+                android.os.PowerManager.PARTIAL_WAKE_LOCK,
+                "RiderVoice:VoiceAudioLock"
+            ).apply {
+                setReferenceCounted(false)
+                acquire(10 * 3600 * 1000L)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("VoiceForegroundService", "WakeLock acquisition failed", e)
+        }
+
+        try {
             createNotificationChannel()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                var fgsType = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    fgsType = fgsType or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    fgsType = fgsType or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                }
                 startForeground(
                     notificationId,
                     buildTacticalNotification(),
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                    fgsType
                 )
             } else {
                 startForeground(notificationId, buildTacticalNotification())

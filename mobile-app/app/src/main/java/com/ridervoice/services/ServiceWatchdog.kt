@@ -43,8 +43,8 @@ class ServiceWatchdog @Inject constructor(
 
                 if (isTracking && connectionState == ConnectionState.DISCONNECTED) {
                     val elapsed = System.currentTimeMillis() - startTimeMs
-                    if (elapsed > STARTUP_GRACE_MS) {
-                        Log.e(TAG, "Zombie detected: location active but LiveKit dead. Cleaning up.")
+                    if (elapsed > STARTUP_GRACE_MS && com.ridervoice.models.RideSession.activeRoomName == null) {
+                        Log.e(TAG, "Zombie detected: location active with no ride session. Cleaning up.")
                         locationService.stopTracking()
                         hardwarePTTManager.deactivateSession()
                     }

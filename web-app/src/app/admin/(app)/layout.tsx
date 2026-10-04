@@ -33,7 +33,16 @@ export default async function AdminAppLayout({
   }
 
   try {
-    await adminAuth().verifySessionCookie(sessionCookie, true);
+    const decoded = await adminAuth().verifySessionCookie(sessionCookie, true);
+    const { data: user } = await supabaseAdmin
+      .from("User")
+      .select("role")
+      .or(`id.eq.${decoded.uid},email.eq.${decoded.email ?? ""}`)
+      .maybeSingle();
+
+    if (!user || user.role !== "ADMIN") {
+      redirect("/admin/login?error=forbidden");
+    }
   } catch {
     redirect("/admin/login");
   }

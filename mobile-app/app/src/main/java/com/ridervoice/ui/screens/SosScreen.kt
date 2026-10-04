@@ -39,6 +39,7 @@ fun SosScreen(
     onSend: () -> Unit
 ) {
     val context = LocalContext.current
+    val emergencyNumber = remember { com.ridervoice.utils.EmergencyNumbers.resolve(context).number }
     val isDark = ThemeState.isDarkTheme
     var countdown by remember { mutableIntStateOf(15) }
 
@@ -240,7 +241,7 @@ fun SosScreen(
 
                 Button(
                     onClick = {
-                        val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:911"))
+                        val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$emergencyNumber"))
                         context.startActivity(dialIntent)
                     },
                     modifier = Modifier
@@ -252,10 +253,10 @@ fun SosScreen(
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Icon(Icons.Default.Phone, contentDescription = "Call 911", modifier = Modifier.size(22.dp))
+                    Icon(Icons.Default.Phone, contentDescription = "Call $emergencyNumber", modifier = Modifier.size(22.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "CALL 911 / EMERGENCY SERVICES",
+                        text = "CALL $emergencyNumber / EMERGENCY SERVICES",
                         style = MaterialTheme.typography.labelLarge,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold

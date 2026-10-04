@@ -4,10 +4,19 @@ services:
     env: node
     plan: free
     rootDir: backend
-    buildCommand: npm install
+    buildCommand: npm install && npx prisma generate
     startCommand: npm start
     autoDeploy: true
     envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: 10000
+
+      - key: DATABASE_URL
+        sync: false
+
       - key: LIVEKIT_URL
         sync: false
 

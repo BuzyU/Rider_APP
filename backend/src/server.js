@@ -17,6 +17,7 @@ const lobbyRoutes = require('./routes/lobbyRoutes')
 const emergencyRoutes = require('./routes/emergencyRoutes')
 
 const app = express()
+app.set('trust proxy', 1)
 
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))

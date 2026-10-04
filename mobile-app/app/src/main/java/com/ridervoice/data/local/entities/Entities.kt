@@ -14,7 +14,10 @@ data class RideSessionEntity(
     val isSynced: Boolean = false
 )
 
-@Entity(tableName = "raw_waypoints")
+@Entity(
+    tableName = "raw_waypoints",
+    indices = [androidx.room.Index("sessionId"), androidx.room.Index("timestamp")]
+)
 data class RawWaypointEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val sessionId: String,
@@ -25,7 +28,10 @@ data class RawWaypointEntity(
     val timestamp: Long
 )
 
-@Entity(tableName = "convoy_events")
+@Entity(
+    tableName = "convoy_events",
+    indices = [androidx.room.Index("sessionId"), androidx.room.Index("timestamp")]
+)
 data class ConvoyEventEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val sessionId: String,

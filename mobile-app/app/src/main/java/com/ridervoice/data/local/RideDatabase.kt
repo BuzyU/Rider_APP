@@ -18,6 +18,9 @@ interface RideDao {
     @Insert
     suspend fun insertWaypoint(waypoint: RawWaypointEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWaypoints(waypoints: List<RawWaypointEntity>)
+
     @Insert
     suspend fun insertEvent(event: ConvoyEventEntity)
 
@@ -51,7 +54,7 @@ interface RideDao {
 
 @Database(
     entities  = [RideSessionEntity::class, RawWaypointEntity::class, ConvoyEventEntity::class],
-    version   = 1,
+    version   = 2,
     exportSchema = false
 )
 abstract class RideDatabase : RoomDatabase() {

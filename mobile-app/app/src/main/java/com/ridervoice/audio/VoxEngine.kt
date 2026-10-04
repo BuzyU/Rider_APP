@@ -100,8 +100,13 @@ class VoxEngine @Inject constructor(
             Log.d(TAG, "Calibrating noise floor...")
             calibrateNoiseFloor(record, frame)
             Log.d(TAG, "Noise floor calibrated: ${detector.floor}")
+            evaluateHardwareRecordingState()
 
             while (isActive) {
+                if (audioRecord?.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                    delay(50)
+                    continue
+                }
                 val read = record.read(frame, 0, FRAME)
                 if (read <= 0) { delay(20); continue }
 
@@ -144,6 +149,7 @@ class VoxEngine @Inject constructor(
         pttReleaseJob?.cancel()
         pttReleaseJob = null
         pttOverride = open
+        evaluateHardwareRecordingState()
         if (open) {
             openMic()
         } else {
@@ -154,7 +160,10 @@ class VoxEngine @Inject constructor(
             if (!voxEnabled || pollJob?.isActive != true) {
                 pttReleaseJob = scope.launch {
                     delay(VoxDetector.HOLD_MS)
-                    if (!pttOverride) closeMic()
+                    if (!pttOverride) {
+                        closeMic()
+                        evaluateHardwareRecordingState()
+                    }
                 }
             }
         }
@@ -162,7 +171,28 @@ class VoxEngine @Inject constructor(
 
     fun setVoxEnabled(enabled: Boolean) {
         voxEnabled = enabled
+        evaluateHardwareRecordingState()
         if (!enabled && !pttOverride) closeMic()
+    }
+
+    private fun evaluateHardwareRecordingState() {
+        val shouldRecord = voxEnabled || pttOverride
+        val record = audioRecord ?: return
+        if (shouldRecord && record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+            try {
+                record.startRecording()
+                Log.d(TAG, "AudioRecord hardware resumed for PTT/VOX")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start AudioRecord: ${e.message}")
+            }
+        } else if (!shouldRecord && record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+            try {
+                record.stop()
+                Log.d(TAG, "AudioRecord hardware suspended (PTT idle)")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to stop AudioRecord: ${e.message}")
+            }
+        }
     }
 
     /** sensitivity 0..1, higher = MORE sensitive (lower open threshold). */

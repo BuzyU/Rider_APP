@@ -55,21 +55,32 @@ class EmergencyAlertActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        setShowWhenLocked(true)
-        setTurnScreenOn(true)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        }
 
         val alertType = intent.getStringExtra("alertType") ?: "CRASH SUSPECTED"
         val roomName = intent.getStringExtra("roomName") ?: "GLOBAL"
 
         startAlarmVibration()
 
+        val emergencyNumber = com.ridervoice.utils.EmergencyNumbers.resolve(this).number
+
         setContent {
             RiderVoiceTheme {
                 EmergencyAlertContent(
                     alertType = alertType,
                     roomName = roomName,
+                    emergencyNumber = emergencyNumber,
                     onCall911 = {
-                        val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:911"))
+                        val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$emergencyNumber"))
                         startActivity(dialIntent)
                     },
                     onTriggerDispatch = { rName, onResult ->
@@ -160,6 +171,7 @@ class EmergencyAlertActivity : ComponentActivity() {
 fun EmergencyAlertContent(
     alertType: String,
     roomName: String,
+    emergencyNumber: String,
     onCall911: () -> Unit,
     onTriggerDispatch: (String, (Boolean, String?) -> Unit) -> Unit,
     onCancelEmergency: (String, String?) -> Unit
@@ -390,12 +402,12 @@ fun EmergencyAlertContent(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Phone,
-                        contentDescription = "Call 911",
+                        contentDescription = "Call $emergencyNumber",
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "CALL 911 / EMERGENCY SERVICES",
+                        text = "CALL $emergencyNumber / EMERGENCY SERVICES",
                         style = MaterialTheme.typography.labelLarge,
                         fontSize = 15.sp
                     )

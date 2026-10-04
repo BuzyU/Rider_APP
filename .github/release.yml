@@ -1,0 +1,70 @@
+# Configuration for GitHub's automated release notes generator
+# https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+
+changelog:
+  categories:
+    - title: "🚀 Features & Enhancements"
+      labels:
+        - "feature"
+        - "enhancement"
+      keywords:
+        - "feat:"
+        - "feature:"
+        - "feature"
+    - title: "🛡️ Safety, SOS & Emergency Services"
+      labels:
+        - "safety"
+        - "emergency"
+      keywords:
+        - "sos"
+        - "emergency"
+        - "telephony"
+        - "safety"
+    - title: "🎙️ Audio, VOX & VoIP Communications"
+      labels:
+        - "audio"
+        - "voip"
+      keywords:
+        - "audio"
+        - "vox"
+        - "ptt"
+        - "livekit"
+        - "opus"
+        - "webrtc"
+    - title: "🔋 Battery, Thermal & Device Performance"
+      labels:
+        - "performance"
+      keywords:
+        - "perf:"
+        - "battery"
+        - "thermal"
+        - "gps"
+        - "optimization"
+    - title: "🐛 Bug Fixes & Stability"
+      labels:
+        - "fix"
+        - "bug"
+      keywords:
+        - "fix:"
+        - "bug:"
+        - "hotfix:"
+    - title: "🔒 Security, Auth & Cloud Backend"
+      labels:
+        - "security"
+        - "backend"
+      keywords:
+        - "security"
+        - "auth"
+        - "backend"
+        - "proxy"
+    - title: "🛠️ Infrastructure, CI/CD & Maintenance"
+      labels:
+        - "chore"
+        - "ci"
+        - "dependencies"
+      keywords:
+        - "chore:"
+        - "ci:"
+        - "build:"
+        - "workflow"
+        - "pipeline"

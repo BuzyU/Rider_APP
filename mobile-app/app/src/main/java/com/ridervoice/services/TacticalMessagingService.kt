@@ -24,6 +24,28 @@ class TacticalMessagingService : FirebaseMessagingService() {
 
     companion object {
         private const val TAG = "TacticalFCM"
+
+        fun uploadPendingTokenIfAvailable(context: android.content.Context, apiService: ApiService, userId: String) {
+            val prefs = context.getSharedPreferences("ridervoice_fcm", android.content.Context.MODE_PRIVATE)
+            val pendingToken = prefs.getString("pending_fcm_token", null) ?: return
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val response = apiService.updateFcmToken(
+                        FcmTokenRequest(
+                            userId = userId,
+                            token = pendingToken,
+                            platform = "android"
+                        )
+                    )
+                    if (response.isSuccessful) {
+                        Log.i(TAG, "✅ Pending FCM token uploaded for $userId")
+                        prefs.edit().remove("pending_fcm_token").apply()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to upload pending FCM token: ${e.message}")
+                }
+            }
+        }
     }
 
     @Inject
@@ -40,8 +62,9 @@ class TacticalMessagingService : FirebaseMessagingService() {
     private fun uploadTokenToBackend(token: String) {
         val user = FirebaseAuth.getInstance().currentUser
         if (user == null) {
-
-            Log.w(TAG, "No user signed in — deferring token upload")
+            Log.w(TAG, "No user signed in — saving token to preferences for upload upon login")
+            val prefs = getSharedPreferences("ridervoice_fcm", android.content.Context.MODE_PRIVATE)
+            prefs.edit().putString("pending_fcm_token", token).apply()
             return
         }
 

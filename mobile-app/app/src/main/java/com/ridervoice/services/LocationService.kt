@@ -60,12 +60,17 @@ class LocationService @Inject constructor(
 
         _isTracking.value = true
         currentIntervalMs = 5_000L
-        registerUpdates(currentIntervalMs)
+        updateLocationRequest(Priority.PRIORITY_HIGH_ACCURACY, currentIntervalMs)
         Log.i(TAG, "✅ Location tracking started")
     }
 
+    private var stationaryStartTime: Long = 0L
+    private var isDeepStationarySleep = false
+
     fun stopTracking() {
         _isTracking.value = false
+        stationaryStartTime = 0L
+        isDeepStationarySleep = false
         fusedClient.removeLocationUpdates(locationCallback)
         Log.i(TAG, "Location tracking stopped")
     }
@@ -80,40 +85,63 @@ class LocationService @Inject constructor(
     @SuppressLint("MissingPermission")
     fun updatePollingInterval(intervalMs: Long) {
         if (!_isTracking.value || !hasPermission()) return
-        if (intervalMs == currentIntervalMs) return
+        if (intervalMs == currentIntervalMs && !isDeepStationarySleep) return
 
         currentIntervalMs = intervalMs
-
-        fusedClient.removeLocationUpdates(locationCallback)
-        registerUpdates(currentIntervalMs)
+        updateLocationRequest(Priority.PRIORITY_HIGH_ACCURACY, currentIntervalMs)
         Log.d(TAG, "Polling interval changed to ${intervalMs}ms")
     }
 
     @SuppressLint("MissingPermission")
     private fun maybeUpdateInterval(speedMps: Float) {
         if (!_isTracking.value || !hasPermission()) return
+        val now = System.currentTimeMillis()
+
+        if (speedMps < 1.0f) {
+            if (stationaryStartTime == 0L) stationaryStartTime = now
+            val elapsedStationary = now - stationaryStartTime
+
+            if (elapsedStationary > 120_000L && !isDeepStationarySleep) {
+                // Transition to deep stationary sleep
+                isDeepStationarySleep = true
+                currentIntervalMs = 60_000L
+                updateLocationRequest(
+                    priority = Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                    intervalMs = 60_000L
+                )
+                Log.i(TAG, "Entering stationary GPS power sleep (60s, balanced power)")
+                return
+            }
+        } else {
+            // Movement detected — immediately wake up
+            stationaryStartTime = 0L
+            if (isDeepStationarySleep) {
+                isDeepStationarySleep = false
+                Log.i(TAG, "Movement detected — waking GNSS to high accuracy")
+            }
+        }
 
         var desired = when {
-            speedMps < 1.0f  -> 15_000L
-            speedMps < 15.0f ->  5_000L
-            else             ->  2_000L
+            isDeepStationarySleep -> 60_000L
+            speedMps < 1.0f       -> 15_000L
+            speedMps < 15.0f      ->  5_000L
+            else                  ->  2_000L
         }
 
         if (isNetworkDegraded && desired < 10_000L) {
             desired = 10_000L
         }
 
-        if (desired == currentIntervalMs) return
+        if (desired == currentIntervalMs && !isDeepStationarySleep) return
 
         currentIntervalMs = desired
-
-        fusedClient.removeLocationUpdates(locationCallback)
-        registerUpdates(currentIntervalMs)
+        updateLocationRequest(Priority.PRIORITY_HIGH_ACCURACY, desired)
     }
 
     @SuppressLint("MissingPermission")
-    private fun registerUpdates(intervalMs: Long) {
-        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
+    private fun updateLocationRequest(priority: Int, intervalMs: Long) {
+        fusedClient.removeLocationUpdates(locationCallback)
+        val request = LocationRequest.Builder(priority, intervalMs)
             .setMinUpdateDistanceMeters(MIN_DISTANCE_METERS)
             .build()
         fusedClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())

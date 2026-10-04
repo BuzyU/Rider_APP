@@ -1,5 +1,7 @@
 package com.ridervoice.update
 
+import android.app.Activity
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -44,6 +46,40 @@ class UpdateManager @Inject constructor(
     val uiState: StateFlow<UpdateUiState> = _uiState.asStateFlow()
 
     private var downloadJob: Job? = null
+
+    /** APK waiting for the user to grant "install unknown apps"; installed automatically on return. */
+    @Volatile private var pendingInstall: Pair<File, AppReleaseInfo>? = null
+
+    /** Number of started activities; > 0 means the app is visible, so we may launch other screens. */
+    @Volatile private var startedActivities = 0
+    private val isAppVisible: Boolean get() = startedActivities > 0
+
+    init {
+        (context.applicationContext as? Application)?.registerActivityLifecycleCallbacks(
+            object : Application.ActivityLifecycleCallbacks {
+                override fun onActivityStarted(activity: Activity) { startedActivities++ }
+                override fun onActivityStopped(activity: Activity) {
+                    startedActivities = (startedActivities - 1).coerceAtLeast(0)
+                }
+                override fun onActivityResumed(activity: Activity) { resumePendingInstallIfAllowed() }
+                override fun onActivityCreated(activity: Activity, savedInstanceState: android.os.Bundle?) {}
+                override fun onActivityPaused(activity: Activity) {}
+                override fun onActivitySaveInstanceState(activity: Activity, outState: android.os.Bundle) {}
+                override fun onActivityDestroyed(activity: Activity) {}
+            }
+        )
+    }
+
+    /** Called when the user comes back from Settings: if they allowed it, go straight to the installer. */
+    private fun resumePendingInstallIfAllowed() {
+        val pending = pendingInstall ?: return
+        val allowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+            context.packageManager.canRequestPackageInstalls()
+        if (allowed) {
+            pendingInstall = null
+            installUpdate(pending.first, pending.second)
+        }
+    }
 
     val currentVersionName: String
         get() = BuildConfig.VERSION_NAME
@@ -335,6 +371,11 @@ class UpdateManager @Inject constructor(
                 apkFile = targetFile
             )
 
+            // Go straight to install (or to the permission screen) without another tap.
+            // If the app is in the background Android blocks activity launches, so the
+            // ReadyToInstall dialog stays as the fallback.
+            if (isAppVisible) installUpdate(targetFile, releaseInfo)
+
         } catch (e: Exception) {
             tempFile.delete()
             _uiState.value = UpdateUiState.Error("Verification error: ${e.localizedMessage ?: "Unknown verification fault"}")
@@ -349,10 +390,15 @@ class UpdateManager @Inject constructor(
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!context.packageManager.canRequestPackageInstalls()) {
+                pendingInstall = apkFile to releaseInfo
                 _uiState.value = UpdateUiState.RequestUnknownSourcesPermission(apkFile, releaseInfo)
+                // Open the "Allow from this source" screen right away; the install resumes
+                // automatically when the user returns with the permission granted.
+                if (isAppVisible) openUnknownSourcesSettings()
                 return
             }
         }
+        pendingInstall = null
 
         try {
             _uiState.value = UpdateUiState.Installing
@@ -386,6 +432,7 @@ class UpdateManager @Inject constructor(
     }
 
     fun dismissUpdate() {
+        pendingInstall = null
         _uiState.value = UpdateUiState.Idle
     }
 

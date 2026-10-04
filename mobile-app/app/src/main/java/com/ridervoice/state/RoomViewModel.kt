@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ridervoice.audio.AudioDevice
 import com.ridervoice.audio.AudioDeviceRouter
+import com.ridervoice.audio.HardwarePTTManager
 import com.ridervoice.audio.RouterState
 import com.ridervoice.audio.VoxEngine
 import com.ridervoice.models.Participant
@@ -42,7 +43,8 @@ class RoomViewModel @Inject constructor(
     private val rideRecorder: RideRecorder,
     private val thermalManager: ThermalManager,
     private val serviceWatchdog: ServiceWatchdog,
-    private val securePrefs: SecurePreferences
+    private val securePrefs: SecurePreferences,
+    private val hardwarePTTManager: HardwarePTTManager
 ) : ViewModel() {
 
     val connectionState: StateFlow<ConnectionState> = liveKitManager.connectionState
@@ -138,7 +140,12 @@ class RoomViewModel @Inject constructor(
             .launchIn(viewModelScope)
 
         networkResilienceManager.networkHealth
-            .onEach { health -> locationService.setNetworkDegraded(health == NetworkHealth.DEGRADED) }
+            .onEach { health ->
+                locationService.setNetworkDegraded(health == NetworkHealth.DEGRADED)
+                if (health == NetworkHealth.CONNECTED) {
+                    liveKitManager.onNetworkRestored()
+                }
+            }
             .launchIn(viewModelScope)
 
         viewModelScope.launch {
@@ -160,6 +167,11 @@ class RoomViewModel @Inject constructor(
         rideRecorder.startRecording(roomName)
         thermalManager.startMonitoring(viewModelScope)
         serviceWatchdog.startMonitoring(viewModelScope)
+
+        hardwarePTTManager.onMicToggleRequest = { open ->
+            liveKitManager.onPttPressed(open)
+        }
+        hardwarePTTManager.activateSession()
 
         applyAudioSettings()
 
@@ -268,6 +280,6 @@ class RoomViewModel @Inject constructor(
         rideRecorder.stopRecording()
         thermalManager.stopMonitoring()
         serviceWatchdog.stopMonitoring()
-
+        hardwarePTTManager.deactivateSession()
     }
 }

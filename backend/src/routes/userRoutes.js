@@ -15,7 +15,8 @@ router.post('/profile', async (req, res, next) => {
                 ...(displayName !== undefined && { displayName }),
                 ...(bikeModel !== undefined && { bikeModel }),
                 ...(bio !== undefined && { bio }),
-                ...(phone !== undefined && { phone })
+                ...(phone !== undefined && { phone }),
+                ...(req.user?.email && { email: req.user.email })
             },
             create: {
                 id,
@@ -50,16 +51,25 @@ router.post('/profile', async (req, res, next) => {
 })
 
 router.get('/search', async (req, res, next) => {
-    const { handle } = req.query
-    if (!handle) {
-        return res.status(400).json({ error: 'handle query parameter is required' })
+    const { handle, query } = req.query
+    const searchTerm = (handle || query || '').trim()
+    if (!searchTerm) {
+        return res.status(400).json({ error: 'handle or query parameter is required' })
     }
 
-    const cleanHandle = handle.replace(/^@/, '').trim()
+    const cleanTerm = searchTerm.replace(/^@/, '').trim()
+    const isEmail = cleanTerm.includes('@')
 
     try {
         const user = await prisma.user.findFirst({
-            where: { handle: { equals: cleanHandle, mode: 'insensitive' } },
+            where: isEmail
+                ? { email: { equals: cleanTerm, mode: 'insensitive' } }
+                : {
+                    OR: [
+                        { handle: { equals: cleanTerm, mode: 'insensitive' } },
+                        { email: { equals: cleanTerm, mode: 'insensitive' } }
+                    ]
+                },
             select: {
                 id: true,
                 handle: true,

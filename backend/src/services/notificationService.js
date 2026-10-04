@@ -57,13 +57,16 @@ class NotificationService {
         })
     }
 
-    async sendEmergencyAlert(userIds, alertType, lat, lng) {
+    async sendEmergencyAlert(userIds, alertType, lat, lng, senderId = '', senderName = '', roomName = '') {
         const payload = {
             data: {
                 type: 'EMERGENCY',
                 alertType: String(alertType),
                 lat: String(lat ?? ''),
                 lng: String(lng ?? ''),
+                senderId: String(senderId ?? ''),
+                senderName: String(senderName ?? ''),
+                roomName: String(roomName ?? ''),
                 channelId: 'CHANNEL_EMERGENCY'
             }
         }

@@ -70,8 +70,6 @@ fun RoomScreen(
     val activeDevice by viewModel.activeAudioDevice.collectAsState()
     val routerState by viewModel.audioRouterState.collectAsState()
     val audioStatusLine by viewModel.audioStatusLine.collectAsState()
-    val amplitude by viewModel.currentAmplitude.collectAsState()
-    val noiseFloor by viewModel.noiseFloor.collectAsState()
     val error by viewModel.error.collectAsState()
 
     var isVoiceChannelExpanded by remember { mutableStateOf(false) }
@@ -461,8 +459,7 @@ fun RoomScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
 
                     SegmentedVuMeter(
-                        amplitude = amplitude,
-                        noiseFloor = noiseFloor,
+                        viewModel = viewModel,
                         isTransmitting = isMicEnabled || isVoxOpen,
                         modifier = Modifier.width(130.dp).height(16.dp)
                     )
@@ -531,22 +528,25 @@ fun RoomScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 LazyColumn(modifier = Modifier.weight(1f)) {
-                    items(participants) { participant ->
+                    items(
+                        items = participants,
+                        key = { it.identity }
+                    ) { participant ->
                         val isCurrentUser = (participant.identity == currentUid)
                         val isSpeaking = (activeSpeaker != null && activeSpeaker == participant.identity) || (isCurrentUser && (isPttPressed || isMicEnabled || isVoxOpen))
                         val isParticipantHost = (isHost && isCurrentUser)
-                        val distanceMeters = if (isCurrentUser) null else {
-                            val rLoc = remoteLocations[participant.identity]
-                            if (rLoc != null && currentLocation != null) {
+                        val rLoc = remoteLocations[participant.identity]
+                        val distanceMeters = remember(currentLocation?.latitude, currentLocation?.longitude, rLoc?.lat, rLoc?.lng, isCurrentUser) {
+                            if (isCurrentUser || rLoc == null || currentLocation == null) null else {
                                 val results = FloatArray(1)
                                 Location.distanceBetween(currentLocation!!.latitude, currentLocation!!.longitude, rLoc.lat, rLoc.lng, results)
                                 results[0]
-                            } else null
+                            }
                         }
                         val speedKmh = if (isCurrentUser) {
                             currentLocation?.takeIf { it.hasSpeed() }?.speed?.times(3.6f)
                         } else {
-                            remoteLocations[participant.identity]?.speed?.times(3.6f)
+                            rLoc?.speed?.times(3.6f)
                         }
                         ParticipantCard(
                             participant = participant,
@@ -740,11 +740,12 @@ fun RoomScreen(
 
 @Composable
 private fun SegmentedVuMeter(
-    amplitude: Float,
-    noiseFloor: Float,
+    viewModel: RoomViewModel,
     isTransmitting: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val amplitude by viewModel.currentAmplitude.collectAsState()
+    val noiseFloor by viewModel.noiseFloor.collectAsState()
     val isDark = ThemeState.isDarkTheme
     val activeLevel = if (noiseFloor > 0 && isTransmitting) {
         ((amplitude / (noiseFloor * 4.5f)).coerceIn(0f, 1f) * 8).toInt()

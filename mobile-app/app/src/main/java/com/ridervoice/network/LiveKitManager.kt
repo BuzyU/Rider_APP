@@ -17,6 +17,7 @@ import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.room.track.RemoteAudioTrack
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.participant.AudioTrackPublishOptions
 import io.livekit.android.AudioOptions
 import com.google.gson.Gson
 import com.ridervoice.models.RiderLocation
@@ -95,6 +96,9 @@ class LiveKitManager @Inject constructor(
     private val MAX_RECONNECT_ATTEMPTS = 10
     private var lastUrl = ""
     private var lastToken = ""
+
+    private var lastBroadcastLoc: RiderLocation? = null
+    private var lastBroadcastTime: Long = 0L
 
     private val gson = Gson()
 
@@ -242,7 +246,7 @@ class LiveKitManager @Inject constructor(
             Log.d(TAG, "Publishing audio track for device: ${device.displayName()}, options: $opts")
             val track = lp.createAudioTrack(name = "microphone", options = opts)
             val ok = try {
-                lp.publishAudioTrack(track)
+                lp.publishAudioTrack(track, AudioTrackPublishOptions(dtx = true))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to publish audio track: ${e.message}")
                 false
@@ -387,7 +391,37 @@ class LiveKitManager @Inject constructor(
         }
     }
 
+    fun onNetworkRestored() {
+        if ((_connectionState.value == ConnectionState.FAILED ||
+             _connectionState.value == ConnectionState.DISCONNECTED ||
+             _connectionState.value == ConnectionState.RECONNECTING) &&
+            lastUrl.isNotBlank() && lastToken.isNotBlank()) {
+            Log.i(TAG, "Network restored — resetting retry counter and auto-reconnecting")
+            reconnectAttempts = 0
+            reconnectJob?.cancel()
+            scope.launch { connectInternal(lastUrl, lastToken) }
+        }
+    }
+
     fun publishLocation(location: RiderLocation) {
+        val now = System.currentTimeMillis()
+        val prev = lastBroadcastLoc
+        val dist = if (prev != null) {
+            val results = FloatArray(1)
+            android.location.Location.distanceBetween(prev.lat, prev.lng, location.lat, location.lng, results)
+            results[0]
+        } else Float.MAX_VALUE
+        val speedKmh = (location.speed ?: 0f) * 3.6f
+        val isStationary = speedKmh < 1.5f
+
+        // Suppress broadcast if stationary and displacement < 3 meters, unless 30s heartbeat
+        if (prev != null && isStationary && dist < 3.0f && (now - lastBroadcastTime) < 30_000L) {
+            return // Skip packet; saves modem TX power
+        }
+
+        lastBroadcastLoc = location
+        lastBroadcastTime = now
+
         scope.launch {
             try {
                 val bytes = gson.toJson(location).toByteArray(Charsets.UTF_8)
@@ -403,6 +437,8 @@ class LiveKitManager @Inject constructor(
     fun disconnect() {
         reconnectJob?.cancel()
         reconnectAttempts = MAX_RECONNECT_ATTEMPTS
+        lastBroadcastLoc = null
+        lastBroadcastTime = 0L
         deviceJob?.cancel()
         deviceJob = null
         eventsJob?.cancel()

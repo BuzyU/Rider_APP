@@ -5,10 +5,20 @@ import android.os.Build
 
 object PermissionManager {
 
-    val requiredPermissions = arrayOf(
-        Manifest.permission.RECORD_AUDIO,
-        Manifest.permission.BLUETOOTH_CONNECT
-    )
+    val requiredPermissions: Array<String>
+        get() {
+            val list = mutableListOf(Manifest.permission.RECORD_AUDIO)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                list.add(Manifest.permission.BLUETOOTH_CONNECT)
+            } else {
+                list.add(Manifest.permission.BLUETOOTH)
+                list.add(Manifest.permission.BLUETOOTH_ADMIN)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                list.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            return list.toTypedArray()
+        }
 
     val ridePermissions: Array<String>
         get() {

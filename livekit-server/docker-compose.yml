@@ -5,6 +5,7 @@ services:
     command: --config /etc/livekit.yaml
     ports:
       - "7880:7880"
-      - "7881:7881/udp"
+      - "7881:7881"
+      - "50000-60000:50000-60000/udp"
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml

@@ -11,12 +11,13 @@ RiderVoice is a Jetpack Compose Android application designed for motorcycle conv
 
 ## 🚀 Key Features
 
+- **In-App OTA Updates (v0.0.3.4)** – Seamless, loop-proof firmware updater with foreground Activity-anchored installer dispatch (preventing Android 10–14 OEM background launch drops), explicit FileProvider URI permission grants, smart local APK caching (skips 55MB redownloads), instant resume upon return from Settings, and an interactive "Retry Installer" action.
 - **Operator Dossier (Account Page)** – Tactical profile management displaying call-sign `@handle`, high-resolution avatar with dynamic initial fallback, phone number, assigned bike model, bio, and a live "Calibrate Dossier" editor.
-- **In-App OTA Updates** – Native seamless firmware update system with semantic version checking, chunked streaming download with live transfer speed metrics, SHA-256 cryptographic verification, automatic "Install Unknown Apps" permission resume, and direct package installer launch.
-- **Convoy Moderation & Share Links** – Generate 24-hour cryptographic invite links (`ridervoice://join/<token>`), recruit riders from Squad contacts, eject riders, or transfer host duties mid-ride.
+- **Tactical Waypoint Radar & Route Planner (v0.0.3.3)** – Crash-proof offline aviation/military radar HUD Canvas with 360° sweep, concentric range rings (5km–25km), live squad blips, waypoint trajectory vectors, elevation/distance badges, and in-HUD toggle with Mapbox Satellite/Vector navigation.
+- **Regional SOS Emergency Alerting (v0.0.3.2)** – Broadcasts emergency distress alerts with coordinates and dynamically dials local emergency numbers (e.g., **911** in US/Canada, **112** across Europe/India, **999** in the UK, **000** in Australia, **110/119** in Japan) based on cellular network roaming, SIM ISO, and device locale.
 - **Push-to-Talk (PTT) Voice Engine** – Low-latency group voice over LiveKit WebRTC. Engineered for helmet intercoms, Bluetooth SCO/A2DP, wired headsets, and handlebar media buttons.
-- **Tactical Active Ride HUD** – Dark graphite / retro VHF instrument dashboard, live participant audio states, and Mapbox convoy navigation.
-- **Regional SOS Emergency Alerting** – Broadcasts emergency distress alerts with coordinates and dynamically dials local emergency numbers (911, 999, 112, etc.) based on active roaming/SIM/locale country codes.
+- **Battery & Audio Optimization Engine (v0.0.3.2)** – WebRTC Opus DTX silent packet suppression, stationary GPS sleep (lowers power by 93% when parked >120s), 50 Hz Compose leaf-only recomposition, and hardware `AudioRecord` suspension during PTT idle.
+- **Convoy Moderation & Share Links** – Generate 24-hour cryptographic invite links (`ridervoice://join/<token>`), recruit riders from Squad contacts, eject riders, or transfer host duties mid-ride.
 - **Automated CI/CD Releases** – Tag-driven GitHub Actions pipeline with monotonic `versionCode` calculation, hard bucket bounds validation, and automated APK signing.
 
 ---
@@ -121,16 +122,18 @@ Base URL is configured via environment variables. All authenticated routes requi
 
 ## 🔄 In-App OTA Update System
 
-RiderVoice features an integrated over-the-air (OTA) update system adhering strictly to Android platform security:
+RiderVoice features an integrated over-the-air (OTA) update system adhering strictly to Android platform security and OEM background execution restrictions:
 
 1. **Semantic Version Comparator (`AppVersion.kt`)**:
    Parses arbitrary dot-separated version strings (`major.minor.patch.build`). Accurately resolves version ordering (`1.10.0 > 1.9.0`).
 2. **Dual Downgrade Protection**:
    Verifies both semantic `versionName` AND numeric `versionCode` against the installed package to reject downgrade attacks.
-3. **Chunked Streaming & Verification**:
-   Streams APK updates into app-private cache reporting real-time progress and speed (KB/s). Verifies SHA-256 hashes against release checksums before initiating installation.
-4. **Android Package Installer Flow**:
-   Exposes the validated APK via Android `FileProvider` (`content://com.ridervoice.fileprovider/...`) and launches `Intent.ACTION_VIEW` with `FLAG_GRANT_READ_URI_PERMISSION` and unknown sources permission handling.
+3. **Smart Local APK Caching & Speed Metrics**:
+   Streams APK updates into app-private cache reporting real-time progress and speed (KB/s). Automatically checks whether a valid, verified APK for the target version and SHA-256 digest is already present in cache, skipping redundant 55MB network downloads on retries.
+4. **Android Package Installer Flow & Background Bypass**:
+   Exposes the validated APK via Android `FileProvider` (`content://com.ridervoice.fileprovider/...`). Dispatches `Intent.ACTION_VIEW` directly from the active foreground `Activity` (via weak reference lifecycle tracking) rather than background `ApplicationContext`, preventing OEM background launch blocks on Android 10–14.
+5. **Dynamic Package Installer Permissions & Retry**:
+   Explicitly grants `Intent.FLAG_GRANT_READ_URI_PERMISSION` to all candidate package installer activities via `PackageManager.queryIntentActivities(...)`. Seamlessly transitions back to `ReadyToInstall` when returning from Settings, with an interactive **"RETRY INSTALLER"** button if the prompt is dismissed.
 
 ---
 
@@ -146,6 +149,9 @@ $$\text{versionCode} = (\text{major} \times 10{,}000{,}000) + (\text{minor} \tim
 - `0.0.1` → `1,000`
 - `0.0.2` → `2,000`
 - `0.0.3` → `3,000`
+- `0.0.3.2` → `3,002`
+- `0.0.3.3` → `3,003`
+- `0.0.3.4` → `3,004`
 - `1.10.0` → `11,000,000`
 
 ### Hard Bucket Bounds Guard
@@ -162,17 +168,17 @@ To prevent silent ordering collisions, both the GitHub Actions workflow and Grad
 ```bash
 # 1. Commit changes
 git add -A
-git commit -m "feat: Release v0.0.3"
+git commit -m "feat: Release v0.0.3.4"
 
 # 2. Tag semantic version
-git tag v0.0.3
+git tag v0.0.3.4
 
 # 3. Push to GitHub
 git push origin main
-git push origin v0.0.3
+git push origin v0.0.3.4
 ```
 
-GitHub Actions will automatically build `Rider_APP-v0.0.3.apk`, compute its `.sha256` checksum, and publish a new release to GitHub.
+GitHub Actions will automatically build `Rider_APP-v0.0.3.4.apk`, compute its `.sha256` checksum, and publish a new release to GitHub.
 
 ---
 

@@ -174,7 +174,7 @@ The Android module follows a Compose UI plus MVVM/Clean Architecture style. UI s
 - `navigation/NavGraph.kt`: screen graph and navigation destinations.
 - `navigation/NavigationProvider.kt`: navigation access/provider abstraction.
 - `di/AppModule.kt`: Hilt bindings and construction of shared dependencies.
-- `utils/Constants.kt`, `GeoUtils.kt`, `Logger.kt`, and `OEMBatteryWarning.kt`: cross-cutting constants, location helpers, logging, and device battery guidance.
+- `utils/Constants.kt`, `EmergencyNumbers.kt`, `GeoUtils.kt`, `Logger.kt`, and `OEMBatteryWarning.kt`: cross-cutting constants, regional emergency number resolution (cellular/SIM/locale), location helpers, logging, and device battery guidance.
 
 ### 5.2 UI layer
 
@@ -188,7 +188,7 @@ The Android module follows a Compose UI plus MVVM/Clean Architecture style. UI s
 
 #### Reusable components and theme
 
-- `ui/components/` contains tactical controls, participant cards, profile and rider dialogs, voice controls, debug overlay, update dialog, and the add-riders sheet.
+- `ui/components/` contains tactical controls, `TacticalRadarCanvas` (offline military radar HUD), participant cards, profile and rider dialogs, voice controls, debug overlay, update dialog, and the add-riders sheet.
 - `ui/theme/Color.kt`, `Theme.kt`, and `Type.kt` define the Compose visual system.
 - `res/layout/notification_tactical_collapsed.xml` and `notification_tactical_expanded.xml` define foreground-service notification layouts.
 - `res/xml/file_paths.xml` defines `FileProvider` paths used by OTA installation.
@@ -246,11 +246,11 @@ flowchart LR
 
 ### 5.6 OTA update flow
 
-- `update/AppVersion.kt`: parses and compares semantic versions.
-- `update/UpdateModels.kt`: update metadata models.
-- `update/UpdateManager.kt`: checks, streams, hashes, and hands validated APKs to the installer.
-- `ui/viewmodels/UpdateViewModel.kt` and `ui/components/UpdateDialog.kt`: expose update state to the UI.
-- `mobile-app/app/src/test/java/com/ridervoice/update/AppVersionTest.kt`: version comparison tests.
+- `update/AppVersion.kt`: parses and compares arbitrary semantic dot-separated versions.
+- `update/UpdateModels.kt`: update metadata models, download state machine, and `Installing` state holding cached APK and release info.
+- `update/UpdateManager.kt`: checks updates, enforces local APK cache hit (bypassing 55MB network downloads), streams and validates SHA-256 digests, tracks foreground `Activity` via weak references to dispatch intents without background launch restriction blocks, dynamically grants `FileProvider` URI read permissions across candidate package installers via `queryIntentActivities`, and seamlessly resumes upon return from Settings.
+- `ui/viewmodels/UpdateViewModel.kt` and `ui/components/UpdateDialog.kt`: expose update state to the UI with progress bar, transfer rate metrics, and interactive "Retry Installer" controls.
+- `mobile-app/app/src/test/java/com/ridervoice/update/AppVersionTest.kt`: semantic version comparison unit tests including `v0.0.3.4` bump test.
 
 ## 6. Web App Depth
 
@@ -307,11 +307,11 @@ flowchart LR
 
 ### SOS flow
 
-`SosScreen`/`SosViewModel` collects the rider action and coordinates, `emergencyRoutes.js` validates and persists an `EmergencyAlert`, and the notification service distributes the alert to registered recipients.
+`SosScreen`/`SosViewModel` collects the rider action and coordinates, `EmergencyNumbers.kt` dynamically determines the local emergency dialer number (resolving network roaming, SIM ISO, and device locale to 911, 112, 999, 000, etc.), `emergencyRoutes.js` validates and persists an `EmergencyAlert`, and the notification service distributes the alert to registered squad recipients.
 
 ### OTA flow
 
-`SettingsScreen` opens the update UI, `UpdateViewModel` requests update state, `UpdateManager` downloads to app-private storage, verifies version and SHA-256, and launches the Android package installer through the configured `FileProvider` paths.
+`SettingsScreen` opens the update UI, `UpdateViewModel` requests update state, and `UpdateManager` checks whether a valid, verified APK for the target release is already in cache (skipping re-download). If not, it streams the APK with speed metrics and validates its SHA-256 digest. When ready or upon returning from Settings ("Install unknown apps"), `UpdateManager` launches the system package installer directly from the active foreground `Activity` with explicit `FileProvider` read URI permissions, providing an interactive "Retry Installer" control if dismissed.
 
 ## 9. Build and Verification Commands
 

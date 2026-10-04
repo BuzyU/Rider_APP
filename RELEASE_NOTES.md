@@ -3,6 +3,14 @@
 ### 🚀 Overview
 RiderVoice **v0.0.3.4** resolves an issue where the in-app OTA firmware updater could get stuck in an installation loop, introduces foreground activity launching for the system package installer, implements explicit FileProvider URI permission granting across all package installer targets, and adds intelligent update caching to prevent redundant 55MB APK re-downloads.
 
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.4` |
+| **Version Code** | `3004` |
+| **Release Tag** | [`v0.0.3.4`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.4) |
+| **Download APK** | [`Rider_APP-v0.0.3.4.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.4/Rider_APP-v0.0.3.4.apk) |
+| **SHA-256 Checksum** | `3153d029f385d87c2c4648efedcc8fa6d78dcd037d19fcff646c8fa69cfce0f4` |
+
 ---
 
 ### 📲 In-App OTA Updater: Installation Loop Fix

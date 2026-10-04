@@ -2005,6 +2005,81 @@ model admin_settings {
 
 ---
 
+### Task BUG-10: Fix Retrofit Reflection Metadata Stripping in Full Mode R8
+- **Current State**: In AGP 8 release builds, R8 Full Mode (`android.enableR8.fullMode=true`) strips Kotlin reflection metadata, parameter names, and generic class signatures from Retrofit interfaces and suspend functions. When an operator accesses `InvitesInboxScreen`, calling `apiService.getInvites()` crashes with:
+  ```
+  java.lang.ClassCastException: java.lang.Class cannot be cast to java.lang.reflect.ParameterizedType
+  ```
+- **Why It Matters**: Release APK builds crash on receiving ride invites, despite passing all debug unit tests and local debug runs.
+- **Where**:
+  - Files:
+    - [`mobile-app/gradle.properties`](file:///c:/Users/umerz/OneDrive/Desktop/Rider_APP-main/Rider_APP-main/mobile-app/gradle.properties)
+    - [`mobile-app/app/proguard-rules.pro`](file:///c:/Users/umerz/OneDrive/Desktop/Rider_APP-main/Rider_APP-main/mobile-app/app/proguard-rules.pro)
+    - [`mobile-app/app/src/main/java/com/ridervoice/ui/screens/InvitesInboxScreen.kt`](file:///c:/Users/umerz/OneDrive/Desktop/Rider_APP-main/Rider_APP-main/mobile-app/app/src/main/java/com/ridervoice/ui/screens/InvitesInboxScreen.kt)
+- **How It Works**:
+  1. Disable R8 Full Mode via `android.enableR8.fullMode=false` to prevent over-aggressive generic signature stripping.
+  2. Add explicit keep rules in `proguard-rules.pro` preserving `-keepattributes Signature, *Annotation*, InnerClasses, EnclosingMethod`.
+  3. Preserve Retrofit service interfaces, methods, parameters, and Gson `TypeToken` generic type variables.
+- **How to Implement**:
+  ```properties
+  # In mobile-app/gradle.properties:
+  android.enableR8.fullMode=false
+  ```
+  ```proguard
+  # In mobile-app/app/proguard-rules.pro:
+  -keepattributes Signature, *Annotation*, InnerClasses, EnclosingMethod
+  -keep class retrofit2.** { *; }
+  -keepclasseswithmembers interface * {
+      @retrofit2.http.* <methods>;
+  }
+  -keepclassmembers class * {
+      @com.google.gson.annotations.SerializedName <fields>;
+  }
+  -keep public class com.ridervoice.models.** { *; }
+  -keep public class com.ridervoice.network.ApiService { *; }
+  ```
+
+---
+
+### Task BUG-11: Fix RoutePlanner Startup Crash & Offline Tactical Radar HUD
+- **Current State**: Launching `RoutePlannerScreen` previously crashed immediately with an unhandled `MapboxConfigurationException` when `mapbox_access_token` string resource was absent. Furthermore, when riders navigate remote mountain passes without cellular connectivity, Mapbox tile streaming fails, leaving riders with a blank screen.
+- **Why It Matters**: Riders cannot access navigational planning if Mapbox credentials are not pre-baked, and online-only maps fail completely in backcountry dead zones.
+- **Where**:
+  - Files:
+    - [`RoutePlannerScreen.kt`](file:///c:/Users/umerz/OneDrive/Desktop/Rider_APP-main/Rider_APP-main/mobile-app/app/src/main/java/com/ridervoice/ui/screens/RoutePlannerScreen.kt)
+    - [`mobile-app/app/src/main/res/values/strings.xml`](file:///c:/Users/umerz/OneDrive/Desktop/Rider_APP-main/Rider_APP-main/mobile-app/app/src/main/res/values/strings.xml)
+- **How It Works**:
+  1. Provide a safe placeholder token in `strings.xml` to prevent `MapboxConfigurationException` at startup.
+  2. Implement an authentic, zero-dependency military/aviation **Tactical Waypoint Radar Canvas** with 360° radar sweep, concentric range rings (5km, 10km, 15km, 25km), cardinal axes, real-time rider GPS pulse, and squad member blips with distance/elevation badges.
+  3. Provide an in-HUD toggle between **Tactical Radar HUD** and **Mapbox Satellite/Vector View**.
+  4. Provide an in-app dialog allowing riders to update custom Mapbox public keys (`pk.eyJ...`) with persistent storage without restarting the app.
+- **How to Implement**:
+  - Integrate `TacticalRadarCanvas` inside `RoutePlannerScreen` as the default resilient HUD mode.
+  - Wrap Mapbox Compose view in safety checks verifying token validity prior to invocation.
+
+---
+
+### Task BUG-12: Fix In-App OTA Firmware Installer Loop & Background Launch Restriction
+- **Current State**: During in-app OTA firmware updates, after granting "Install unknown apps" in Android Settings and returning to the app:
+  1. Launching `Intent.ACTION_VIEW` from `ApplicationContext` with `FLAG_ACTIVITY_NEW_TASK` was frequently swallowed by OEM background activity start restrictions on Android 10–14 (OneUI, MIUI, ColorOS).
+  2. System package installers or Google Play Protect scanners were denied read permissions to the content URI in internal cache storage.
+  3. The app transitioned to `Installing` without a clear retry path; if the system installer was dismissed, the user was permanently stuck on the "Launching Installer" dialog.
+  4. The manager did not verify whether the verified APK was already downloaded in cache, forcing a redundant 55MB network download on every retry.
+- **Why It Matters**: Sideloaded motorcycle applications require a frictionless in-app firmware upgrade pipeline to receive safety patches, protocol updates, and voice improvements without requiring a computer.
+- **Where**:
+  - Files:
+    - [`UpdateManager.kt`](file:///c:/Users/umerz/OneDrive/Desktop/Rider_APP-main/Rider_APP-main/mobile-app/app/src/main/java/com/ridervoice/update/UpdateManager.kt)
+    - [`UpdateModels.kt`](file:///c:/Users/umerz/OneDrive/Desktop/Rider_APP-main/Rider_APP-main/mobile-app/app/src/main/java/com/ridervoice/update/UpdateModels.kt)
+    - [`UpdateDialog.kt`](file:///c:/Users/umerz/OneDrive/Desktop/Rider_APP-main/Rider_APP-main/mobile-app/app/src/main/java/com/ridervoice/ui/components/UpdateDialog.kt)
+- **How It Works**:
+  1. Track foreground `Activity` via `Application.ActivityLifecycleCallbacks` and weak reference `currentActivityRef`. Launch `startActivity` directly from the active foreground activity.
+  2. Resolve all candidate package installer activities via `packageManager.queryIntentActivities(...)` and explicitly grant `Intent.FLAG_GRANT_READ_URI_PERMISSION` to each resolved target package.
+  3. On return from Settings with permission granted, transition to `UpdateUiState.ReadyToInstall` with the verified APK and immediately trigger the installer prompt.
+  4. Add a prominent **"RETRY INSTALLER"** button on `UpdateDialog` so riders can re-prompt the system installer if accidentally dismissed.
+  5. In `checkForUpdates()`, check whether an APK matching the target release tag and SHA-256 digest is already present in cache, immediately transitioning to `ReadyToInstall` with zero data redownload.
+
+---
+
 ## Category 13: Comprehensive Mobile App & System Optimization Engine
 
 ### Task OPT-1: Eliminate 50 Hz Compose Root Recomposition Cascades (`currentAmplitude` & `noiseFloor`)
@@ -2567,6 +2642,9 @@ graph TD
 | **FT-18** | Compose 50 Hz Recomposition Audit | Profile `RoomScreen` under Android Studio Layout Inspector | Root `RoomScreen` recomposition count stays at 0–1 during active speech; only leaf VU meter canvas recomposes |
 | **FT-19** | SQLite Flash Write Batching Verification | Run 15-minute ride simulation with adb logcat Room SQLite profiling | SQLite transactions occur in 20-waypoint chunks every 10s instead of per-waypoint fsyncs |
 | **FT-20** | R8 & ABI Stripped APK Size Verification | Run `./gradlew assembleRelease` and inspect APK analyzer | APK size drops below 40MB; x86/x86_64 .so files stripped; release classes obfuscated and tree-shaken |
+| **FT-21** | In-App OTA Installer Loop & Settings Return | Trigger update from Settings, grant "Install unknown apps", press Back | System package installer launches immediately from foreground activity; APK cache hit avoids redownloading 55MB |
+| **FT-22** | Offline Tactical Waypoint Radar HUD | Launch Route Planner in Airplane mode / without Mapbox access token | Tactical Radar HUD renders with 360° sweep, range rings, and GPS pulse with zero crashes |
+| **FT-23** | Regional SOS Emergency Number Resolution | Test SOS screen in different network MCC/MNC simulations or device locales | Emergency call dialer button updates to regional dispatch (911 in US, 112 in EU/India, 999 in UK, 000 in AU) |
 
 
 

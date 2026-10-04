@@ -16,12 +16,17 @@ This document outlines everything currently missing, partially wired, or pending
 | Per-Device Audio Options (Step 7) | ✅ Completed | Static Audit + Options Verification |
 | Deafen / Defent Feature (Step 8) | ✅ Completed | Static Audit + RoomScreen state binding |
 | Release v0.0.3.1 | ✅ Published | GitHub Actions tag release |
-| **WakeLock & Reconnect Reset (B15 / Step 9c)** | ⏳ **PENDING** | Documented below |
-| **Hardware Button PTT Integration (Step 9b)** | ⏳ **PENDING** | Documented below |
-| **Single WebRTC Capture Sink (Step 9a)** | ⏳ **PENDING** | Documented below |
-| **Custom Transmit High-Pass Filter (Step 9d)** | ⏳ **PENDING** | Documented below |
-| **Live Settings Reactivity During Active Ride** | ⏳ **PENDING** | Documented below |
-| **Monorepo Vercel Deployment Scoping** | ⏳ **PENDING** | Documented below |
+| **WakeLock & Reconnect Reset (B15 / Step 9c)** | ✅ Completed (v0.0.3.2) | `VoiceForegroundService.kt` + `LiveKitManager.kt` |
+| **Hardware Button PTT Integration (Step 9b)** | ✅ Completed (v0.0.3.2) | `HardwarePTTManager.kt` + `RoomViewModel.kt` |
+| **Custom Transmit High-Pass Filter (Step 9d)** | ✅ Completed (v0.0.3.2) | `VoxEngine.kt` DSP 300Hz Biquad HPF |
+| **Monorepo Vercel Deployment Scoping** | ✅ Completed (v0.0.3.2) | Vercel Ignored Build Step `.vercelignore` |
+| **Regional SOS Emergency Dispatch** | ✅ Completed (v0.0.3.2) | `EmergencyNumbers.kt` (cellular/SIM/locale) |
+| **Crash-Proof Route Planner & Radar HUD** | ✅ Completed (v0.0.3.3) | `TacticalRadarCanvas.kt` + Mapbox fallback |
+| **In-App OTA Installer Loop Fix** | ✅ Completed (v0.0.3.4) | `UpdateManager.kt` foreground launch & cache check |
+| Release v0.0.3.4 | ✅ Published | GitHub Actions tag release (`Rider_APP-v0.0.3.4.apk`) |
+| **Single WebRTC Capture Sink (Step 9a)** | ⏳ **PENDING** | Research & verification for v0.0.4.0 |
+| **Live Settings Reactivity During Active Ride** | ⏳ **PENDING** | Scheduled for v0.0.4.0 |
+| **Neural Noise Suppression (RNNoise)** | ⏳ **PENDING** | Scheduled for v0.0.4.0 |
 | **Physical Hardware Field Testing (Steps 4 & 10)** | ⏳ **RUNTIME REQUIRED** | Device matrix below |
 
 ---

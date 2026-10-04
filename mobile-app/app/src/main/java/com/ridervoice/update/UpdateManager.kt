@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import androidx.core.content.FileProvider
 import com.google.gson.Gson
 import com.ridervoice.BuildConfig
@@ -32,7 +33,16 @@ class UpdateManager @Inject constructor(
         const val GITHUB_REPO_OWNER = "BuzyU"
         const val GITHUB_REPO_NAME = "Rider_APP"
         private const val GITHUB_API_URL = "https://api.github.com/repos/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/latest"
+        private const val GITHUB_WEB_LATEST_URL = "https://github.com/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/latest"
+        private const val PREFS_NAME = "app_update_prefs"
+        private const val KEY_LAST_ETAG = "last_etag"
+        private const val KEY_LAST_RELEASE_JSON = "last_release_json"
+        private const val CACHE_TTL_MS = 60_000L // 60s in-memory TTL to avoid rapid spamming
+        private const val TAG = "UpdateManager"
     }
+
+    @Volatile private var lastCheckTimestamp = 0L
+    @Volatile private var cachedReleaseInfo: AppReleaseInfo? = null
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -112,115 +122,237 @@ class UpdateManager @Inject constructor(
             }
         }
 
-    fun checkForUpdates(scope: CoroutineScope) {
+    fun checkForUpdates(scope: CoroutineScope, forceRefresh: Boolean = false) {
         if (_uiState.value is UpdateUiState.Checking || _uiState.value is UpdateUiState.Downloading) return
+
+        val now = System.currentTimeMillis()
+        val cached = cachedReleaseInfo
+        if (!forceRefresh && cached != null && (now - lastCheckTimestamp < CACHE_TTL_MS)) {
+            val installedVer = AppVersion.parse(currentVersionName)
+            val latestVer = AppVersion.parse(cached.versionName)
+            if (latestVer.isNewerThan(installedVer)) {
+                _uiState.value = UpdateUiState.UpdateAvailable(
+                    releaseInfo = cached,
+                    currentVersion = currentVersionName
+                )
+            } else {
+                _uiState.value = UpdateUiState.UpToDate(currentVersion = currentVersionName)
+            }
+            return
+        }
 
         _uiState.value = UpdateUiState.Checking
 
         scope.launch(Dispatchers.IO) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val cachedEtag = prefs.getString(KEY_LAST_ETAG, null)
+
+            var releaseInfo: AppReleaseInfo? = null
+            var rateLimited = false
+
             try {
-                val request = Request.Builder()
+                val reqBuilder = Request.Builder()
                     .url(GITHUB_API_URL)
                     .header("Accept", "application/vnd.github.v3+json")
                     .header("User-Agent", "RiderVoice-AppUpdater")
-                    .build()
 
-                val response = httpClient.newCall(request).execute()
-                val responseBody = response.body?.string()
+                if (!cachedEtag.isNullOrBlank()) {
+                    reqBuilder.header("If-None-Match", cachedEtag)
+                }
 
-                if (response.code == 404) {
+                val response = httpClient.newCall(reqBuilder.build()).execute()
+                val code = response.code
+
+                if (code == 304) {
+                    val cachedJson = prefs.getString(KEY_LAST_RELEASE_JSON, null)
+                    if (!cachedJson.isNullOrBlank()) {
+                        try {
+                            val cachedRel = gson.fromJson(cachedJson, GitHubRelease::class.java)
+                            releaseInfo = parseReleaseToInfo(cachedRel)
+                        } catch (_: Exception) {}
+                    }
+                    if (releaseInfo == null) {
+                        _uiState.value = UpdateUiState.UpToDate(currentVersion = currentVersionName)
+                        return@launch
+                    }
+                } else if (code == 403 || code == 429) {
+                    rateLimited = true
+                    Log.w(TAG, "GitHub REST API rate limit encountered ($code). Falling back to direct web release redirect.")
+                } else if (code == 200) {
+                    val newEtag = response.header("ETag")
+                    val body = response.body?.string()
+                    if (!body.isNullOrBlank()) {
+                        if (!newEtag.isNullOrBlank()) {
+                            prefs.edit().putString(KEY_LAST_ETAG, newEtag).putString(KEY_LAST_RELEASE_JSON, body).apply()
+                        }
+                        val release = gson.fromJson(body, GitHubRelease::class.java)
+                        releaseInfo = parseReleaseToInfo(release)
+                    }
+                } else if (code == 404) {
                     _uiState.value = UpdateUiState.Error("No releases published yet on repository.")
                     return@launch
                 }
-
-                if (response.code == 403 || response.code == 429) {
-                    _uiState.value = UpdateUiState.Error("GitHub API rate limit exceeded. Please try again in a few moments.")
-                    return@launch
-                }
-
-                if (!response.isSuccessful || responseBody.isNullOrBlank()) {
-                    _uiState.value = UpdateUiState.Error("Update server returned error (${response.code}).")
-                    return@launch
-                }
-
-                val release = gson.fromJson(responseBody, GitHubRelease::class.java)
-
-                val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
-                if (apkAsset == null) {
-                    _uiState.value = UpdateUiState.Error("The latest release (${release.tagName}) does not contain an APK asset.")
-                    return@launch
-                }
-
-                var sha256Checksum: String? = null
-                val shaAsset = release.assets.firstOrNull {
-                    it.name.endsWith(".sha256", ignoreCase = true) || it.name.contains("checksum", ignoreCase = true)
-                }
-
-                if (shaAsset != null) {
-                    try {
-                        val shaReq = Request.Builder().url(shaAsset.downloadUrl).build()
-                        val shaResp = httpClient.newCall(shaReq).execute()
-                        val shaContent = shaResp.body?.string()?.trim()
-                        if (!shaContent.isNullOrBlank()) {
-
-                            val match = Regex("[a-fA-F0-9]{64}").find(shaContent)
-                            sha256Checksum = match?.value
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-
-                if (sha256Checksum == null && !release.body.isNullOrBlank()) {
-                    val match = Regex("[a-fA-F0-9]{64}").find(release.body)
-                    sha256Checksum = match?.value
-                }
-
-                val releaseVersion = release.tagName.removePrefix("v").removePrefix("V")
-                val latestVer = AppVersion.parse(releaseVersion)
-                val installedVer = AppVersion.parse(currentVersionName)
-
-                val releaseInfo = AppReleaseInfo(
-                    versionName = releaseVersion,
-                    tagName = release.tagName,
-                    apkFileName = apkAsset.name,
-                    downloadUrl = apkAsset.downloadUrl,
-                    apkSizeBytes = apkAsset.size,
-                    releaseNotes = release.body?.ifBlank { "Performance improvements and bug fixes." } ?: "Performance improvements and bug fixes.",
-                    publishedAt = release.publishedAt ?: "Recently",
-                    sha256Checksum = sha256Checksum
-                )
-
-                if (latestVer.isNewerThan(installedVer)) {
-                    val updatesDir = File(context.cacheDir, "updates")
-                    val existingApk = File(updatesDir, "Rider_APP-v${releaseVersion}.apk")
-                    if (existingApk.exists() && existingApk.length() > 0) {
-                        val matchesChecksum = if (!sha256Checksum.isNullOrBlank()) {
-                            calculateSha256(existingApk).equals(sha256Checksum.trim(), ignoreCase = true)
-                        } else true
-                        if (matchesChecksum) {
-                            _uiState.value = UpdateUiState.ReadyToInstall(
-                                releaseInfo = releaseInfo,
-                                apkFile = existingApk
-                            )
-                            return@launch
-                        }
-                    }
-
-                    _uiState.value = UpdateUiState.UpdateAvailable(
-                        releaseInfo = releaseInfo,
-                        currentVersion = currentVersionName
-                    )
-                } else {
-                    _uiState.value = UpdateUiState.UpToDate(currentVersion = currentVersionName)
-                }
-
-            } catch (e: java.net.UnknownHostException) {
-                _uiState.value = UpdateUiState.Error("Unable to check for updates. Please check your internet connection.")
             } catch (e: Exception) {
-                _uiState.value = UpdateUiState.Error("Update check failed: ${e.localizedMessage ?: "Unknown error"}")
+                Log.w(TAG, "GitHub REST API call failed (${e.message}). Falling back to web release redirect.")
+            }
+
+            // Resilient Fallback: If GitHub API was rate limited or failed, fetch from the official web redirect
+            // https://github.com/BuzyU/Rider_APP/releases/latest which has NO REST API rate limit!
+            if (releaseInfo == null) {
+                try {
+                    releaseInfo = fetchReleaseViaWebRedirect()
+                    if (releaseInfo != null) {
+                        Log.i(TAG, "Successfully resolved release ${releaseInfo.tagName} via web redirect fallback.")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Web redirect fallback failed: ${e.message}")
+                }
+            }
+
+            if (releaseInfo == null) {
+                if (rateLimited) {
+                    _uiState.value = UpdateUiState.Error("GitHub API rate limit exceeded and fallback failed. Please try again later.")
+                } else {
+                    _uiState.value = UpdateUiState.Error("Unable to check for updates. Please check your internet connection.")
+                }
+                return@launch
+            }
+
+            lastCheckTimestamp = System.currentTimeMillis()
+            cachedReleaseInfo = releaseInfo
+
+            val releaseVersion = releaseInfo.versionName
+            val latestVer = AppVersion.parse(releaseVersion)
+            val installedVer = AppVersion.parse(currentVersionName)
+
+            if (latestVer.isNewerThan(installedVer)) {
+                val updatesDir = File(context.cacheDir, "updates")
+                val existingApk = File(updatesDir, "Rider_APP-v${releaseVersion}.apk")
+                if (existingApk.exists() && existingApk.length() > 0) {
+                    val expectedHash = releaseInfo.sha256Checksum
+                    val matchesChecksum = if (!expectedHash.isNullOrBlank()) {
+                        calculateSha256(existingApk).equals(expectedHash.trim(), ignoreCase = true)
+                    } else true
+                    if (matchesChecksum) {
+                        _uiState.value = UpdateUiState.ReadyToInstall(
+                            releaseInfo = releaseInfo,
+                            apkFile = existingApk
+                        )
+                        return@launch
+                    }
+                }
+
+                _uiState.value = UpdateUiState.UpdateAvailable(
+                    releaseInfo = releaseInfo,
+                    currentVersion = currentVersionName
+                )
+            } else {
+                _uiState.value = UpdateUiState.UpToDate(currentVersion = currentVersionName)
             }
         }
+    }
+
+    private fun parseReleaseToInfo(release: GitHubRelease): AppReleaseInfo? {
+        val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) } ?: return null
+
+        var sha256Checksum: String? = null
+        val shaAsset = release.assets.firstOrNull {
+            it.name.endsWith(".sha256", ignoreCase = true) || it.name.contains("checksum", ignoreCase = true)
+        }
+
+        if (shaAsset != null) {
+            try {
+                val shaReq = Request.Builder().url(shaAsset.downloadUrl).build()
+                val shaResp = httpClient.newCall(shaReq).execute()
+                val shaContent = shaResp.body?.string()?.trim()
+                if (!shaContent.isNullOrBlank()) {
+                    val match = Regex("[a-fA-F0-9]{64}").find(shaContent)
+                    sha256Checksum = match?.value
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to download sha256 asset: ${e.message}")
+            }
+        }
+
+        if (sha256Checksum == null && !release.body.isNullOrBlank()) {
+            val match = Regex("[a-fA-F0-9]{64}").find(release.body)
+            sha256Checksum = match?.value
+        }
+
+        val releaseVersion = release.tagName.removePrefix("v").removePrefix("V")
+        return AppReleaseInfo(
+            versionName = releaseVersion,
+            tagName = release.tagName,
+            apkFileName = apkAsset.name,
+            downloadUrl = apkAsset.downloadUrl,
+            apkSizeBytes = apkAsset.size,
+            releaseNotes = release.body?.ifBlank { "Performance improvements and bug fixes." } ?: "Performance improvements and bug fixes.",
+            publishedAt = release.publishedAt ?: "Recently",
+            sha256Checksum = sha256Checksum
+        )
+    }
+
+    private fun fetchReleaseViaWebRedirect(): AppReleaseInfo? {
+        val nonRedirectingClient = httpClient.newBuilder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .build()
+
+        val req = Request.Builder()
+            .url(GITHUB_WEB_LATEST_URL)
+            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36")
+            .build()
+
+        val resp = nonRedirectingClient.newCall(req).execute()
+        val location = resp.header("Location") ?: return null
+
+        // Location header format: https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.5
+        val tagName = location.substringAfterLast("/").trim()
+        if (tagName.isBlank() || !tagName.startsWith("v", ignoreCase = true)) {
+            return null
+        }
+
+        val releaseVersion = tagName.removePrefix("v").removePrefix("V")
+        val apkFileName = "Rider_APP-v${releaseVersion}.apk"
+        val apkDownloadUrl = "https://github.com/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/download/$tagName/$apkFileName"
+        val shaDownloadUrl = "https://github.com/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases/download/$tagName/$apkFileName.sha256"
+
+        var sha256Checksum: String? = null
+        try {
+            val shaReq = Request.Builder().url(shaDownloadUrl).build()
+            val shaResp = httpClient.newCall(shaReq).execute()
+            if (shaResp.isSuccessful) {
+                val content = shaResp.body?.string()?.trim()
+                if (!content.isNullOrBlank()) {
+                    val match = Regex("[a-fA-F0-9]{64}").find(content)
+                    sha256Checksum = match?.value
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Direct sha256 fetch failed: ${e.message}")
+        }
+
+        var apkSizeBytes = 0L
+        try {
+            val headReq = Request.Builder().url(apkDownloadUrl).head().build()
+            val headResp = httpClient.newCall(headReq).execute()
+            if (headResp.isSuccessful) {
+                apkSizeBytes = headResp.header("Content-Length")?.toLongOrNull() ?: 0L
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Direct HEAD content-length fetch failed: ${e.message}")
+        }
+
+        return AppReleaseInfo(
+            versionName = releaseVersion,
+            tagName = tagName,
+            apkFileName = apkFileName,
+            downloadUrl = apkDownloadUrl,
+            apkSizeBytes = apkSizeBytes,
+            releaseNotes = "Performance improvements and bug fixes for RiderVoice $tagName.",
+            publishedAt = "Latest Release",
+            sha256Checksum = sha256Checksum
+        )
     }
 
     fun promptDownloadConfirmation(releaseInfo: AppReleaseInfo) {

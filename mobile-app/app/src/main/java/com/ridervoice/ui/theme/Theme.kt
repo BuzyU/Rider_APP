@@ -29,6 +29,15 @@ private val LightScheme = lightColorScheme(
     error = LightPalette.EmergencyRed, onError = LightPalette.Surface
 )
 
+private fun android.content.Context.findActivity(): Activity? {
+    var current: android.content.Context? = this
+    while (current is android.content.ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
+}
+
 @Composable
 fun RiderVoiceTheme(content: @Composable () -> Unit) {
     val isDark = ThemeState.isDarkTheme
@@ -39,7 +48,8 @@ fun RiderVoiceTheme(content: @Composable () -> Unit) {
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
+            val activity = view.context.findActivity() ?: return@SideEffect
+            val window = activity.window
             window.statusBarColor = animatedBg.toArgb()
             window.navigationBarColor = animatedBg.toArgb()
             val controller = WindowCompat.getInsetsController(window, view)

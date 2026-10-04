@@ -5,13 +5,62 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import android.util.Log
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.HiltAndroidApp
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @HiltAndroidApp
 class App : Application() {
+
+    companion object {
+        private const val TAG = "RiderVoiceApp"
+        const val CRASH_FILE_NAME = "last_crash.txt"
+    }
+
     override fun onCreate() {
         super.onCreate()
+        setupCrashHandler()
         createNotificationChannels()
+    }
+
+    private fun setupCrashHandler() {
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            try {
+                Log.e(TAG, "FATAL UNCAUGHT EXCEPTION in thread: ${thread.name}", throwable)
+
+                // 1. Record in Firebase Crashlytics if initialized
+                try {
+                    FirebaseCrashlytics.getInstance().recordException(throwable)
+                } catch (_: Throwable) {}
+
+                // 2. Persist diagnostic dump to filesDir
+                val crashFile = File(filesDir, CRASH_FILE_NAME)
+                val timeStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+                val report = buildString {
+                    appendLine("=== RIDERVOICE CRASH REPORT ===")
+                    appendLine("Time: $timeStr")
+                    appendLine("Version: ${BuildConfig.VERSION_NAME} (code ${BuildConfig.VERSION_CODE})")
+                    appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})")
+                    appendLine("Thread: ${thread.name} (id ${thread.id})")
+                    appendLine()
+                    appendLine("Exception: ${throwable::class.java.name}")
+                    appendLine("Message: ${throwable.message}")
+                    appendLine()
+                    appendLine("Stack Trace:")
+                    appendLine(throwable.stackTraceToString())
+                }
+                crashFile.writeText(report)
+            } catch (loggingEx: Throwable) {
+                Log.e(TAG, "Failed to persist crash report: ${loggingEx.message}")
+            }
+
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
     }
 
     private fun createNotificationChannels() {

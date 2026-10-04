@@ -245,8 +245,15 @@ class LiveKitManager @Inject constructor(
             localAudioTrack = null
 
             Log.d(TAG, "Publishing audio track for device: ${device.displayName()}, options: $opts")
-            val track = lp.createAudioTrack(name = "microphone", options = opts)
-            track.start()
+            val track = try {
+                lp.createAudioTrack(name = "microphone", options = opts).also {
+                    runCatching { it.start() }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to create audio track: ${e.message}", e)
+                null
+            } ?: return@withLock false
+
             val ok = try {
                 lp.publishAudioTrack(track, AudioTrackPublishOptions(dtx = false))
             } catch (e: Exception) {

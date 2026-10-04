@@ -8,8 +8,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ridervoice.navigation.NavGraph
 import com.ridervoice.permissions.PermissionManager
 import com.ridervoice.ui.theme.*
@@ -66,8 +69,19 @@ class MainActivity : ComponentActivity() {
             com.ridervoice.ui.theme.RiderVoiceTheme {
                 val showUpdateSuccessDialog = remember { mutableStateOf(false) }
                 val updatedVersionName = remember { mutableStateOf("") }
+                val crashReportText = remember { mutableStateOf<String?>(null) }
 
                 LaunchedEffect(Unit) {
+                    try {
+                        val crashFile = java.io.File(filesDir, App.CRASH_FILE_NAME)
+                        if (crashFile.exists()) {
+                            val content = crashFile.readText().trim()
+                            if (content.isNotBlank()) {
+                                crashReportText.value = content
+                            }
+                        }
+                    } catch (_: Exception) {}
+
                     val lastRecordedVersion = securePreferences.getString("installed_version_name", "")
                     val currentVersion = BuildConfig.VERSION_NAME
 
@@ -84,6 +98,81 @@ class MainActivity : ComponentActivity() {
                 }
 
                 NavGraph(startRoute = initialRoute)
+
+                crashReportText.value?.let { report ->
+                    AlertDialog(
+                        onDismissRequest = {
+                            try { java.io.File(filesDir, App.CRASH_FILE_NAME).delete() } catch (_: Exception) {}
+                            crashReportText.value = null
+                        },
+                        containerColor = DarkSlate,
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = AlertRed,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        },
+                        title = {
+                            Text(
+                                text = "DIAGNOSTIC CRASH REPORT",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = AlertRed,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        text = {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 280.dp)
+                                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                            ) {
+                                Text(
+                                    text = "RiderVoice captured an unexpected crash on the previous run. You can copy this diagnostic log to share with support:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                androidx.compose.foundation.text.selection.SelectionContainer {
+                                    Text(
+                                        text = report,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextPrimary,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                                    val clip = android.content.ClipData.newPlainText("RiderVoice Crash Log", report)
+                                    clipboard?.setPrimaryClip(clip)
+                                    android.widget.Toast.makeText(this@MainActivity, "Crash log copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                                    try { java.io.File(filesDir, App.CRASH_FILE_NAME).delete() } catch (_: Exception) {}
+                                    crashReportText.value = null
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
+                            ) {
+                                Text("COPY REPORT", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        },
+                        dismissButton = {
+                            OutlinedButton(
+                                onClick = {
+                                    try { java.io.File(filesDir, App.CRASH_FILE_NAME).delete() } catch (_: Exception) {}
+                                    crashReportText.value = null
+                                }
+                            ) {
+                                Text("DISMISS", color = TextPrimary)
+                            }
+                        }
+                    )
+                }
 
                 if (showUpdateSuccessDialog.value) {
                     AlertDialog(

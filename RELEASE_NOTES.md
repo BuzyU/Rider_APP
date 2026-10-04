@@ -1,3 +1,39 @@
+## RiderVoice v0.0.3.6 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.6** eliminates GitHub REST API rate-limiting errors (`HTTP 403 Forbidden`) with an automated web redirect release resolver, resolves app crashes on launch caused by Android Keystore / `EncryptedSharedPreferences` invalidation with a self-healing fallback engine, fixes OEM `ContextThemeWrapper` class-cast crashes on Samsung/Xiaomi devices, hardens ProGuard/R8 reflection rules for Retrofit continuations, and introduces a built-in Diagnostic Crash Reporter modal.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.6` |
+| **Version Code** | `3006` |
+| **Release Tag** | [`v0.0.3.6`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.6) |
+| **Download APK** | [`Rider_APP-v0.0.3.6.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.6/Rider_APP-v0.0.3.6.apk) |
+
+---
+
+### 🛡️ Crash-Proof Runtime & Self-Healing Architecture
+- **Self-Healing `SecurePreferences`**:
+  - Android `EncryptedSharedPreferences` could throw unhandled `KeyStoreException` or `AEADBadTagException` during app updates or when device keys were invalidated, causing the app to crash before the splash screen.
+  - Implemented automatic two-stage recovery: clears corrupted prefs and stale keys on failure, and gracefully falls back to private `SharedPreferences` to ensure **the app never crashes on launch**.
+- **OEM `ContextThemeWrapper` Fix**:
+  - Fixed `ClassCastException` in `Theme.kt` by safely unwrapping `ContextWrapper` chains to locate the host `Activity` before modifying status/navigation bars.
+- **R8 / ProGuard Reflection Hardening**:
+  - Removed `allowobfuscation` from `kotlin.coroutines.Continuation`, `retrofit2.Response`, and `retrofit2.Call` to prevent R8 from stripping reflective metadata required by Retrofit suspend functions.
+- **Global In-App Diagnostic Crash Reporter**:
+  - Added a global uncaught exception handler in `App.kt` writing diagnostic reports to `last_crash.txt` and Firebase Crashlytics.
+  - Added an in-app `DIAGNOSTIC CRASH REPORT` dialog in `MainActivity.kt` with a "COPY REPORT" button for instant debugging.
+
+---
+
+### ⚡ Rate-Limit-Proof GitHub Releases Engine
+- **Transparent Web Redirect Fallback**:
+  - On `HTTP 403` or `429` (GitHub API rate limit exceeded), `UpdateManager` automatically falls back to `https://github.com/BuzyU/Rider_APP/releases/latest`, inspecting the `Location` header to resolve the latest version and download assets with **zero rate limits**.
+- **ETag Caching & Memory Throttling**:
+  - Added `If-None-Match` HTTP ETag caching (returns 304 without consuming rate quota) and a 60-second in-memory throttle.
+
+---
+
 ## RiderVoice v0.0.3.5 Release Notes
 
 ### 🚀 Overview

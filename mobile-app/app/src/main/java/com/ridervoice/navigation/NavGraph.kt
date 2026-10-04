@@ -34,9 +34,15 @@ fun NavGraph(
 
         composable(Routes.SPLASH) {
             SplashScreen(onSplashFinished = {
-                val dest = if (startRoute != null && FirebaseAuth.getInstance().currentUser != null) {
+                val hasUser = try {
+                    FirebaseAuth.getInstance().currentUser != null
+                } catch (e: Exception) {
+                    android.util.Log.e("NavGraph", "FirebaseAuth currentUser check failed: ${e.message}")
+                    false
+                }
+                val dest = if (startRoute != null && hasUser) {
                     startRoute
-                } else if (FirebaseAuth.getInstance().currentUser != null) {
+                } else if (hasUser) {
                     Routes.HOME
                 } else {
                     Routes.LOGIN

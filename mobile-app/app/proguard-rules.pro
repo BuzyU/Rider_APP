@@ -43,12 +43,13 @@
 # Retrofit
 -keep interface com.ridervoice.network.** { *; }
 -keep class com.ridervoice.network.** { *; }
--keepclassmembers,allowobfuscation interface * {
+-keepclassmembers interface * {
     @retrofit2.http.* <methods>;
 }
--keep,allowobfuscation interface retrofit2.Call
--keep,allowobfuscation interface retrofit2.Response
--keep,allowobfuscation class kotlin.coroutines.Continuation
+-keep class retrofit2.** { *; }
+-keep interface retrofit2.Call { *; }
+-keep class retrofit2.Response { *; }
+-keep class kotlin.coroutines.Continuation { *; }
 -dontwarn retrofit2.**
 -dontwarn okhttp3.**
 

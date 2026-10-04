@@ -83,6 +83,8 @@ For each missing item, this blueprint documents:
 | **BUG-7** | Backend / Infra | Enable Express Reverse-Proxy `trust proxy` in `server.js` | Without trust proxy, all riders share proxy IP, causing 429 lockouts | **P0 (Critical)** | v0.0.3.2 |
 | **BUG-8** | Infra / WebRTC | Fix LiveKit Docker Compose WebRTC UDP Port Block & Config | Missing `50000-60000/udp` blocks audio on mobile networks; hardcoded keys | **P0 (Critical)** | v0.0.3.2 |
 | **BUG-9** | Infra / Render | Fix `render.yaml` Missing `prisma generate` & Environment Variables | Deployments fail or crash due to ungenerated Prisma client & missing env | **P1 (High)** | v0.0.3.2 |
+| **BUG-10** | Android / R8 | Fix Retrofit Reflection Metadata Stripping in Full Mode R8 | AGP 8 R8 strips generic signatures, throwing `ParameterizedType` CastException | **P0 (Critical)** | v0.0.3.3 |
+| **BUG-11** | Android / UI | Fix RoutePlanner Startup Crash & Offline Tactical Radar HUD | Missing Mapbox token crashes screen; add crash-proof offline Canvas HUD | **P0 (Critical)** | v0.0.3.3 |
 | **DB-8** | Android / Room | Add Strategic Indices to `raw_waypoints` and `convoy_events` | Missing indices force full table scans across tens of thousands of GPS points | **P1 (High)** | v0.0.3.3 |
 | **CL-1** | Repo / Hygiene | Remove Misplaced Files & Dead Code (`web-app/google-services.json`, `ReconnectManager`) | Misplaced Android configs in Next.js and dead unreferenced classes | **P2 (Medium)** | v0.0.3.2 |
 | **OPT-1** | Android / Compose | Eliminate 50 Hz Compose Root Recomposition Cascades | `RoomScreen` reads 50 Hz amplitude at root, invalidating 965 lines 3000x/min (25% idle CPU) | **P0 (Critical)** | v0.0.3.2 |

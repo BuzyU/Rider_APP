@@ -4,7 +4,7 @@
 
 RiderVoice is a Jetpack Compose Android application designed for motorcycle convoys. It enables hands-free push-to-talk (PTT) communication over WebRTC, squad coordination, active ride telemetry, and over-the-air (OTA) application updates. It is backed by a Node.js Express REST API, Prisma PostgreSQL (Supabase), and LiveKit for real-time audio.
 
-> **Latest Release:** [**v0.0.3.2 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.2)  
+> **Latest Release:** [**v0.0.3.3 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.3)  
 > For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md).
 
 ---
@@ -25,12 +25,12 @@ RiderVoice is a Jetpack Compose Android application designed for motorcycle conv
 
 You can download the latest signed APK directly from GitHub Releases:
 
-- 📱 [**Download RiderVoice v0.0.3.2 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.2/Rider_APP-v0.0.3.2.apk)
-- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.2/Rider_APP-v0.0.3.2.apk.sha256)
+- 📱 [**Download RiderVoice v0.0.3.3 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.3/Rider_APP-v0.0.3.3.apk)
+- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.3/Rider_APP-v0.0.3.3.apk.sha256)
 
 ### Sideloading Instructions:
 
-1. Download `Rider_APP-v0.0.3.2.apk` onto your Android phone (or transfer via USB/Quick Share).
+1. Download `Rider_APP-v0.0.3.3.apk` onto your Android phone (or transfer via USB/Quick Share).
 2. Open your device's **Files** app and tap the APK.
 3. If prompted by Android, toggle **"Allow from this source"**.
 4. Tap **Install**. Subsequent updates can be downloaded directly from within the app under **Settings → Check for OTA Updates**.

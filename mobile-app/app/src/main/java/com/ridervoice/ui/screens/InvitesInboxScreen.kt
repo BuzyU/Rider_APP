@@ -145,7 +145,7 @@ fun InvitesInboxScreen(
                     Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "FAILED TO UPDATE INVITE: $err",
+                        text = "DISPATCH INBOX ERROR: $err",
                         color = AlertRed,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.weight(1f)

@@ -1,3 +1,33 @@
+## RiderVoice v0.0.3.3 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.3** resolves critical release build reflection stripping in Retrofit/R8, fixes Route Planner startup crashes by introducing a crash-proof offline Tactical Radar HUD with safe Mapbox fallback, and enhances release stability across Android devices.
+
+---
+
+### 🛰️ Route Planner & Crash-Proof Tactical Radar HUD
+- **Crash Prevention on Route Planner Launch**:
+  - Fixed an unhandled `MapboxConfigurationException` caused by a missing `mapbox_access_token` string resource during Mapbox Compose instantiation in [`RoutePlannerScreen.kt`](mobile-app/app/src/main/java/com/ridervoice/ui/screens/RoutePlannerScreen.kt).
+  - Configured safe access token fallbacks in [`mobile-app/app/src/main/res/values/strings.xml`](mobile-app/app/src/main/res/values/strings.xml).
+- **Tactical Waypoint Radar Canvas (Offline-Safe)**:
+  - Implemented an authentic dark military/aviation motorcycle HUD Canvas with zero third-party API dependencies.
+  - Features concentric range rings (5km, 10km, 15km, 25km), cardinal axes (N, S, E, W), dynamic 360° radar sweep beam, and real-time rider GPS pulse.
+  - Plots live squad rider blips relative to current position with handles and distance badges.
+  - Automatically draws waypoint trajectory vectors with distance, elevation gain, and estimated duration metrics.
+- **Dual Engine Toggle & In-App Mapbox Key Dialog**:
+  - Added an in-HUD toggle pill between **Tactical Radar HUD** and **Mapbox Satellite/Vector View**.
+  - Provides an in-app dialog allowing riders to paste custom Mapbox public keys (`pk.eyJ...`), securely persisting them to SharedPreferences without app restarts.
+
+---
+
+### 🛡️ R8 & Retrofit Reflection Stability
+- **Fixed `Class cannot be cast to ParameterizedType` on Dispatch Inbox**:
+  - Disabled R8 Full Mode aggressive metadata stripping via `android.enableR8.fullMode=false` in [`mobile-app/gradle.properties`](mobile-app/gradle.properties).
+  - Enhanced [`mobile-app/app/proguard-rules.pro`](mobile-app/app/proguard-rules.pro) with comprehensive `-keepattributes Signature, *Annotation*, InnerClasses, EnclosingMethod` and explicit keep rules for Retrofit service interfaces, `Call`, `Response`, Kotlin continuations, and Gson `TypeToken`.
+  - Refined error copy on [`InvitesInboxScreen.kt`](mobile-app/app/src/main/java/com/ridervoice/ui/screens/InvitesInboxScreen.kt).
+
+---
+
 ## RiderVoice v0.0.3.2 Release Notes
 
 ### 🚀 Overview

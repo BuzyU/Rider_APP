@@ -471,22 +471,37 @@ fun UpdateDialog(
                 containerColor = DarkSlate,
                 title = {
                     Text(
-                        text = "LAUNCHING INSTALLER",
+                        text = "INSTALLER LAUNCHED",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
                     )
                 },
                 text = {
-                    Text(
-                        text = "The system installer prompt has been triggered. Please follow the on-screen instructions.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Android's system package installer has been prompted to install v${uiState.releaseInfo.versionName}.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "If the system installer prompt was dismissed or did not open, tap 'Retry Installer' below to prompt it again.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                    }
                 },
                 confirmButton = {
-                    TextButton(onClick = onDismiss) {
-                        Text("CLOSE", color = ElectricCyan)
+                    Button(
+                        onClick = { onInstallUpdate(uiState.apkFile, uiState.releaseInfo) },
+                        colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
+                    ) {
+                        Text("RETRY INSTALLER", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = onDismiss) {
+                        Text("CLOSE", color = TextPrimary)
                     }
                 }
             )

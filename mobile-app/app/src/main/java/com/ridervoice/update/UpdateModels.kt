@@ -64,6 +64,9 @@ sealed class UpdateUiState {
         val apkFile: File,
         val releaseInfo: AppReleaseInfo
     ) : UpdateUiState()
-    object Installing : UpdateUiState()
+    data class Installing(
+        val apkFile: File,
+        val releaseInfo: AppReleaseInfo
+    ) : UpdateUiState()
     data class Error(val message: String, val canRetry: Boolean = true) : UpdateUiState()
 }

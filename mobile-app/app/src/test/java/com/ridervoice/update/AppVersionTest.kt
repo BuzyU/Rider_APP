@@ -76,4 +76,13 @@ class AppVersionTest {
         assertEquals(0, AppVersion.parse("v0.0.3.3").compareTo(newVersion))
         assertEquals(0, AppVersion.parse("0.0.3.3").compareTo(newVersion))
     }
+
+    @Test
+    fun testV0034Bump() {
+        val prevVersion = AppVersion.parse("0.0.3.3")
+        val newVersion = AppVersion.parse("V0.0.3.4")
+        assertTrue("V0.0.3.4 must be recognized as newer than 0.0.3.3", newVersion.isNewerThan(prevVersion))
+        assertEquals(0, AppVersion.parse("v0.0.3.4").compareTo(newVersion))
+        assertEquals(0, AppVersion.parse("0.0.3.4").compareTo(newVersion))
+    }
 }

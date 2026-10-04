@@ -1,3 +1,24 @@
+## RiderVoice v0.0.3.4 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.4** resolves an issue where the in-app OTA firmware updater could get stuck in an installation loop, introduces foreground activity launching for the system package installer, implements explicit FileProvider URI permission granting across all package installer targets, and adds intelligent update caching to prevent redundant 55MB APK re-downloads.
+
+---
+
+### 📲 In-App OTA Updater: Installation Loop Fix
+- **Foreground Activity Launching (Android 10–14 Background Restriction Fix)**:
+  - Added foreground `Activity` tracking via weak references in [`UpdateManager.kt`](mobile-app/app/src/main/java/com/ridervoice/update/UpdateManager.kt).
+  - Directly launches the system package installer from the foreground activity instead of `ApplicationContext`, resolving background launch restrictions that silently swallowed the installer on OEM Android skins (OneUI, MIUI, ColorOS).
+- **Explicit FileProvider URI Permission Granting**:
+  - Explicitly grants `Intent.FLAG_GRANT_READ_URI_PERMISSION` to all package installer candidate packages via `PackageManager.queryIntentActivities(...)`, preventing `SecurityException: Permission Denial` during system APK parsing.
+- **Loop-Proof State Transitions**:
+  - Upon return from "Allow from this source" in Settings, immediately transitions to `ReadyToInstall` with a prominent **"INSTALL UPDATE"** button while seamlessly triggering the installer prompt.
+  - Added a **"RETRY INSTALLER"** action button to [`UpdateDialog.kt`](mobile-app/app/src/main/java/com/ridervoice/ui/components/UpdateDialog.kt) so riders can re-trigger the installation prompt if accidentally dismissed without restarting the download.
+- **Smart APK Caching**:
+  - `UpdateManager.checkForUpdates` now validates whether an update APK matching the release version and SHA-256 digest is already present in cache. If found, it immediately offers `ReadyToInstall` without re-downloading 55 MB of mobile data.
+
+---
+
 ## RiderVoice v0.0.3.3 Release Notes
 
 ### 🚀 Overview

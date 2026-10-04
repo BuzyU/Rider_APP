@@ -50,6 +50,9 @@ class UpdateManager @Inject constructor(
     /** APK waiting for the user to grant "install unknown apps"; installed automatically on return. */
     @Volatile private var pendingInstall: Pair<File, AppReleaseInfo>? = null
 
+    /** Weak reference to currently foregrounded activity for clean package installer launching */
+    @Volatile private var currentActivityRef: java.lang.ref.WeakReference<Activity>? = null
+
     /** Number of started activities; > 0 means the app is visible, so we may launch other screens. */
     @Volatile private var startedActivities = 0
     private val isAppVisible: Boolean get() = startedActivities > 0
@@ -61,9 +64,16 @@ class UpdateManager @Inject constructor(
                 override fun onActivityStopped(activity: Activity) {
                     startedActivities = (startedActivities - 1).coerceAtLeast(0)
                 }
-                override fun onActivityResumed(activity: Activity) { resumePendingInstallIfAllowed() }
+                override fun onActivityResumed(activity: Activity) {
+                    currentActivityRef = java.lang.ref.WeakReference(activity)
+                    resumePendingInstallIfAllowed()
+                }
                 override fun onActivityCreated(activity: Activity, savedInstanceState: android.os.Bundle?) {}
-                override fun onActivityPaused(activity: Activity) {}
+                override fun onActivityPaused(activity: Activity) {
+                    if (currentActivityRef?.get() === activity) {
+                        currentActivityRef = null
+                    }
+                }
                 override fun onActivitySaveInstanceState(activity: Activity, outState: android.os.Bundle) {}
                 override fun onActivityDestroyed(activity: Activity) {}
             }
@@ -77,6 +87,10 @@ class UpdateManager @Inject constructor(
             context.packageManager.canRequestPackageInstalls()
         if (allowed) {
             pendingInstall = null
+            _uiState.value = UpdateUiState.ReadyToInstall(
+                releaseInfo = pending.second,
+                apkFile = pending.first
+            )
             installUpdate(pending.first, pending.second)
         }
     }
@@ -178,6 +192,21 @@ class UpdateManager @Inject constructor(
                 )
 
                 if (latestVer.isNewerThan(installedVer)) {
+                    val updatesDir = File(context.cacheDir, "updates")
+                    val existingApk = File(updatesDir, "Rider_APP-v${releaseVersion}.apk")
+                    if (existingApk.exists() && existingApk.length() > 0) {
+                        val matchesChecksum = if (!sha256Checksum.isNullOrBlank()) {
+                            calculateSha256(existingApk).equals(sha256Checksum.trim(), ignoreCase = true)
+                        } else true
+                        if (matchesChecksum) {
+                            _uiState.value = UpdateUiState.ReadyToInstall(
+                                releaseInfo = releaseInfo,
+                                apkFile = existingApk
+                            )
+                            return@launch
+                        }
+                    }
+
                     _uiState.value = UpdateUiState.UpdateAvailable(
                         releaseInfo = releaseInfo,
                         currentVersion = currentVersionName
@@ -401,7 +430,7 @@ class UpdateManager @Inject constructor(
         pendingInstall = null
 
         try {
-            _uiState.value = UpdateUiState.Installing
+            _uiState.value = UpdateUiState.Installing(apkFile, releaseInfo)
 
             val contentUri = FileProvider.getUriForFile(
                 context,
@@ -411,10 +440,27 @@ class UpdateManager @Inject constructor(
 
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(contentUri, "application/vnd.android.package-archive")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
             }
 
-            context.startActivity(intent)
+            // Explicitly grant read uri permission to all resolving installer packages
+            val resInfoList = context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            for (resolveInfo in resInfoList) {
+                context.grantUriPermission(
+                    resolveInfo.activityInfo.packageName,
+                    contentUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+
+            val currentAct = currentActivityRef?.get()
+            if (currentAct != null && !currentAct.isFinishing && !currentAct.isDestroyed) {
+                currentAct.startActivity(intent)
+            } else {
+                context.startActivity(intent)
+            }
 
         } catch (e: Exception) {
             _uiState.value = UpdateUiState.Error("Failed to launch package installer: ${e.localizedMessage ?: "Unknown error"}")

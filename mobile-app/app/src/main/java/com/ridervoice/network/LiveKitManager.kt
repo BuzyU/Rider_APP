@@ -219,6 +219,7 @@ class LiveKitManager @Inject constructor(
             return
         }
         micMutex.withLock {
+            localAudioTrack?.enabled = want
             val ok = try { lp.setMicrophoneEnabled(want) } catch (e: Exception) { false }
             if (ok) {
                 _isMicEnabled.value = want
@@ -245,8 +246,9 @@ class LiveKitManager @Inject constructor(
 
             Log.d(TAG, "Publishing audio track for device: ${device.displayName()}, options: $opts")
             val track = lp.createAudioTrack(name = "microphone", options = opts)
+            track.start()
             val ok = try {
-                lp.publishAudioTrack(track, AudioTrackPublishOptions(dtx = true))
+                lp.publishAudioTrack(track, AudioTrackPublishOptions(dtx = false))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to publish audio track: ${e.message}")
                 false
@@ -254,6 +256,7 @@ class LiveKitManager @Inject constructor(
             if (ok) {
                 localAudioTrack = track
                 lastOptions = opts
+                runCatching { track.prewarm() }
                 // Publication exists now, so this really mutes (fixes hot-mic-at-join).
                 runCatching { lp.setMicrophoneEnabled(false) }
                 _isMicEnabled.value = false
@@ -347,7 +350,10 @@ class LiveKitManager @Inject constructor(
             }
             is RoomEvent.TrackSubscribed -> {
                 Log.d(TAG, "Remote track subscribed: ${event.track.kind}")
-                (event.track as? RemoteAudioTrack)?.setVolume(if (_deafened.value) 0.0 else 1.0)
+                (event.track as? RemoteAudioTrack)?.let { remoteTrack ->
+                    remoteTrack.enabled = true
+                    remoteTrack.setVolume(if (_deafened.value) 0.0 else 1.0)
+                }
             }
             is RoomEvent.ActiveSpeakersChanged -> {
                 val speaker = event.speakers.firstOrNull()?.identity?.value

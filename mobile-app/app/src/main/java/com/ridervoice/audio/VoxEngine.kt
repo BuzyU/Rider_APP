@@ -120,7 +120,7 @@ class VoxEngine @Inject constructor(
 
                 if (voxEnabled && !pttOverride) {
                     when (detector.evaluate(rms, System.currentTimeMillis(), _isMicOpen.value)) {
-                        VoxDetector.Decision.OPEN -> openMic()
+                        VoxDetector.Decision.OPEN -> openMic(isFromVox = true)
                         VoxDetector.Decision.CLOSE -> closeMic()
                         VoxDetector.Decision.NONE -> {}
                     }
@@ -132,6 +132,8 @@ class VoxEngine @Inject constructor(
     fun stop() {
         pollJob?.cancel()
         pollJob = null
+        voxHoldJob?.cancel()
+        voxHoldJob = null
         pttReleaseJob?.cancel()
         pttReleaseJob = null
         try {
@@ -146,26 +148,17 @@ class VoxEngine @Inject constructor(
     }
 
     fun setPttOverride(open: Boolean) {
+        voxHoldJob?.cancel()
+        voxHoldJob = null
         pttReleaseJob?.cancel()
         pttReleaseJob = null
         pttOverride = open
-        evaluateHardwareRecordingState()
         if (open) {
-            openMic()
+            openMic(isFromVox = false)
         } else {
             val now = System.currentTimeMillis()
             detector.onPttRelease(now)
-            // With VOX running, evaluate() closes after HOLD_MS of silence. Without VOX
-            // (disabled, or PTT-only mode after an AudioRecord failure) close the tail ourselves.
-            if (!voxEnabled || pollJob?.isActive != true) {
-                pttReleaseJob = scope.launch {
-                    delay(VoxDetector.HOLD_MS)
-                    if (!pttOverride) {
-                        closeMic()
-                        evaluateHardwareRecordingState()
-                    }
-                }
-            }
+            closeMic()
         }
     }
 
@@ -176,19 +169,20 @@ class VoxEngine @Inject constructor(
     }
 
     private fun evaluateHardwareRecordingState() {
-        val shouldRecord = voxEnabled || pttOverride
+        val isTransmitting = _isMicOpen.value || pttOverride
+        val shouldRecord = voxEnabled && !isTransmitting
         val record = audioRecord ?: return
         if (shouldRecord && record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
             try {
                 record.startRecording()
-                Log.d(TAG, "AudioRecord hardware resumed for PTT/VOX")
+                Log.d(TAG, "AudioRecord hardware resumed for VOX monitoring")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start AudioRecord: ${e.message}")
             }
         } else if (!shouldRecord && record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
             try {
                 record.stop()
-                Log.d(TAG, "AudioRecord hardware suspended (PTT idle)")
+                Log.d(TAG, "AudioRecord hardware suspended while transmitting/idle")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to stop AudioRecord: ${e.message}")
             }
@@ -205,18 +199,42 @@ class VoxEngine @Inject constructor(
         detector.setSpeedKmh(speedMps * 3.6f)
     }
 
-    private fun openMic() {
-        if (_isMicOpen.value) return
+    private var voxHoldJob: Job? = null
+
+    private fun openMic(isFromVox: Boolean = false) {
+        if (_isMicOpen.value) {
+            if (isFromVox && !pttOverride) {
+                scheduleVoxHold()
+            }
+            return
+        }
         Log.d(TAG, "VOX OPEN (floor=${detector.floor.toInt()}, threshold=${detector.openThreshold.toInt()})")
         _isMicOpen.value = true
+        evaluateHardwareRecordingState()
         onMicStateChange?.invoke(true)
+        if (isFromVox && !pttOverride) {
+            scheduleVoxHold()
+        }
+    }
+
+    private fun scheduleVoxHold() {
+        voxHoldJob?.cancel()
+        voxHoldJob = scope.launch {
+            delay(VoxDetector.HOLD_MS * 2)
+            if (!pttOverride && _isMicOpen.value) {
+                closeMic()
+            }
+        }
     }
 
     private fun closeMic() {
+        voxHoldJob?.cancel()
+        voxHoldJob = null
         if (!_isMicOpen.value) return
         Log.d(TAG, "VOX CLOSE")
         _isMicOpen.value = false
         detector.resetAttack()
+        evaluateHardwareRecordingState()
         onMicStateChange?.invoke(false)
     }
 

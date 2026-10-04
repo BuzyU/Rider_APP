@@ -23,7 +23,8 @@ This document outlines everything currently missing, partially wired, or pending
 | **Regional SOS Emergency Dispatch** | ✅ Completed (v0.0.3.2) | `EmergencyNumbers.kt` (cellular/SIM/locale) |
 | **Crash-Proof Route Planner & Radar HUD** | ✅ Completed (v0.0.3.3) | `TacticalRadarCanvas.kt` + Mapbox fallback |
 | **In-App OTA Installer Loop Fix** | ✅ Completed (v0.0.3.4) | `UpdateManager.kt` foreground launch & cache check |
-| Release v0.0.3.4 | ✅ Published | GitHub Actions tag release (`Rider_APP-v0.0.3.4.apk`) |
+| **LiveKit Audio Pipeline & Hardware Contention Fix** | ✅ Completed (v0.0.3.5) | `VoxEngine.kt` + `LiveKitManager.kt` track lifecycle |
+| Release v0.0.3.5 | 🚀 In Flight | GitHub Actions tag release (`Rider_APP-v0.0.3.5.apk`) |
 | **Single WebRTC Capture Sink (Step 9a)** | ⏳ **PENDING** | Research & verification for v0.0.4.0 |
 | **Live Settings Reactivity During Active Ride** | ⏳ **PENDING** | Scheduled for v0.0.4.0 |
 | **Neural Noise Suppression (RNNoise)** | ⏳ **PENDING** | Scheduled for v0.0.4.0 |

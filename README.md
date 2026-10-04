@@ -4,13 +4,14 @@
 
 RiderVoice is a Jetpack Compose Android application designed for motorcycle convoys. It enables hands-free push-to-talk (PTT) communication over WebRTC, squad coordination, active ride telemetry, and over-the-air (OTA) application updates. It is backed by a Node.js Express REST API, Prisma PostgreSQL (Supabase), and LiveKit for real-time audio.
 
-> **Latest Release:** [**v0.0.3.4 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.4)  
+> **Latest Release:** [**v0.0.3.5 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.5)  
 > For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md).
 
 ---
 
 ## 🚀 Key Features
 
+- **LiveKit WebRTC Voice Engine (v0.0.3.5)** – Conflict-free WebRTC audio transmission with zero hardware lock contention, dedicated HAL capture ownership, instant PTT unmute without Opus DTX clipping, and crystal-clear helmet intercom playout.
 - **In-App OTA Updates (v0.0.3.4)** – Seamless, loop-proof firmware updater with foreground Activity-anchored installer dispatch (preventing Android 10–14 OEM background launch drops), explicit FileProvider URI permission grants, smart local APK caching (skips 55MB redownloads), instant resume upon return from Settings, and an interactive "Retry Installer" action.
 - **Operator Dossier (Account Page)** – Tactical profile management displaying call-sign `@handle`, high-resolution avatar with dynamic initial fallback, phone number, assigned bike model, bio, and a live "Calibrate Dossier" editor.
 - **Tactical Waypoint Radar & Route Planner (v0.0.3.3)** – Crash-proof offline aviation/military radar HUD Canvas with 360° sweep, concentric range rings (5km–25km), live squad blips, waypoint trajectory vectors, elevation/distance badges, and in-HUD toggle with Mapbox Satellite/Vector navigation.
@@ -26,12 +27,12 @@ RiderVoice is a Jetpack Compose Android application designed for motorcycle conv
 
 You can download the latest signed APK directly from GitHub Releases:
 
-- 📱 [**Download RiderVoice v0.0.3.4 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.4/Rider_APP-v0.0.3.4.apk)
-- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.4/Rider_APP-v0.0.3.4.apk.sha256)
+- 📱 [**Download RiderVoice v0.0.3.5 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.5/Rider_APP-v0.0.3.5.apk)
+- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.5/Rider_APP-v0.0.3.5.apk.sha256)
 
 ### Sideloading Instructions:
 
-1. Download `Rider_APP-v0.0.3.4.apk` onto your Android phone (or transfer via USB/Quick Share).
+1. Download `Rider_APP-v0.0.3.5.apk` onto your Android phone (or transfer via USB/Quick Share).
 2. Open your device's **Files** app and tap the APK.
 3. If prompted by Android, toggle **"Allow from this source"**.
 4. Tap **Install**. Subsequent updates can be downloaded directly from within the app under **Settings → Check for OTA Updates**.
@@ -152,6 +153,7 @@ $$\text{versionCode} = (\text{major} \times 10{,}000{,}000) + (\text{minor} \tim
 - `0.0.3.2` → `3,002`
 - `0.0.3.3` → `3,003`
 - `0.0.3.4` → `3,004`
+- `0.0.3.5` → `3,005`
 - `1.10.0` → `11,000,000`
 
 ### Hard Bucket Bounds Guard
@@ -168,17 +170,17 @@ To prevent silent ordering collisions, both the GitHub Actions workflow and Grad
 ```bash
 # 1. Commit changes
 git add -A
-git commit -m "feat: Release v0.0.3.4"
+git commit -m "feat: Release v0.0.3.5"
 
 # 2. Tag semantic version
-git tag v0.0.3.4
+git tag v0.0.3.5
 
 # 3. Push to GitHub
 git push origin main
-git push origin v0.0.3.4
+git push origin v0.0.3.5
 ```
 
-GitHub Actions will automatically build `Rider_APP-v0.0.3.4.apk`, compute its `.sha256` checksum, and publish a new release to GitHub.
+GitHub Actions will automatically build `Rider_APP-v0.0.3.5.apk`, compute its `.sha256` checksum, and publish a new release to GitHub.
 
 ---
 

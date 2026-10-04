@@ -23,3 +23,6 @@ capture.png
 Thumbs.db
 
 *firebase-adminsdk*.json
+
+# Decompiled SDK / temp sources
+io/

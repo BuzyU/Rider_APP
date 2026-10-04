@@ -199,6 +199,16 @@ class AudioDeviceRouter @Inject constructor(
 
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
 
+        try {
+            val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL)
+            val curVol = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+            if (curVol <= 0 && maxVol > 0) {
+                audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, (maxVol * 0.75f).toInt().coerceAtLeast(1), 0)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to verify call stream volume: ${e.message}")
+        }
+
         reEvaluatePriority()
     }
 
@@ -284,9 +294,9 @@ class AudioDeviceRouter @Inject constructor(
                 Log.d(TAG, "Modern: speakerphone fallback")
             } else {
                 Log.w(TAG, "Modern: speaker fallback unavailable, using isSpeakerphoneOn")
-                @Suppress("DEPRECATION")
-                audioManager.isSpeakerphoneOn = true
             }
+            @Suppress("DEPRECATION")
+            audioManager.isSpeakerphoneOn = true
             chosen = AudioDevice.Earpiece
         }
 

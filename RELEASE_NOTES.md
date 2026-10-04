@@ -1,3 +1,43 @@
+## RiderVoice v0.0.3.5 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.5** fixes a critical LiveKit WebRTC audio pipeline failure where audio showed as transmitting and sessions were live on LiveKit Cloud but no voice was transmitted or heard, resolves Android `AudioRecord` hardware lock contention on `VOICE_COMMUNICATION`, disables Opus DTX silence suppression in walkie-talkie mode, synchronizes local and remote audio track lifecycle states, and adds idempotent Supabase SQL migrations.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.5` |
+| **Version Code** | `3005` |
+| **Release Tag** | [`v0.0.3.5`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.5) |
+| **Download APK** | [`Rider_APP-v0.0.3.5.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.5/Rider_APP-v0.0.3.5.apk) |
+
+---
+
+### 🎙️ LiveKit WebRTC Audio Pipeline & Hardware Contention Fix
+- **Eliminated Concurrent `AudioRecord` Lock Contention**:
+  - `VoxEngine` previously opened an `AudioRecord` directly targeting `MediaRecorder.AudioSource.VOICE_COMMUNICATION` while WebRTC opened a second capture on the same HAL session. Android's AudioPolicy / AudioFlinger silenced the secondary capture, resulting in zero-amplitude audio being transmitted.
+  - Updated `VoxEngine.evaluateHardwareRecordingState()` to immediately suspend (`audioRecord.stop()`) while transmitting (`_isMicOpen.value || pttOverride`), granting WebRTC 100% exclusive, conflict-free access to the physical microphone hardware.
+  - Implemented automatic hold timer scheduling (`scheduleVoxHold()`) so VOX hands-free speech bursts stay open through the utterance and resume monitoring smoothly.
+- **Track Start, Prewarm & DTX Optimization**:
+  - `LiveKitManager.publishAudioTrack` now explicitly calls `track.start()` and `track.prewarm()` upon creation.
+  - Switched from `AudioTrackPublishOptions(dtx = true)` to `dtx = false` to eliminate Opus DTX silence suppression and packet cutoffs in walkie-talkie mode.
+  - Explicitly synchronized `localAudioTrack?.enabled = want` in `applyMic()`.
+  - Added explicit `remoteTrack.enabled = true` on `RoomEvent.TrackSubscribed` to guarantee playout.
+- **Audio Routing & Call Volume Safety**:
+  - Added a startup volume sanity check in `AudioDeviceRouter` ensuring `STREAM_VOICE_CALL` volume is never 0/muted upon entering communication mode.
+  - Enforced `isSpeakerphoneOn = true` alongside `setCommunicationDevice` to guarantee loudspeaker output on devices without headsets.
+
+---
+
+### 🗄️ Supabase Database Updates
+- **Complete Idempotent Migration Script**:
+  - Added [`backend/supabase_migrations_latest.sql`](backend/supabase_migrations_latest.sql) and updated [`backend/supabase_schema.sql`](backend/supabase_schema.sql).
+  - Safely creates `user_role` enum (`CUSTOMER`, `ADMIN`) and `User.role` column.
+  - Adds `InviteStatus.REMOVED` enum value.
+  - Adds `RideSession.roomName` column.
+  - Creates `RoomJoinToken`, `EmergencyAlert`, and `admin_settings` tables with proper cascade foreign keys and composite performance indexes.
+
+---
+
 ## RiderVoice v0.0.3.4 Release Notes
 
 ### 🚀 Overview

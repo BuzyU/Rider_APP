@@ -33,7 +33,6 @@ fun SettingsScreen(
     authViewModel: AuthViewModel = hiltViewModel(),
     updateViewModel: UpdateViewModel = hiltViewModel(),
     onBackClick: () -> Unit,
-    onNavigateToHeadsetSettings: () -> Unit = {},
     onNavigateToAccount: () -> Unit = {},
     onSignOutSuccess: () -> Unit = {}
 ) {
@@ -61,13 +60,13 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.width(6.dp))
                 Column {
                     Text(
-                        text = "TRANSCEIVER BENCH",
+                        text = "APP SETTINGS",
                         style = MaterialTheme.typography.labelSmall,
                         color = NeonOrange,
                         letterSpacing = 1.5.sp
                     )
                     Text(
-                        text = "SETTINGS & CALIBRATION",
+                        text = "SETTINGS",
                         color = TextPrimary,
                         style = MaterialTheme.typography.titleLarge
                     )
@@ -79,9 +78,9 @@ fun SettingsScreen(
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 item {
-                    SettingsSectionHeader("OPERATOR & IDENTITY")
+                    SettingsSectionHeader("PROFILE")
                     SettingsItemValue(
-                        label = "Operator Dossier & Profile",
+                        label = "My Profile",
                         value = "View Account",
                         icon = Icons.Default.AccountCircle,
                         onClick = onNavigateToAccount
@@ -89,9 +88,9 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionHeader("COCKPIT & DISPLAY")
+                    SettingsSectionHeader("DISPLAY")
                     SettingsItemToggle(
-                        label = "Night Rig (Dark Theme)",
+                        label = "Dark Mode",
                         icon = Icons.Default.DarkMode,
                         checked = settingsState.darkTheme,
                         onCheckedChange = { settingsViewModel.toggleDarkTheme() }
@@ -99,56 +98,43 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionHeader("AUDIO & RF GAIN")
+                    SettingsSectionHeader("AUDIO")
                     SettingsItemValue(
-                        label = "Mic Sensitivity",
-                        value = settingsState.micSensitivity,
-                        icon = Icons.Default.Mic,
-                        onClick = { showOptionsDialog = "micSensitivity" to listOf("Low", "Medium", "High") }
-                    )
-                    SettingsItemValue(
-                        label = "VOX Sensitivity Threshold",
+                        label = "VOX Sensitivity",
                         value = settingsState.voxSensitivity,
                         icon = Icons.Default.RecordVoiceOver,
                         onClick = { showOptionsDialog = "voxSensitivity" to listOf("Low", "Medium", "High") }
                     )
                     SettingsItemToggle(
-                        label = "Wind & Road Noise Cancellation",
+                        label = "Noise Cancellation",
                         icon = Icons.Default.Hearing,
                         checked = settingsState.noiseCancellation,
                         onCheckedChange = { settingsViewModel.toggleNoiseCancellation() }
                     )
-                    SettingsItemValue(
-                        label = "Audio Output Route",
-                        value = settingsState.audioOutput,
-                        icon = Icons.Default.VolumeUp,
-                        onClick = { showOptionsDialog = "audioOutput" to listOf("Auto", "Bluetooth SCO", "Wired", "Earpiece") }
-                    )
-
-                    SettingsItemValue(
-                        label = "Helmet Headset Hardware Controls",
-                        value = "Cardo / Sena / PTT",
+                    SettingsItemToggle(
+                        label = "Hardware PTT (Helmet Button)",
                         icon = Icons.Default.Headset,
-                        onClick = onNavigateToHeadsetSettings
+                        checked = settingsState.hardwarePtt,
+                        onCheckedChange = { settingsViewModel.toggleHardwarePtt() }
+                    )
+                    SettingsItemToggle(
+                        label = "Hybrid VOX + PTT Mode",
+                        icon = Icons.Default.HeadsetMic,
+                        checked = settingsState.hybridVox,
+                        onCheckedChange = { settingsViewModel.toggleHybridVox() }
                     )
                 }
 
                 item {
-                    SettingsSectionHeader("RIDING COCKPIT HUD")
+                    SettingsSectionHeader("RIDE HUD")
                     SettingsItemToggle(
-                        label = "Auto HUD High-Contrast Mode",
+                        label = "High-Contrast Mode",
                         icon = Icons.Default.Dashboard,
                         checked = settingsState.autoHudMode,
                         onCheckedChange = { settingsViewModel.toggleAutoHud() }
                     )
-                    SettingsItemValue(
-                        label = "Speed Trigger for HUD",
-                        value = settingsState.speedForHud,
-                        icon = Icons.Default.Speed,
-                        onClick = { showOptionsDialog = "speedForHud" to listOf("10 km/h", "15 km/h", "20 km/h", "Disabled") }
-                    )
                     SettingsItemToggle(
-                        label = "Glove Mode Capacitive Bias",
+                        label = "Glove Mode",
                         icon = Icons.Default.TouchApp,
                         checked = settingsState.gloveMode,
                         onCheckedChange = { settingsViewModel.toggleGloveMode() }
@@ -156,31 +142,25 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionHeader("CARRIER FREQUENCY & COMMS")
+                    SettingsSectionHeader("COMMUNICATION")
                     SettingsItemToggle(
-                        label = "Open Mic Handsfree Broadcast",
+                        label = "Open Mic (always transmit)",
                         icon = Icons.Default.Podcasts,
                         checked = settingsState.openMic,
                         onCheckedChange = { settingsViewModel.toggleOpenMic() }
                     )
-                    SettingsItemValue(
-                        label = "Carrier Reconnect",
-                        value = settingsState.reconnectMode,
-                        icon = Icons.Default.Sync,
-                        onClick = { showOptionsDialog = "reconnectMode" to listOf("Auto", "Manual") }
-                    )
                 }
 
                 item {
-                    SettingsSectionHeader("FIRMWARE & OTA UPDATES")
+                    SettingsSectionHeader("UPDATES")
                     SettingsItemValue(
-                        label = "Transceiver Firmware Version",
+                        label = "App Version",
                         value = "v${updateViewModel.currentVersionName}",
                         icon = Icons.Default.Info,
                         onClick = { updateViewModel.checkForUpdates() }
                     )
                     SettingsItemValue(
-                        label = "Check for OTA Updates",
+                        label = "Check for Updates",
                         value = "Check Now",
                         icon = Icons.Default.SystemUpdate,
                         onClick = { updateViewModel.checkForUpdates() }
@@ -190,7 +170,7 @@ fun SettingsScreen(
                 item {
                     Spacer(modifier = Modifier.height(28.dp))
                     TacticalButton(
-                        text = "DISENGAGE TRANSCEIVER (SIGN OUT)",
+                        text = "SIGN OUT",
                         onClick = {
                             showSignOutConfirmDialog = true
                         },
@@ -257,11 +237,7 @@ fun SettingsScreen(
 
         showOptionsDialog?.let { (key, options) ->
             val currentValue = when (key) {
-                "micSensitivity"  -> settingsState.micSensitivity
                 "voxSensitivity"  -> settingsState.voxSensitivity
-                "audioOutput"     -> settingsState.audioOutput
-                "speedForHud"     -> settingsState.speedForHud
-                "reconnectMode"   -> settingsState.reconnectMode
                 else              -> ""
             }
 
@@ -269,7 +245,7 @@ fun SettingsScreen(
                 onDismissRequest = { showOptionsDialog = null },
                 title = {
                     Text(
-                        text = "CALIBRATION OPTION",
+                        text = "SELECT OPTION",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary
                     )

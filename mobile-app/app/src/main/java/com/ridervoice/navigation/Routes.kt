@@ -23,7 +23,6 @@ object Routes {
     const val POST_RIDE_SUMMARY = "post_ride_summary"
     const val JOIN_ROOM       = "join_room"
     const val JOIN_VIA_TOKEN  = "join_via_token/{token}"
-    const val HEADSET_SETTINGS = "headset_settings"
     const val RIDE_REPLAY     = "ride_replay/{rideId}"
 
     fun inviteFriendsPath(convoyName: String): String {

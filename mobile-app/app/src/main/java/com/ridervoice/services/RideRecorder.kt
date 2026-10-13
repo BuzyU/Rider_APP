@@ -8,6 +8,7 @@ import com.ridervoice.data.local.entities.RideSessionEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
@@ -35,7 +36,7 @@ class RideRecorder @Inject constructor(
         private const val HIGH_SPEED_MPS = 36.1f
     }
 
-    private val recorderScope = CoroutineScope(Dispatchers.IO)
+    private val recorderScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private var recordingJob: Job? = null
 

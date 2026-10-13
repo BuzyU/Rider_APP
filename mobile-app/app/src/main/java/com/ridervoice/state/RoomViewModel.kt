@@ -217,6 +217,11 @@ class RoomViewModel @Inject constructor(
         // "Open mic" is the existing VOX on/off setting; defaults to enabled.
         voxEngine.setVoxEnabled(securePrefs.getBoolean("settings_open_mic", true))
         liveKitManager.noiseSuppressionEnabled = securePrefs.getBoolean("settings_noise_cancellation", true)
+        // Headset / PTT settings (UX-1: migrated from raw headset_prefs to SecurePreferences)
+        val hardwarePttEnabled = securePrefs.getBoolean("settings_hardware_ptt", true)
+        val hybridVoxEnabled = securePrefs.getBoolean("settings_hybrid_vox", true)
+        voxEngine.setHardwarePttEnabled(hardwarePttEnabled)
+        voxEngine.setHybridVoxMode(hybridVoxEnabled)
     }
 
     fun setVoxSensitivity(sensitivity: Float) {

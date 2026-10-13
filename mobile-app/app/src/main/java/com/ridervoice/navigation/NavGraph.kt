@@ -278,7 +278,6 @@ fun NavGraph(
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onBackClick = { navController.navigateUp() },
-                onNavigateToHeadsetSettings = { navController.navigate(Routes.HEADSET_SETTINGS) },
                 onNavigateToAccount = { navController.navigate(Routes.ACCOUNT) },
                 onSignOutSuccess = {
                     navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
@@ -314,9 +313,6 @@ fun NavGraph(
                 },
                 onBackClick = { navController.popBackStack() }
             )
-        }
-        composable(Routes.HEADSET_SETTINGS) {
-            HeadsetSettingsScreen(onBackClick = { navController.popBackStack() })
         }
         composable(
             route = Routes.RIDE_REPLAY,

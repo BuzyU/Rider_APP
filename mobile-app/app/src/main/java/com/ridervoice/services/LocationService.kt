@@ -121,21 +121,22 @@ class LocationService @Inject constructor(
             }
         }
 
-        var desired = when {
-            isDeepStationarySleep -> 60_000L
-            speedMps < 1.0f       -> 15_000L
-            speedMps < 15.0f      ->  5_000L
-            else                  ->  2_000L
+        val (desiredInterval, priority) = when {
+            isDeepStationarySleep -> 60_000L to Priority.PRIORITY_BALANCED_POWER_ACCURACY
+            speedMps < 4.2f       -> 10_000L to Priority.PRIORITY_BALANCED_POWER_ACCURACY // < 15 km/h
+            speedMps <= 16.7f     ->  5_000L to Priority.PRIORITY_HIGH_ACCURACY            // 15–60 km/h
+            else                  ->  3_000L to Priority.PRIORITY_HIGH_ACCURACY            // > 60 km/h
         }
 
-        if (isNetworkDegraded && desired < 10_000L) {
-            desired = 10_000L
+        var finalInterval = desiredInterval
+        if (isNetworkDegraded && finalInterval < 10_000L) {
+            finalInterval = 10_000L
         }
 
-        if (desired == currentIntervalMs && !isDeepStationarySleep) return
+        if (finalInterval == currentIntervalMs && !isDeepStationarySleep) return
 
-        currentIntervalMs = desired
-        updateLocationRequest(Priority.PRIORITY_HIGH_ACCURACY, desired)
+        currentIntervalMs = finalInterval
+        updateLocationRequest(priority, finalInterval)
     }
 
     @SuppressLint("MissingPermission")

@@ -26,6 +26,7 @@ class NetworkResilienceManager @Inject constructor(
     val networkHealth: StateFlow<NetworkHealth> = _networkHealth
 
     private var transitionJob: Job? = null
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val HYSTERESIS_MS = 3000L
 
     init {
@@ -42,7 +43,7 @@ class NetworkResilienceManager @Inject constructor(
             override fun onAvailable(network: Network) {
 
                 transitionJob?.cancel()
-                transitionJob = CoroutineScope(Dispatchers.IO).launch {
+                transitionJob = scope.launch {
                     val caps = connectivityManager.getNetworkCapabilities(network)
                     if (isDegraded(caps)) {
                         _networkHealth.value = NetworkHealth.DEGRADED

@@ -1,3 +1,55 @@
+## RiderVoice v0.0.3.7 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.7** eliminates the critical P0 voice audio cut where VOX speech would automatically drop after ~2 seconds (`VOX-CUT-1`), bridges WebRTC audio device module transmit frames directly to the VOX RMS detector, introduces continuous speech regression test coverage (`VOX-CUT-2`), removes dead code and obsolete stubs (`DEAD-1..11`), streamlines Settings UI/UX with consumer labels and inlined headset controls (`UX-1..5`), and introduces speed-tiered GNSS battery optimizations with coroutine leak fixes (`BAT-1..3`).
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.7` |
+| **Version Code** | `3007` |
+| **Release Tag** | [`v0.0.3.7`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.7) |
+| **Download APK** | [`Rider_APP-v0.0.3.7.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.7/Rider_APP-v0.0.3.7.apk) |
+
+---
+
+### 🎙️ P0 Voice Engine Fix (VOX-CUT-1 & VOX-CUT-2)
+- **Eliminated 2-Second Forced Mic Cut**:
+  - Previously, `openMic(isFromVox=true)` scheduled an unconditional `delay(1800ms)` hold timer (`scheduleVoxHold()`) while suspending local `AudioRecord` capture. The engine became starved of incoming audio frames during transmission, causing the mic to abruptly cut mid-sentence every ~1.8–2 seconds.
+  - Completely removed the forced timer. Integrated `JavaAudioDeviceModule.setSamplesReadyCallback` in `LiveKitManager` to deliver active transmit PCM frames to `VoxEngine.onTxFrame(data, sampleRate)`.
+  - Continuous speech now continuously computes RMS, updates dynamic noise floor, and keeps the channel open indefinitely until the speaker stops talking (plus the configured hold period).
+  - Added safety net watchdog ensuring transmission recovers gracefully if audio frames stop arriving.
+- **Regression Test & Field Test Coverage**:
+  - Added `continuousSpeechDoesNotCutAfter2Seconds()` in `VoxDetectorTest.kt` simulating 30 seconds of active conversation.
+  - Added test case **FT-24** to the Physical Hardware Field Testing Matrix.
+
+---
+
+### 🧹 Dead Code Purge & Architecture Cleanup (DEAD-1..11)
+- Removed dead and obsolete stub classes: `CrashRecoveryManager`, `RoomStateSynchronizer`, `TacticalDebugOverlay`, `ConnectionQualityMonitor`, `ReconnectManager`, `SessionRestore`, and `NetworkHandoffManager`.
+- Replaced monolithic `TacticalMessagingService` with clean, dedicated `FcmService` properly registered in AndroidManifest.
+- Retained core active classes `SquadRepository`, `TacticalButton`, and `EmergencyNumbers`.
+
+---
+
+### 📱 UI & Settings Structural Overhaul (UX-1..5)
+- **Unified Secure Preferences**: Migrated headset preferences (`settings_hardware_ptt`, `settings_hybrid_vox`) from unencrypted raw preferences to `SecurePreferences`, applied directly in `RoomViewModel.applyAudioSettings()`.
+- **Inlined Headset Controls**: Inlined headset PTT and VOX settings directly into `SettingsScreen` under "AUDIO", eliminating the redundant `HeadsetSettingsScreen` and dedicated route.
+- **Removed Fake / Non-Functional Settings**: Purged dead UI items (`micSensitivity`, `speedForHud`, `reconnectMode`, `transceiverFirmware`) and duplicate audio route picker.
+- **Clean Consumer Labels**: Renamed tactical military jargon to clear rider labels ("My Profile", "Dark Mode", "AUDIO", "COMMUNICATION", "Open Mic (always transmit)", "DISPLAY", "RIDE HUD", "Glove Mode", "UPDATES").
+
+---
+
+### ⚡ Battery & System Optimization (BAT-1..3)
+- **Speed-Tiered Dynamic GNSS Polling**:
+  - `> 60 km/h`: 3,000 ms, `PRIORITY_HIGH_ACCURACY` (tight convoy tracking).
+  - `15–60 km/h`: 5,000 ms, `PRIORITY_HIGH_ACCURACY`.
+  - `< 15 km/h`: 10,000 ms, `PRIORITY_BALANCED_POWER_ACCURACY`.
+  - Stationary `> 120 s`: 60,000 ms, `PRIORITY_BALANCED_POWER_ACCURACY`.
+- **Foreground WakeLock Timeout**: Added 4-hour safety timeout cap on `PARTIAL_WAKE_LOCK` in `VoiceForegroundService` to prevent runaway battery drain.
+- **Coroutine Scope Leaks**: Replaced unmanaged coroutine launches in `NetworkResilienceManager` and `RideRecorder` with managed `SupervisorJob` scopes.
+
+---
+
 ## RiderVoice v0.0.3.6 Release Notes
 
 ### 🚀 Overview

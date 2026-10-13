@@ -54,7 +54,7 @@ class VoiceForegroundService : Service() {
                 "RiderVoice:VoiceAudioLock"
             ).apply {
                 setReferenceCounted(false)
-                acquire(10 * 3600 * 1000L)
+                acquire(4 * 3600 * 1000L) // 4 hours maximum safety timeout (BAT-3)
             }
         } catch (e: Exception) {
             android.util.Log.e("VoiceForegroundService", "WakeLock acquisition failed", e)

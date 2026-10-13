@@ -70,4 +70,40 @@ class VoxDetectorTest {
         assertTrue(sim.opens <= 1)
         assertFalse(sim.open)
     }
+
+    @Test
+    fun continuousSpeechDoesNotCutAfter2Seconds() {
+        val sim = Sim(VoxDetector())
+        // Settle floor on background noise (10 s)
+        repeat(500) { sim.step(400f, ::noiseFrame) }
+
+        // Trigger opening burst
+        repeat(5) { sim.step(400f * 6f, ::noiseFrame) }
+        assertTrue("VOX must open on speech", sim.open)
+        assertEquals(1, sim.opens)
+
+        // 30 seconds of conversational speech:
+        // ~50 words, each 300 ms speech followed by 250 ms breath/word pause (< 900 ms HOLD_MS)
+        // VOX-CUT-1 regression test: must NEVER cut at 1.8-2.0s!
+        repeat(55) {
+            // Word: 15 frames = 300 ms
+            repeat(15) { sim.step(3000f, ::noiseFrame) }
+            assertTrue("VOX must stay open during speech words", sim.open)
+
+            // Inter-word pause: 12 frames = 240 ms (shorter than 900 ms hold)
+            repeat(12) { sim.step(400f, ::noiseFrame) }
+            assertTrue("VOX must stay open during inter-word pause within hold window", sim.open)
+        }
+        assertEquals("VOX must stay open without chopping/reopening across 30s conversation", 1, sim.opens)
+
+        // Final spoken word before conversation ends
+        repeat(15) { sim.step(3000f, ::noiseFrame) }
+        val speechEnd = sim.now
+
+        // Rider stops speaking: silence for 60 frames (1.2 s)
+        repeat(60) { sim.step(400f, ::noiseFrame) }
+        assertFalse("VOX must close after speech ends and hold expires", sim.open)
+        val closeDelay = sim.closedAt - speechEnd
+        assertTrue("Close delay should match hold time (~900 ms), was $closeDelay", closeDelay in 700..1100)
+    }
 }

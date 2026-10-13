@@ -104,6 +104,11 @@ class VoxEngine @Inject constructor(
 
             while (isActive) {
                 if (audioRecord?.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                    val now = System.currentTimeMillis()
+                    if (_isMicOpen.value && !pttOverride && lastTxFrameTime > 0L && (now - lastTxFrameTime > 5000L)) {
+                        Log.w(TAG, "No TX frames received for >5s while VOX open — safety net closing mic")
+                        closeMic()
+                    }
                     delay(50)
                     continue
                 }
@@ -132,8 +137,6 @@ class VoxEngine @Inject constructor(
     fun stop() {
         pollJob?.cancel()
         pollJob = null
-        voxHoldJob?.cancel()
-        voxHoldJob = null
         pttReleaseJob?.cancel()
         pttReleaseJob = null
         try {
@@ -148,8 +151,6 @@ class VoxEngine @Inject constructor(
     }
 
     fun setPttOverride(open: Boolean) {
-        voxHoldJob?.cancel()
-        voxHoldJob = null
         pttReleaseJob?.cancel()
         pttReleaseJob = null
         pttOverride = open
@@ -160,6 +161,19 @@ class VoxEngine @Inject constructor(
             detector.onPttRelease(now)
             closeMic()
         }
+    }
+
+    @Volatile private var hardwarePttEnabled = true
+    @Volatile private var hybridVoxMode = true
+
+    fun setHardwarePttEnabled(enabled: Boolean) {
+        hardwarePttEnabled = enabled
+        Log.d(TAG, "Hardware PTT enabled: $enabled")
+    }
+
+    fun setHybridVoxMode(enabled: Boolean) {
+        hybridVoxMode = enabled
+        Log.d(TAG, "Hybrid VOX mode: $enabled")
     }
 
     fun setVoxEnabled(enabled: Boolean) {
@@ -199,43 +213,65 @@ class VoxEngine @Inject constructor(
         detector.setSpeedKmh(speedMps * 3.6f)
     }
 
-    private var voxHoldJob: Job? = null
-
     private fun openMic(isFromVox: Boolean = false) {
-        if (_isMicOpen.value) {
-            if (isFromVox && !pttOverride) {
-                scheduleVoxHold()
-            }
-            return
-        }
+        if (_isMicOpen.value) return
         Log.d(TAG, "VOX OPEN (floor=${detector.floor.toInt()}, threshold=${detector.openThreshold.toInt()})")
         _isMicOpen.value = true
+        lastTxFrameTime = System.currentTimeMillis()
         evaluateHardwareRecordingState()
         onMicStateChange?.invoke(true)
-        if (isFromVox && !pttOverride) {
-            scheduleVoxHold()
-        }
-    }
-
-    private fun scheduleVoxHold() {
-        voxHoldJob?.cancel()
-        voxHoldJob = scope.launch {
-            delay(VoxDetector.HOLD_MS * 2)
-            if (!pttOverride && _isMicOpen.value) {
-                closeMic()
-            }
-        }
     }
 
     private fun closeMic() {
-        voxHoldJob?.cancel()
-        voxHoldJob = null
         if (!_isMicOpen.value) return
         Log.d(TAG, "VOX CLOSE")
         _isMicOpen.value = false
         detector.resetAttack()
         evaluateHardwareRecordingState()
         onMicStateChange?.invoke(false)
+    }
+
+    @Volatile private var lastTxFrameTime = 0L
+
+    /**
+     * Called by LiveKit/WebRTC SamplesReadyCallback on each TX audio frame while transmitting.
+     * Keeps VOX active without HAL hardware contention and evaluates speech completion (VOX-CUT-1).
+     */
+    fun onTxFrame(pcmBytes: ByteArray, sampleRate: Int = 16000) {
+        if (!_isMicOpen.value && !pttOverride) return
+        val now = System.currentTimeMillis()
+        lastTxFrameTime = now
+
+        val numSamples = pcmBytes.size / 2
+        if (numSamples <= 0) return
+        val frame = ShortArray(numSamples)
+        var i = 0
+        var j = 0
+        while (i < pcmBytes.size - 1 && j < numSamples) {
+            val b0 = pcmBytes[i].toInt() and 0xFF
+            val b1 = pcmBytes[i + 1].toInt()
+            frame[j] = ((b1 shl 8) or b0).toShort()
+            i += 2
+            j++
+        }
+
+        val rms = detector.rms(frame, j)
+        _currentAmplitude.value = rms
+
+        if (!pttOverride) {
+            detector.updateFloor(rms)
+            _noiseFloor.value = detector.floor
+
+            if (voxEnabled) {
+                when (detector.evaluate(rms, now, isOpen = true)) {
+                    VoxDetector.Decision.CLOSE -> {
+                        Log.d(TAG, "VOX speech ended (silence hold expired) -> closing mic")
+                        closeMic()
+                    }
+                    else -> {}
+                }
+            }
+        }
     }
 
     /** 1 s pass of 20 ms frames; 25th percentile of the high-passed RMS. */

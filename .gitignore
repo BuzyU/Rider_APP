@@ -26,3 +26,8 @@ Thumbs.db
 
 # Decompiled SDK / temp sources
 io/
+
+# Python virtual environments
+.venv/
+venv/
+__pycache__/

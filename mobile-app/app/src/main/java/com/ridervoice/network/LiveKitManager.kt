@@ -148,7 +148,17 @@ class LiveKitManager @Inject constructor(
             val newRoom = LiveKit.create(
                 appContext = context,
                 overrides = LiveKitOverrides(
-                    audioOptions = AudioOptions(audioHandler = NoAudioHandler())
+                    audioOptions = AudioOptions(
+                        audioHandler = NoAudioHandler(),
+                        javaAudioDeviceModuleCustomizer = { builder ->
+                            builder.setSamplesReadyCallback { audioSamples ->
+                                val data = audioSamples.data
+                                if (data != null && data.isNotEmpty()) {
+                                    voxEngine.onTxFrame(data, audioSamples.sampleRate)
+                                }
+                            }
+                        }
+                    )
                 )
             )
             room = newRoom

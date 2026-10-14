@@ -27,6 +27,8 @@ import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
+import android.content.Intent
+import android.net.Uri
 import com.ridervoice.ui.components.TacticalButton
 import com.ridervoice.ui.components.UpdateDialog
 import com.ridervoice.ui.theme.*
@@ -383,7 +385,13 @@ fun AccountScreen(
             onInstallUpdate = { file, info -> updateViewModel.installUpdate(file, info) },
             onOpenSettings = { updateViewModel.openSettings() },
             onRetry = { updateViewModel.checkForUpdates() },
-            onDismiss = { updateViewModel.dismiss() }
+            onDismiss = { updateViewModel.dismiss() },
+            onOpenBrowserDownload = { url ->
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            }
         )
     }
 }

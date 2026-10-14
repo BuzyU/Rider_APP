@@ -19,6 +19,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.ui.components.TacticalButton
 import com.ridervoice.ui.theme.*
@@ -197,6 +200,7 @@ fun SettingsScreen(
             }
         }
 
+        val context = LocalContext.current
         val updateState by updateViewModel.uiState.collectAsState()
         UpdateDialog(
             uiState = updateState,
@@ -206,7 +210,13 @@ fun SettingsScreen(
             onInstallUpdate = { file, info -> updateViewModel.installUpdate(file, info) },
             onOpenSettings = { updateViewModel.openSettings() },
             onRetry = { updateViewModel.checkForUpdates() },
-            onDismiss = { updateViewModel.dismiss() }
+            onDismiss = { updateViewModel.dismiss() },
+            onOpenBrowserDownload = { url ->
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            }
         )
 
         if (showSignOutConfirmDialog) {

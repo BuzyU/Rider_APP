@@ -50,6 +50,16 @@ class UpdateManager @Inject constructor(
         .followRedirects(true)
         .build()
 
+    private val downloadHttpClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
+        .build()
+
     private val gson = Gson()
 
     private val _uiState = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
@@ -367,87 +377,167 @@ class UpdateManager @Inject constructor(
 
         val updatesDir = File(context.cacheDir, "updates").apply { mkdirs() }
 
-        updatesDir.listFiles()?.forEach { try { it.delete() } catch (ignored: Exception) {} }
-
         val requiredBytes = if (releaseInfo.apkSizeBytes > 0) releaseInfo.apkSizeBytes + 20_000_000 else 80_000_000
         if (updatesDir.usableSpace < requiredBytes) {
-            _uiState.value = UpdateUiState.Error("Insufficient storage space on device to download update.")
+            _uiState.value = UpdateUiState.Error(
+                message = "Insufficient storage space on device to download update.",
+                downloadUrl = releaseInfo.downloadUrl
+            )
             return
         }
 
-        val tempFile = File(updatesDir, "update_temp_${System.currentTimeMillis()}.apk")
+        val partFile = File(updatesDir, "Rider_APP-v${releaseInfo.versionName}.apk.part")
 
         _uiState.value = UpdateUiState.Downloading(
             releaseInfo = releaseInfo,
-            downloadedBytes = 0L,
+            downloadedBytes = if (partFile.exists()) partFile.length() else 0L,
             totalBytes = releaseInfo.apkSizeBytes,
-            progressPercent = 0,
+            progressPercent = if (releaseInfo.apkSizeBytes > 0 && partFile.exists()) {
+                ((partFile.length() * 100) / releaseInfo.apkSizeBytes).toInt().coerceIn(0, 99)
+            } else 0,
             speedText = "Connecting..."
         )
 
         downloadJob = scope.launch(Dispatchers.IO) {
-            try {
-                val request = Request.Builder()
-                    .url(releaseInfo.downloadUrl)
-                    .header("Accept", "application/octet-stream")
-                    .build()
+            val maxRetries = 5
+            var attempt = 0
+            var isCompleted = false
+            var lastError: Exception? = null
 
-                val response = httpClient.newCall(request).execute()
-                if (!response.isSuccessful) {
-                    _uiState.value = UpdateUiState.Error("Download server returned HTTP ${response.code}.")
-                    return@launch
-                }
+            while (attempt < maxRetries && !isCompleted) {
+                ensureActive()
+                attempt++
 
-                val body = response.body ?: throw IllegalStateException("Empty response body from download server")
-                val totalLength = if (body.contentLength() > 0) body.contentLength() else releaseInfo.apkSizeBytes
+                try {
+                    val downloadedSoFar = if (partFile.exists()) partFile.length() else 0L
 
-                body.byteStream().use { input ->
-                    FileOutputStream(tempFile).use { output ->
-                        val buffer = ByteArray(8 * 1024)
-                        var bytesRead: Int
-                        var totalDownloaded = 0L
-                        var lastTimestamp = System.currentTimeMillis()
-                        var bytesSinceLastTimestamp = 0L
+                    // Check if file is already fully downloaded
+                    if (releaseInfo.apkSizeBytes > 0 && downloadedSoFar >= releaseInfo.apkSizeBytes) {
+                        Log.i(TAG, "Part file already matches target size ($downloadedSoFar bytes). Verifying integrity.")
+                        isCompleted = true
+                        break
+                    }
 
-                        while (input.read(buffer).also { bytesRead = it } != -1) {
-                            ensureActive()
+                    val reqBuilder = Request.Builder()
+                        .url(releaseInfo.downloadUrl)
+                        .header("User-Agent", "Mozilla/5.0 (Linux; Android ${Build.VERSION.RELEASE}; ${Build.MODEL}) RiderVoice/${currentVersionName}")
+                        .header("Accept", "application/octet-stream")
+                        .header("Accept-Encoding", "identity")
 
-                            output.write(buffer, 0, bytesRead)
-                            totalDownloaded += bytesRead
-                            bytesSinceLastTimestamp += bytesRead
+                    if (downloadedSoFar > 0) {
+                        reqBuilder.header("Range", "bytes=$downloadedSoFar-")
+                        Log.i(TAG, "Resuming update download at byte $downloadedSoFar (attempt $attempt/$maxRetries)")
+                    }
 
-                            val now = System.currentTimeMillis()
-                            val elapsed = now - lastTimestamp
-                            if (elapsed >= 800) {
-                                val speedBps = (bytesSinceLastTimestamp.toDouble() / (elapsed / 1000.0)).toLong()
-                                val currentSpeedText = formatSpeed(speedBps)
-                                lastTimestamp = now
-                                bytesSinceLastTimestamp = 0L
+                    val response = downloadHttpClient.newCall(reqBuilder.build()).execute()
+                    val code = response.code
 
-                                val progressPercent = if (totalLength > 0) {
-                                    ((totalDownloaded * 100) / totalLength).toInt().coerceIn(0, 99)
-                                } else 0
+                    if (code != 200 && code != 206) {
+                        if (code == 416) {
+                            Log.w(TAG, "HTTP 416 Range Not Satisfiable. Resetting partial file and restarting.")
+                            partFile.delete()
+                            continue
+                        }
+                        throw java.io.IOException("Download server returned HTTP $code.")
+                    }
 
-                                _uiState.value = UpdateUiState.Downloading(
-                                    releaseInfo = releaseInfo,
-                                    downloadedBytes = totalDownloaded,
-                                    totalBytes = totalLength,
-                                    progressPercent = progressPercent,
-                                    speedText = currentSpeedText
-                                )
+                    val isResume = (code == 206)
+                    val body = response.body ?: throw java.io.IOException("Empty response body from download server")
+                    val totalLength = when {
+                        isResume -> {
+                            val contentRange = response.header("Content-Range")
+                            val totalFromRange = contentRange?.substringAfterLast("/")?.toLongOrNull()
+                            totalFromRange ?: if (releaseInfo.apkSizeBytes > 0) releaseInfo.apkSizeBytes else (downloadedSoFar + body.contentLength())
+                        }
+                        body.contentLength() > 0 -> body.contentLength()
+                        releaseInfo.apkSizeBytes > 0 -> releaseInfo.apkSizeBytes
+                        else -> 0L
+                    }
+
+                    val append = isResume && downloadedSoFar > 0
+                    if (!append && partFile.exists()) {
+                        partFile.delete()
+                    }
+
+                    body.byteStream().use { input ->
+                        FileOutputStream(partFile, append).use { output ->
+                            val buffer = ByteArray(64 * 1024) // 64 KB buffer for high-bandwidth mobile streaming
+                            var bytesRead: Int
+                            var totalDownloaded = if (append) downloadedSoFar else 0L
+                            var lastTimestamp = System.currentTimeMillis()
+                            var bytesSinceLastTimestamp = 0L
+
+                            while (input.read(buffer).also { bytesRead = it } != -1) {
+                                ensureActive()
+
+                                output.write(buffer, 0, bytesRead)
+                                totalDownloaded += bytesRead
+                                bytesSinceLastTimestamp += bytesRead
+
+                                val now = System.currentTimeMillis()
+                                val elapsed = now - lastTimestamp
+                                if (elapsed >= 500) {
+                                    val speedBps = (bytesSinceLastTimestamp.toDouble() / (elapsed / 1000.0)).toLong()
+                                    val currentSpeedText = formatSpeed(speedBps)
+                                    lastTimestamp = now
+                                    bytesSinceLastTimestamp = 0L
+
+                                    val progressPercent = if (totalLength > 0) {
+                                        ((totalDownloaded * 100) / totalLength).toInt().coerceIn(0, 99)
+                                    } else 0
+
+                                    _uiState.value = UpdateUiState.Downloading(
+                                        releaseInfo = releaseInfo,
+                                        downloadedBytes = totalDownloaded,
+                                        totalBytes = totalLength,
+                                        progressPercent = progressPercent,
+                                        speedText = currentSpeedText
+                                    )
+                                }
                             }
+                            output.flush()
                         }
                     }
+
+                    if (totalLength <= 0 || partFile.length() >= totalLength) {
+                        isCompleted = true
+                    } else {
+                        Log.w(TAG, "Stream ended prematurely: got ${partFile.length()} of $totalLength bytes. Retrying...")
+                    }
+
+                } catch (e: CancellationException) {
+                    _uiState.value = UpdateUiState.Idle
+                    return@launch
+                } catch (e: Exception) {
+                    lastError = e
+                    Log.w(TAG, "Download attempt $attempt failed with: ${e.message}. Retrying...")
+                    if (attempt < maxRetries) {
+                        val backoffMs = (attempt * 1200L).coerceAtMost(4000L)
+                        val bytesSoFar = if (partFile.exists()) partFile.length() else 0L
+                        val total = if (releaseInfo.apkSizeBytes > 0) releaseInfo.apkSizeBytes else bytesSoFar
+                        val pct = if (total > 0) ((bytesSoFar * 100) / total).toInt().coerceIn(0, 99) else 0
+
+                        _uiState.value = UpdateUiState.Downloading(
+                            releaseInfo = releaseInfo,
+                            downloadedBytes = bytesSoFar,
+                            totalBytes = total,
+                            progressPercent = pct,
+                            speedText = "Reconnecting (attempt $attempt)..."
+                        )
+                        delay(backoffMs)
+                    }
                 }
+            }
 
-                verifyAndPrepareInstall(tempFile, releaseInfo)
-
-            } catch (e: CancellationException) {
-                tempFile.delete()
-                _uiState.value = UpdateUiState.Idle
-            } catch (e: Exception) {
-                tempFile.delete()
-                _uiState.value = UpdateUiState.Error("Download failed: ${e.localizedMessage ?: "Network interrupted"}")
+            if (isCompleted) {
+                verifyAndPrepareInstall(partFile, releaseInfo)
+            } else {
+                val errorMsg = lastError?.localizedMessage ?: "Connection interrupted."
+                _uiState.value = UpdateUiState.Error(
+                    message = "Download failed: $errorMsg\n\nYou can retry or tap 'Download in Browser'.",
+                    canRetry = true,
+                    downloadUrl = releaseInfo.downloadUrl
+                )
             }
         }
     }

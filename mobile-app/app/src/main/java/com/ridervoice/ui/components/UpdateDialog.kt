@@ -29,7 +29,8 @@ fun UpdateDialog(
     onInstallUpdate: (java.io.File, AppReleaseInfo) -> Unit,
     onOpenSettings: () -> Unit,
     onRetry: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onOpenBrowserDownload: ((String) -> Unit)? = null
 ) {
     when (uiState) {
         is UpdateUiState.Idle -> {
@@ -528,26 +529,49 @@ fun UpdateDialog(
                     )
                 },
                 text = {
-                    Text(
-                        text = uiState.message,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = uiState.message,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary
+                        )
+                        if (uiState.downloadUrl != null && onOpenBrowserDownload != null) {
+                            Text(
+                                text = "If cellular data keeps aborting, you can tap BROWSER to download the APK directly via your browser.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TechGreen
+                            )
+                        }
+                    }
                 },
                 confirmButton = {
-                    if (uiState.canRetry) {
-                        Button(
-                            onClick = onRetry,
-                            colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
-                        ) {
-                            Text("RETRY", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (uiState.downloadUrl != null && onOpenBrowserDownload != null) {
+                            OutlinedButton(
+                                onClick = { onOpenBrowserDownload(uiState.downloadUrl) },
+                                border = androidx.compose.foundation.BorderStroke(1.dp, NeonOrange),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonOrange)
+                            ) {
+                                Text("BROWSER", fontWeight = FontWeight.Bold)
+                            }
                         }
-                    } else {
-                        Button(
-                            onClick = onDismiss,
-                            colors = ButtonDefaults.buttonColors(containerColor = Gunmetal)
-                        ) {
-                            Text("CLOSE", color = TextPrimary)
+                        if (uiState.canRetry) {
+                            Button(
+                                onClick = onRetry,
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                            ) {
+                                Text("RETRY", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            Button(
+                                onClick = onDismiss,
+                                colors = ButtonDefaults.buttonColors(containerColor = Gunmetal)
+                            ) {
+                                Text("CLOSE", color = TextPrimary)
+                            }
                         }
                     }
                 },

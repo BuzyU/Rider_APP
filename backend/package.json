@@ -9,7 +9,7 @@
     "start": "node src/server.js",
     "build": "prisma generate && prisma migrate deploy",
     "postinstall": "prisma generate",
-    "test": "node --test --test-concurrency=1 test/**/*.test.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
     "diag:test-email": "node scripts/test_email.js"
   },
   "dependencies": {

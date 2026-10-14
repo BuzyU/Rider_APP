@@ -78,10 +78,26 @@ class SquadViewModel @Inject constructor(
         viewModelScope.launch {
             val result = squadRepository.respondToInvite(invite.id, true)
             if (result.isSuccess) {
-                _uiState.update { state ->
-                    state.copy(invites = state.invites.filter { it.id != invite.id })
+                val tokenResult = squadRepository.getJoinToken(invite.room.name)
+                if (tokenResult.isSuccess && tokenResult.getOrNull() != null) {
+                    val tokenData = tokenResult.getOrNull()!!
+                    // Set all four RideSession fields BEFORE callback
+                    com.ridervoice.models.RideSession.livekitUrl = tokenData.livekitUrl.ifBlank { com.ridervoice.utils.Constants.LIVEKIT_URL }
+                    com.ridervoice.models.RideSession.livekitToken = tokenData.token
+                    com.ridervoice.models.RideSession.activeRoomName = tokenData.roomName
+                    com.ridervoice.models.RideSession.isHost = false
+                    com.ridervoice.models.RideSession.diagnosticsEnabled = tokenData.diagnosticsEnabled
+                    com.ridervoice.models.RideSession.testNumber = tokenData.testNumber
+
+                    _uiState.update { state ->
+                        state.copy(invites = state.invites.filter { it.id != invite.id })
+                    }
+                    onAcceptSuccess(invite.room.name)
+                } else {
+                    _uiState.update {
+                        it.copy(errorMessage = tokenResult.exceptionOrNull()?.message ?: "Failed to acquire convoy audio token")
+                    }
                 }
-                onAcceptSuccess(invite.room.name)
             } else {
                 _uiState.update {
                     it.copy(errorMessage = result.exceptionOrNull()?.message ?: "Failed to accept invite")

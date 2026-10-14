@@ -67,4 +67,22 @@ class SquadRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun getJoinToken(roomName: String): Result<com.ridervoice.models.StartRideResponse> {
+        return try {
+            val response = apiService.getJoinToken(com.ridervoice.models.JoinTokenRequest(roomName))
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errorMsg = response.errorBody()?.string()?.let { b ->
+                    try {
+                        org.json.JSONObject(b).optString("error", "Error ${response.code()}")
+                    } catch (e: Exception) { null }
+                } ?: "Failed to acquire convoy token (${response.code()})"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

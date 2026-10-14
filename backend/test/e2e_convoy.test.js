@@ -1,5 +1,6 @@
 const { describe, it } = require('node:test')
 const assert = require('node:assert/strict')
+const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const ExcelJS = require('exceljs')
@@ -146,23 +147,32 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
             // Create accepted invites for active and opted-out riders
             await prisma.rideInvite.createMany({
                 data: [
-                    { roomId: convoyId, inviterId: hostUser.id, inviteeId: activeUser.id, status: 'ACCEPTED' },
-                    { roomId: convoyId, inviterId: hostUser.id, inviteeId: optedOutUser.id, status: 'ACCEPTED' }
+                    { id: crypto.randomUUID(), roomId: convoyId, inviterId: hostUser.id, inviteeId: activeUser.id, status: 'ACCEPTED' },
+                    { id: crypto.randomUUID(), roomId: convoyId, inviterId: hostUser.id, inviteeId: optedOutUser.id, status: 'ACCEPTED' }
                 ]
             })
 
             // 2. Riders join diagnostic run
-            // Rider 1 (Host) was auto-joined during create
+            // Rider 1 (Host) joins/confirms diagnostic run
+            const joinHostRes = await fetch(`${baseUrl}/api/diagnostics/join`, {
+                method: 'POST',
+                headers: authHeaders(hostUser),
+                body: JSON.stringify({ convoyId })
+            })
+            const hostJoinText = await joinHostRes.text()
+            assert.strictEqual(joinHostRes.status, 200, `Host join failed with status ${joinHostRes.status}: ${hostJoinText}`)
+            const hostJoinData = JSON.parse(hostJoinText)
+            const runId = hostJoinData.runId
+            assert.ok(runId)
+
             // Rider 2 (Active rider) joins
             const joinActiveRes = await fetch(`${baseUrl}/api/diagnostics/join`, {
                 method: 'POST',
                 headers: authHeaders(activeUser),
                 body: JSON.stringify({ convoyId })
             })
-            assert.strictEqual(joinActiveRes.status, 200)
-            const activeJoinData = await joinActiveRes.json()
-            const runId = activeJoinData.runId
-            assert.ok(runId)
+            const activeJoinText = await joinActiveRes.text()
+            assert.strictEqual(joinActiveRes.status, 200, `Active join failed with status ${joinActiveRes.status}: ${activeJoinText}`)
 
             // Rider 3 (Opted out) joins
             const joinOptOutRes = await fetch(`${baseUrl}/api/diagnostics/join`, {
@@ -170,7 +180,8 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
                 headers: authHeaders(optedOutUser),
                 body: JSON.stringify({ convoyId })
             })
-            assert.strictEqual(joinOptOutRes.status, 200)
+            const optOutJoinText = await joinOptOutRes.text()
+            assert.strictEqual(joinOptOutRes.status, 200, `Optout join failed with status ${joinOptOutRes.status}: ${optOutJoinText}`)
 
             // Mark participant 3 as opted-out
             await prisma.diagnosticParticipant.update({
@@ -218,7 +229,8 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
                 headers: authHeaders(hostUser),
                 body: JSON.stringify(hostBatch)
             })
-            assert.strictEqual(hostBatchRes.status, 200)
+            const hostBatchText = await hostBatchRes.text()
+            assert.strictEqual(hostBatchRes.status, 200, `hostBatchRes expected 200 but got ${hostBatchRes.status}: ${hostBatchText}`)
 
             // Rider 2 (Active) posts batch 1
             const activeBatch = {
@@ -273,7 +285,8 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
                 headers: authHeaders(activeUser),
                 body: JSON.stringify(activeBatch)
             })
-            assert.strictEqual(activeBatchRes.status, 200)
+            const activeBatchText = await activeBatchRes.text()
+            assert.strictEqual(activeBatchRes.status, 200, `activeBatchRes expected 200 but got ${activeBatchRes.status}: ${activeBatchText}`)
 
             // 4. Host marks finished, Rider 2 left without final batch (incomplete)
             await fetch(`${baseUrl}/api/diagnostics/stop`, {
@@ -317,8 +330,14 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
             console.log(`[E2E] Saved generated evidence workbook to: ${evidencePath} (${attachment.content.length} bytes)`)
 
             const brainEvidencePath = 'C:\\Users\\umerz\\.gemini\\antigravity-ide\\brain\\cd220b9f-ef25-4a78-9ed4-d5c4c159a6be\\e2e_convoy_evidence.xlsx'
-            fs.writeFileSync(brainEvidencePath, attachment.content)
-            console.log(`[E2E] Saved artifact evidence workbook to: ${brainEvidencePath}`)
+            try {
+                if (fs.existsSync(path.dirname(brainEvidencePath))) {
+                    fs.writeFileSync(brainEvidencePath, attachment.content)
+                    console.log(`[E2E] Saved artifact evidence workbook to: ${brainEvidencePath}`)
+                }
+            } catch (e) {
+                // Ignore in non-local environments
+            }
 
         } finally {
             const prisma = require('../src/db')

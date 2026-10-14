@@ -47,9 +47,11 @@ router.post('/create', async (req, res, next) => {
         })
 
         if (diagBool) {
-            diagnosticService.joinDiagnosticRun(room.id, req.user).catch(err => {
-                console.error('[Diagnostic Auto-Start Error]:', err.message)
-            })
+            try {
+                await diagnosticService.joinDiagnosticRun(room.id, req.user)
+            } catch (err) {
+                console.warn('[Diagnostic Auto-Start]:', err.message)
+            }
         }
 
         res.status(201).json({

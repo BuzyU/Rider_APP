@@ -157,23 +157,22 @@ export default function TesterApplication() {
         {viewState === 'prompt' && (
           <div className={styles.promptView}>
             <span className={styles.badge}>
-              <Sparkles size={14} /> Android Closed Beta • {releaseInfo.version} Ready
+              <Sparkles size={14} /> Early Access Program • Android Build Ready
             </span>
 
             <h3 className={styles.promptTitle}>
-              Test RiderVoice with Your Squad
+              Apply for RiderVoice Beta Access
             </h3>
 
             <p className={styles.promptDesc}>
-              Our high-reliability Android APK is built and ready for closed field testing. 
-              Apply below to test hands-free VOX comms, mesh audio relay, and real-time convoy telemetry on your bike.
+              Join fellow riders testing hands-free VOX audio, Bluetooth helmet integration, and low-latency group channels in real riding conditions.
             </p>
 
             <div className={styles.featurePills}>
-              <span className={styles.pill}><Volume2 size={15} /> VOX Hands-Free</span>
-              <span className={styles.pill}><Bike size={15} /> Universal Bluetooth Intercom</span>
-              <span className={styles.pill}><Smartphone size={15} /> Android Universal APK</span>
-              <span className={styles.pill}><ShieldCheck size={15} /> Zero Cloud Lock-In</span>
+              <span className={styles.pill}><Volume2 size={15} /> Hands-Free VOX</span>
+              <span className={styles.pill}><Bike size={15} /> Helmet Intercom Support</span>
+              <span className={styles.pill}><Smartphone size={15} /> Android Universal Build</span>
+              <span className={styles.pill}><ShieldCheck size={15} /> Low-Latency Audio</span>
             </div>
 
             <button
@@ -181,7 +180,7 @@ export default function TesterApplication() {
               className={`btn btn-primary ${styles.ctaBtn}`}
               onClick={() => setViewState('form')}
             >
-              Apply for Test & Download APK
+              Apply for Early Access & Download
               <ArrowRight size={18} />
             </button>
           </div>
@@ -192,11 +191,11 @@ export default function TesterApplication() {
           <div>
             <div className={styles.formHeader}>
               <span className={styles.badge}>
-                <Sparkles size={14} /> Tester Application Form
+                <Sparkles size={14} /> Tester Application
               </span>
-              <h3 className={styles.formTitle}>Apply for Tester Access</h3>
+              <h3 className={styles.formTitle}>Apply for Beta Access</h3>
               <p className={styles.formDesc}>
-                Fill out the quick form below. Upon submission, your download of <strong>{releaseInfo.fileName}</strong> will start immediately.
+                Submit your details below to join the priority list and download the latest Android build.
               </p>
             </div>
 
@@ -333,12 +332,12 @@ export default function TesterApplication() {
             </div>
 
             <h3 className={styles.successTitle}>
-              Application Complete! Your APK is Ready
+              Application Received!
             </h3>
 
             <p className={styles.successDesc}>
-              Thank you, <strong>{name}</strong>! You have been granted access to the RiderVoice tester squad. 
-              Install the APK build below and hit the road with your group.
+              Thank you, <strong>{name}</strong>! Your application has been registered for our priority test wave. 
+              You can download the latest Android build ({releaseInfo.version}) below to begin testing with your convoy.
             </p>
 
             <div className={styles.autoDownloadNotice}>

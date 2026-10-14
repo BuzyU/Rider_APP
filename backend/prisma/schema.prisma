@@ -167,6 +167,15 @@ model admin_settings {
   updated_at DateTime @updatedAt
 }
 
+model Waitlist {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("waitlist")
+  @@index([email])
+}
+
 model TesterApplication {
   id              String   @id @default(uuid())
   name            String
@@ -176,12 +185,15 @@ model TesterApplication {
   motorcycleModel String?  @map("motorcycle_model")
   experienceNotes String?  @map("experience_notes")
   apkVersion      String?  @default("v0.0.3.7") @map("apk_version")
+  status          String   @default("PENDING")
   downloadCount   Int?     @default(1) @map("download_count")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("tester_applications")
   @@index([email])
+  @@index([status])
   @@index([createdAt(sort: Desc)])
 }
+
 

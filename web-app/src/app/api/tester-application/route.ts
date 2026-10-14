@@ -111,6 +111,7 @@ export async function POST(request: Request) {
               motorcycle_model: motorcycleModel?.trim() || null,
               experience_notes: experienceNotes?.trim() || null,
               apk_version: release.version,
+              status: 'PENDING',
               download_count: 1,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
@@ -121,17 +122,12 @@ export async function POST(request: Request) {
       console.warn('Warning: Supabase write failed (allowing APK download anyway):', dbError);
     }
 
-    // Send confirmation and download instructions email via Google SMTP
+    // Send professional priority waitlist confirmation email via Google SMTP (no direct APK download in email)
     try {
       const emailPayload = buildTesterWelcomeEmail({
         name: normalizedName,
         email: normalizedEmail,
         version: release.version,
-        fileName: release.fileName,
-        downloadUrl: release.downloadUrl,
-        releasePageUrl: release.releasePageUrl,
-        sha256: release.sha256,
-        fileSize: release.fileSize,
       });
 
       await sendSmtpMail({
@@ -140,7 +136,7 @@ export async function POST(request: Request) {
         html: emailPayload.html,
         text: emailPayload.text,
       });
-      console.log(`[SMTP] Successfully sent confirmation email to ${normalizedEmail}`);
+      console.log(`[SMTP] Successfully sent priority waitlist confirmation email to ${normalizedEmail}`);
     } catch (mailError) {
       console.warn(`[SMTP Warning] Failed to send confirmation email to ${normalizedEmail}:`, mailError);
     }
@@ -164,4 +160,32 @@ export async function GET() {
   const release = await getLatestRelease();
   return NextResponse.json({ release });
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const { id, status } = await request.json();
+
+    if (!id || !status || !['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
+      return NextResponse.json(
+        { error: 'Valid application id and status (PENDING, APPROVED, REJECTED) are required.' },
+        { status: 400 }
+      );
+    }
+
+    const { error } = await supabaseAdmin
+      .from('tester_applications')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, id, status });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 

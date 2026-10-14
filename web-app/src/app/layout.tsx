@@ -16,8 +16,8 @@ const barlowCondensed = Barlow_Condensed({
 });
 
 export const metadata: Metadata = {
-  title: "Ride together. Talk without limits.",
-  description: "No phone, no app-locking, no brand walls. Long-range group intercom with universal connectivity and rider-first extras.",
+  title: "RiderVoice — Tactical Motorcycle Intercom & Group Comms",
+  description: "Hands-free tactical voice intercom for motorcycle squads. Low latency, no proprietary hardware locks, and universal Bluetooth helmet connectivity.",
 };
 
 export default function RootLayout({

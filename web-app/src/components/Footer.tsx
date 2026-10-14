@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Mail, MessageSquare, Share2 } from 'lucide-react';
+import { Mail, MessageSquare, ExternalLink } from 'lucide-react';
 import styles from './Footer.module.css';
 
 export default function Footer() {
@@ -10,20 +10,25 @@ export default function Footer() {
       <div className="container">
         <div className={styles.grid}>
           <div className={styles.brandCol}>
-            <h3 className={styles.logo}>RIDER APP</h3>
-            <p className={styles.tagline}>Ride together. Talk without limits.</p>
+            <h3 className={styles.logo}>RIDERVOICE</h3>
+            <p className={styles.tagline}>Tactical Comms. No Compromise.</p>
             <div className={styles.socials}>
-              <a href="#" className={styles.socialLink}><MessageSquare size={20} /></a>
-              <a href="#" className={styles.socialLink}><Share2 size={20} /></a>
-              <a href="#" className={styles.socialLink}><Mail size={20} /></a>
+              <a href="https://github.com/BuzyU/Rider_APP" target="_blank" rel="noopener noreferrer" className={styles.socialLink} title="GitHub Repository">
+                <ExternalLink size={20} />
+              </a>
+              <a href="mailto:a07631356@gmail.com" className={styles.socialLink} title="Contact Team">
+                <Mail size={20} />
+              </a>
             </div>
           </div>
           
           <div className={styles.linksCol}>
-            <h4>Company</h4>
-            <Link href="/about">About Us</Link>
-            <Link href="/blog">Blog</Link>
-            <Link href="/contact">Contact</Link>
+            <h4>Platform</h4>
+            <a href="#hero-waitlist">Priority Waitlist</a>
+            <a href="#beta-testing">Early Access Program</a>
+            <a href="https://github.com/BuzyU/Rider_APP/releases" target="_blank" rel="noopener noreferrer">
+              GitHub Releases
+            </a>
           </div>
           
           <div className={styles.linksCol}>
@@ -34,7 +39,7 @@ export default function Footer() {
         </div>
         
         <div className={styles.bottomBar}>
-          <p>&copy; {new Date().getFullYear()} Rider App Project. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} RiderVoice. Built for riders, by riders. All rights reserved.</p>
         </div>
       </div>
     </footer>

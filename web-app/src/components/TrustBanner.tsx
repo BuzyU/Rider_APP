@@ -16,20 +16,20 @@ export default function TrustBanner() {
           <h2 className={styles.quote}>
             &ldquo;The first intercom app that actually keeps the convoy together.&rdquo;
           </h2>
-          <p className={styles.author}>Built by riders, for riders. Join the thousands already on the waitlist.</p>
+          <p className={styles.author}>Built by riders, for riders. Engineered for seamless convoy communication.</p>
           
           <div className={styles.statsRow}>
             <div className={styles.statItem}>
-              <span className={styles.statNumber}>10k+</span>
-              <span className={styles.statLabel}>Waitlist</span>
+              <span className={styles.statNumber}>Zero</span>
+              <span className={styles.statLabel}>Hardware Lock</span>
             </div>
             <div className={styles.statItem}>
-              <span className={styles.statNumber}>0 sec</span>
-              <span className={styles.statLabel}>Pairing Time</span>
+              <span className={styles.statNumber}>&lt; 50ms</span>
+              <span className={styles.statLabel}>Voice Latency</span>
             </div>
             <div className={styles.statItem}>
               <span className={styles.statNumber}>Unlimited</span>
-              <span className={styles.statLabel}>Range</span>
+              <span className={styles.statLabel}>Convoy Range</span>
             </div>
           </div>
         </motion.div>

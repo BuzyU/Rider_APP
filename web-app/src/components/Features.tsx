@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Smartphone, Mic, User, Share } from 'lucide-react';
+import { Smartphone, Mic, User, Share, Wind, Radio, ShieldAlert, Zap } from 'lucide-react';
 import styles from './Features.module.css';
 
 export default function Features() {
@@ -136,7 +136,44 @@ export default function Features() {
       <section className={styles.secondaryFeatures}>
         <div className="container">
           <div className={styles.secondaryHeader}>
-            <h2 className="section-title">And so much more.</h2>
+            <h2 className="section-title">Engineered for the Open Road.</h2>
+            <p className="section-desc" style={{ marginBottom: '3rem', textAlign: 'center' }}>
+              Every feature is built around the realities of riding — speed, noise, gloves, and helmet gear.
+            </p>
+          </div>
+
+          <div className={styles.secondaryGrid}>
+            <div className={styles.secondaryCard}>
+              <div className={styles.secondaryIcon}><Wind size={24} /></div>
+              <h3 className={styles.secondaryTitle}>Adaptive Wind Noise Filtering</h3>
+              <p className={styles.secondaryDesc}>
+                Advanced audio suppression tuned for open face and full-face helmets. Cuts out engine rumble and wind rush at highway speeds.
+              </p>
+            </div>
+
+            <div className={styles.secondaryCard}>
+              <div className={styles.secondaryIcon}><Radio size={24} /></div>
+              <h3 className={styles.secondaryTitle}>Hands-Free VOX Voice Activation</h3>
+              <p className={styles.secondaryDesc}>
+                Speak naturally without lifting your hands from the throttle or searching for buttons. The voice engine opens the line when you speak and silences background noise when you stop.
+              </p>
+            </div>
+
+            <div className={styles.secondaryCard}>
+              <div className={styles.secondaryIcon}><ShieldAlert size={24} /></div>
+              <h3 className={styles.secondaryTitle}>Squad Emergency & Incident Alerts</h3>
+              <p className={styles.secondaryDesc}>
+                Instantly broadcast hazard or distress alerts with live GPS coordinates to everyone in your ride room with one tap.
+              </p>
+            </div>
+
+            <div className={styles.secondaryCard}>
+              <div className={styles.secondaryIcon}><Zap size={24} /></div>
+              <h3 className={styles.secondaryTitle}>Optimized Background Performance</h3>
+              <p className={styles.secondaryDesc}>
+                Designed to run in your pocket behind navigation apps like Google Maps or Waze without high battery consumption or thermal throttling.
+              </p>
+            </div>
           </div>
         </div>
       </section>

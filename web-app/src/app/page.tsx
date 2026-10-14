@@ -21,9 +21,9 @@ export default function Home() {
 
         <section className="section" style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
           <div className="container" style={{ maxWidth: '600px' }}>
-            <h2 className="section-title">Ride connected.</h2>
-            <p className="section-desc" style={{ marginBottom: '4rem', marginLeft: 'auto', marginRight: 'auto' }}>
-              Join the waitlist. Be the first to get access.
+            <h2 className="section-title">Never ride disconnected.</h2>
+            <p className="section-desc" style={{ marginBottom: '3rem', marginLeft: 'auto', marginRight: 'auto' }}>
+              Join the priority list. Be the first to receive invitation waves and release updates.
             </p>
             <WaitlistForm id="footer-waitlist" />
           </div>

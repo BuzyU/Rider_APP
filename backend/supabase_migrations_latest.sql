@@ -110,7 +110,19 @@ CREATE INDEX IF NOT EXISTS "RideSession_riderId_startTime_idx" ON "RideSession"(
 CREATE INDEX IF NOT EXISTS "ConvoyEvent_rideId_idx" ON "ConvoyEvent"("rideId");
 CREATE INDEX IF NOT EXISTS "DeviceToken_userId_idx" ON "DeviceToken"("userId");
 
--- 8. Create "tester_applications" table (Beta tester forum & APK downloads)
+-- 8. Create "waitlist" table (Homepage early access waitlist)
+CREATE TABLE IF NOT EXISTS "waitlist" (
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+    "email" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "waitlist_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "waitlist_email_key" ON "waitlist"("email");
+CREATE INDEX IF NOT EXISTS "waitlist_email_idx" ON "waitlist"("email");
+
+-- 9. Create "tester_applications" table (Beta tester applications & review)
 CREATE TABLE IF NOT EXISTS "tester_applications" (
     "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
     "name" TEXT NOT NULL,
@@ -120,6 +132,7 @@ CREATE TABLE IF NOT EXISTS "tester_applications" (
     "motorcycle_model" TEXT,
     "experience_notes" TEXT,
     "apk_version" TEXT DEFAULT 'v0.0.3.7',
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
     "download_count" INTEGER DEFAULT 1,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -127,6 +140,10 @@ CREATE TABLE IF NOT EXISTS "tester_applications" (
     CONSTRAINT "tester_applications_pkey" PRIMARY KEY ("id")
 );
 
+ALTER TABLE "tester_applications" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'PENDING';
+
 CREATE INDEX IF NOT EXISTS "tester_applications_email_idx" ON "tester_applications"("email");
 CREATE INDEX IF NOT EXISTS "tester_applications_created_at_idx" ON "tester_applications"("created_at" DESC);
+CREATE INDEX IF NOT EXISTS "tester_applications_status_idx" ON "tester_applications"("status");
+
 

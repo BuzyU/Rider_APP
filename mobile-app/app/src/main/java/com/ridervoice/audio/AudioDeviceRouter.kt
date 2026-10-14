@@ -162,6 +162,10 @@ class AudioDeviceRouter @Inject constructor(
             addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
             addAction("android.hardware.usb.action.USB_AUDIO_ACCESSORY_PLUG")
             addAction("android.hardware.usb.action.USB_DEVICE_ATTACHED")
+            addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)
+            addAction(BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED)
+            @Suppress("DEPRECATION")
+            addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(wiredHeadsetReceiver, wiredFilter, Context.RECEIVER_NOT_EXPORTED)
@@ -249,7 +253,17 @@ class AudioDeviceRouter @Inject constructor(
         _activeDevice.value = AudioDevice.Earpiece
     }
 
+    private var manualOverrideRoute: String? = null
+
+    fun setAudioRoute(routeType: String) {
+        manualOverrideRoute = routeType
+        reEvaluatePriority()
+    }
+
     fun reEvaluatePriority(skipBluetooth: Boolean = false) {
+        if (audioManager.mode != AudioManager.MODE_IN_COMMUNICATION) {
+            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             reEvaluateModern(skipBluetooth)
         } else {
@@ -259,48 +273,94 @@ class AudioDeviceRouter @Inject constructor(
 
     private fun reEvaluateModern(skipBluetooth: Boolean) {
         val devices = audioManager.availableCommunicationDevices
-        Log.d(TAG, "Available comm devices: ${devices.map { it.type }}")
+        Log.d(TAG, "Available comm devices: ${devices.map { "${it.type}(${it.productName})" }}")
 
-        // Priority order. TYPE_WIRED_HEADSET is a headset WITH a microphone
-        // (headphone-only jacks report TYPE_WIRED_HEADPHONES and are never used as input).
+        // Priority order. TYPE_WIRED_HEADSET is a headset WITH a microphone.
         val candidates = mutableListOf<Pair<AudioDeviceInfo, AudioDevice>>()
-        if (!skipBluetooth) {
+        if (!skipBluetooth && manualOverrideRoute != "SPEAKER" && manualOverrideRoute != "WIRED") {
             devices.filter {
-                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || it.type == AudioDeviceInfo.TYPE_BLE_HEADSET
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_HEARING_AID ||
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER)
             }.forEach {
                 candidates += it to AudioDevice.BluetoothSco(it.productName?.toString() ?: "Bluetooth")
             }
         }
-        devices.filter { it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET }
-            .forEach { candidates += it to AudioDevice.WiredHeadset }
-        devices.filter { it.type == AudioDeviceInfo.TYPE_USB_HEADSET }
-            .forEach { candidates += it to AudioDevice.UsbAudio }
-
-        var chosen: AudioDevice? = null
-        for ((info, dev) in candidates) {
-            if (audioManager.setCommunicationDevice(info)) {
-                Log.d(TAG, "Modern: routed to ${dev.displayName()} (type=${info.type})")
-                chosen = dev
-                break
-            } else {
-                Log.w(TAG, "setCommunicationDevice rejected type=${info.type}, trying next")
-            }
+        if (manualOverrideRoute != "SPEAKER" && manualOverrideRoute != "BLUETOOTH") {
+            devices.filter { it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET }
+                .forEach { candidates += it to AudioDevice.WiredHeadset }
+            devices.filter { it.type == AudioDeviceInfo.TYPE_USB_HEADSET }
+                .forEach { candidates += it to AudioDevice.UsbAudio }
         }
 
-        if (chosen == null) {
-            // Helmet / handlebar use: no headset -> loudspeaker, not earpiece.
+        var chosen: AudioDevice? = null
+
+        if (manualOverrideRoute == "SPEAKER") {
+            audioManager.clearCommunicationDevice()
+            @Suppress("DEPRECATION")
+            if (audioManager.isBluetoothScoOn) {
+                audioManager.stopBluetoothSco()
+                audioManager.isBluetoothScoOn = false
+            }
             val speaker = devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
             if (speaker != null && audioManager.setCommunicationDevice(speaker)) {
-                Log.d(TAG, "Modern: speakerphone fallback")
-            } else {
-                Log.w(TAG, "Modern: speaker fallback unavailable, using isSpeakerphoneOn")
+                Log.d(TAG, "Modern: manual route -> speakerphone")
             }
             @Suppress("DEPRECATION")
             audioManager.isSpeakerphoneOn = true
-            chosen = AudioDevice.Earpiece
+            chosen = AudioDevice.Speakerphone
+        } else {
+            for ((info, dev) in candidates) {
+                val ok = audioManager.setCommunicationDevice(info)
+                if (ok) {
+                    @Suppress("DEPRECATION")
+                    audioManager.isSpeakerphoneOn = false
+
+                    // For Bluetooth SCO headsets (e.g., AirPods), activate the hardware SCO audio carrier
+                    if (info.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) {
+                        @Suppress("DEPRECATION")
+                        if (!audioManager.isBluetoothScoOn) {
+                            Log.d(TAG, "Modern: Activating hardware Bluetooth SCO carrier for ${dev.displayName()}")
+                            startBluetoothSco()
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        if (audioManager.isBluetoothScoOn) {
+                            audioManager.stopBluetoothSco()
+                            audioManager.isBluetoothScoOn = false
+                        }
+                    }
+
+                    Log.d(TAG, "Modern: successfully routed to ${dev.displayName()} (type=${info.type}) [speakerphone=false, sco=${audioManager.isBluetoothScoOn}]")
+                    chosen = dev
+                    break
+                } else {
+                    Log.w(TAG, "setCommunicationDevice rejected type=${info.type}, trying next candidate")
+                }
+            }
+
+            if (chosen == null) {
+                // Helmet / handlebar use: no headset -> loudspeaker, not earpiece.
+                audioManager.clearCommunicationDevice()
+                @Suppress("DEPRECATION")
+                if (audioManager.isBluetoothScoOn) {
+                    audioManager.stopBluetoothSco()
+                    audioManager.isBluetoothScoOn = false
+                }
+                val speaker = devices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                if (speaker != null && audioManager.setCommunicationDevice(speaker)) {
+                    Log.d(TAG, "Modern: speakerphone fallback")
+                } else {
+                    Log.w(TAG, "Modern: speaker fallback unavailable, using isSpeakerphoneOn")
+                }
+                @Suppress("DEPRECATION")
+                audioManager.isSpeakerphoneOn = true
+                chosen = AudioDevice.Speakerphone
+            }
         }
 
-        Log.d(TAG, "Communication device now: type=${audioManager.communicationDevice?.type}")
+        Log.d(TAG, "Communication device now: type=${audioManager.communicationDevice?.type}, active=${chosen.displayName()}, isSpeakerphoneOn=${audioManager.isSpeakerphoneOn}")
         _activeDevice.value = chosen
         _routerState.value = RouterState.ACTIVE
     }
@@ -311,7 +371,7 @@ class AudioDeviceRouter @Inject constructor(
         val isWiredConnected = audioManager.isWiredHeadsetOn
 
         when {
-            !skipBluetooth && isBluetoothScoAvailableAndConnected() -> {
+            !skipBluetooth && manualOverrideRoute != "SPEAKER" && isBluetoothScoAvailableAndConnected() -> {
                 Log.d(TAG, "Legacy: starting BT SCO")
                 _routerState.value = RouterState.CONNECTING_BT
                 @Suppress("DEPRECATION")
@@ -319,7 +379,7 @@ class AudioDeviceRouter @Inject constructor(
                 startBluetoothSco()
 
             }
-            isWiredConnected -> {
+            isWiredConnected && manualOverrideRoute != "SPEAKER" -> {
                 Log.d(TAG, "Legacy: wired headset")
                 @Suppress("DEPRECATION")
                 audioManager.isBluetoothScoOn = false
@@ -334,7 +394,7 @@ class AudioDeviceRouter @Inject constructor(
                 audioManager.isBluetoothScoOn = false
                 @Suppress("DEPRECATION")
                 audioManager.isSpeakerphoneOn = true
-                _activeDevice.value = AudioDevice.Earpiece
+                _activeDevice.value = AudioDevice.Speakerphone
                 _routerState.value = RouterState.ACTIVE
             }
         }
@@ -417,12 +477,14 @@ sealed class AudioDevice {
     object WiredHeadset : AudioDevice()
     object UsbAudio : AudioDevice()
     object Earpiece : AudioDevice()
+    object Speakerphone : AudioDevice()
 
     fun displayName(): String = when (this) {
         is BluetoothSco -> deviceName
         is WiredHeadset -> "Wired headset"
         is UsbAudio     -> "USB audio"
         is Earpiece     -> "Built-in earpiece"
+        is Speakerphone -> "Phone speaker"
     }
 
     fun isHandsFree(): Boolean = this is BluetoothSco || this is WiredHeadset || this is UsbAudio

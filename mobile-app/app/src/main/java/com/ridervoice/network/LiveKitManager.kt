@@ -145,6 +145,7 @@ class LiveKitManager @Inject constructor(
             .onEach { device ->
                 scope.launch {
                     publishAudioTrack(device)
+                    voxEngine.updatePreferredDevice()
                     restartVox()
                 }
             }
@@ -317,7 +318,7 @@ class LiveKitManager @Inject constructor(
                 highPassFilter = true,
                 typingNoiseDetection = false
             )
-            is AudioDevice.Earpiece -> LocalAudioTrackOptions(
+            is AudioDevice.Earpiece, is AudioDevice.Speakerphone -> LocalAudioTrackOptions(
                 noiseSuppression = ns,
                 echoCancellation = true,
                 autoGainControl = true,

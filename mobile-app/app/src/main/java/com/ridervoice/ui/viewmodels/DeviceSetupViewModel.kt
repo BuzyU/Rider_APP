@@ -31,6 +31,14 @@ class DeviceSetupViewModel @Inject constructor(
 
     }
 
+    fun setAudioRoute(routeType: String) {
+        audioDeviceRouter.setAudioRoute(routeType)
+    }
+
+    fun rescanAudioDevices() {
+        audioDeviceRouter.reEvaluatePriority()
+    }
+
     fun finishSetup() {
         val currentDevice = activeDevice.value
         securePrefs.saveDeviceConfigured(true)

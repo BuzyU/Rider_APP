@@ -27,7 +27,7 @@ async function getLatestRelease() {
       },
       next: { revalidate: 3600 },
       signal: controller.signal
-    });
+    } as any);
     clearTimeout(timeout);
 
     if (res.ok) {

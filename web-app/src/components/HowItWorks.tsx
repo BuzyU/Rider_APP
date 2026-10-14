@@ -1,14 +1,14 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Download, Users, Bike } from 'lucide-react';
+import { Sparkles, Users, Bike } from 'lucide-react';
 import styles from './HowItWorks.module.css';
 
 const steps = [
   {
-    icon: Download,
-    title: 'Download',
-    description: 'Get the app on your phone. No extra hardware or proprietary headsets required.',
+    icon: Sparkles,
+    title: 'Apply for Access',
+    description: 'Register your squad on our priority waitlist. Spots are unlocked in sequential testing waves.',
   },
   {
     icon: Users,

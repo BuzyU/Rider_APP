@@ -1,4 +1,4 @@
-import tls from 'node:tls';
+import * as tls from 'node:tls';
 
 export interface SendMailOptions {
   to: string;

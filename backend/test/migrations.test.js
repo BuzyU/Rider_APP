@@ -23,7 +23,7 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
         // Must be additive: ALTER TABLE ADD COLUMN
         assert.match(sqlContent, /ALTER\s+TABLE\s+"Room"\s+ADD\s+COLUMN/i, 'Migration must add columns to Room')
         assert.match(sqlContent, /"diagnosticsEnabled"\s+BOOLEAN/i, 'Must add diagnosticsEnabled column')
-        assert.match(sqlContent, /DEFAULT\s+true/i, 'diagnosticsEnabled must have a default value')
+        assert.match(sqlContent, /DEFAULT\s+false/i, 'diagnosticsEnabled must have default false')
         assert.match(sqlContent, /"startedAt"\s+TIMESTAMP/i, 'Must add startedAt column')
     })
 

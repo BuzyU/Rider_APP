@@ -65,7 +65,7 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
         }
     })
 
-    it('/create persists diagnosticsEnabled (enabled=true by default and explicit)', async () => {
+    it('/create persists diagnosticsEnabled=true when explicitly requested', async () => {
         let createdData = null
         prisma.room.findUnique = async () => null // no duplicate
         prisma.room.create = async ({ data }) => {
@@ -112,6 +112,31 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ convoyName: 'Quiet-Ride', diagnosticsEnabled: false })
+        })
+
+        assert.strictEqual(res.status, 201)
+        const body = await res.json()
+        assert.strictEqual(body.diagnosticsEnabled, false)
+        assert.strictEqual(createdData.diagnosticsEnabled, false)
+    })
+
+    it('/create defaults diagnosticsEnabled to false when field is omitted', async () => {
+        let createdData = null
+        prisma.room.findUnique = async () => null
+        prisma.room.create = async ({ data }) => {
+            createdData = data
+            return {
+                id: 'room_diag_omitted',
+                name: data.name,
+                ownerId: data.ownerId,
+                diagnosticsEnabled: data.diagnosticsEnabled
+            }
+        }
+
+        const res = await fetch(`${baseUrl}/api/lobby/create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ convoyName: 'Default-Off-Convoy' })
         })
 
         assert.strictEqual(res.status, 201)

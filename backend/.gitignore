@@ -6,5 +6,7 @@ node_modules
 
 *.json
 exports/
-.pg_data/
+exports/*.xlsx
+.pg_data*
+*.log
 *.zip

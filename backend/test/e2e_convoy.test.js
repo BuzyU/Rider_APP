@@ -24,7 +24,6 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
         })
 
         let server
-        let originalPrismaInstance = null
         try {
             await pg.initialise()
             await pg.start()
@@ -71,18 +70,8 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
             await runSqlFile(path.join(__dirname, '../prisma/migrations/20261014_add_network_diagnostics/migration.sql'))
             await runSqlFile(path.join(__dirname, '../prisma/migrations/20261015_add_room_diagnostics_and_started_at/migration.sql'))
 
-            // Re-instantiate prisma connection to the e2e test database
+            // Instantiate prisma connection to the e2e test database (process.env.DATABASE_URL set above)
             const prisma = require('../src/db')
-            const { PrismaClient: TestPrismaClient } = require('@prisma/client')
-            originalPrismaInstance = prisma.$getInstance ? prisma.$getInstance() : null
-            const e2ePrisma = new TestPrismaClient({
-                datasources: {
-                    db: { url: dbUrl }
-                }
-            })
-            if (prisma.$setInstance) {
-                prisma.$setInstance(e2ePrisma)
-            }
             await prisma.$connect()
 
             // Seed 3 riders
@@ -341,10 +330,7 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
 
         } finally {
             const prisma = require('../src/db')
-            if (prisma && prisma.$setInstance && originalPrismaInstance) {
-                try { await prisma.$disconnect() } catch (e) {}
-                prisma.$setInstance(originalPrismaInstance)
-            }
+            try { await prisma.$disconnect() } catch (e) {}
             if (server) await new Promise(r => server.close(r))
             try {
                 await pg.stop()

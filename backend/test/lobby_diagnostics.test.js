@@ -267,4 +267,23 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
         assert.strictEqual(body.diagnosticsEnabled, false)
         assert.strictEqual(updatedFlag, false)
     })
+
+    after(async () => {
+        prisma.room.findUnique = originals.roomFindUnique
+        prisma.room.create = originals.roomCreate
+        prisma.room.update = originals.roomUpdate
+        prisma.room.findFirst = originals.roomFindFirst
+        prisma.diagnosticRun.findFirst = originals.diagnosticRunFindFirst
+        prisma.diagnosticRun.create = originals.diagnosticRunCreate
+        prisma.diagnosticParticipant.create = originals.diagnosticParticipantCreate
+        prisma.user.findUnique = originals.userFindUnique
+        prisma.roomJoinToken.findUnique = originals.roomJoinTokenFindUnique
+        prisma.rideInvite.findFirst = originals.rideInviteFindFirst
+        prisma.rideInvite.create = originals.rideInviteCreate
+
+        if (server) {
+            await new Promise(r => server.close(r))
+        }
+    })
 })
+

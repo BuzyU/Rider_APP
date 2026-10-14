@@ -23,6 +23,7 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
         })
 
         let server
+        let originalPrismaInstance = null
         try {
             await pg.initialise()
             await pg.start()
@@ -71,7 +72,16 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
 
             // Re-instantiate prisma connection to the e2e test database
             const prisma = require('../src/db')
-            await prisma.$disconnect()
+            const { PrismaClient: TestPrismaClient } = require('@prisma/client')
+            originalPrismaInstance = prisma.$getInstance ? prisma.$getInstance() : null
+            const e2ePrisma = new TestPrismaClient({
+                datasources: {
+                    db: { url: dbUrl }
+                }
+            })
+            if (prisma.$setInstance) {
+                prisma.$setInstance(e2ePrisma)
+            }
             await prisma.$connect()
 
             // Seed 3 riders
@@ -311,6 +321,11 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
             console.log(`[E2E] Saved artifact evidence workbook to: ${brainEvidencePath}`)
 
         } finally {
+            const prisma = require('../src/db')
+            if (prisma && prisma.$setInstance && originalPrismaInstance) {
+                try { await prisma.$disconnect() } catch (e) {}
+                prisma.$setInstance(originalPrismaInstance)
+            }
             if (server) await new Promise(r => server.close(r))
             try {
                 await pg.stop()

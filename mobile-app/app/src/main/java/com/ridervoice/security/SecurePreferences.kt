@@ -20,6 +20,8 @@ class SecurePreferences(private val context: Context) {
         private const val PREFS_FILE = "secure_prefs"
         private const val FALLBACK_PREFS_FILE = "secure_prefs_unencrypted_fallback"
         const val KEY_NETWORK_DIAGNOSTICS = "network_diagnostics_enabled"
+        const val KEY_SHARE_DIAGNOSTICS_HOST_ENABLED = "share_diagnostics_host_enabled"
+        const val KEY_DIAGNOSTICS_CONSENT_SHOWN = "diagnostics_consent_shown"
 
         private fun createSafePreferences(context: Context): SharedPreferences {
             return try {
@@ -146,9 +148,15 @@ class SecurePreferences(private val context: Context) {
     private val _networkDiagnosticsEnabled = MutableStateFlow(isNetworkDiagnosticsEnabled())
     val networkDiagnosticsEnabled: StateFlow<Boolean> = _networkDiagnosticsEnabled.asStateFlow()
 
+    private val _shareDiagnosticsWhenHostEnabled = MutableStateFlow(isShareDiagnosticsWhenHostEnabled())
+    val shareDiagnosticsWhenHostEnabled: StateFlow<Boolean> = _shareDiagnosticsWhenHostEnabled.asStateFlow()
+
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == KEY_NETWORK_DIAGNOSTICS) {
             _networkDiagnosticsEnabled.value = isNetworkDiagnosticsEnabled()
+        }
+        if (key == KEY_SHARE_DIAGNOSTICS_HOST_ENABLED) {
+            _shareDiagnosticsWhenHostEnabled.value = isShareDiagnosticsWhenHostEnabled()
         }
     }
 
@@ -167,5 +175,22 @@ class SecurePreferences(private val context: Context) {
     fun setNetworkDiagnosticsEnabled(enabled: Boolean) {
         saveBoolean(KEY_NETWORK_DIAGNOSTICS, enabled)
         _networkDiagnosticsEnabled.value = enabled
+    }
+
+    fun isShareDiagnosticsWhenHostEnabled(): Boolean {
+        return getBoolean(KEY_SHARE_DIAGNOSTICS_HOST_ENABLED, true)
+    }
+
+    fun setShareDiagnosticsWhenHostEnabled(enabled: Boolean) {
+        saveBoolean(KEY_SHARE_DIAGNOSTICS_HOST_ENABLED, enabled)
+        _shareDiagnosticsWhenHostEnabled.value = enabled
+    }
+
+    fun isDiagnosticsConsentShown(): Boolean {
+        return getBoolean(KEY_DIAGNOSTICS_CONSENT_SHOWN, false)
+    }
+
+    fun setDiagnosticsConsentShown(shown: Boolean) {
+        saveBoolean(KEY_DIAGNOSTICS_CONSENT_SHOWN, shown)
     }
 }

@@ -78,4 +78,55 @@ class DiagnosticsGatingTest {
             )
         )
     }
+
+    @Test
+    fun `host switch default false end to end in models and RideSession`() {
+        val createReq = com.ridervoice.models.ConvoyCreateRequest(convoyName = "test-convoy")
+        assertFalse("ConvoyCreateRequest default diagnosticsEnabled must be false", createReq.diagnosticsEnabled)
+
+        val createResp = com.ridervoice.models.ConvoyCreateResponse(roomId = "r1", convoyName = "c1", hostId = "h1")
+        assertFalse("ConvoyCreateResponse default diagnosticsEnabled must be false", createResp.diagnosticsEnabled)
+
+        val startResp = com.ridervoice.models.StartRideResponse(token = "tok", roomName = "r1", livekitUrl = "url")
+        assertFalse("StartRideResponse default diagnosticsEnabled must be false", startResp.diagnosticsEnabled)
+
+        val roomData = com.ridervoice.models.RoomData(roomName = "r1", token = "tok")
+        assertFalse("RoomData default diagnosticsEnabled must be false", roomData.diagnosticsEnabled)
+
+        assertFalse("RideSession default diagnosticsEnabled must be false", RideSession.diagnosticsEnabled)
+    }
+
+    @Test
+    fun `a guest with default settings collects when host flag is on`() {
+        // Default setting for "share diagnostics when a host enables it" is true
+        val guestShareDiagnosticsWhenHostEnabledDefault = true
+        val isOptedOut = !guestShareDiagnosticsWhenHostEnabledDefault
+
+        assertFalse("Guest with default settings is NOT opted out", isOptedOut)
+
+        val shouldCollect = DiagnosticsGating.shouldStartCollector(
+            isConnected = true,
+            diagnosticsEnabled = true, // Host turned diagnostics flag ON
+            isRiderOptedOut = isOptedOut
+        )
+
+        assertTrue("Guest with default settings must collect when host flag is on", shouldCollect)
+    }
+
+    @Test
+    fun `a guest who chose Don't share is opted out`() {
+        // Guest chose "Don't share my data" -> shareDiagnosticsWhenHostEnabled set to false
+        val guestShareDiagnosticsWhenHostEnabled = false
+        val isOptedOut = !guestShareDiagnosticsWhenHostEnabled
+
+        assertTrue("Guest who chose Don't share must be marked opted out", isOptedOut)
+
+        val shouldCollect = DiagnosticsGating.shouldStartCollector(
+            isConnected = true,
+            diagnosticsEnabled = true, // Host turned diagnostics flag ON
+            isRiderOptedOut = isOptedOut
+        )
+
+        assertFalse("Guest who chose Don't share must NOT collect even if host flag is on", shouldCollect)
+    }
 }

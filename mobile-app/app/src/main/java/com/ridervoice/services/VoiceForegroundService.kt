@@ -115,12 +115,13 @@ class VoiceForegroundService : Service() {
         // Network Diagnostics Collector: Observe toggle + connection state with pure DiagnosticsGating policy
         serviceScope.launch {
             combine(
-                securePreferences.networkDiagnosticsEnabled,
+                securePreferences.shareDiagnosticsWhenHostEnabled,
                 liveKitManager.connectionState
-            ) { riderOptIn, connState ->
+            ) { riderShareWhenHostEnabled, connState ->
                 val isConnected = connState == ConnectionState.CONNECTED
                 val rideEnabled = com.ridervoice.models.RideSession.diagnosticsEnabled
-                val isOptedOut = !riderOptIn
+                val isHost = com.ridervoice.models.RideSession.isHost
+                val isOptedOut = if (isHost) false else !riderShareWhenHostEnabled
                 com.ridervoice.diagnostics.DiagnosticsGating.shouldStartCollector(
                     isConnected = isConnected,
                     diagnosticsEnabled = rideEnabled,

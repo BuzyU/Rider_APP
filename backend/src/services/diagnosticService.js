@@ -570,7 +570,7 @@ async function buildRunExportData(runId) {
         const lossPercent = (totalPacketsRecv + totalPacketsLost) > 0
         riderSelfRows[participant.riderId] = selfRows
 
-        const isOptedOut = participant.isOptedOut || (participant.handle && (participant.handle.toLowerCase().includes('opted-out') || participant.handle.toLowerCase().includes('optedout')))
+        const isOptedOut = participant.isOptedOut || (participant.handle && (participant.handle.toLowerCase().includes('opted-out') || participant.handle.toLowerCase().includes('optedout'))) || (participant.lastSeq === 0 && (!riderBatches || riderBatches.length === 0))
         const isIncomplete = participant.isIncomplete || (participant.stoppedAt == null)
 
         const riderSummary = {
@@ -864,7 +864,7 @@ async function closeAndExportRun(runId, options = {}) {
 
     // Check participants status
     const allStopped = runState.participants.every(p => p.stoppedAt != null)
-    const graceSeconds = parseInt(process.env.DIAG_CLOSE_GRACE_SECONDS || '30', 10)
+    const graceSeconds = parseInt(process.env.DIAG_CLOSE_GRACE_SECONDS || '90', 10)
 
     if (!allStopped && options.checkGrace && !options.forceClose) {
         const oldestMissingJoined = Math.min(...runState.participants.filter(p => !p.stoppedAt).map(p => new Date(p.joinedAt).getTime()))

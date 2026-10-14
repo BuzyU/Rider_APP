@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.audio.AudioDevice
+import com.ridervoice.audio.RoutedDeviceInfo
 import com.ridervoice.audio.RouterState
 import com.ridervoice.network.ConnectionState
 import com.ridervoice.services.VoiceForegroundService
@@ -71,6 +72,9 @@ fun RoomScreen(
     val isVoxOpen by viewModel.isVoxOpen.collectAsState()
     val activeDevice by viewModel.activeAudioDevice.collectAsState()
     val routerState by viewModel.audioRouterState.collectAsState()
+    val requestedDevice by viewModel.requestedAudioDevice.collectAsState()
+    val routedInput by viewModel.routedInput.collectAsState()
+    val routedOutput by viewModel.routedOutput.collectAsState()
     val audioStatusLine by viewModel.audioStatusLine.collectAsState()
     val error by viewModel.error.collectAsState()
 
@@ -80,8 +84,15 @@ fun RoomScreen(
     var showLeaveConfirmDialog by remember { mutableStateOf(false) }
     var showAudioRoutePicker by remember { mutableStateOf(false) }
     var showDiagnosticsDialog by remember { mutableStateOf(false) }
+    var showConsentDialog by remember { mutableStateOf(false) }
     val latestSelfMetric by viewModel.latestSelfMetric.collectAsState()
     val diagSampleCount by viewModel.diagSampleCount.collectAsState()
+
+    LaunchedEffect(Unit) {
+        if (com.ridervoice.models.RideSession.diagnosticsEnabled && !viewModel.isDiagnosticsConsentShown()) {
+            showConsentDialog = true
+        }
+    }
 
     val isHost = com.ridervoice.models.RideSession.isHost
     val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -561,6 +572,48 @@ fun RoomScreen(
         )
     }
 
+    if (showConsentDialog) {
+        AlertDialog(
+            onDismissRequest = { /* modal: require choice */ },
+            title = {
+                Text(
+                    text = "SHARE CONVOY DIAGNOSTICS?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "The host has enabled diagnostics for this convoy. Only network link metrics and device performance telemetry are collected (zero audio content, zero GPS location). Data is automatically compiled and emailed to the project team upon convoy conclusion to troubleshoot call drops.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.setDiagnosticsConsentChoice(true)
+                        showConsentDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
+                ) {
+                    Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        viewModel.setDiagnosticsConsentChoice(false)
+                        showConsentDialog = false
+                    }
+                ) {
+                    Text("Don't share my data", color = AlertRed)
+                }
+            },
+            containerColor = DarkSlate
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(GraphiteBase)) {
 
         Column(
@@ -650,7 +703,14 @@ fun RoomScreen(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.clickable { showAudioRoutePicker = true }) {
-                    AudioDeviceBadge(activeDevice, routerState)
+                    AudioDeviceBadge(
+                        device = activeDevice,
+                        routerState = routerState,
+                        requestedDevice = requestedDevice,
+                        routedInput = routedInput,
+                        routedOutput = routedOutput,
+                        onRetry = { viewModel.rescanAudioDevices() }
+                    )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
 
@@ -1189,33 +1249,58 @@ private fun ConnectionPill(state: ConnectionState) {
 }
 
 @Composable
-private fun AudioDeviceBadge(device: AudioDevice, routerState: RouterState) {
-    val (icon, label, color) = when {
-        routerState == RouterState.CONNECTING_BT -> Triple(Icons.Default.Bluetooth, "BT SYNC…", NeonOrange)
-        routerState == RouterState.SCANNING      -> Triple(Icons.Default.Search, "SEARCH…", TextSecondary)
-        device is AudioDevice.BluetoothSco       -> Triple(Icons.Default.BluetoothConnected, device.deviceName.take(12).uppercase(), ElectricCyan)
-        device is AudioDevice.WiredHeadset       -> Triple(Icons.Default.Headset, "WIRED", TechGreen)
-        device is AudioDevice.UsbAudio           -> Triple(Icons.Default.Usb, "USB-RF", TechGreen)
-        device is AudioDevice.Speakerphone       -> Triple(Icons.Default.VolumeUp, "SPEAKER", NeonOrange)
-        else                                     -> Triple(Icons.Default.PhoneInTalk, "EARPIECE", TextSecondary)
-    }
+private fun AudioDeviceBadge(
+    device: AudioDevice,
+    routerState: RouterState,
+    requestedDevice: AudioDevice?,
+    routedInput: RoutedDeviceInfo,
+    routedOutput: RoutedDeviceInfo,
+    onRetry: () -> Unit
+) {
+    val isMismatch = requestedDevice != null &&
+        (requestedDevice is AudioDevice.BluetoothSco || requestedDevice is AudioDevice.WiredHeadset || requestedDevice is AudioDevice.UsbAudio) &&
+        (device !is AudioDevice.BluetoothSco && device !is AudioDevice.WiredHeadset && device !is AudioDevice.UsbAudio)
 
-    Row(
+    Column(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .background(DarkSlate)
-            .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .border(1.dp, if (isMismatch) AlertRed else BorderColor, RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        Icon(icon, contentDescription = "Audio Route", tint = color, modifier = Modifier.size(14.dp))
-        Spacer(modifier = Modifier.width(4.dp))
+        if (isMismatch) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Using phone audio, headset not active",
+                    color = AlertRed,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Button(
+                    onClick = onRetry,
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                    modifier = Modifier.height(20.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                ) {
+                    Text("Retry", fontSize = 8.sp, color = Color.White)
+                }
+            }
+        }
         Text(
-            text = label,
-            color = color,
+            text = "Mic: ${routedInput.display()}",
+            color = if (isMismatch) AlertRed else TextSecondary,
             style = MaterialTheme.typography.labelSmall,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold
+            fontSize = 9.sp
+        )
+        Text(
+            text = "Speaker: ${routedOutput.display()}",
+            color = if (isMismatch) AlertRed else TextSecondary,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 9.sp
         )
     }
 }

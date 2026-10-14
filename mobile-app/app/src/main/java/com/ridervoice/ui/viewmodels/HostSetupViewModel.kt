@@ -31,9 +31,8 @@ class HostSetupViewModel @Inject constructor(
         destination: String?,
         meetupPoint: String?,
         estimatedDurationMin: Int?,
-        diagnosticsEnabled: Boolean = true
+        diagnosticsEnabled: Boolean = false
     ) {
-        securePreferences.setNetworkDiagnosticsEnabled(diagnosticsEnabled)
         com.ridervoice.models.RideSession.diagnosticsEnabled = diagnosticsEnabled
         viewModelScope.launch {
             _isLoading.value = true
@@ -83,4 +82,7 @@ class HostSetupViewModel @Inject constructor(
             else -> "Failed to create convoy (code $code). Please retry."
         }
     }
+
+    fun isDiagnosticsConsentShown(): Boolean = securePreferences.isDiagnosticsConsentShown()
+    fun setDiagnosticsConsentShown(shown: Boolean) = securePreferences.setDiagnosticsConsentShown(shown)
 }

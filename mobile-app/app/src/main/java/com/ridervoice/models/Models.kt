@@ -6,14 +6,14 @@ data class ConvoyCreateRequest(
     val destination: String? = null,
     val estimatedDurationMin: Int? = null,
     val meetupPoint: String? = null,
-    val diagnosticsEnabled: Boolean = true
+    val diagnosticsEnabled: Boolean = false
 )
 
 data class ConvoyCreateResponse(
     val roomId: String,
     val convoyName: String,
     val hostId: String,
-    val diagnosticsEnabled: Boolean = true
+    val diagnosticsEnabled: Boolean = false
 )
 
 data class LobbyStatus(
@@ -43,7 +43,7 @@ data class StartRideResponse(
     val token: String,
     val roomName: String,
     val livekitUrl: String,
-    val diagnosticsEnabled: Boolean = true,
+    val diagnosticsEnabled: Boolean = false,
     val testNumber: Int? = null
 )
 
@@ -109,7 +109,7 @@ enum class DeviceType { BLUETOOTH_SCO, BLUETOOTH_A2DP, WIRED, USB, EARPIECE }
 data class RoomData(
     val roomName: String,
     val token: String,
-    val diagnosticsEnabled: Boolean = true,
+    val diagnosticsEnabled: Boolean = false,
     val testNumber: Int? = null
 )
 data class RoomTokenRequest(val roomName: String)

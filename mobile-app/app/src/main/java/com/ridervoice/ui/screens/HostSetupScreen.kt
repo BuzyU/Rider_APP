@@ -44,8 +44,9 @@ fun HostSetupScreen(
     var destination     by remember { mutableStateOf("") }
     var meetupPoint     by remember { mutableStateOf("") }
     var durationHours   by remember { mutableStateOf("") }
-    var diagnosticsEnabled by remember { mutableStateOf(true) }
+    var diagnosticsEnabled by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showConsentDialog by remember { mutableStateOf(false) }
 
     val isDirty = convoyName.isNotBlank() || origin.isNotBlank() || destination.isNotBlank()
     val isDurationError = durationHours.isNotBlank() && durationHours.toFloatOrNull() == null
@@ -266,6 +267,14 @@ fun HostSetupScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val onToggleDiagnostics: (Boolean) -> Unit = { target ->
+                if (target && !viewModel.isDiagnosticsConsentShown()) {
+                    showConsentDialog = true
+                } else {
+                    diagnosticsEnabled = target
+                }
+            }
+
             Surface(
                 color = DarkSlate,
                 shape = RoundedCornerShape(10.dp),
@@ -275,7 +284,7 @@ fun HostSetupScreen(
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { diagnosticsEnabled = !diagnosticsEnabled }
+                    .clickable { onToggleDiagnostics(!diagnosticsEnabled) }
             ) {
                 Row(
                     modifier = Modifier.padding(14.dp),
@@ -317,7 +326,7 @@ fun HostSetupScreen(
 
                     Switch(
                         checked = diagnosticsEnabled,
-                        onCheckedChange = { diagnosticsEnabled = it },
+                        onCheckedChange = { onToggleDiagnostics(it) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = NeonOrange,
@@ -326,6 +335,50 @@ fun HostSetupScreen(
                         )
                     )
                 }
+            }
+
+            if (showConsentDialog) {
+                AlertDialog(
+                    onDismissRequest = { showConsentDialog = false },
+                    title = {
+                        Text(
+                            text = "CONVOY DIAGNOSTICS & TELEMETRY",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextPrimary
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "Enabling diagnostics collects network link metrics and device performance telemetry across participating convoy devices. Only network quality and audio routing telemetry are collected (zero audio content, zero GPS location). Data is automatically compiled and emailed to the project team upon ride conclusion to help fix connection and audio drops.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.setDiagnosticsConsentShown(true)
+                                showConsentDialog = false
+                                diagnosticsEnabled = true
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
+                        ) {
+                            Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.setDiagnosticsConsentShown(true)
+                                showConsentDialog = false
+                                diagnosticsEnabled = false
+                            }
+                        ) {
+                            Text("Don't share my data", color = AlertRed)
+                        }
+                    },
+                    containerColor = DarkSlate
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))

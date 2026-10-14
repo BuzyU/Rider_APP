@@ -94,3 +94,21 @@ Discrete operational events emitted upon state changes.
   $$\Delta \text{loss} = \frac{\Delta \text{packets\_lost}}{\Delta \text{packets\_received} + \Delta \text{packets\_lost}} \times 100\%$$
 - If WebRTC reports negative delta loss (due to late-arriving packets or sequence rollover), `interval_loss_pct` is clamped to `0.0%`, while the raw cumulative counters are preserved unmodified.
 - When an ICE restart or track reconnection occurs, counter resets are detected by the client and interval delta calculation resets cleanly.
+
+---
+
+## 5. Data Privacy & Zero Audio / Location Guarantee
+- **Zero Audio Content:** Telemetry payloads contain WebRTC packet counts, byte counts, jitter, RTT, and packet loss metrics only. No raw audio frames, PCM audio samples, or voice recordings are ever gathered or transmitted.
+- **Zero GPS Location:** Telemetry payloads do not contain latitude, longitude, speed, heading, or altitude coordinates.
+- **Data Destination:** Aggregated diagnostic reports are compiled into an Excel workbook (.xlsx) and emailed securely to the development team (`code4changeteam@gmail.com` or `DIAG_EMAIL_TO`).
+
+---
+
+## 6. Convoy End & Close Grace Period
+- **Environment Variable:** `DIAG_CLOSE_GRACE_SECONDS` (default: 90 seconds).
+- **Behavior:** When the host ends a convoy via `POST /api/lobby/:roomName/end`:
+  - If all registered riders have already completed recording (`stoppedAt` recorded), the run closes and exports immediately.
+  - If any riders have active or pending telemetry uploads, the backend grants a 90-second grace window (`DIAG_CLOSE_GRACE_SECONDS`) for riders to flush outboxes and submit their final sequence numbers (`POST /api/diagnostics/stop`).
+  - Upon grace expiration, any rider whose final batch did not arrive is marked `INCOMPLETE` with their received data preserved, and the report is exported.
+  - The process idle checker provides a secondary safety net in case of server restart during the grace window.
+

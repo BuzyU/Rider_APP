@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ridervoice.audio.AudioDevice
 import com.ridervoice.audio.AudioDeviceRouter
 import com.ridervoice.audio.HardwarePTTManager
+import com.ridervoice.audio.RoutedDeviceInfo
 import com.ridervoice.audio.RouterState
 import com.ridervoice.audio.VoxEngine
 import com.ridervoice.models.Participant
@@ -61,6 +62,9 @@ class RoomViewModel @Inject constructor(
 
     val activeAudioDevice: StateFlow<AudioDevice> = audioDeviceRouter.activeDevice
     val audioRouterState: StateFlow<RouterState> = audioDeviceRouter.routerState
+    val requestedAudioDevice: StateFlow<AudioDevice?> = audioDeviceRouter.requestedDevice
+    val routedInput: StateFlow<RoutedDeviceInfo> = audioDeviceRouter.routedInput
+    val routedOutput: StateFlow<RoutedDeviceInfo> = audioDeviceRouter.routedOutput
 
     val isVoxOpen: StateFlow<Boolean> = voxEngine.isMicOpen
     val noiseFloor: StateFlow<Float> = voxEngine.noiseFloor
@@ -276,6 +280,13 @@ class RoomViewModel @Inject constructor(
         _error.value = msg
     }
 
+    fun isDiagnosticsConsentShown(): Boolean = securePrefs.isDiagnosticsConsentShown()
+
+    fun setDiagnosticsConsentChoice(share: Boolean) {
+        securePrefs.setDiagnosticsConsentShown(true)
+        securePrefs.setShareDiagnosticsWhenHostEnabled(share)
+    }
+
     fun endRideForEveryone(roomName: String, onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
@@ -304,15 +315,11 @@ class RoomViewModel @Inject constructor(
     }
 
     fun leaveRoom(roomName: String? = null) {
-        val targetRoom = roomName ?: com.ridervoice.models.RideSession.activeRoomName
         viewModelScope.launch {
             try {
                 networkDiagnosticsCollector.stopSession()
-                if (!targetRoom.isNullOrBlank()) {
-                    apiService.finalizeDiagnosticRun(targetRoom)
-                }
             } catch (e: Exception) {
-                android.util.Log.w("RoomViewModel", "Failed to trigger diagnostic finalize: ${e.message}")
+                android.util.Log.w("RoomViewModel", "Failed to stop diagnostic collector: ${e.message}")
             }
         }
         cleanup()

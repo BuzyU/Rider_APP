@@ -32,7 +32,7 @@ router.post('/create', async (req, res, next) => {
             return res.status(409).json({ error: 'A convoy with that name already exists' })
         }
 
-        const diagBool = diagnosticsEnabled !== false
+        const diagBool = diagnosticsEnabled === true
         const room = await prisma.room.create({
             data: {
                 name: convoyName,
@@ -408,12 +408,22 @@ router.post('/:roomName/end', async (req, res, next) => {
                     room: { name: roomName },
                     status: 'ACTIVE'
                 },
-                select: { id: true }
+                include: { participants: true }
             })
             if (activeRun) {
-                diagnosticService.closeAndExportRun(activeRun.id).catch(err => {
-                    console.error(`[Diagnostic] Error exporting run ${activeRun.id} on ride end:`, err)
-                })
+                const allStopped = activeRun.participants.length > 0 && activeRun.participants.every(p => p.stoppedAt != null)
+                if (allStopped) {
+                    diagnosticService.closeAndExportRun(activeRun.id).catch(err => {
+                        console.error(`[Diagnostic] Error exporting run ${activeRun.id} on ride end:`, err)
+                    })
+                } else {
+                    const graceSec = parseInt(process.env.DIAG_CLOSE_GRACE_SECONDS || '90', 10)
+                    setTimeout(() => {
+                        diagnosticService.closeAndExportRun(activeRun.id, { forceClose: true }).catch(err => {
+                            console.error(`[Diagnostic Grace Close] Error closing run ${activeRun.id}:`, err)
+                        })
+                    }, graceSec * 1000).unref()
+                }
             }
         } catch (diagErr) {
             console.warn('[Diagnostic] Could not check active run on ride end:', diagErr.message)

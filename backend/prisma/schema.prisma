@@ -64,7 +64,7 @@ model Room {
   id                 String       @id @default(uuid())
   name               String       @unique
   ownerId            String
-  diagnosticsEnabled Boolean      @default(true)
+  diagnosticsEnabled Boolean      @default(false)
   startedAt          DateTime?
   createdAt          DateTime     @default(now())
   

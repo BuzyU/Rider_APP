@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/utils/supabase/admin';
+import { sendSmtpMail } from '@/lib/email/smtpClient';
+import { buildWaitlistWelcomeEmail } from '@/lib/email/templates';
 
 export async function POST(request: Request) {
   try {
@@ -39,6 +41,20 @@ export async function POST(request: Request) {
         );
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Send confirmation email via Google SMTP
+    try {
+      const emailPayload = buildWaitlistWelcomeEmail(normalizedEmail);
+      await sendSmtpMail({
+        to: normalizedEmail,
+        subject: emailPayload.subject,
+        html: emailPayload.html,
+        text: emailPayload.text,
+      });
+      console.log(`[SMTP] Successfully sent waitlist welcome email to ${normalizedEmail}`);
+    } catch (mailError) {
+      console.warn(`[SMTP Warning] Failed to send waitlist email to ${normalizedEmail}:`, mailError);
     }
 
     return NextResponse.json({ success: true, message: 'Added to waitlist' });

@@ -49,19 +49,23 @@ export default async function AdminAppLayout({
 
   let userCount: number | null = null;
   let rideCount: number | null = null;
+  let testerCount: number | null = null;
 
   try {
-    const [{ count: uCount }, { count: rCount }] = await Promise.all([
+    const [{ count: uCount }, { count: rCount }, { count: tCount }] = await Promise.all([
       supabaseAdmin.from("User").select("*", { count: "exact", head: true }),
       supabaseAdmin.from("RideSession").select("*", { count: "exact", head: true }),
+      supabaseAdmin.from("tester_applications").select("*", { count: "exact", head: true }),
     ]);
     userCount = uCount;
     rideCount = rCount;
+    testerCount = tCount;
   } catch {
   }
 
   const navItems = [
     { label: "Overview", href: "/admin" },
+    { label: "Testers", href: "/admin/testers", badge: testerCount !== null ? String(testerCount) : undefined },
     { label: "All Users", href: "/admin/users", badge: userCount !== null ? String(userCount) : undefined },
     { label: "Roles", href: "/admin/roles" },
     { label: "Rides", href: "/admin/rides", badge: rideCount !== null ? String(rideCount) : undefined },

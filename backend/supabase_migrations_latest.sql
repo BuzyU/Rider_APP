@@ -109,3 +109,24 @@ CREATE INDEX IF NOT EXISTS "RideInvite_inviterId_status_idx" ON "RideInvite"("in
 CREATE INDEX IF NOT EXISTS "RideSession_riderId_startTime_idx" ON "RideSession"("riderId", "startTime" DESC);
 CREATE INDEX IF NOT EXISTS "ConvoyEvent_rideId_idx" ON "ConvoyEvent"("rideId");
 CREATE INDEX IF NOT EXISTS "DeviceToken_userId_idx" ON "DeviceToken"("userId");
+
+-- 8. Create "tester_applications" table (Beta tester forum & APK downloads)
+CREATE TABLE IF NOT EXISTS "tester_applications" (
+    "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "phone" TEXT,
+    "device_model" TEXT,
+    "motorcycle_model" TEXT,
+    "experience_notes" TEXT,
+    "apk_version" TEXT DEFAULT 'v0.0.3.7',
+    "download_count" INTEGER DEFAULT 1,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "tester_applications_pkey" PRIMARY KEY ("id")
+);
+
+CREATE INDEX IF NOT EXISTS "tester_applications_email_idx" ON "tester_applications"("email");
+CREATE INDEX IF NOT EXISTS "tester_applications_created_at_idx" ON "tester_applications"("created_at" DESC);
+

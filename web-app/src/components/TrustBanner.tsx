@@ -28,8 +28,8 @@ export default function TrustBanner() {
               <span className={styles.statLabel}>Voice Latency</span>
             </div>
             <div className={styles.statItem}>
-              <span className={styles.statNumber}>Unlimited</span>
-              <span className={styles.statLabel}>Convoy Range</span>
+              <span className={styles.statNumber}>Cross-Brand</span>
+              <span className={styles.statLabel}>Intercom Bridge</span>
             </div>
           </div>
         </motion.div>

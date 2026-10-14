@@ -232,6 +232,19 @@
   margin-bottom: 2rem;
 }
 
+.confirmationBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #10b981;
+  background-color: rgba(16, 185, 129, 0.1);
+  padding: 0.5rem 1.25rem;
+  border-radius: 9999px;
+  margin-bottom: 2rem;
+}
+
 .autoDownloadNotice {
   display: inline-flex;
   align-items: center;

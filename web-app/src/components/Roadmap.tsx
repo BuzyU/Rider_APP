@@ -5,11 +5,14 @@ import TesterApplication from './TesterApplication';
 
 export default function Roadmap() {
   return (
-    <section className={styles.roadmapSection} id="beta-testing">
+    <section className={styles.roadmapSection} id="apply">
+      <div id="beta-testing" style={{ position: 'relative', top: '-100px' }} />
       <div className="container">
         <div className={styles.header}>
-          <h2 className="section-title">Coming soon to the ride.</h2>
-          <p className="section-desc">We&apos;re just getting started. Here&apos;s a look at what we&apos;re building next to make group riding even better.</p>
+          <h2 className="section-title">Join the Closed Beta</h2>
+          <p className="section-desc">
+            We are rolling out early access to rider convoys in priority waves. Submit your details below to reserve your squad&apos;s spot.
+          </p>
         </div>
 
         <TesterApplication />

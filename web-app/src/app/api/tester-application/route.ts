@@ -119,7 +119,7 @@ export async function POST(request: Request) {
           ]);
       }
     } catch (dbError) {
-      console.warn('Warning: Supabase write failed (allowing APK download anyway):', dbError);
+      console.warn('Warning: Supabase write failed:', dbError);
     }
 
     // Send professional priority waitlist confirmation email via Google SMTP (no direct APK download in email)
@@ -143,7 +143,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Application approved! Your APK download is ready.',
+      message: 'Application received! You are on our priority waitlist.',
       release
     });
   } catch (error: unknown) {

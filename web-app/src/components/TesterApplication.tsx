@@ -1,42 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
-  Download,
   CheckCircle2,
   ArrowRight,
   Smartphone,
   Sparkles,
   ShieldCheck,
-  Copy,
-  Check,
-  ExternalLink,
   Bike,
-  Volume2
+  Volume2,
+  MailCheck
 } from 'lucide-react';
 import styles from './TesterApplication.module.css';
-
-interface ReleaseInfo {
-  version: string;
-  releaseName: string;
-  fileName: string;
-  downloadUrl: string;
-  releasePageUrl: string;
-  sha256: string;
-  fileSize: string;
-  targetArch?: string;
-}
-
-const FALLBACK_RELEASE: ReleaseInfo = {
-  version: 'v0.0.3.7',
-  releaseName: 'RiderVoice v0.0.3.7',
-  fileName: 'Rider_APP-v0.0.3.7.apk',
-  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.7/Rider_APP-v0.0.3.7.apk',
-  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.7',
-  sha256: '202a9b0c461dc405625ba6195aa3ad01878028a1cc85876794fe96279e6d8825',
-  fileSize: '~50 MB',
-  targetArch: 'Universal ARM'
-};
 
 export default function TesterApplication() {
   const [viewState, setViewState] = useState<'prompt' | 'form' | 'success'>('prompt');
@@ -52,53 +27,6 @@ export default function TesterApplication() {
   // State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [releaseInfo, setReleaseInfo] = useState<ReleaseInfo>(FALLBACK_RELEASE);
-  const [countdown, setCountdown] = useState<number>(2);
-  const [hasCopiedHash, setHasCopiedHash] = useState(false);
-  const [autoDownloadStarted, setAutoDownloadStarted] = useState(false);
-  
-  const autoDownloadTriggered = useRef(false);
-
-  // Trigger download helper
-  const triggerDownload = (url: string, filename: string) => {
-    try {
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      link.setAttribute('target', '_blank');
-      link.setAttribute('rel', 'noopener noreferrer');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch {
-      window.location.assign(url);
-    }
-  };
-
-  // Auto-download countdown upon reaching 'success' state
-  useEffect(() => {
-    if (viewState !== 'success') return;
-    autoDownloadTriggered.current = false;
-    setCountdown(2);
-    setAutoDownloadStarted(false);
-
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          if (!autoDownloadTriggered.current) {
-            autoDownloadTriggered.current = true;
-            triggerDownload(releaseInfo.downloadUrl, releaseInfo.fileName);
-            setAutoDownloadStarted(true);
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [viewState, releaseInfo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,10 +58,6 @@ export default function TesterApplication() {
         throw new Error(data.error || 'Failed to submit application. Please try again.');
       }
 
-      if (data.release) {
-        setReleaseInfo(data.release);
-      }
-
       setViewState('success');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
@@ -143,10 +67,15 @@ export default function TesterApplication() {
     }
   };
 
-  const copyChecksum = () => {
-    navigator.clipboard.writeText(releaseInfo.sha256);
-    setHasCopiedHash(true);
-    setTimeout(() => setHasCopiedHash(false), 2500);
+  const resetForm = () => {
+    setName('');
+    setEmail('');
+    setPhone('');
+    setDeviceModel('');
+    setMotorcycleModel('');
+    setExperienceNotes('');
+    setErrorMsg('');
+    setViewState('prompt');
   };
 
   return (
@@ -157,11 +86,11 @@ export default function TesterApplication() {
         {viewState === 'prompt' && (
           <div className={styles.promptView}>
             <span className={styles.badge}>
-              <Sparkles size={14} /> Early Access Program • Android Build Ready
+              <Sparkles size={14} /> Closed Beta • Priority Waiting List
             </span>
 
             <h3 className={styles.promptTitle}>
-              Apply for RiderVoice Beta Access
+              Apply for Priority Access
             </h3>
 
             <p className={styles.promptDesc}>
@@ -170,7 +99,7 @@ export default function TesterApplication() {
 
             <div className={styles.featurePills}>
               <span className={styles.pill}><Volume2 size={15} /> Hands-Free VOX</span>
-              <span className={styles.pill}><Bike size={15} /> Helmet Intercom Support</span>
+              <span className={styles.pill}><Bike size={15} /> Bluetooth Intercom Bridge</span>
               <span className={styles.pill}><Smartphone size={15} /> Android Universal Build</span>
               <span className={styles.pill}><ShieldCheck size={15} /> Low-Latency Audio</span>
             </div>
@@ -180,7 +109,7 @@ export default function TesterApplication() {
               className={`btn btn-primary ${styles.ctaBtn}`}
               onClick={() => setViewState('form')}
             >
-              Apply for Early Access & Download
+              Apply for Priority Access
               <ArrowRight size={18} />
             </button>
           </div>
@@ -193,9 +122,9 @@ export default function TesterApplication() {
               <span className={styles.badge}>
                 <Sparkles size={14} /> Tester Application
               </span>
-              <h3 className={styles.formTitle}>Apply for Beta Access</h3>
+              <h3 className={styles.formTitle}>Apply for Priority Beta Access</h3>
               <p className={styles.formDesc}>
-                Submit your details below to join the priority list and download the latest Android build.
+                Submit your details below to join the priority waiting list. Invitation waves are scheduled sequentially for testing squads.
               </p>
             </div>
 
@@ -308,7 +237,7 @@ export default function TesterApplication() {
                   className="btn btn-primary"
                   style={{ minWidth: '220px' }}
                 >
-                  {isSubmitting ? 'Registering...' : 'Submit & Download APK'}
+                  {isSubmitting ? 'Submitting...' : 'Submit Application'}
                   {!isSubmitting && <ArrowRight size={18} style={{ marginLeft: '8px' }} />}
                 </button>
                 <button
@@ -324,11 +253,11 @@ export default function TesterApplication() {
           </div>
         )}
 
-        {/* VIEW 3: SUCCESS & DOWNLOAD LAYER */}
+        {/* VIEW 3: SUCCESS STATE - PRIORITY WAITLIST CONFIRMED */}
         {viewState === 'success' && (
           <div className={styles.successLayer}>
             <div className={styles.successIconWrapper}>
-              <CheckCircle2 size={42} />
+              <CheckCircle2 size={44} />
             </div>
 
             <h3 className={styles.successTitle}>
@@ -336,90 +265,49 @@ export default function TesterApplication() {
             </h3>
 
             <p className={styles.successDesc}>
-              Thank you, <strong>{name}</strong>! Your application has been registered for our priority test wave. 
-              You can download the latest Android build ({releaseInfo.version}) below to begin testing with your convoy.
+              Thank you, <strong>{name}</strong>! Your application has been logged and your spot is confirmed on our priority waiting list. 
+              A confirmation email has been dispatched to <strong>{email}</strong>.
             </p>
 
-            <div className={styles.autoDownloadNotice}>
-              <Download size={16} />
-              {countdown > 0 ? (
-                <span>Auto-download starting in <strong>{countdown}s</strong>...</span>
-              ) : (
-                <span>{autoDownloadStarted ? 'Auto-download triggered!' : 'Download started!'} If it didn&apos;t start, click below.</span>
-              )}
+            <div className={styles.confirmationBadge}>
+              <MailCheck size={18} />
+              <span>Priority Waitlist Spot Confirmed</span>
             </div>
 
-            <div className={styles.downloadActions}>
-              <a
-                href={releaseInfo.downloadUrl}
-                download={releaseInfo.fileName}
-                className={styles.primaryDownloadBtn}
-                onClick={() => triggerDownload(releaseInfo.downloadUrl, releaseInfo.fileName)}
-              >
-                <Download size={20} />
-                Download APK ({releaseInfo.version})
-              </a>
-
-              <a
-                href={releaseInfo.releasePageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.secondaryReleaseBtn}
-              >
-                <ExternalLink size={18} />
-                View on GitHub Releases
-              </a>
-            </div>
-
-            {/* Android Install Instructions Card */}
+            {/* Next Steps Information Card */}
             <div className={styles.installStepsCard}>
               <div className={styles.installTitle}>
-                <Smartphone size={18} style={{ color: 'var(--safety-orange)' }} />
-                <span>3-Step Android Installation Guide</span>
+                <Sparkles size={18} style={{ color: 'var(--safety-orange)' }} />
+                <span>What Happens Next?</span>
               </div>
               <div className={styles.stepList}>
                 <div className={styles.stepItem}>
                   <div className={styles.stepBadge}>1</div>
                   <div>
-                    <strong>Download APK:</strong> Save <code>{releaseInfo.fileName}</code> ({releaseInfo.fileSize}) to your Android device.
+                    <strong>Rider Profile Queued:</strong> Your hardware specifications and convoy notes have been added to our wave scheduler.
                   </div>
                 </div>
                 <div className={styles.stepItem}>
                   <div className={styles.stepBadge}>2</div>
                   <div>
-                    <strong>Allow Unknown Sources:</strong> Tap the downloaded file notification. If prompted, tap <em>Settings</em> and enable <em>&quot;Allow from this source&quot;</em>.
+                    <strong>Sequential Wave Rollout:</strong> To preserve intercom voice clarity and maintain &lt; 50ms voice latency, we onboard riders in staged batches.
                   </div>
                 </div>
                 <div className={styles.stepItem}>
                   <div className={styles.stepBadge}>3</div>
                   <div>
-                    <strong>Connect & Ride:</strong> Open RiderVoice, create or join a ride room, and enjoy crystal-clear VOX tactical intercom!
+                    <strong>Direct Access Notification:</strong> As soon as your squad&apos;s testing wave is unlocked, you will receive an invitation email with full setup instructions.
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Checksum Card */}
-            <div className={styles.checksumCard}>
-              <span className={styles.checksumText} title={releaseInfo.sha256}>
-                SHA-256: {releaseInfo.sha256}
-              </span>
-              <button
-                type="button"
-                className={styles.copyBtn}
-                onClick={copyChecksum}
-              >
-                {hasCopiedHash ? <Check size={14} style={{ color: '#10b981' }} /> : <Copy size={14} />}
-                {hasCopiedHash ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-
             <button
               type="button"
               className={styles.resetBtn}
-              onClick={() => setViewState('prompt')}
+              onClick={resetForm}
             >
-              Submit another tester application
+              Submit another application
             </button>
           </div>
         )}

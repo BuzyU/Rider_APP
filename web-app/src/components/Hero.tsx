@@ -1,8 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Mic, MicOff, PhoneOff, User } from 'lucide-react';
-import WaitlistForm from './WaitlistForm';
+import { Mic, MicOff, PhoneOff, User, ArrowRight } from 'lucide-react';
 import styles from './Hero.module.css';
 
 export default function Hero() {
@@ -35,9 +34,19 @@ export default function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className={styles.formWrapper}
+              className={styles.ctaWrapper}
             >
-              <WaitlistForm id="hero-waitlist" />
+              <a href="#apply" className={`btn btn-primary ${styles.heroBtn}`}>
+                Apply for Priority Access
+                <ArrowRight size={20} />
+              </a>
+              <div className={styles.badgeHint}>
+                <span>Closed Beta</span>
+                <span>•</span>
+                <span>Priority Waves Opening</span>
+                <span>•</span>
+                <span>Android Build</span>
+              </div>
             </motion.div>
           </div>
 

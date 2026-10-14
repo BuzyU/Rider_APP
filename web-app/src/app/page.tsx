@@ -6,7 +6,6 @@ import Features from "@/components/Features";
 import MapPreview from "@/components/MapPreview";
 import Roadmap from "@/components/Roadmap";
 import Footer from "@/components/Footer";
-import WaitlistForm from "@/components/WaitlistForm";
 
 export default function Home() {
   return (
@@ -19,13 +18,30 @@ export default function Home() {
         <MapPreview />
         <Roadmap />
 
-        <section className="section" style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-          <div className="container" style={{ maxWidth: '600px' }}>
+        <section className="section" style={{ minHeight: '40vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '6rem 0' }}>
+          <div className="container" style={{ maxWidth: '680px' }}>
             <h2 className="section-title">Never ride disconnected.</h2>
-            <p className="section-desc" style={{ marginBottom: '3rem', marginLeft: 'auto', marginRight: 'auto' }}>
-              Join the priority list. Be the first to receive invitation waves and release updates.
+            <p className="section-desc" style={{ marginBottom: '2.5rem', marginLeft: 'auto', marginRight: 'auto' }}>
+              Ready to elevate your group rides? Reserve your convoy&apos;s spot in our closed beta priority testing wave.
             </p>
-            <WaitlistForm id="footer-waitlist" />
+            <div>
+              <a
+                href="#apply"
+                className="btn btn-primary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '1.15rem 2.5rem',
+                  fontSize: '1.125rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  boxShadow: '0 10px 30px rgba(255, 85, 0, 0.25)'
+                }}
+              >
+                Apply for Priority Access &rarr;
+              </a>
+            </div>
           </div>
         </section>
       </main>

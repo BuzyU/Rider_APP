@@ -24,8 +24,8 @@ export default function Footer() {
           
           <div className={styles.linksCol}>
             <h4>Platform</h4>
-            <a href="#hero-waitlist">Priority Waitlist</a>
-            <a href="#beta-testing">Early Access Program</a>
+            <a href="#apply">Priority Waitlist</a>
+            <a href="#apply">Closed Beta Program</a>
             <a href="https://github.com/BuzyU/Rider_APP/releases" target="_blank" rel="noopener noreferrer">
               GitHub Releases
             </a>

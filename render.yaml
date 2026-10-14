@@ -25,3 +25,30 @@ services:
 
       - key: LIVEKIT_API_SECRET
         sync: false
+
+      - key: SMTP_HOST
+        sync: false
+
+      - key: SMTP_PORT
+        sync: false
+
+      - key: SMTP_USER
+        sync: false
+
+      - key: SMTP_PASS
+        sync: false
+
+      - key: SMTP_FROM
+        sync: false
+
+      - key: SMTP_FROM_NAME
+        sync: false
+
+      - key: DIAG_EMAIL_TO
+        sync: false
+
+      - key: DIAG_CLOSE_GRACE_SECONDS
+        sync: false
+
+      - key: DIAG_ADMIN_KEY
+        sync: false

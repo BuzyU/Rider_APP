@@ -18,16 +18,23 @@ data class AppSettingsState(
     val voxSensitivity: String = "Medium",
     // Headset / PTT settings (migrated from raw headset_prefs → SecurePreferences)
     val hardwarePtt: Boolean = true,
-    val hybridVox: Boolean = true
+    val hybridVox: Boolean = true,
+    val networkDiagnostics: Boolean = false
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val securePrefs: SecurePreferences
+    private val securePrefs: SecurePreferences,
+    private val uploadManager: com.ridervoice.diagnostics.upload.DiagnosticUploadManager
 ) : ViewModel() {
 
     private val _settingsState = MutableStateFlow(loadInitialState())
     val settingsState: StateFlow<AppSettingsState> = _settingsState.asStateFlow()
+
+    val diagnosticStatusText: StateFlow<String> = uploadManager.statusText
+
+    private val _showDiagnosticDisclosure = MutableStateFlow(false)
+    val showDiagnosticDisclosure: StateFlow<Boolean> = _showDiagnosticDisclosure.asStateFlow()
 
     private fun loadInitialState(): AppSettingsState {
         return AppSettingsState(
@@ -38,7 +45,8 @@ class SettingsViewModel @Inject constructor(
             gloveMode = securePrefs.getBoolean("settings_glove_mode", true),
             voxSensitivity = securePrefs.getString("settings_vox_sensitivity", "Medium"),
             hardwarePtt = securePrefs.getBoolean("settings_hardware_ptt", true),
-            hybridVox = securePrefs.getBoolean("settings_hybrid_vox", true)
+            hybridVox = securePrefs.getBoolean("settings_hybrid_vox", true),
+            networkDiagnostics = securePrefs.isNetworkDiagnosticsEnabled()
         )
     }
 
@@ -83,6 +91,41 @@ class SettingsViewModel @Inject constructor(
         val current = _settingsState.value.hybridVox
         _settingsState.value = _settingsState.value.copy(hybridVox = !current)
         securePrefs.saveBoolean("settings_hybrid_vox", !current)
+    }
+
+    fun toggleNetworkDiagnostics() {
+        val current = _settingsState.value.networkDiagnostics
+        if (!current) {
+            val hasSeen = securePrefs.getBoolean("has_seen_diag_disclosure", false)
+            if (!hasSeen) {
+                _showDiagnosticDisclosure.value = true
+                return
+            }
+            enableDiagnostics()
+        } else {
+            disableDiagnostics()
+        }
+    }
+
+    fun confirmDiagnosticDisclosure() {
+        securePrefs.saveBoolean("has_seen_diag_disclosure", true)
+        _showDiagnosticDisclosure.value = false
+        enableDiagnostics()
+    }
+
+    fun dismissDiagnosticDisclosure() {
+        _showDiagnosticDisclosure.value = false
+        disableDiagnostics()
+    }
+
+    private fun enableDiagnostics() {
+        _settingsState.value = _settingsState.value.copy(networkDiagnostics = true)
+        securePrefs.setNetworkDiagnosticsEnabled(true)
+    }
+
+    private fun disableDiagnostics() {
+        _settingsState.value = _settingsState.value.copy(networkDiagnostics = false)
+        securePrefs.setNetworkDiagnosticsEnabled(false)
     }
 
     fun updateSettingValue(key: String, value: String) {

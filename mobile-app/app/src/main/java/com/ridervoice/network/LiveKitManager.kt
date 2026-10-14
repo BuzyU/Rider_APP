@@ -21,6 +21,13 @@ import io.livekit.android.room.participant.AudioTrackPublishOptions
 import io.livekit.android.AudioOptions
 import com.google.gson.Gson
 import com.ridervoice.models.RiderLocation
+import com.ridervoice.diagnostics.models.StatsSnapshot
+import com.ridervoice.diagnostics.models.OutboundAudioStats
+import com.ridervoice.diagnostics.models.InboundRiderStats
+import livekit.org.webrtc.RTCStatsReport
+import livekit.org.webrtc.RTCStats
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -488,5 +495,161 @@ class LiveKitManager @Inject constructor(
         _activeSpeaker.value = null
         _isMicEnabled.value = false
         Log.d(TAG, "Disconnected cleanly")
+    }
+
+    /**
+     * Collects a real-time parsed WebRTC stats snapshot from publisher and subscriber peer connections
+     * and remote participant audio tracks.
+     * Uses suspendCancellableCoroutine with LiveKit's RTCStatsCollectorCallback APIs.
+     * Does NOT leak any WebRTC or Room instances outside of this class.
+     */
+    suspend fun collectStatsSnapshot(): StatsSnapshot? {
+        val currentRoom = room ?: return null
+        if (_connectionState.value != ConnectionState.CONNECTED) return null
+
+        val now = System.currentTimeMillis()
+
+        // 1. Collect publisher stats report
+        val pubReport: RTCStatsReport? = suspendCancellableCoroutine { cont ->
+            try {
+                currentRoom.getPublisherRTCStats { report ->
+                    if (cont.isActive) cont.resume(report)
+                }
+            } catch (e: Exception) {
+                if (cont.isActive) cont.resume(null)
+            }
+        }
+
+        // 2. Collect subscriber stats report
+        val subReport: RTCStatsReport? = suspendCancellableCoroutine { cont ->
+            try {
+                currentRoom.getSubscriberRTCStats { report ->
+                    if (cont.isActive) cont.resume(report)
+                }
+            } catch (e: Exception) {
+                if (cont.isActive) cont.resume(null)
+            }
+        }
+
+        // 3. Parse publisher candidate-pair & outbound-rtp
+        var pubRttMs: Double? = null
+        var pubBytesSent = 0L
+        var pubPacketsSent = 0L
+
+        pubReport?.statsMap?.values?.forEach { stat ->
+            if (stat.type == "candidate-pair" && (stat.members["nominated"] == true || stat.members["state"] == "succeeded")) {
+                val rtt = (stat.members["currentRoundTripTime"] as? Number)?.toDouble()
+                if (rtt != null) {
+                    pubRttMs = rtt * 1000.0 // seconds to milliseconds
+                }
+                pubBytesSent = (stat.members["bytesSent"] as? Number)?.toLong() ?: pubBytesSent
+                pubPacketsSent = (stat.members["packetsSent"] as? Number)?.toLong() ?: pubPacketsSent
+            }
+        }
+
+        var outboundAudio: OutboundAudioStats? = null
+        pubReport?.statsMap?.values?.forEach { stat ->
+            if (stat.type == "outbound-rtp" && stat.members["kind"] == "audio") {
+                val bSent = (stat.members["bytesSent"] as? Number)?.toLong() ?: 0L
+                val pSent = (stat.members["packetsSent"] as? Number)?.toLong() ?: 0L
+                val targetBitrate = (stat.members["targetBitrate"] as? Number)?.toDouble()
+                outboundAudio = OutboundAudioStats(
+                    bytesSent = bSent,
+                    packetsSent = pSent,
+                    targetBitrate = targetBitrate
+                )
+            }
+        }
+
+        // 4. Parse subscriber candidate-pair & totals
+        var subRttMs: Double? = null
+        var subBytesRecv = 0L
+        var subPacketsRecv = 0L
+
+        subReport?.statsMap?.values?.forEach { stat ->
+            if (stat.type == "candidate-pair" && (stat.members["nominated"] == true || stat.members["state"] == "succeeded")) {
+                val rtt = (stat.members["currentRoundTripTime"] as? Number)?.toDouble()
+                if (rtt != null) {
+                    subRttMs = rtt * 1000.0
+                }
+                subBytesRecv = (stat.members["bytesReceived"] as? Number)?.toLong() ?: subBytesRecv
+                subPacketsRecv = (stat.members["packetsReceived"] as? Number)?.toLong() ?: subPacketsRecv
+            }
+        }
+
+        // 5. Parse per-remote-rider inbound tracks (track -> participant mapping)
+        val inboundRiders = mutableListOf<InboundRiderStats>()
+        val remoteParticipants = currentRoom.remoteParticipants
+
+        for ((identity, participant) in remoteParticipants) {
+            val riderHandle = identity.value.ifBlank { participant.sid.value }
+
+            // Find audio publications for this remote participant
+            val audioPubs = participant.trackPublications.values.filter { it.kind == Track.Kind.AUDIO }
+            for (pub in audioPubs) {
+                val trackSid = pub.sid
+                val track = pub.track
+
+                // Attempt per-track stats getter first
+                val trackReport = try { track?.getRTCStats() } catch (e: Exception) { null }
+
+                // Search trackReport or fallback to subscriber report matching trackIdentifier / trackId
+                val inboundStat: RTCStats? = trackReport?.statsMap?.values?.firstOrNull { it.type == "inbound-rtp" }
+                    ?: subReport?.statsMap?.values?.firstOrNull { stat ->
+                        stat.type == "inbound-rtp" && (
+                            stat.members["trackIdentifier"] == track?.rtcTrack?.id() ||
+                            stat.members["trackId"] == track?.rtcTrack?.id() ||
+                            stat.members["trackId"] == trackSid
+                        )
+                    }
+
+                if (inboundStat != null) {
+                    val pktsRecv = (inboundStat.members["packetsReceived"] as? Number)?.toLong() ?: 0L
+                    val pktsLost = (inboundStat.members["packetsLost"] as? Number)?.toLong() ?: 0L
+                    val jitterRaw = (inboundStat.members["jitter"] as? Number)?.toDouble()
+                    val jitterMs = jitterRaw?.times(1000.0) // seconds to ms
+                    val bytesRecv = (inboundStat.members["bytesReceived"] as? Number)?.toLong() ?: 0L
+                    val jbDelay = (inboundStat.members["jitterBufferDelay"] as? Number)?.toDouble()
+                    val concealed = (inboundStat.members["concealedSamples"] as? Number)?.toLong()
+
+                    inboundRiders.add(
+                        InboundRiderStats(
+                            riderIdentity = riderHandle,
+                            trackSid = trackSid,
+                            packetsReceived = pktsRecv,
+                            packetsLost = pktsLost,
+                            jitterMs = jitterMs,
+                            bytesReceived = bytesRecv,
+                            jitterBufferDelay = jbDelay,
+                            concealedSamples = concealed
+                        )
+                    )
+                }
+            }
+        }
+
+        val effectiveRtt = pubRttMs ?: subRttMs
+        val totalPacketsSent = outboundAudio?.packetsSent ?: pubPacketsSent
+        val totalPacketsRecv = if (inboundRiders.isNotEmpty()) inboundRiders.sumOf { it.packetsReceived } else subPacketsRecv
+        val totalPacketsLost = inboundRiders.sumOf { it.packetsLost }
+        val avgJitterMs = if (inboundRiders.isNotEmpty()) {
+            val jitters = inboundRiders.mapNotNull { it.jitterMs }
+            if (jitters.isNotEmpty()) jitters.average() else null
+        } else null
+        val totalBytesSent = outboundAudio?.bytesSent ?: pubBytesSent
+        val totalBytesRecv = if (inboundRiders.isNotEmpty()) inboundRiders.sumOf { it.bytesReceived } else subBytesRecv
+
+        return StatsSnapshot(
+            timestamp = now,
+            rttMs = effectiveRtt,
+            packetsSent = totalPacketsSent,
+            packetsReceived = totalPacketsRecv,
+            packetsLost = totalPacketsLost,
+            jitterMs = avgJitterMs,
+            bytesSent = totalBytesSent,
+            bytesReceived = totalBytesRecv,
+            outboundAudio = outboundAudio,
+            inboundRiders = inboundRiders
+        )
     }
 }

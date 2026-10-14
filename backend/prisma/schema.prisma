@@ -66,9 +66,10 @@ model Room {
   ownerId   String
   createdAt DateTime     @default(now())
   
-  invites    RideInvite[]
-  alerts     EmergencyAlert[]
-  joinTokens RoomJoinToken[]
+  invites        RideInvite[]
+  alerts         EmergencyAlert[]
+  joinTokens     RoomJoinToken[]
+  diagnosticRuns DiagnosticRun[]
 
   @@index([ownerId])
 }
@@ -184,7 +185,7 @@ model TesterApplication {
   deviceModel     String?  @map("device_model")
   motorcycleModel String?  @map("motorcycle_model")
   experienceNotes String?  @map("experience_notes")
-  apkVersion      String?  @default("v0.0.3.7") @map("apk_version")
+  apkVersion      String?  @default("v0.0.3.8") @map("apk_version")
   status          String   @default("PENDING")
   downloadCount   Int?     @default(1) @map("download_count")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -194,6 +195,55 @@ model TesterApplication {
   @@index([email])
   @@index([status])
   @@index([createdAt(sort: Desc)])
+}
+
+model DiagnosticRun {
+  id           String                  @id @default(uuid())
+  convoyId     String
+  testNumber   Int
+  status       String                  @default("ACTIVE")
+  createdAt    DateTime                @default(now())
+  closedAt     DateTime?
+  emailedAt    DateTime?
+  summary      Json?
+
+  room         Room                    @relation(fields: [convoyId], references: [id], onDelete: Cascade)
+  participants DiagnosticParticipant[]
+  batches      DiagnosticBatch[]
+
+  @@unique([convoyId, testNumber])
+  @@index([convoyId, status])
+}
+
+model DiagnosticParticipant {
+  id          String        @id @default(uuid())
+  runId       String
+  riderId     String
+  handle      String
+  joinedAt    DateTime      @default(now())
+  stoppedAt   DateTime?
+  lastSeq     Int?
+  lastBatchAt DateTime      @default(now())
+
+  run         DiagnosticRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, riderId])
+  @@index([runId])
+  @@index([riderId])
+}
+
+model DiagnosticBatch {
+  id             String        @id @default(uuid())
+  runId          String
+  riderId        String
+  sequenceNumber Int
+  payload        Json
+  receivedAt     DateTime      @default(now())
+
+  run            DiagnosticRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, riderId, sequenceNumber])
+  @@index([runId, riderId])
 }
 
 

@@ -152,6 +152,18 @@ fun SettingsScreen(
                 }
 
                 item {
+                    val diagStatus by settingsViewModel.diagnosticStatusText.collectAsState()
+                    SettingsSectionHeader("DIAGNOSTICS")
+                    SettingsItemToggle(
+                        label = "Network Diagnostics",
+                        icon = Icons.Default.NetworkCheck,
+                        checked = settingsState.networkDiagnostics,
+                        subtitle = if (settingsState.networkDiagnostics) "Status: $diagStatus" else "Debug call drops & telemetry",
+                        onCheckedChange = { settingsViewModel.toggleNetworkDiagnostics() }
+                    )
+                }
+
+                item {
                     SettingsSectionHeader("UPDATES")
                     SettingsItemValue(
                         label = "App Version",
@@ -296,6 +308,57 @@ fun SettingsScreen(
                 }
             )
         }
+
+        val showDisclosure by settingsViewModel.showDiagnosticDisclosure.collectAsState()
+        if (showDisclosure) {
+            AlertDialog(
+                onDismissRequest = { settingsViewModel.dismissDiagnosticDisclosure() },
+                title = {
+                    Text(
+                        text = "NETWORK DIAGNOSTICS",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "What is collected:\n" +
+                                    "• WebRTC telemetry: RTT latency, packet loss %, jitter, bitrates.\n" +
+                                    "• Connection events: reconnects, health changes, mute state.\n" +
+                                    "• Rider handles: handles in active convoy (no contacts or tokens).\n" +
+                                    "• Device telemetry: battery level, thermal state, network type.\n" +
+                                    "• Location: optional (default OFF).\n\n" +
+                                    "Where it goes:\n" +
+                                    "Uploaded over HTTPS to the developer diagnostics backend and emailed as an encrypted archive to aid debugging call drops.\n\n" +
+                                    "Retention: All runs and batches are automatically purged after 30 days.",
+                            color = TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { settingsViewModel.confirmDiagnosticDisclosure() },
+                        colors = ButtonDefaults.buttonColors(containerColor = TechGreen),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("AGREE & ENABLE", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { settingsViewModel.dismissDiagnosticDisclosure() },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("CANCEL", color = TextPrimary)
+                    }
+                },
+                containerColor = DarkSlate
+            )
+        }
     }
 }
 
@@ -370,6 +433,7 @@ fun SettingsItemToggle(
     label: String,
     icon: ImageVector = Icons.Default.Tune,
     checked: Boolean,
+    subtitle: String? = null,
     onCheckedChange: (Boolean) -> Unit
 ) {
     val isDark = ThemeState.isDarkTheme
@@ -399,12 +463,22 @@ fun SettingsItemToggle(
                     Icon(icon, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
                 }
                 Spacer(modifier = Modifier.width(14.dp))
-                Text(
-                    text = label,
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 14.sp
-                )
+                Column {
+                    Text(
+                        text = label,
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontSize = 14.sp
+                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            text = subtitle,
+                            color = TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
             }
             Switch(
                 checked = checked,

@@ -5,15 +5,15 @@ import { buildTesterWelcomeEmail } from '@/lib/email/templates';
 
 // Fallback release metadata matching latest GitHub release
 const DEFAULT_RELEASE = {
-  version: 'v0.0.3.7',
-  releaseName: 'RiderVoice v0.0.3.7',
-  fileName: 'Rider_APP-v0.0.3.7.apk',
-  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.7/Rider_APP-v0.0.3.7.apk',
-  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.7',
-  sha256: '202a9b0c461dc405625ba6195aa3ad01878028a1cc85876794fe96279e6d8825',
+  version: 'v0.0.3.8',
+  releaseName: 'RiderVoice v0.0.3.8',
+  fileName: 'Rider_APP-v0.0.3.8.apk',
+  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.8/Rider_APP-v0.0.3.8.apk',
+  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.8',
+  sha256: 'Pending release verification',
   fileSize: '~50 MB',
   targetArch: 'Universal ARM (arm64-v8a, armeabi-v7a)',
-  highlights: 'fix ~2s VOX cut with WebRTC ADM sample relay, dead code purge, UI/UX cleanup, and battery optimization'
+  highlights: 'Live Network Diagnostics, multi-rider voice telemetry collection, and crash-safe outbox relay'
 };
 
 async function getLatestRelease() {

@@ -1,3 +1,47 @@
+## RiderVoice v0.0.3.8 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.8** introduces the end-to-end **Network Diagnostics & Convoy Telemetry** subsystem across Android and the Node.js backend. Riders can now record active network and voice-quality telemetry during a convoy ride without modifying or risking existing ride history. Telemetry samples are written immediately to a separate SQLite Room database (`DiagnosticsDatabase`), streamed opportunistically via Hilt-injected WorkManager in idempotent chunks, aggregated per convoy test run, exported into zero-disk in-memory multi-rider ZIP packages (`self.csv`, `inbound.csv`, `events.csv`, `summary.json`, `run_summary.md`), and emailed directly via authenticated SMTP relay.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.8` |
+| **Version Code** | `3008` |
+| **Release Tag** | [`v0.0.3.8`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.8) |
+| **Download APK** | [`Rider_APP-v0.0.3.8.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.8/Rider_APP-v0.0.3.8.apk) |
+
+---
+
+### 📡 Network Diagnostics & Voice Telemetry (Android)
+- **Separate Crash-Safe Database**: Implemented `DiagnosticsDatabase` ("diagnostics.db") completely isolated from `RideDatabase` (preventing accidental destructive migrations).
+- **Foreground Service Scope**: Runs inside `VoiceForegroundService` so collection reliably survives app backgrounding.
+- **2-Second WebRTC & Device Sampling**:
+  - **SELF Metrics**: LiveKit RTT, WebRTC packets/bytes sent & received, retransmits, target/actual bitrate, connection quality, network transport type, cell operator/technology, signal strength (dBm), battery %, thermal status, and app lifecycle state.
+  - **INBOUND Per-Remote-Rider Metrics**: Track packet loss % calculated dynamically via `DeltaLossCalculator` with automatic sequence reset detection and negative clamping, jitter buffer delay, concealed samples ratio, and audio level.
+  - **Events Stream**: PTT press/release, VOX trigger, mute/unmute, reconnecting/reconnected transitions, and network handoffs.
+- **HUD Indicator & Settings UX**:
+  - Prominent red `[• REC]` indicator in active ride HUD when diagnostics are active.
+  - First-time consent and privacy disclosure `AlertDialog` before activation.
+  - Real-time outbox upload status displayed directly under the Settings toggle.
+- **Reliable Outbox Upload**: Chunked into batches (<= 200 items) with persistent sequence numbers and exponential backoff retry via WorkManager.
+
+---
+
+### 🖥️ Backend Diagnostic Engine & SMTP Relay (Node.js)
+- **Convoy Run Auto-Numbering**: Idempotent `POST /diagnostics/runs/join` allocates sequential "Test N" runs per convoy.
+- **Idempotent Batch Ingestion**: Composite unique key `(runId, riderId, sequenceNumber)` ignores duplicate retries.
+- **Security & Hardening**:
+  - Strict authentication: Test-auth bypass disabled outside `NODE_ENV=test` and rejected on non-localhost databases.
+  - CSV Formula Injection protection: neutralizes `=, +, -, @, \t, \r` prefixes with single quotes per RFC 4180.
+  - Path traversal neutralization: Sanitizes rider handles and room names.
+  - Constant-time admin key validation using SHA-256 digest comparison.
+- **Multi-Rider Zero-Disk ZIP Export & SMTP Relay**:
+  - Compiles `self.csv`, `inbound.csv`, `events.csv`, `summary.json`, and `run_summary.md` entirely in memory.
+  - Automated SMTP email dispatch with attachment size thresholding (summaries emailed if archive > 20 MB).
+  - Background scheduler automatically closes idle runs after 10 minutes and cleans up runs older than 30 days.
+
+---
+
 ## RiderVoice v0.0.3.7 Release Notes
 
 ### 🚀 Overview

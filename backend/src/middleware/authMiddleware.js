@@ -31,7 +31,25 @@ module.exports = async (req, res, next) => {
     const token = parts[1]
 
     try {
-        const decodedToken = await admin.auth().verifyIdToken(token)
+        let decodedToken
+        if (token.startsWith('test_')) {
+            if (process.env.NODE_ENV === 'production') {
+                console.error('[SecurityViolation] Test token rejected: test tokens are strictly forbidden in production.')
+                return res.status(401).json({ error: 'Unauthorized: test tokens are strictly forbidden in production' })
+            }
+            if (process.env.NODE_ENV !== 'test') {
+                return res.status(401).json({ error: 'Unauthorized: test tokens are only permitted when NODE_ENV=test' })
+            }
+            const dbUrl = process.env.DATABASE_URL || ''
+            const isLocalDb = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')
+            if (!isLocalDb) {
+                console.error('[SecurityViolation] Test tokens rejected: DATABASE_URL host is not localhost/127.0.0.1.')
+                return res.status(401).json({ error: 'Unauthorized: test auth is disabled when DATABASE_URL is not localhost/127.0.0.1' })
+            }
+            decodedToken = { uid: token, email: `${token}@test.ridervoice.com`, name: `Rider_${token}` }
+        } else {
+            decodedToken = await admin.auth().verifyIdToken(token)
+        }
         req.user = decodedToken
 
         const now = Date.now()

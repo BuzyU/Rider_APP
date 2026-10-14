@@ -7,6 +7,9 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import java.io.File
 import java.security.KeyStore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class SecurePreferences(private val context: Context) {
 
@@ -16,6 +19,7 @@ class SecurePreferences(private val context: Context) {
         private const val TAG = "SecurePreferences"
         private const val PREFS_FILE = "secure_prefs"
         private const val FALLBACK_PREFS_FILE = "secure_prefs_unencrypted_fallback"
+        const val KEY_NETWORK_DIAGNOSTICS = "network_diagnostics_enabled"
 
         private fun createSafePreferences(context: Context): SharedPreferences {
             return try {
@@ -137,5 +141,31 @@ class SecurePreferences(private val context: Context) {
                 .remove("active_ride_is_host")
                 .apply()
         }
+    }
+
+    private val _networkDiagnosticsEnabled = MutableStateFlow(isNetworkDiagnosticsEnabled())
+    val networkDiagnosticsEnabled: StateFlow<Boolean> = _networkDiagnosticsEnabled.asStateFlow()
+
+    private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == KEY_NETWORK_DIAGNOSTICS) {
+            _networkDiagnosticsEnabled.value = isNetworkDiagnosticsEnabled()
+        }
+    }
+
+    init {
+        try {
+            prefs.registerOnSharedPreferenceChangeListener(prefListener)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to register OnSharedPreferenceChangeListener: ${e.message}")
+        }
+    }
+
+    fun isNetworkDiagnosticsEnabled(): Boolean {
+        return getBoolean(KEY_NETWORK_DIAGNOSTICS, false)
+    }
+
+    fun setNetworkDiagnosticsEnabled(enabled: Boolean) {
+        saveBoolean(KEY_NETWORK_DIAGNOSTICS, enabled)
+        _networkDiagnosticsEnabled.value = enabled
     }
 }

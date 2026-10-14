@@ -28,12 +28,12 @@ interface ReleaseInfo {
 }
 
 const FALLBACK_RELEASE: ReleaseInfo = {
-  version: 'v0.0.3.7',
-  releaseName: 'RiderVoice v0.0.3.7',
-  fileName: 'Rider_APP-v0.0.3.7.apk',
-  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.7/Rider_APP-v0.0.3.7.apk',
-  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.7',
-  sha256: '202a9b0c461dc405625ba6195aa3ad01878028a1cc85876794fe96279e6d8825',
+  version: 'v0.0.3.8',
+  releaseName: 'RiderVoice v0.0.3.8',
+  fileName: 'Rider_APP-v0.0.3.8.apk',
+  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.8/Rider_APP-v0.0.3.8.apk',
+  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.8',
+  sha256: 'Pending release verification',
   fileSize: '~50 MB',
   targetArch: 'Universal ARM'
 };

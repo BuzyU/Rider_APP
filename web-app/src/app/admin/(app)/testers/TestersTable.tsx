@@ -122,7 +122,7 @@ export default function TestersTable({ initialApplications }: TestersTableProps)
                 <td style={{ maxWidth: "220px", wordBreak: "break-word" }}>
                   {app.experience_notes || <span className="admin-muted">—</span>}
                 </td>
-                <td>{app.apk_version || "v0.0.3.7"}</td>
+                <td>{app.apk_version || "v0.0.3.8"}</td>
                 <td>{new Date(app.created_at).toLocaleDateString()}</td>
                 <td>
                   <div style={{ display: "flex", gap: "6px" }}>

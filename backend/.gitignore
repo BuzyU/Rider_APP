@@ -5,3 +5,6 @@ node_modules
 /src/generated/prisma
 
 *.json
+exports/
+.pg_data/
+*.zip

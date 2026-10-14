@@ -44,9 +44,11 @@ class RoomViewModel @Inject constructor(
     private val thermalManager: ThermalManager,
     private val serviceWatchdog: ServiceWatchdog,
     private val securePrefs: SecurePreferences,
-    private val hardwarePTTManager: HardwarePTTManager
+    private val hardwarePTTManager: HardwarePTTManager,
+    private val networkDiagnosticsCollector: com.ridervoice.diagnostics.collector.NetworkDiagnosticsCollector
 ) : ViewModel() {
 
+    val isCollectingDiagnostics: StateFlow<Boolean> = networkDiagnosticsCollector.isCollecting
     val connectionState: StateFlow<ConnectionState> = liveKitManager.connectionState
     val remoteLocations: StateFlow<Map<String, RiderLocation>> = liveKitManager.remoteLocations
     val activeSpeaker: StateFlow<String?> = liveKitManager.activeSpeaker

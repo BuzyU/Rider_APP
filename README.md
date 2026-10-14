@@ -4,13 +4,14 @@
 
 RiderVoice is a Jetpack Compose Android application designed for motorcycle convoys. It enables hands-free push-to-talk (PTT) communication over WebRTC, squad coordination, active ride telemetry, and over-the-air (OTA) application updates. It is backed by a Node.js Express REST API, Prisma PostgreSQL (Supabase), and LiveKit for real-time audio.
 
-> **Latest Release:** [**v0.0.3.7 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.7)  
+> **Latest Release:** [**v0.0.3.8 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.8)  
 > For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md).
 
 ---
 
 ## 🚀 Key Features
 
+- **Live Network Diagnostics & Telemetry Pipeline (v0.0.3.8)** – Multi-rider voice & network telemetry recording inside `VoiceForegroundService`. Collects 2-second WebRTC stats (RTT, jitter, interval loss %, packets/bytes), device health (battery, thermals, transport), crash-safe SQLite Room staging (`DiagnosticsDatabase`), idempotent WorkManager chunked uploads (<=200 rows), and automated backend multi-rider ZIP export (`self.csv`, `inbound.csv`, `events.csv`, `run_summary.md`) with live SMTP email reporting.
 - **P0 VOX Voice Engine & WebRTC ADM Relay (v0.0.3.7)** – Fixed 2-second forced mic cut via direct `JavaAudioDeviceModule.setSamplesReadyCallback` transmit PCM relay to dynamic RMS detector, regression coverage, dead code purge (`DEAD-1..11`), Settings UI/UX consumer cleanup with inlined headset controls (`UX-1..5`), and speed-tiered GNSS battery management (`BAT-1..3`).
 - **Self-Healing Keystore & Zero-Limit Updater (v0.0.3.6)** – Auto-recovery from Android keystore corruption on launch, transparent web redirect fallback completely bypassing GitHub REST API rate limits, OEM ContextThemeWrapper compatibility, and an in-app Diagnostic Crash Reporter.
 - **LiveKit WebRTC Voice Engine (v0.0.3.5)** – Conflict-free WebRTC audio transmission with zero hardware lock contention, dedicated HAL capture ownership, instant PTT unmute without Opus DTX clipping, and crystal-clear helmet intercom playout.
@@ -29,12 +30,12 @@ RiderVoice is a Jetpack Compose Android application designed for motorcycle conv
 
 You can download the latest signed APK directly from GitHub Releases:
 
-- 📱 [**Download RiderVoice v0.0.3.7 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.7/Rider_APP-v0.0.3.7.apk)
-- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.7/Rider_APP-v0.0.3.7.apk.sha256)
+- 📱 [**Download RiderVoice v0.0.3.8 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.8/Rider_APP-v0.0.3.8.apk)
+- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.8/Rider_APP-v0.0.3.8.apk.sha256)
 
 ### Sideloading Instructions:
 
-1. Download `Rider_APP-v0.0.3.7.apk` onto your Android phone (or transfer via USB/Quick Share).
+1. Download `Rider_APP-v0.0.3.8.apk` onto your Android phone (or transfer via USB/Quick Share).
 2. Open your device's **Files** app and tap the APK.
 3. If prompted by Android, toggle **"Allow from this source"**.
 4. Tap **Install**. Subsequent updates can be downloaded directly from within the app under **Settings → Check for OTA Updates**.
@@ -192,7 +193,7 @@ GitHub Actions will automatically build `Rider_APP-v0.0.3.6.apk`, compute its `.
 ### Prerequisites
 
 - **Android Studio** (Hedgehog 2023.1.1 or newer)
-- **JDK 17** (Temurin / Adoptium recommended)
+- **JDK 17** (Temurin / Adoptium / JBR 17 required; KSP compiler version incompatibility prevents building under JDK 25+)
 - **Node.js 18+** & **npm**
 - **Docker** (optional, for local LiveKit server)
 

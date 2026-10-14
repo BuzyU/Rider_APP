@@ -6,15 +6,37 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.ridervoice.diagnostics.data.dao.DiagSessionDao
+import com.ridervoice.diagnostics.upload.DiagnosticUploadManager
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import javax.inject.Inject
 
 @HiltAndroidApp
-class App : Application() {
+class App : Application(), Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var sessionDao: DiagSessionDao
+
+    @Inject
+    lateinit var uploadManager: DiagnosticUploadManager
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     companion object {
         private const val TAG = "RiderVoiceApp"
@@ -25,6 +47,21 @@ class App : Application() {
         super.onCreate()
         setupCrashHandler()
         createNotificationChannels()
+        finalizeOrphanedDiagnosticSessions()
+    }
+
+    private fun finalizeOrphanedDiagnosticSessions() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val orphaned = sessionDao.getOrphanedSessions()
+                for (session in orphaned) {
+                    Log.i(TAG, "Finalizing orphaned diagnostic session from previous run: ${session.localSessionId}")
+                    uploadManager.enqueueStop(session.localSessionId)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to finalize orphaned diagnostic sessions: ${e.message}")
+            }
+        }
     }
 
     private fun setupCrashHandler() {

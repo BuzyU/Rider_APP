@@ -15,14 +15,19 @@ const rideRoutes = require('./routes/rideRoutes')
 const roomRoutes = require('./routes/roomRoutes')
 const lobbyRoutes = require('./routes/lobbyRoutes')
 const emergencyRoutes = require('./routes/emergencyRoutes')
+const diagnosticRoutes = require('./routes/diagnosticRoutes')
 
 const app = express()
 app.set('trust proxy', 1)
 
 app.use(cors())
-app.use(express.json({ limit: '10mb' }))
 app.use(requestLogger)
 app.use(rateLimiter)
+
+// Mount diagnostics routes before global express.json so route-level 5MB batch parser is not preempted
+app.use('/api/diagnostics', diagnosticRoutes)
+
+app.use(express.json({ limit: '10mb' }))
 
 app.use('/api/health', healthRoute)
 app.use('/health', healthRoute)
@@ -37,6 +42,18 @@ app.use('/api/lobby', authMiddleware, lobbyRoutes)
 app.use('/api/emergency', authMiddleware, emergencyRoutes)
 
 app.use(errorMiddleware)
+
+// Periodic network diagnostics background jobs
+const diagnosticService = require('./services/diagnosticService')
+const idleInterval = setInterval(() => {
+    diagnosticService.checkIdleDiagnosticRuns().catch(() => {})
+}, 60 * 1000)
+if (idleInterval.unref) idleInterval.unref()
+
+const retentionInterval = setInterval(() => {
+    diagnosticService.cleanOldDiagnosticRuns().catch(() => {})
+}, 24 * 60 * 60 * 1000)
+if (retentionInterval.unref) retentionInterval.unref()
 
 const prisma = require('./db')
 async function ensureDbExtensions() {

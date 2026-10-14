@@ -22,6 +22,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import com.ridervoice.security.SecurePreferences
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,6 +34,12 @@ class VoiceForegroundService : Service() {
 
     @Inject
     lateinit var liveKitManager: LiveKitManager
+
+    @Inject
+    lateinit var securePreferences: SecurePreferences
+
+    @Inject
+    lateinit var networkDiagnosticsCollector: com.ridervoice.diagnostics.collector.NetworkDiagnosticsCollector
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private val channelId = "tactical_voice_channel"
@@ -99,6 +109,23 @@ class VoiceForegroundService : Service() {
             liveKitManager.activeSpeaker.collectLatest { speaker ->
                 currentActiveSpeaker = speaker ?: "Nobody"
                 debouncedUpdateNotification()
+            }
+        }
+
+        // Network Diagnostics Collector: Observe toggle + connection state
+        serviceScope.launch {
+            combine(
+                securePreferences.networkDiagnosticsEnabled,
+                liveKitManager.connectionState
+            ) { diagEnabled, connState ->
+                diagEnabled && connState == ConnectionState.CONNECTED
+            }.collectLatest { shouldRun ->
+                if (shouldRun) {
+                    val convoyId = com.ridervoice.models.RideSession.activeRoomName ?: "Convoy"
+                    networkDiagnosticsCollector.startSession(convoyId)
+                } else {
+                    networkDiagnosticsCollector.stopSession()
+                }
             }
         }
     }
@@ -206,7 +233,7 @@ class VoiceForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        super.onDestroy()
+        networkDiagnosticsCollector.stopSession()
         liveKitManager.disconnect()
         wakeLock?.let {
             if (it.isHeld) it.release()

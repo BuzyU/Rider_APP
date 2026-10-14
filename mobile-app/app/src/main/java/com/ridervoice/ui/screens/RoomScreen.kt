@@ -370,7 +370,36 @@ fun RoomScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            ConnectionPill(connectionState)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ConnectionPill(connectionState)
+                val isCollectingDiag by viewModel.isCollectingDiagnostics.collectAsState()
+                if (isCollectingDiag) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0x33FF3B30))
+                            .border(1.dp, Color(0xFFFF3B30), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFF3B30))
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "REC",
+                            color = Color(0xFFFF3B30),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                }
+            }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(

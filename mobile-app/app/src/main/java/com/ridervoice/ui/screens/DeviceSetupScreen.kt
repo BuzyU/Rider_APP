@@ -25,17 +25,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.content.Intent
+import android.provider.Settings
+import androidx.compose.ui.platform.LocalContext
+import com.ridervoice.audio.AudioDevice
+import com.ridervoice.audio.RoutedDeviceInfo
 import com.ridervoice.audio.RouterState
 import com.ridervoice.ui.components.TacticalButton
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.DeviceSetupViewModel
-
-data class BluetoothDeviceEntry(
-    val name: String,
-    val address: String,
-    val isPaired: Boolean,
-    val isConnected: Boolean
-)
 
 @Composable
 fun DeviceSetupScreen(
@@ -45,19 +43,23 @@ fun DeviceSetupScreen(
     onReady: () -> Unit,
     onBackClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val routerState by viewModel.routerState.collectAsState()
     val activeDevice by viewModel.activeDevice.collectAsState()
+    val requestedDevice by viewModel.requestedDevice.collectAsState()
+    val routedInput by viewModel.routedInput.collectAsState()
+    val routedOutput by viewModel.routedOutput.collectAsState()
     val isDark = ThemeState.isDarkTheme
 
-    var selectedRouteType by remember { mutableStateOf("BLUETOOTH") }
-
-    var discoveredDevices by remember {
+    val isBluetoothActive = activeDevice is AudioDevice.BluetoothSco
+    var selectedRouteType by remember(activeDevice) {
         mutableStateOf(
-            listOf(
-                BluetoothDeviceEntry("Cardo Packtalk Bold", "DC:2C:26:A1:4B:10", isPaired = true, isConnected = true),
-                BluetoothDeviceEntry("Sena 50S Mesh Intercom", "00:1B:66:34:F8:92", isPaired = true, isConnected = false),
-                BluetoothDeviceEntry("Generic Helmet BT 5.0", "44:5C:E9:12:33:04", isPaired = false, isConnected = false)
-            )
+            when (activeDevice) {
+                is AudioDevice.BluetoothSco -> "BLUETOOTH"
+                is AudioDevice.Speakerphone -> "SPEAKER"
+                is AudioDevice.WiredHeadset, is AudioDevice.UsbAudio -> "WIRED"
+                else -> "BLUETOOTH"
+            }
         )
     }
 
@@ -173,6 +175,65 @@ fun DeviceSetupScreen(
                     modifier = Modifier.padding(top = 2.dp)
                 )
 
+                val isMismatch = requestedDevice != null &&
+                    (requestedDevice is AudioDevice.BluetoothSco || requestedDevice is AudioDevice.WiredHeadset || requestedDevice is AudioDevice.UsbAudio) &&
+                    (activeDevice !is AudioDevice.BluetoothSco && activeDevice !is AudioDevice.WiredHeadset && activeDevice !is AudioDevice.UsbAudio)
+
+                if (isMismatch) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        color = AlertRed.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Using phone audio, headset not active",
+                                color = AlertRed,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Button(
+                                onClick = { viewModel.rescanAudioDevices() },
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
+                                shape = RoundedCornerShape(6.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text("Retry", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Surface(
+                    color = DarkSlate,
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = "Mic: ${routedInput.display()}",
+                            color = if (isMismatch) AlertRed else TextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Speaker: ${routedOutput.display()}",
+                            color = if (isMismatch) AlertRed else TextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
@@ -188,25 +249,34 @@ fun DeviceSetupScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     AudioRouteChip(
-                        label = "HELMET BT",
+                        label = "BLUETOOTH",
                         icon = Icons.Default.Bluetooth,
                         isSelected = selectedRouteType == "BLUETOOTH",
                         modifier = Modifier.weight(1f)
-                    ) { selectedRouteType = "BLUETOOTH" }
+                    ) {
+                        selectedRouteType = "BLUETOOTH"
+                        viewModel.setAudioRoute("BLUETOOTH")
+                    }
 
                     AudioRouteChip(
                         label = "SPEAKER",
                         icon = Icons.Default.VolumeUp,
                         isSelected = selectedRouteType == "SPEAKER",
                         modifier = Modifier.weight(1f)
-                    ) { selectedRouteType = "SPEAKER" }
+                    ) {
+                        selectedRouteType = "SPEAKER"
+                        viewModel.setAudioRoute("SPEAKER")
+                    }
 
                     AudioRouteChip(
                         label = "WIRED",
                         icon = Icons.Default.Headset,
                         isSelected = selectedRouteType == "WIRED",
                         modifier = Modifier.weight(1f)
-                    ) { selectedRouteType = "WIRED" }
+                    ) {
+                        selectedRouteType = "WIRED"
+                        viewModel.setAudioRoute("WIRED")
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -217,76 +287,73 @@ fun DeviceSetupScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "DISCOVERED INTERCOMS",
+                        text = "BLUETOOTH AUDIO DEVICE",
                         color = TextSecondary,
                         style = MaterialTheme.typography.labelSmall,
                         letterSpacing = 1.sp
                     )
-                    TextButton(onClick = {  }, contentPadding = PaddingValues(0.dp)) {
+                    TextButton(
+                        onClick = { viewModel.rescanAudioDevices() },
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
                         Icon(Icons.Default.Refresh, contentDescription = null, tint = NeonOrange, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("RESCAN", color = NeonOrange, style = MaterialTheme.typography.labelSmall)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-            }
+                Spacer(modifier = Modifier.height(8.dp))
 
-            items(discoveredDevices) { device ->
-                Surface(
-                    color = DarkSlate,
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        if (device.isConnected) TechGreen else BorderColor
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                if (isBluetoothActive) {
+                    Surface(
+                        color = DarkSlate,
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Gunmetal),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = if (device.isConnected) Icons.Default.BluetoothConnected else Icons.Default.Bluetooth,
-                                contentDescription = null,
-                                tint = if (device.isConnected) TechGreen else ElectricCyan,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Gunmetal),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.BluetoothConnected,
+                                    contentDescription = null,
+                                    tint = TechGreen,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
 
-                        Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = device.name,
-                                color = TextPrimary,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = "${device.address} • ${if (device.isPaired) "Paired" else "Discovered"}",
-                                color = TextSecondary,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = 10.sp
-                            )
-                        }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = activeDevice.displayName(),
+                                    color = TextPrimary,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Connected for tactical communications (Mic + Audio)",
+                                    color = TextSecondary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 11.sp
+                                )
+                            }
 
-                        if (device.isConnected) {
                             Surface(
                                 color = TechGreen.copy(alpha = 0.2f),
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
-                                    text = "CONNECTED",
+                                    text = "ACTIVE",
                                     color = TechGreen,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 10.sp,
@@ -294,26 +361,79 @@ fun DeviceSetupScreen(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
-                        } else {
-                            OutlinedButton(
-                                onClick = {
-                                    discoveredDevices = discoveredDevices.map {
-                                        if (it.address == device.address) it.copy(isConnected = true)
-                                        else it.copy(isConnected = false)
-                                    }
-                                },
-                                shape = RoundedCornerShape(6.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                        }
+                    }
+                } else {
+                    Surface(
+                        color = DarkSlate,
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("CONNECT", color = NeonOrange, style = MaterialTheme.typography.labelSmall)
+                                Icon(
+                                    imageVector = Icons.Default.BluetoothDisabled,
+                                    contentDescription = null,
+                                    tint = ElectricCyan,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "No Bluetooth Headset Connected",
+                                        color = TextPrimary,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        text = "Audio currently routed to ${activeDevice.displayName()}",
+                                        color = TextSecondary,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            item {
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        try {
+                            val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            context.startActivity(intent)
+                        } catch (_: Exception) {}
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SettingsBluetooth,
+                        contentDescription = null,
+                        tint = ElectricCyan,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "PAIR / CONNECT AIRPODS & BLUETOOTH",
+                        color = ElectricCyan,
+                        style = MaterialTheme.typography.labelMedium,
+                        letterSpacing = 1.sp
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(20.dp))
             }
         }

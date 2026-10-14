@@ -115,6 +115,99 @@ router.get('/runs/:runId/export', requireAdminKey, async (req, res, next) => {
     }
 })
 
+// Get latest diagnostic summary for a room/convoy so the app can show it
+router.get('/runs/room/:roomName/latest', authMiddleware, async (req, res, next) => {
+    try {
+        const { roomName } = req.params
+        const prisma = require('../db')
+        const run = await prisma.diagnosticRun.findFirst({
+            where: {
+                room: { name: roomName }
+            },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                status: true,
+                testNumber: true,
+                createdAt: true,
+                closedAt: true,
+                emailedAt: true,
+                summary: true,
+                participants: {
+                    select: {
+                        riderId: true,
+                        handle: true,
+                        joinedAt: true,
+                        stoppedAt: true,
+                        lastSeq: true
+                    }
+                }
+            }
+        })
+        if (!run) {
+            return res.status(404).json({ error: 'No diagnostic run found for convoy' })
+        }
+        res.json(run)
+    } catch (err) {
+        next(err)
+    }
+})
+
+// Export on-demand Excel spreadsheet (.xlsx) for riders or admin
+router.get('/runs/:runId/excel', authMiddleware, async (req, res, next) => {
+    try {
+        const { runId } = req.params
+        const exportData = await diagnosticService.buildRunExportData(runId)
+
+        if (!exportData) {
+            return res.status(404).json({ error: 'Diagnostic run not found' })
+        }
+
+        const excelBuffer = await diagnosticService.buildExcelBuffer(exportData)
+        const excelFileName = `Convoy_${exportData.convoyClean}_Diagnostics_Test${exportData.run.testNumber}.xlsx`
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        res.setHeader('Content-Disposition', `attachment; filename="${excelFileName}"`)
+        res.setHeader('Content-Length', excelBuffer.length)
+        return res.send(excelBuffer)
+    } catch (err) {
+        next(err)
+    }
+})
+
+// Finalize run and dispatch email to code4changeteam@gmail.com
+router.post('/runs/:runId/finalize', authMiddleware, async (req, res, next) => {
+    try {
+        const { runId } = req.params
+        const closed = await diagnosticService.closeAndExportRun(runId)
+        res.json({ success: true, runClosed: closed })
+    } catch (err) {
+        next(err)
+    }
+})
+
+// Finalize run by roomName and dispatch Excel to code4changeteam@gmail.com
+router.post('/runs/room/:roomName/finalize', authMiddleware, async (req, res, next) => {
+    try {
+        const { roomName } = req.params
+        const prisma = require('../db')
+        const activeRun = await prisma.diagnosticRun.findFirst({
+            where: {
+                room: { name: roomName },
+                status: 'ACTIVE'
+            },
+            orderBy: { testNumber: 'desc' }
+        })
+        if (!activeRun) {
+            return res.json({ success: true, message: 'No active diagnostic run found for room' })
+        }
+        const closed = await diagnosticService.closeAndExportRun(activeRun.id)
+        res.json({ success: true, runClosed: closed, runId: activeRun.id })
+    } catch (err) {
+        next(err)
+    }
+})
+
 // Manually trigger run closure and export (admin key protected)
 router.post('/runs/:runId/close', requireAdminKey, async (req, res, next) => {
     try {

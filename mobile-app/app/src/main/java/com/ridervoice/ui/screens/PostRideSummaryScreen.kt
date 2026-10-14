@@ -8,7 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +25,10 @@ fun PostRideSummaryScreen(
     durationMinutes: Int,
     distanceKm: Float,
     topSpeed: Float,
+    convoyName: String = "Convoy",
+    testNumber: Int = 1,
+    sampleCount: Int = 0,
+    lastMetric: com.ridervoice.diagnostics.models.SelfMetricSample? = null,
     onSaveToLogbook: (privacy: String) -> Unit,
     onDiscard: () -> Unit
 ) {
@@ -126,7 +130,106 @@ fun PostRideSummaryScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Surface(
+                    color = Gunmetal,
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen.copy(alpha = 0.6f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "CONVOY TELEMETRY & DIAGNOSTICS",
+                                color = NeonOrange,
+                                style = MaterialTheme.typography.labelSmall,
+                                letterSpacing = 1.sp
+                            )
+                            Surface(
+                                color = TechGreen.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(4.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen)
+                            ) {
+                                Text(
+                                    text = "TEST #$testNumber",
+                                    color = TechGreen,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.CheckCircle,
+                                contentDescription = "Email Exported",
+                                tint = TechGreen,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Exported to code4changeteam@gmail.com in Excel (.xlsx) format",
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = "${lastMetric?.rttMs?.toInt() ?: "--"} ms",
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text("AVG PING", color = TextSecondary, fontSize = 9.sp)
+                            }
+                            Column {
+                                Text(
+                                    text = "${lastMetric?.packetsLost ?: 0}",
+                                    color = if ((lastMetric?.packetsLost ?: 0) > 0) AlertRed else TechGreen,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text("PKTS LOST", color = TextSecondary, fontSize = 9.sp)
+                            }
+                            Column {
+                                Text(
+                                    text = "$sampleCount",
+                                    color = ElectricCyan,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text("SAMPLES", color = TextSecondary, fontSize = 9.sp)
+                            }
+                            Column {
+                                Text(
+                                    text = lastMetric?.networkType ?: "CELL/WIFI",
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text("CARRIER", color = TextSecondary, fontSize = 9.sp)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = rideTitle,

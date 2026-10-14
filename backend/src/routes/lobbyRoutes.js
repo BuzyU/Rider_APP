@@ -3,6 +3,7 @@ const router = express.Router()
 const crypto = require('crypto')
 const prisma = require('../db')
 const { AccessToken, RoomServiceClient } = require('livekit-server-sdk')
+const diagnosticService = require('../services/diagnosticService')
 
 let cachedHttpUrl = null
 function getLiveKitHttpUrl() {
@@ -16,7 +17,7 @@ function getLiveKitHttpUrl() {
 
 router.post('/create', async (req, res, next) => {
     const hostId = req.user.uid
-    const { convoyName } = req.body
+    const { convoyName, diagnosticsEnabled } = req.body
 
     if (!convoyName) {
         return res.status(400).json({ error: 'convoyName is required' })
@@ -31,21 +32,33 @@ router.post('/create', async (req, res, next) => {
             return res.status(409).json({ error: 'A convoy with that name already exists' })
         }
 
+        const diagBool = diagnosticsEnabled === true
         const room = await prisma.room.create({
             data: {
                 name: convoyName,
                 ownerId: hostId,
+                diagnosticsEnabled: diagBool
             },
             select: {
                 id: true,
-                name: true
+                name: true,
+                diagnosticsEnabled: true
             }
         })
+
+        if (diagBool) {
+            try {
+                await diagnosticService.joinDiagnosticRun(room.id, req.user)
+            } catch (err) {
+                console.warn('[Diagnostic Auto-Start]:', err.message)
+            }
+        }
 
         res.status(201).json({
             roomId: room.id,
             convoyName: room.name,
             hostId,
+            diagnosticsEnabled: room.diagnosticsEnabled
         })
     } catch (error) {
         next(error)
@@ -63,6 +76,7 @@ router.get('/:roomName/status', async (req, res, next) => {
                 id: true,
                 name: true,
                 ownerId: true,
+                diagnosticsEnabled: true,
                 invites: {
                     where: { status: { not: 'REMOVED' } },
                     select: {
@@ -107,6 +121,7 @@ router.get('/:roomName/status', async (req, res, next) => {
         const summary = {
             roomId: room.id,
             convoyName: room.name,
+            diagnosticsEnabled: room.diagnosticsEnabled,
             invites: formattedInvites,
             acceptedCount,
             pendingCount,
@@ -127,11 +142,18 @@ router.post('/:roomName/start', async (req, res, next) => {
     try {
         const room = await prisma.room.findUnique({
             where: { name: roomName },
-            select: { ownerId: true }
+            select: { id: true, ownerId: true, diagnosticsEnabled: true, startedAt: true }
         })
 
         if (!room) return res.status(404).json({ error: 'Room not found' })
         if (room.ownerId !== user.uid) return res.status(403).json({ error: 'Only the host can start the ride' })
+
+        if (!room.startedAt) {
+            await prisma.room.update({
+                where: { id: room.id },
+                data: { startedAt: new Date() }
+            })
+        }
 
         const at = new AccessToken(
             process.env.LIVEKIT_API_KEY,
@@ -141,7 +163,12 @@ router.post('/:roomName/start', async (req, res, next) => {
         at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true })
         const token = await at.toJwt()
 
-        res.json({ token, roomName, livekitUrl: process.env.LIVEKIT_URL })
+        res.json({
+            token,
+            roomName,
+            livekitUrl: process.env.LIVEKIT_URL,
+            diagnosticsEnabled: room.diagnosticsEnabled
+        })
     } catch (error) {
         next(error)
     }
@@ -159,6 +186,7 @@ router.post('/join-token', async (req, res, next) => {
             select: {
                 id: true,
                 ownerId: true,
+                diagnosticsEnabled: true,
                 invites: {
                     where: { inviteeId: user.uid, status: 'ACCEPTED' },
                     select: { id: true },
@@ -181,7 +209,12 @@ router.post('/join-token', async (req, res, next) => {
         at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true })
         const token = await at.toJwt()
 
-        res.json({ token, roomName, livekitUrl: process.env.LIVEKIT_URL })
+        res.json({
+            token,
+            roomName,
+            livekitUrl: process.env.LIVEKIT_URL,
+            diagnosticsEnabled: room.diagnosticsEnabled
+        })
     } catch (error) {
         next(error)
     }
@@ -248,7 +281,8 @@ router.post('/join-via-token', async (req, res, next) => {
                     select: {
                         id: true,
                         name: true,
-                        ownerId: true
+                        ownerId: true,
+                        diagnosticsEnabled: true
                     }
                 }
             }
@@ -298,7 +332,8 @@ router.post('/join-via-token', async (req, res, next) => {
         res.json({
             token: livekitToken,
             roomName: room.name,
-            livekitUrl: process.env.LIVEKIT_URL
+            livekitUrl: process.env.LIVEKIT_URL,
+            diagnosticsEnabled: room.diagnosticsEnabled
         })
     } catch (error) {
         next(error)
@@ -366,6 +401,34 @@ router.post('/:roomName/end', async (req, res, next) => {
             console.warn(`[LiveKit] deleteRoom notice for ${roomName}:`, lkError.message)
         }
 
+        // Close and export active diagnostic run (generates Excel spreadsheet & emails to code4changeteam@gmail.com)
+        try {
+            const activeRun = await prisma.diagnosticRun.findFirst({
+                where: {
+                    room: { name: roomName },
+                    status: 'ACTIVE'
+                },
+                include: { participants: true }
+            })
+            if (activeRun) {
+                const allStopped = activeRun.participants.length > 0 && activeRun.participants.every(p => p.stoppedAt != null)
+                if (allStopped) {
+                    diagnosticService.closeAndExportRun(activeRun.id).catch(err => {
+                        console.error(`[Diagnostic] Error exporting run ${activeRun.id} on ride end:`, err)
+                    })
+                } else {
+                    const graceSec = parseInt(process.env.DIAG_CLOSE_GRACE_SECONDS || '90', 10)
+                    setTimeout(() => {
+                        diagnosticService.closeAndExportRun(activeRun.id, { forceClose: true }).catch(err => {
+                            console.error(`[Diagnostic Grace Close] Error closing run ${activeRun.id}:`, err)
+                        })
+                    }, graceSec * 1000).unref()
+                }
+            }
+        } catch (diagErr) {
+            console.warn('[Diagnostic] Could not check active run on ride end:', diagErr.message)
+        }
+
         res.json({ success: true, message: 'Convoy ended' })
     } catch (error) {
         next(error)
@@ -401,5 +464,46 @@ router.post('/:roomName/transfer-host', async (req, res, next) => {
         next(error)
     }
 })
+
+// Owner-only endpoint to toggle diagnostics prior to ride start
+async function updateDiagnosticsHandler(req, res, next) {
+    const { roomName } = req.params
+    const user = req.user
+    const { diagnosticsEnabled } = req.body
+
+    if (diagnosticsEnabled === undefined) {
+        return res.status(400).json({ error: 'diagnosticsEnabled is required' })
+    }
+
+    try {
+        const room = await prisma.room.findUnique({
+            where: { name: roomName },
+            select: { id: true, ownerId: true, startedAt: true }
+        })
+
+        if (!room) return res.status(404).json({ error: 'Room not found' })
+
+        if (room.ownerId !== user.uid) {
+            return res.status(403).json({ error: 'Only the host can modify diagnostics settings' })
+        }
+
+        if (room.startedAt) {
+            return res.status(400).json({ error: 'Cannot change diagnostics setting after ride has started' })
+        }
+
+        const updated = await prisma.room.update({
+            where: { id: room.id },
+            data: { diagnosticsEnabled: Boolean(diagnosticsEnabled) },
+            select: { diagnosticsEnabled: true }
+        })
+
+        res.json({ success: true, diagnosticsEnabled: updated.diagnosticsEnabled })
+    } catch (error) {
+        next(error)
+    }
+}
+
+router.patch('/:roomName/diagnostics', updateDiagnosticsHandler)
+router.put('/:roomName/diagnostics', updateDiagnosticsHandler)
 
 module.exports = router

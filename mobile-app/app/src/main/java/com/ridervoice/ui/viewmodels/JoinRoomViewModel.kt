@@ -68,7 +68,74 @@ class JoinRoomViewModel @Inject constructor(
         }
     }
 
+    fun joinByRoomCode(roomCode: String, userName: String, onSuccess: (roomName: String) -> Unit) {
+        val cleanCode = roomCode.trim()
+        if (cleanCode.isBlank()) {
+            _error.value = "Room callsign/code is required"
+            return
+        }
+        viewModelScope.launch {
+            _isConnecting.value = true
+            _error.value = null
+            try {
+                val res = apiService.getRoomToken(com.ridervoice.models.RoomTokenRequest(cleanCode))
+                JoinRoomResponseHandler.processTokenResponse(
+                    isSuccessful = res.isSuccessful,
+                    statusCode = res.code(),
+                    body = res.body(),
+                    errorBodyString = res.errorBody()?.string(),
+                    onSuccess = { roomName ->
+                        onSuccess(roomName)
+                    },
+                    onError = { msg ->
+                        _error.value = msg
+                    },
+                    updateSession = { body ->
+                        RideSession.livekitToken = body.token
+                        RideSession.activeRoomName = body.roomName
+                        RideSession.diagnosticsEnabled = body.diagnosticsEnabled
+                        RideSession.testNumber = body.testNumber
+                        RideSession.livekitUrl = com.ridervoice.utils.Constants.LIVEKIT_URL
+                        RideSession.isHost = false
+                    }
+                )
+            } catch (e: Exception) {
+                _error.value = "Connection error: ${e.localizedMessage ?: "Check network"}"
+            } finally {
+                _isConnecting.value = false
+            }
+        }
+    }
+
     fun clearError() {
         _error.value = null
+    }
+}
+
+object JoinRoomResponseHandler {
+    fun processTokenResponse(
+        isSuccessful: Boolean,
+        statusCode: Int,
+        body: com.ridervoice.models.RoomData?,
+        errorBodyString: String?,
+        onSuccess: (roomName: String) -> Unit,
+        onError: (errorMsg: String) -> Unit,
+        updateSession: (com.ridervoice.models.RoomData) -> Unit
+    ) {
+        if (isSuccessful && body != null) {
+            updateSession(body)
+            onSuccess(body.roomName)
+        } else {
+            val errorMsg = if (statusCode == 404) {
+                "Convoy room not found (404)"
+            } else {
+                errorBodyString?.let { b ->
+                    try {
+                        org.json.JSONObject(b).optString("error", "Error $statusCode")
+                    } catch (e: Exception) { null }
+                } ?: "Failed to connect to convoy frequency ($statusCode)"
+            }
+            onError(errorMsg)
+        }
     }
 }

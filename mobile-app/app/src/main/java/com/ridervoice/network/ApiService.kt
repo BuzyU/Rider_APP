@@ -89,4 +89,10 @@ interface ApiService {
 
     @GET("/api/rides/history")
     suspend fun getRideHistory(): Response<List<com.ridervoice.models.RideHistoryResponse>>
+
+    @POST("/api/diagnostics/runs/room/{roomName}/finalize")
+    suspend fun finalizeDiagnosticRun(@Path("roomName") roomName: String): Response<Any>
+
+    @GET("/api/diagnostics/runs/room/{roomName}/latest")
+    suspend fun getLatestDiagnosticRun(@Path("roomName") roomName: String): Response<Any>
 }

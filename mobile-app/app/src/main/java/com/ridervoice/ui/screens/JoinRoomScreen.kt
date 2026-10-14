@@ -207,15 +207,39 @@ fun JoinRoomScreen(
                     )
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                if (tokenError != null && activeToken == null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        color = AlertRed.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = tokenError ?: "Could not join convoy",
+                                color = AlertRed,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
 
-                val canJoin = roomCode.isNotBlank() && userName.isNotBlank() && !manualConnecting
+                Spacer(modifier = Modifier.height(24.dp))
+
+                val canJoin = roomCode.isNotBlank() && userName.isNotBlank() && !isTokenConnecting
 
                 Button(
                     onClick = {
                         if (canJoin) {
-                            manualConnecting = true
-                            onJoin(roomCode.trim(), userName.trim())
+                            viewModel.joinByRoomCode(roomCode.trim(), userName.trim()) { resolvedRoom ->
+                                onJoin(resolvedRoom, userName.trim())
+                            }
                         }
                     },
                     enabled = canJoin,
@@ -228,7 +252,7 @@ fun JoinRoomScreen(
                         disabledContainerColor = Gunmetal
                     )
                 ) {
-                    if (manualConnecting) {
+                    if (isTokenConnecting) {
                         CircularProgressIndicator(
                             color = if (isDark) Color.Black else Color.White,
                             modifier = Modifier.size(24.dp),

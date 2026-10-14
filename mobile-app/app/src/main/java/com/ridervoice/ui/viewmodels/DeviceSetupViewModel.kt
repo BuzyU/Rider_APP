@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ridervoice.audio.AudioDevice
 import com.ridervoice.audio.AudioDeviceRouter
+import com.ridervoice.audio.RoutedDeviceInfo
 import com.ridervoice.audio.RouterState
 import com.ridervoice.security.SecurePreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,6 +22,9 @@ class DeviceSetupViewModel @Inject constructor(
 
     val routerState: StateFlow<RouterState> = audioDeviceRouter.routerState
     val activeDevice: StateFlow<AudioDevice> = audioDeviceRouter.activeDevice
+    val requestedDevice: StateFlow<AudioDevice?> = audioDeviceRouter.requestedDevice
+    val routedInput: StateFlow<RoutedDeviceInfo> = audioDeviceRouter.routedInput
+    val routedOutput: StateFlow<RoutedDeviceInfo> = audioDeviceRouter.routedOutput
 
     init {
         audioDeviceRouter.start()
@@ -29,6 +33,14 @@ class DeviceSetupViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
 
+    }
+
+    fun setAudioRoute(routeType: String) {
+        audioDeviceRouter.setAudioRoute(routeType)
+    }
+
+    fun rescanAudioDevices() {
+        audioDeviceRouter.reEvaluatePriority()
     }
 
     fun finishSetup() {

@@ -131,6 +131,10 @@ android {
     kapt {
         correctErrorTypes true
     }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
 }
 
 dependencies {

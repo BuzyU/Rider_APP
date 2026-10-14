@@ -40,6 +40,8 @@ jobs:
   validate-backend:
     name: Backend Lint & Typecheck
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/ridervoice_test' }}
 
     steps:
       - name: Checkout Repository
@@ -61,6 +63,14 @@ jobs:
       - name: Validate Backend Syntax
         working-directory: backend
         run: node -c src/server.js
+
+      - name: Validate Prisma Schema
+        working-directory: backend
+        run: npx prisma validate
+
+      - name: Run Backend Tests
+        working-directory: backend
+        run: npm test
 
   validate-web-app:
     name: Web App Build & Typecheck

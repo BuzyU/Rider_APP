@@ -158,11 +158,11 @@ fun SettingsScreen(
                     val diagStatus by settingsViewModel.diagnosticStatusText.collectAsState()
                     SettingsSectionHeader("DIAGNOSTICS")
                     SettingsItemToggle(
-                        label = "Network Diagnostics",
+                        label = "Share diagnostics when a host enables it",
                         icon = Icons.Default.NetworkCheck,
-                        checked = settingsState.networkDiagnostics,
-                        subtitle = if (settingsState.networkDiagnostics) "Status: $diagStatus" else "Debug call drops & telemetry",
-                        onCheckedChange = { settingsViewModel.toggleNetworkDiagnostics() }
+                        checked = settingsState.shareDiagnosticsWhenHostEnabled,
+                        subtitle = if (settingsState.shareDiagnosticsWhenHostEnabled) "Telemetry shared only during diagnostics-enabled rides" else "Opted out: no telemetry will be collected or shared",
+                        onCheckedChange = { settingsViewModel.toggleShareDiagnosticsWhenHostEnabled() }
                     )
                 }
 

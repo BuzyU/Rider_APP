@@ -7,6 +7,8 @@ import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +32,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class VoxEngine @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val audioDeviceRouter: AudioDeviceRouter
 ) {
 
     private val TAG = "VoxEngine"
@@ -72,20 +75,56 @@ class VoxEngine @Inject constructor(
 
         val record: AudioRecord
         try {
-            record = AudioRecord(
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            val audioSource = MediaRecorder.AudioSource.VOICE_RECOGNITION
+            var rec = AudioRecord(
+                audioSource,
                 SAMPLE_RATE,
                 CHANNEL_CONFIG,
                 AUDIO_FORMAT,
                 bufferSize
             )
-            if (record.state != AudioRecord.STATE_INITIALIZED) {
-                Log.e(TAG, "AudioRecord failed to initialise (state=${record.state}) — PTT-only mode")
-                record.release()
+            if (rec.state != AudioRecord.STATE_INITIALIZED) {
+                Log.w(TAG, "VOICE_RECOGNITION not initialized, falling back to MIC source")
+                rec.release()
+                rec = AudioRecord(
+                    MediaRecorder.AudioSource.MIC,
+                    SAMPLE_RATE,
+                    CHANNEL_CONFIG,
+                    AUDIO_FORMAT,
+                    bufferSize
+                )
+            }
+            if (rec.state != AudioRecord.STATE_INITIALIZED) {
+                Log.w(TAG, "MIC source not initialized, falling back to VOICE_COMMUNICATION")
+                rec.release()
+                rec = AudioRecord(
+                    MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                    SAMPLE_RATE,
+                    CHANNEL_CONFIG,
+                    AUDIO_FORMAT,
+                    bufferSize
+                )
+            }
+            if (rec.state != AudioRecord.STATE_INITIALIZED) {
+                Log.e(TAG, "AudioRecord failed to initialise (state=${rec.state}) — PTT-only mode")
+                rec.release()
                 return
+            }
+            record = rec
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                record.addOnRoutingChangedListener(
+                    AudioRecord.OnRoutingChangedListener { r ->
+                        val dev = (r as? AudioRecord)?.routedDevice
+                        audioDeviceRouter.onInputRoutingChanged(dev)
+                    },
+                    Handler(Looper.getMainLooper())
+                )
             }
             preferCommunicationInput(record)
             record.startRecording()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                audioDeviceRouter.onInputRoutingChanged(record.routedDevice)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "VOX AudioRecord start failed — PTT-only mode: ${e.message}", e)
             audioRecord?.release()
@@ -310,13 +349,24 @@ class VoxEngine @Inject constructor(
                 }
             }
             val target = wantedType?.let { t -> inputs.firstOrNull { it.type == t } }
-                ?: inputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC }
             if (target != null) {
                 val ok = record.setPreferredDevice(target)
                 Log.d(TAG, "VOX preferred input type=${target.type} accepted=$ok")
+            } else {
+                record.setPreferredDevice(null)
+                Log.d(TAG, "VOX preferred input reset to null (follows AudioManager communication device)")
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                audioDeviceRouter.onInputRoutingChanged(record.routedDevice)
             }
         } catch (e: Exception) {
             Log.w(TAG, "setPreferredDevice failed: ${e.message}")
         }
+    }
+
+    /** Re-evaluates preferred input on the active AudioRecord when AudioDeviceRouter updates route */
+    fun updatePreferredDevice() {
+        val record = audioRecord ?: return
+        preferCommunicationInput(record)
     }
 }

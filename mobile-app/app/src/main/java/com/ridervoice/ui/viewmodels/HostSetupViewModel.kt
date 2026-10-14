@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ridervoice.models.ConvoyCreateRequest
 import com.ridervoice.network.ApiService
+import com.ridervoice.security.SecurePreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,7 +13,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HostSetupViewModel @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val securePreferences: SecurePreferences
 ) : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
@@ -28,14 +30,16 @@ class HostSetupViewModel @Inject constructor(
         origin: String?,
         destination: String?,
         meetupPoint: String?,
-        estimatedDurationMin: Int?
+        estimatedDurationMin: Int?,
+        diagnosticsEnabled: Boolean = false
     ) {
+        com.ridervoice.models.RideSession.diagnosticsEnabled = diagnosticsEnabled
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
                 val req = ConvoyCreateRequest(
-                    convoyName, origin, destination, estimatedDurationMin, meetupPoint
+                    convoyName, origin, destination, estimatedDurationMin, meetupPoint, diagnosticsEnabled
                 )
                 val response = apiService.createConvoy(req)
                 if (response.isSuccessful && response.body() != null) {
@@ -78,4 +82,7 @@ class HostSetupViewModel @Inject constructor(
             else -> "Failed to create convoy (code $code). Please retry."
         }
     }
+
+    fun isDiagnosticsConsentShown(): Boolean = securePreferences.isDiagnosticsConsentShown()
+    fun setDiagnosticsConsentShown(shown: Boolean) = securePreferences.setDiagnosticsConsentShown(shown)
 }

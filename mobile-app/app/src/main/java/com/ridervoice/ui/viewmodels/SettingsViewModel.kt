@@ -19,7 +19,8 @@ data class AppSettingsState(
     // Headset / PTT settings (migrated from raw headset_prefs → SecurePreferences)
     val hardwarePtt: Boolean = true,
     val hybridVox: Boolean = true,
-    val networkDiagnostics: Boolean = false
+    val networkDiagnostics: Boolean = false,
+    val shareDiagnosticsWhenHostEnabled: Boolean = true
 )
 
 @HiltViewModel
@@ -46,7 +47,8 @@ class SettingsViewModel @Inject constructor(
             voxSensitivity = securePrefs.getString("settings_vox_sensitivity", "Medium"),
             hardwarePtt = securePrefs.getBoolean("settings_hardware_ptt", true),
             hybridVox = securePrefs.getBoolean("settings_hybrid_vox", true),
-            networkDiagnostics = securePrefs.isNetworkDiagnosticsEnabled()
+            networkDiagnostics = securePrefs.isNetworkDiagnosticsEnabled(),
+            shareDiagnosticsWhenHostEnabled = securePrefs.isShareDiagnosticsWhenHostEnabled()
         )
     }
 
@@ -126,6 +128,13 @@ class SettingsViewModel @Inject constructor(
     private fun disableDiagnostics() {
         _settingsState.value = _settingsState.value.copy(networkDiagnostics = false)
         securePrefs.setNetworkDiagnosticsEnabled(false)
+    }
+
+    fun toggleShareDiagnosticsWhenHostEnabled() {
+        val current = _settingsState.value.shareDiagnosticsWhenHostEnabled
+        val newValue = !current
+        _settingsState.value = _settingsState.value.copy(shareDiagnosticsWhenHostEnabled = newValue)
+        securePrefs.setShareDiagnosticsWhenHostEnabled(newValue)
     }
 
     fun updateSettingValue(key: String, value: String) {

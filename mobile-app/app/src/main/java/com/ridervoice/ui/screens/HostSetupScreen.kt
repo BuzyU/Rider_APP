@@ -3,18 +3,20 @@ package com.ridervoice.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBackIosNew
-import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,7 +44,9 @@ fun HostSetupScreen(
     var destination     by remember { mutableStateOf("") }
     var meetupPoint     by remember { mutableStateOf("") }
     var durationHours   by remember { mutableStateOf("") }
+    var diagnosticsEnabled by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showConsentDialog by remember { mutableStateOf(false) }
 
     val isDirty = convoyName.isNotBlank() || origin.isNotBlank() || destination.isNotBlank()
     val isDurationError = durationHours.isNotBlank() && durationHours.toFloatOrNull() == null
@@ -246,7 +250,8 @@ fun HostSetupScreen(
                                     origin = origin.trim().ifBlank { null },
                                     destination = destination.trim().ifBlank { null },
                                     meetupPoint = meetupPoint.trim().ifBlank { null },
-                                    estimatedDurationMin = durationHours.trim().toFloatOrNull()?.let { (it * 60).toInt() }
+                                    estimatedDurationMin = durationHours.trim().toFloatOrNull()?.let { (it * 60).toInt() },
+                                    diagnosticsEnabled = diagnosticsEnabled
                                 )
                             },
                             enabled = canCreate && !isLoading,
@@ -259,6 +264,124 @@ fun HostSetupScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val onToggleDiagnostics: (Boolean) -> Unit = { target ->
+                if (target && !viewModel.isDiagnosticsConsentShown()) {
+                    showConsentDialog = true
+                } else {
+                    diagnosticsEnabled = target
+                }
+            }
+
+            Surface(
+                color = DarkSlate,
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (diagnosticsEnabled) NeonOrange else BorderColor
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleDiagnostics(!diagnosticsEnabled) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(if (diagnosticsEnabled) NeonOrange.copy(alpha = 0.2f) else Gunmetal),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Analytics,
+                            contentDescription = null,
+                            tint = if (diagnosticsEnabled) NeonOrange else TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "DIAGNOSTICS & TELEMETRY",
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Monitors audio & network health on all devices. Automatically emails Excel report to code4changeteam@gmail.com on ride completion.",
+                            color = TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Switch(
+                        checked = diagnosticsEnabled,
+                        onCheckedChange = { onToggleDiagnostics(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = NeonOrange,
+                            uncheckedThumbColor = TextSecondary,
+                            uncheckedTrackColor = Gunmetal
+                        )
+                    )
+                }
+            }
+
+            if (showConsentDialog) {
+                AlertDialog(
+                    onDismissRequest = { showConsentDialog = false },
+                    title = {
+                        Text(
+                            text = "CONVOY DIAGNOSTICS & TELEMETRY",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextPrimary
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "Enabling diagnostics collects network link metrics and device performance telemetry across participating convoy devices. Only network quality and audio routing telemetry are collected (zero audio content, zero GPS location). Data is automatically compiled and emailed to the project team upon ride conclusion to help fix connection and audio drops.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.setDiagnosticsConsentShown(true)
+                                showConsentDialog = false
+                                diagnosticsEnabled = true
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
+                        ) {
+                            Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.setDiagnosticsConsentShown(true)
+                                showConsentDialog = false
+                                diagnosticsEnabled = false
+                            }
+                        ) {
+                            Text("Don't share my data", color = AlertRed)
+                        }
+                    },
+                    containerColor = DarkSlate
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedButton(
                 onClick = onImportRouteClick,
@@ -282,7 +405,8 @@ fun HostSetupScreen(
                         origin = origin.trim().ifBlank { null },
                         destination = destination.trim().ifBlank { null },
                         meetupPoint = meetupPoint.trim().ifBlank { null },
-                        estimatedDurationMin = durationHours.trim().toFloatOrNull()?.let { (it * 60).toInt() }
+                        estimatedDurationMin = durationHours.trim().toFloatOrNull()?.let { (it * 60).toInt() },
+                        diagnosticsEnabled = diagnosticsEnabled
                     )
                 },
                 enabled = canCreate && !isLoading,

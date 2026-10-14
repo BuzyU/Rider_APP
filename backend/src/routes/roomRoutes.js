@@ -17,7 +17,9 @@ router.post('/room/token', async (req, res) => {
             where: { name: roomName },
             select: {
                 id: true,
+                name: true,
                 ownerId: true,
+                diagnosticsEnabled: true,
                 invites: {
                     where: { inviteeId: user.uid, status: 'ACCEPTED' },
                     select: { id: true },
@@ -26,19 +28,35 @@ router.post('/room/token', async (req, res) => {
             }
         })
 
-        if (existingRoom) {
-            const isAuthorized = existingRoom.ownerId === user.uid || existingRoom.invites.length > 0
-            if (!isAuthorized) {
-                return res.status(403).json({ error: 'Access denied: you are not a member of this room' })
-            }
-        } else {
-            await prisma.room.create({
-                data: {
-                    name: roomName,
-                    ownerId: user.uid
-                },
-                select: { id: true }
+        if (!existingRoom) {
+            return res.status(404).json({ error: 'Room not found' })
+        }
+
+        // If caller is not owner, auto-enroll as an accepted participant
+        if (existingRoom.ownerId !== user.uid) {
+            const existingInvite = await prisma.rideInvite.findFirst({
+                where: { roomId: existingRoom.id, inviteeId: user.uid },
+                select: { id: true, status: true }
             })
+            if (existingInvite) {
+                if (existingInvite.status !== 'ACCEPTED') {
+                    await prisma.rideInvite.update({
+                        where: { id: existingInvite.id },
+                        data: { status: 'ACCEPTED' },
+                        select: { id: true }
+                    })
+                }
+            } else {
+                await prisma.rideInvite.create({
+                    data: {
+                        roomId: existingRoom.id,
+                        inviterId: existingRoom.ownerId,
+                        inviteeId: user.uid,
+                        status: 'ACCEPTED'
+                    },
+                    select: { id: true }
+                })
+            }
         }
 
         const participantIdentity = user.uid
@@ -54,7 +72,17 @@ router.post('/room/token', async (req, res) => {
         at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true, canPublishData: true })
         const token = await at.toJwt()
 
-        res.json({ token, roomName })
+        const activeRun = await prisma.diagnosticRun.findFirst({
+            where: { convoyId: existingRoom.id, status: 'ACTIVE' },
+            select: { id: true, testNumber: true }
+        })
+
+        res.json({
+            token,
+            roomName,
+            diagnosticsEnabled: existingRoom.diagnosticsEnabled ?? (activeRun != null),
+            testNumber: activeRun?.testNumber || null
+        })
 
     } catch (error) {
         console.error('Error generating token:', error)

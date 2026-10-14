@@ -18,8 +18,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -41,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.audio.AudioDevice
+import com.ridervoice.audio.RoutedDeviceInfo
 import com.ridervoice.audio.RouterState
 import com.ridervoice.network.ConnectionState
 import com.ridervoice.services.VoiceForegroundService
@@ -69,6 +72,9 @@ fun RoomScreen(
     val isVoxOpen by viewModel.isVoxOpen.collectAsState()
     val activeDevice by viewModel.activeAudioDevice.collectAsState()
     val routerState by viewModel.audioRouterState.collectAsState()
+    val requestedDevice by viewModel.requestedAudioDevice.collectAsState()
+    val routedInput by viewModel.routedInput.collectAsState()
+    val routedOutput by viewModel.routedOutput.collectAsState()
     val audioStatusLine by viewModel.audioStatusLine.collectAsState()
     val error by viewModel.error.collectAsState()
 
@@ -77,6 +83,16 @@ fun RoomScreen(
     val isDeafened by viewModel.deafened.collectAsState()
     var showLeaveConfirmDialog by remember { mutableStateOf(false) }
     var showAudioRoutePicker by remember { mutableStateOf(false) }
+    var showDiagnosticsDialog by remember { mutableStateOf(false) }
+    var showConsentDialog by remember { mutableStateOf(false) }
+    val latestSelfMetric by viewModel.latestSelfMetric.collectAsState()
+    val diagSampleCount by viewModel.diagSampleCount.collectAsState()
+
+    LaunchedEffect(Unit) {
+        if (com.ridervoice.models.RideSession.diagnosticsEnabled && !viewModel.isDiagnosticsConsentShown()) {
+            showConsentDialog = true
+        }
+    }
 
     val isHost = com.ridervoice.models.RideSession.isHost
     val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -283,6 +299,7 @@ fun RoomScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
+                                viewModel.setAudioRoute("BLUETOOTH")
                                 showAudioRoutePicker = false
                             }
                             .padding(12.dp)
@@ -290,7 +307,7 @@ fun RoomScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Bluetooth, contentDescription = null, tint = ElectricCyan)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Helmet Headset (Bluetooth SCO)", color = TextPrimary, fontWeight = FontWeight.Bold)
+                            Text("Bluetooth Headset / AirPods", color = TextPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
                     Surface(
@@ -299,6 +316,7 @@ fun RoomScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
+                                viewModel.setAudioRoute("SPEAKER")
                                 showAudioRoutePicker = false
                             }
                             .padding(12.dp)
@@ -315,6 +333,7 @@ fun RoomScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
+                                viewModel.setAudioRoute("WIRED")
                                 showAudioRoutePicker = false
                             }
                             .padding(12.dp)
@@ -322,7 +341,7 @@ fun RoomScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.PhoneInTalk, contentDescription = null, tint = TextSecondary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Phone Earpiece / Wired", color = TextPrimary, fontWeight = FontWeight.Bold)
+                            Text("Phone Earpiece / Wired Headset", color = TextPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -330,6 +349,265 @@ fun RoomScreen(
             confirmButton = {
                 TextButton(onClick = { showAudioRoutePicker = false }) {
                     Text("CLOSE", color = ElectricCyan)
+                }
+            },
+            containerColor = DarkSlate
+        )
+    }
+
+    if (showDiagnosticsDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiagnosticsDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Analytics,
+                        contentDescription = "Diagnostics",
+                        tint = ElectricCyan,
+                        modifier = Modifier.size(26.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "CONVOY TELEMETRY & DIAGNOSTICS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NeonOrange,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = roomName.uppercase(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextPrimary
+                        )
+                    }
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        color = Gunmetal,
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen.copy(alpha = 0.6f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(TechGreen)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "MONITORING ACTIVE — $diagSampleCount SAMPLES LOGGED",
+                                    color = TechGreen,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Auto-exported to code4changeteam@gmail.com in multi-sheet Excel (.xlsx) on ride conclusion.",
+                                color = TextSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Surface(
+                        color = Gunmetal,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "AUDIO TRANSCEIVER ROUTE",
+                                color = TextSecondary,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = activeDevice.displayName(),
+                                color = ElectricCyan,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (activeDevice is AudioDevice.BluetoothSco) "Wideband HFP/SCO Active (AirPods/Headset)" else "Direct System Communication Route",
+                                color = TextSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Surface(
+                        color = Gunmetal,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "LIVE NETWORK LINK QUALITY",
+                                color = TextSecondary,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "${latestSelfMetric?.rttMs?.toInt() ?: "--"} ms",
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    Text("ROUND-TRIP (RTT)", color = TextSecondary, fontSize = 9.sp)
+                                }
+                                Column {
+                                    Text(
+                                        text = "${latestSelfMetric?.jitterMs?.let { String.format(java.util.Locale.US, "%.1f", it) } ?: "--"} ms",
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    Text("JITTER", color = TextSecondary, fontSize = 9.sp)
+                                }
+                                Column {
+                                    Text(
+                                        text = "${latestSelfMetric?.packetsLost ?: 0}",
+                                        color = if ((latestSelfMetric?.packetsLost ?: 0) > 0) AlertRed else TechGreen,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    Text("PKTS LOST", color = TextSecondary, fontSize = 9.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    Surface(
+                        color = Gunmetal,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "DEVICE HARDWARE HEALTH",
+                                color = TextSecondary,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Carrier: ${latestSelfMetric?.networkType ?: "CONNECTED"}",
+                                    color = TextPrimary,
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    text = "Battery: ${latestSelfMetric?.batteryLevel?.toInt() ?: "--"}%",
+                                    color = TextPrimary,
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    text = "Thermals: ${latestSelfMetric?.thermalStatus ?: "NORMAL"}",
+                                    color = TextPrimary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "MONITORED RIDERS IN CONVOY (${participants.size})",
+                        color = TextSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    participants.forEach { rider ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Gunmetal)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (rider.identity == currentUid) "YOU (${rider.displayName ?: "Local"})" else (rider.displayName ?: rider.identity.take(8)),
+                                color = TextPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (rider.isGhost) "RECONNECTING" else "STREAMING",
+                                color = if (rider.isGhost) NeonOrange else TechGreen,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDiagnosticsDialog = false }) {
+                    Text("CLOSE", color = ElectricCyan, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = DarkSlate
+        )
+    }
+
+    if (showConsentDialog) {
+        AlertDialog(
+            onDismissRequest = { /* modal: require choice */ },
+            title = {
+                Text(
+                    text = "SHARE CONVOY DIAGNOSTICS?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "The host has enabled diagnostics for this convoy. Only network link metrics and device performance telemetry are collected (zero audio content, zero GPS location). Data is automatically compiled and emailed to the project team upon convoy conclusion to troubleshoot call drops.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.setDiagnosticsConsentChoice(true)
+                        showConsentDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
+                ) {
+                    Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        viewModel.setDiagnosticsConsentChoice(false)
+                        showConsentDialog = false
+                    }
+                ) {
+                    Text("Don't share my data", color = AlertRed)
                 }
             },
             containerColor = DarkSlate
@@ -381,6 +659,7 @@ fun RoomScreen(
                             .clip(RoundedCornerShape(4.dp))
                             .background(Color(0x33FF3B30))
                             .border(1.dp, Color(0xFFFF3B30), RoundedCornerShape(4.dp))
+                            .clickable { showDiagnosticsDialog = true }
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Box(
@@ -391,7 +670,7 @@ fun RoomScreen(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "REC",
+                            text = if (diagSampleCount > 0) "DIAG ($diagSampleCount)" else "REC",
                             color = Color(0xFFFF3B30),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -424,7 +703,14 @@ fun RoomScreen(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.clickable { showAudioRoutePicker = true }) {
-                    AudioDeviceBadge(activeDevice, routerState)
+                    AudioDeviceBadge(
+                        device = activeDevice,
+                        routerState = routerState,
+                        requestedDevice = requestedDevice,
+                        routedInput = routedInput,
+                        routedOutput = routedOutput,
+                        onRetry = { viewModel.rescanAudioDevices() }
+                    )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
 
@@ -963,32 +1249,58 @@ private fun ConnectionPill(state: ConnectionState) {
 }
 
 @Composable
-private fun AudioDeviceBadge(device: AudioDevice, routerState: RouterState) {
-    val (icon, label, color) = when {
-        routerState == RouterState.CONNECTING_BT -> Triple(Icons.Default.Bluetooth, "BT SYNC…", NeonOrange)
-        routerState == RouterState.SCANNING      -> Triple(Icons.Default.Search, "SEARCH…", TextSecondary)
-        device is AudioDevice.BluetoothSco       -> Triple(Icons.Default.BluetoothConnected, device.deviceName.take(12).uppercase(), ElectricCyan)
-        device is AudioDevice.WiredHeadset       -> Triple(Icons.Default.Headset, "WIRED", TechGreen)
-        device is AudioDevice.UsbAudio           -> Triple(Icons.Default.Usb, "USB-RF", TechGreen)
-        else                                     -> Triple(Icons.Default.PhoneInTalk, "EARPIECE", TextSecondary)
-    }
+private fun AudioDeviceBadge(
+    device: AudioDevice,
+    routerState: RouterState,
+    requestedDevice: AudioDevice?,
+    routedInput: RoutedDeviceInfo,
+    routedOutput: RoutedDeviceInfo,
+    onRetry: () -> Unit
+) {
+    val isMismatch = requestedDevice != null &&
+        (requestedDevice is AudioDevice.BluetoothSco || requestedDevice is AudioDevice.WiredHeadset || requestedDevice is AudioDevice.UsbAudio) &&
+        (device !is AudioDevice.BluetoothSco && device !is AudioDevice.WiredHeadset && device !is AudioDevice.UsbAudio)
 
-    Row(
+    Column(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .background(DarkSlate)
-            .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .border(1.dp, if (isMismatch) AlertRed else BorderColor, RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        Icon(icon, contentDescription = "Audio Route", tint = color, modifier = Modifier.size(14.dp))
-        Spacer(modifier = Modifier.width(4.dp))
+        if (isMismatch) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "Using phone audio, headset not active",
+                    color = AlertRed,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Button(
+                    onClick = onRetry,
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                    modifier = Modifier.height(20.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                ) {
+                    Text("Retry", fontSize = 8.sp, color = Color.White)
+                }
+            }
+        }
         Text(
-            text = label,
-            color = color,
+            text = "Mic: ${routedInput.display()}",
+            color = if (isMismatch) AlertRed else TextSecondary,
             style = MaterialTheme.typography.labelSmall,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold
+            fontSize = 9.sp
+        )
+        Text(
+            text = "Speaker: ${routedOutput.display()}",
+            color = if (isMismatch) AlertRed else TextSecondary,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 9.sp
         )
     }
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ridervoice.audio.AudioDevice
 import com.ridervoice.audio.AudioDeviceRouter
 import com.ridervoice.audio.HardwarePTTManager
+import com.ridervoice.audio.RoutedDeviceInfo
 import com.ridervoice.audio.RouterState
 import com.ridervoice.audio.VoxEngine
 import com.ridervoice.models.Participant
@@ -49,6 +50,8 @@ class RoomViewModel @Inject constructor(
 ) : ViewModel() {
 
     val isCollectingDiagnostics: StateFlow<Boolean> = networkDiagnosticsCollector.isCollecting
+    val latestSelfMetric: StateFlow<com.ridervoice.diagnostics.models.SelfMetricSample?> = networkDiagnosticsCollector.latestSelfMetric
+    val diagSampleCount: StateFlow<Int> = networkDiagnosticsCollector.sampleCount
     val connectionState: StateFlow<ConnectionState> = liveKitManager.connectionState
     val remoteLocations: StateFlow<Map<String, RiderLocation>> = liveKitManager.remoteLocations
     val activeSpeaker: StateFlow<String?> = liveKitManager.activeSpeaker
@@ -59,6 +62,9 @@ class RoomViewModel @Inject constructor(
 
     val activeAudioDevice: StateFlow<AudioDevice> = audioDeviceRouter.activeDevice
     val audioRouterState: StateFlow<RouterState> = audioDeviceRouter.routerState
+    val requestedAudioDevice: StateFlow<AudioDevice?> = audioDeviceRouter.requestedDevice
+    val routedInput: StateFlow<RoutedDeviceInfo> = audioDeviceRouter.routedInput
+    val routedOutput: StateFlow<RoutedDeviceInfo> = audioDeviceRouter.routedOutput
 
     val isVoxOpen: StateFlow<Boolean> = voxEngine.isMicOpen
     val noiseFloor: StateFlow<Float> = voxEngine.noiseFloor
@@ -177,19 +183,43 @@ class RoomViewModel @Inject constructor(
 
         applyAudioSettings()
 
-        val token = com.ridervoice.models.RideSession.livekitToken
+        val existingToken = com.ridervoice.models.RideSession.livekitToken
         val url = com.ridervoice.models.RideSession.livekitUrl.ifBlank { Constants.LIVEKIT_URL }
-
-        if (token.isBlank()) {
-            _error.value = "Missing session credentials"
-            return
-        }
 
         viewModelScope.launch {
             _error.value = null
             try {
+                val effectiveToken = if (existingToken.isNotBlank()) {
+                    existingToken
+                } else {
+                    val res = apiService.getRoomToken(com.ridervoice.models.RoomTokenRequest(roomName))
+                    if (res.isSuccessful && res.body() != null) {
+                        val body = res.body()!!
+                        com.ridervoice.models.RideSession.livekitToken = body.token
+                        com.ridervoice.models.RideSession.activeRoomName = body.roomName
+                        com.ridervoice.models.RideSession.diagnosticsEnabled = body.diagnosticsEnabled
+                        com.ridervoice.models.RideSession.testNumber = body.testNumber
+                        if (body.diagnosticsEnabled) {
+                            securePrefs.setNetworkDiagnosticsEnabled(true)
+                        }
+                        body.token
+                    } else {
+                        throw Exception("Could not fetch credentials for convoy $roomName (code ${res.code()})")
+                    }
+                }
+                
+                // Security check: Token must decode to the matching convoy room
+                val isTokenValid = com.ridervoice.utils.JwtRoomClaimDecoder.validateRoom(effectiveToken, roomName)
+                val sessionRoom = com.ridervoice.models.RideSession.activeRoomName
+                val isSessionMatch = sessionRoom == null || sessionRoom == roomName
 
-                liveKitManager.connect(url, token)
+                if (!isTokenValid || !isSessionMatch) {
+                    liveKitManager.disconnect()
+                    _error.value = "Security validation failed: Token room claim does not match convoy $roomName"
+                    return@launch
+                }
+
+                liveKitManager.connect(url, effectiveToken)
             } catch (e: Exception) {
                 _error.value = "Connection error: ${e.message}"
             }
@@ -238,6 +268,10 @@ class RoomViewModel @Inject constructor(
         audioDeviceRouter.reEvaluatePriority()
     }
 
+    fun setAudioRoute(routeType: String) {
+        audioDeviceRouter.setAudioRoute(routeType)
+    }
+
     fun clearError() {
         _error.value = null
     }
@@ -246,14 +280,22 @@ class RoomViewModel @Inject constructor(
         _error.value = msg
     }
 
+    fun isDiagnosticsConsentShown(): Boolean = securePrefs.isDiagnosticsConsentShown()
+
+    fun setDiagnosticsConsentChoice(share: Boolean) {
+        securePrefs.setDiagnosticsConsentShown(true)
+        securePrefs.setShareDiagnosticsWhenHostEnabled(share)
+    }
+
     fun endRideForEveryone(roomName: String, onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
+                networkDiagnosticsCollector.stopSession()
                 apiService.endRideForEveryone(roomName)
             } catch (e: Exception) {
                 android.util.Log.e("RoomViewModel", "Failed to end ride on server: ${e.message}")
             } finally {
-                leaveRoom()
+                leaveRoom(roomName)
                 onComplete()
             }
         }
@@ -266,13 +308,20 @@ class RoomViewModel @Inject constructor(
             } catch (e: Exception) {
                 android.util.Log.e("RoomViewModel", "Failed to transfer host on server: ${e.message}")
             } finally {
-                leaveRoom()
+                leaveRoom(roomName)
                 onComplete()
             }
         }
     }
 
-    fun leaveRoom() {
+    fun leaveRoom(roomName: String? = null) {
+        viewModelScope.launch {
+            try {
+                networkDiagnosticsCollector.stopSession()
+            } catch (e: Exception) {
+                android.util.Log.w("RoomViewModel", "Failed to stop diagnostic collector: ${e.message}")
+            }
+        }
         cleanup()
         liveKitManager.disconnect()
     }

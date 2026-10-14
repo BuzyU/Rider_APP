@@ -248,6 +248,10 @@ fun NavGraph(
                     durationMinutes = current.durationMinutes,
                     distanceKm      = current.distanceKm,
                     topSpeed        = current.topSpeedKmh,
+                    convoyName      = vm.convoyName,
+                    testNumber      = vm.testNumber,
+                    sampleCount     = vm.sampleCount,
+                    lastMetric      = vm.latestMetric,
                     onSaveToLogbook = {
                         vm.save()
                         navController.navigate(Routes.HOME) { popUpTo(0) { inclusive = true } }

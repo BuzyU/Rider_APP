@@ -105,4 +105,11 @@ object AppModule {
     fun provideSecurePreferences(@dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context): com.ridervoice.security.SecurePreferences {
         return com.ridervoice.security.SecurePreferences(context)
     }
+
+    @Provides
+    @Singleton
+    fun provideAudioManagerGateway(@dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context): com.ridervoice.audio.AudioManagerGateway {
+        val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+        return com.ridervoice.audio.AndroidAudioManagerGateway(audioManager)
+    }
 }

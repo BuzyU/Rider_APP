@@ -1,3 +1,33 @@
+## RiderVoice v0.0.3.9 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.9** introduces full hardware route confirmation for Bluetooth headsets, strict room token security verification, and a complete user consent experience for convoy diagnostics. Audio routing now waits for Android framework hardware confirmations (`OnCommunicationDeviceChangedListener`) with automated 3-second fallback to loudspeaker, exposing separate requested and real routed device flows to the UI with in-HUD mismatch detection and one-tap re-evaluation.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.9` |
+| **Version Code** | `3009` |
+| **Release Tag** | [`v0.0.3.9`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.9) |
+| **Download APK** | [`Rider_APP-v0.0.3.9.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.9/Rider_APP-v0.0.3.9.apk) |
+
+---
+
+### 🎧 Bluetooth Hardware Carrier Routing (Android)
+- **AudioRouteDecisionEngine Integration**: Directly wired pure decision engine into `AudioDeviceRouter`. Devices only transition to `ACTIVE` once `AudioManager.communicationDevice?.id` matches the target hardware device.
+- **Hardware Routing Listener & Fallback**: Registers `OnCommunicationDeviceChangedListener` (API 31+) with a 3-second confirmation timeout, attempting subsequent audio candidates before safely falling back to Loudspeaker (`AudioDevice.Speakerphone`, never Earpiece).
+- **Separated Requested vs Routed StateFlows**: Exposes real `routedInput` (via `AudioRecord.addOnRoutingChangedListener`) and `routedOutput`.
+- **LiveKit Track Synchronization**: Defers `publishAudioTrack` until router hardware status is confirmed, and republishes dynamically if the hardware route transitions late.
+- **2-Line HUD Audio Badge & Device Setup UX**: Displays `"Mic: <input>"` and `"Speaker: <output>"`, prompting riders with *"Using phone audio, headset not active"* and a *"Retry"* button on routing mismatches.
+
+---
+
+### 🛡️ Room Token Validation & Convoy Diagnostics UX
+- **Room Token Security**: Restricts token issuance to validated active rooms and accepted invites; verifies `video.room` claim on join.
+- **Privacy & User Consent**: Defaults diagnostics to `false` everywhere; presents a first-time consent disclosure with an explicit *"Don't share my data"* opt-out.
+- **Host End Grace Window**: Gracefully allows riders up to 90 seconds to submit outbox telemetry upon host end before closing the run.
+
+---
+
 ## RiderVoice v0.0.3.8 Release Notes
 
 ### 🚀 Overview

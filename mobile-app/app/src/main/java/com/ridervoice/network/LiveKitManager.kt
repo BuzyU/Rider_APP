@@ -144,12 +144,21 @@ class LiveKitManager @Inject constructor(
             .debounce(400)
             .onEach { device ->
                 scope.launch {
-                    publishAudioTrack(device)
+                    publishAudioTrack(device, force = true)
                     voxEngine.updatePreferredDevice()
                     restartVox()
                 }
             }
             .launchIn(scope)
+
+        scope.launch {
+            audioDeviceRouter.republishRequests.collect {
+                Log.i(TAG, "Republish request received from AudioDeviceRouter — forcing audio track republish")
+                publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
+                voxEngine.updatePreferredDevice()
+                restartVox()
+            }
+        }
 
         try {
             // AudioDeviceRouter is the single owner of audio mode / routing / focus.
@@ -172,6 +181,14 @@ class LiveKitManager @Inject constructor(
             room = newRoom
 
             newRoom.connect(url = url, token = token)
+
+            // B3: Wait until router has a confirmed final device (or has definitively fallen back) BEFORE publishAudioTrack
+            withTimeoutOrNull(5000) {
+                while (audioDeviceRouter.routerState.value != RouterState.ACTIVE &&
+                       audioDeviceRouter.routerState.value != RouterState.FAILED) {
+                    delay(100)
+                }
+            }
 
             publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
 

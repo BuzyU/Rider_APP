@@ -7,6 +7,8 @@ import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +32,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class VoxEngine @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val audioDeviceRouter: AudioDeviceRouter
 ) {
 
     private val TAG = "VoxEngine"
@@ -108,8 +111,20 @@ class VoxEngine @Inject constructor(
                 return
             }
             record = rec
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                record.addOnRoutingChangedListener(
+                    AudioRecord.OnRoutingChangedListener { r ->
+                        val dev = (r as? AudioRecord)?.routedDevice
+                        audioDeviceRouter.onInputRoutingChanged(dev)
+                    },
+                    Handler(Looper.getMainLooper())
+                )
+            }
             preferCommunicationInput(record)
             record.startRecording()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                audioDeviceRouter.onInputRoutingChanged(record.routedDevice)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "VOX AudioRecord start failed — PTT-only mode: ${e.message}", e)
             audioRecord?.release()
@@ -340,6 +355,9 @@ class VoxEngine @Inject constructor(
             } else {
                 record.setPreferredDevice(null)
                 Log.d(TAG, "VOX preferred input reset to null (follows AudioManager communication device)")
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                audioDeviceRouter.onInputRoutingChanged(record.routedDevice)
             }
         } catch (e: Exception) {
             Log.w(TAG, "setPreferredDevice failed: ${e.message}")

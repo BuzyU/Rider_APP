@@ -29,6 +29,7 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.compose.ui.platform.LocalContext
 import com.ridervoice.audio.AudioDevice
+import com.ridervoice.audio.RoutedDeviceInfo
 import com.ridervoice.audio.RouterState
 import com.ridervoice.ui.components.TacticalButton
 import com.ridervoice.ui.theme.*
@@ -45,6 +46,9 @@ fun DeviceSetupScreen(
     val context = LocalContext.current
     val routerState by viewModel.routerState.collectAsState()
     val activeDevice by viewModel.activeDevice.collectAsState()
+    val requestedDevice by viewModel.requestedDevice.collectAsState()
+    val routedInput by viewModel.routedInput.collectAsState()
+    val routedOutput by viewModel.routedOutput.collectAsState()
     val isDark = ThemeState.isDarkTheme
 
     val isBluetoothActive = activeDevice is AudioDevice.BluetoothSco
@@ -170,6 +174,65 @@ fun DeviceSetupScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 2.dp)
                 )
+
+                val isMismatch = requestedDevice != null &&
+                    (requestedDevice is AudioDevice.BluetoothSco || requestedDevice is AudioDevice.WiredHeadset || requestedDevice is AudioDevice.UsbAudio) &&
+                    (activeDevice !is AudioDevice.BluetoothSco && activeDevice !is AudioDevice.WiredHeadset && activeDevice !is AudioDevice.UsbAudio)
+
+                if (isMismatch) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        color = AlertRed.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Using phone audio, headset not active",
+                                color = AlertRed,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Button(
+                                onClick = { viewModel.rescanAudioDevices() },
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
+                                shape = RoundedCornerShape(6.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text("Retry", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Surface(
+                    color = DarkSlate,
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = "Mic: ${routedInput.display()}",
+                            color = if (isMismatch) AlertRed else TextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Speaker: ${routedOutput.display()}",
+                            color = if (isMismatch) AlertRed else TextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(20.dp))
 

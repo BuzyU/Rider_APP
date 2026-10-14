@@ -18,8 +18,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -77,6 +79,9 @@ fun RoomScreen(
     val isDeafened by viewModel.deafened.collectAsState()
     var showLeaveConfirmDialog by remember { mutableStateOf(false) }
     var showAudioRoutePicker by remember { mutableStateOf(false) }
+    var showDiagnosticsDialog by remember { mutableStateOf(false) }
+    val latestSelfMetric by viewModel.latestSelfMetric.collectAsState()
+    val diagSampleCount by viewModel.diagSampleCount.collectAsState()
 
     val isHost = com.ridervoice.models.RideSession.isHost
     val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -283,6 +288,7 @@ fun RoomScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
+                                viewModel.setAudioRoute("BLUETOOTH")
                                 showAudioRoutePicker = false
                             }
                             .padding(12.dp)
@@ -290,7 +296,7 @@ fun RoomScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Bluetooth, contentDescription = null, tint = ElectricCyan)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Helmet Headset (Bluetooth SCO)", color = TextPrimary, fontWeight = FontWeight.Bold)
+                            Text("Bluetooth Headset / AirPods", color = TextPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
                     Surface(
@@ -299,6 +305,7 @@ fun RoomScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
+                                viewModel.setAudioRoute("SPEAKER")
                                 showAudioRoutePicker = false
                             }
                             .padding(12.dp)
@@ -315,6 +322,7 @@ fun RoomScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
+                                viewModel.setAudioRoute("WIRED")
                                 showAudioRoutePicker = false
                             }
                             .padding(12.dp)
@@ -322,7 +330,7 @@ fun RoomScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.PhoneInTalk, contentDescription = null, tint = TextSecondary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Phone Earpiece / Wired", color = TextPrimary, fontWeight = FontWeight.Bold)
+                            Text("Phone Earpiece / Wired Headset", color = TextPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -330,6 +338,223 @@ fun RoomScreen(
             confirmButton = {
                 TextButton(onClick = { showAudioRoutePicker = false }) {
                     Text("CLOSE", color = ElectricCyan)
+                }
+            },
+            containerColor = DarkSlate
+        )
+    }
+
+    if (showDiagnosticsDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiagnosticsDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Analytics,
+                        contentDescription = "Diagnostics",
+                        tint = ElectricCyan,
+                        modifier = Modifier.size(26.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "CONVOY TELEMETRY & DIAGNOSTICS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NeonOrange,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = roomName.uppercase(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextPrimary
+                        )
+                    }
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        color = Gunmetal,
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen.copy(alpha = 0.6f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(TechGreen)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "MONITORING ACTIVE — $diagSampleCount SAMPLES LOGGED",
+                                    color = TechGreen,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Auto-exported to code4changeteam@gmail.com in multi-sheet Excel (.xlsx) on ride conclusion.",
+                                color = TextSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Surface(
+                        color = Gunmetal,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "AUDIO TRANSCEIVER ROUTE",
+                                color = TextSecondary,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = activeDevice.displayName(),
+                                color = ElectricCyan,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (activeDevice is AudioDevice.BluetoothSco) "Wideband HFP/SCO Active (AirPods/Headset)" else "Direct System Communication Route",
+                                color = TextSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Surface(
+                        color = Gunmetal,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "LIVE NETWORK LINK QUALITY",
+                                color = TextSecondary,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "${latestSelfMetric?.rttMs?.toInt() ?: "--"} ms",
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    Text("ROUND-TRIP (RTT)", color = TextSecondary, fontSize = 9.sp)
+                                }
+                                Column {
+                                    Text(
+                                        text = "${latestSelfMetric?.jitterMs?.let { String.format(java.util.Locale.US, "%.1f", it) } ?: "--"} ms",
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    Text("JITTER", color = TextSecondary, fontSize = 9.sp)
+                                }
+                                Column {
+                                    Text(
+                                        text = "${latestSelfMetric?.packetsLost ?: 0}",
+                                        color = if ((latestSelfMetric?.packetsLost ?: 0) > 0) AlertRed else TechGreen,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    Text("PKTS LOST", color = TextSecondary, fontSize = 9.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    Surface(
+                        color = Gunmetal,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "DEVICE HARDWARE HEALTH",
+                                color = TextSecondary,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Carrier: ${latestSelfMetric?.networkType ?: "CONNECTED"}",
+                                    color = TextPrimary,
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    text = "Battery: ${latestSelfMetric?.batteryLevel?.toInt() ?: "--"}%",
+                                    color = TextPrimary,
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    text = "Thermals: ${latestSelfMetric?.thermalStatus ?: "NORMAL"}",
+                                    color = TextPrimary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "MONITORED RIDERS IN CONVOY (${participants.size})",
+                        color = TextSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    participants.forEach { rider ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Gunmetal)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (rider.identity == currentUid) "YOU (${rider.displayName ?: "Local"})" else (rider.displayName ?: rider.identity.take(8)),
+                                color = TextPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (rider.isGhost) "RECONNECTING" else "STREAMING",
+                                color = if (rider.isGhost) NeonOrange else TechGreen,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDiagnosticsDialog = false }) {
+                    Text("CLOSE", color = ElectricCyan, fontWeight = FontWeight.Bold)
                 }
             },
             containerColor = DarkSlate
@@ -381,6 +606,7 @@ fun RoomScreen(
                             .clip(RoundedCornerShape(4.dp))
                             .background(Color(0x33FF3B30))
                             .border(1.dp, Color(0xFFFF3B30), RoundedCornerShape(4.dp))
+                            .clickable { showDiagnosticsDialog = true }
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Box(
@@ -391,7 +617,7 @@ fun RoomScreen(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "REC",
+                            text = if (diagSampleCount > 0) "DIAG ($diagSampleCount)" else "REC",
                             color = Color(0xFFFF3B30),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -970,6 +1196,7 @@ private fun AudioDeviceBadge(device: AudioDevice, routerState: RouterState) {
         device is AudioDevice.BluetoothSco       -> Triple(Icons.Default.BluetoothConnected, device.deviceName.take(12).uppercase(), ElectricCyan)
         device is AudioDevice.WiredHeadset       -> Triple(Icons.Default.Headset, "WIRED", TechGreen)
         device is AudioDevice.UsbAudio           -> Triple(Icons.Default.Usb, "USB-RF", TechGreen)
+        device is AudioDevice.Speakerphone       -> Triple(Icons.Default.VolumeUp, "SPEAKER", NeonOrange)
         else                                     -> Triple(Icons.Default.PhoneInTalk, "EARPIECE", TextSecondary)
     }
 

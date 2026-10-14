@@ -5,13 +5,15 @@ data class ConvoyCreateRequest(
     val origin: String? = null,
     val destination: String? = null,
     val estimatedDurationMin: Int? = null,
-    val meetupPoint: String? = null
+    val meetupPoint: String? = null,
+    val diagnosticsEnabled: Boolean = true
 )
 
 data class ConvoyCreateResponse(
     val roomId: String,
     val convoyName: String,
-    val hostId: String
+    val hostId: String,
+    val diagnosticsEnabled: Boolean = true
 )
 
 data class LobbyStatus(
@@ -40,7 +42,9 @@ data class LobbyRiderInfo(
 data class StartRideResponse(
     val token: String,
     val roomName: String,
-    val livekitUrl: String
+    val livekitUrl: String,
+    val diagnosticsEnabled: Boolean = true,
+    val testNumber: Int? = null
 )
 
 data class JoinTokenRequest(
@@ -102,7 +106,12 @@ data class DeviceHandshakeResult(
 
 enum class DeviceType { BLUETOOTH_SCO, BLUETOOTH_A2DP, WIRED, USB, EARPIECE }
 
-data class RoomData(val roomName: String, val token: String)
+data class RoomData(
+    val roomName: String,
+    val token: String,
+    val diagnosticsEnabled: Boolean = true,
+    val testNumber: Int? = null
+)
 data class RoomTokenRequest(val roomName: String)
 data class FcmTokenRequest(val userId: String, val token: String, val platform: String = "android")
 
@@ -111,12 +120,16 @@ object RideSession {
     var livekitToken: String = ""
     var activeRoomName: String? = null
     var isHost: Boolean = false
+    var diagnosticsEnabled: Boolean = false
+    var testNumber: Int? = null
 
     fun clear() {
         livekitUrl = ""
         livekitToken = ""
         activeRoomName = null
         isHost = false
+        diagnosticsEnabled = false
+        testNumber = null
     }
 }
 

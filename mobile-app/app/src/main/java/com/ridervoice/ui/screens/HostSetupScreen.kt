@@ -3,18 +3,20 @@ package com.ridervoice.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBackIosNew
-import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,6 +44,7 @@ fun HostSetupScreen(
     var destination     by remember { mutableStateOf("") }
     var meetupPoint     by remember { mutableStateOf("") }
     var durationHours   by remember { mutableStateOf("") }
+    var diagnosticsEnabled by remember { mutableStateOf(true) }
     var showDiscardDialog by remember { mutableStateOf(false) }
 
     val isDirty = convoyName.isNotBlank() || origin.isNotBlank() || destination.isNotBlank()
@@ -246,7 +249,8 @@ fun HostSetupScreen(
                                     origin = origin.trim().ifBlank { null },
                                     destination = destination.trim().ifBlank { null },
                                     meetupPoint = meetupPoint.trim().ifBlank { null },
-                                    estimatedDurationMin = durationHours.trim().toFloatOrNull()?.let { (it * 60).toInt() }
+                                    estimatedDurationMin = durationHours.trim().toFloatOrNull()?.let { (it * 60).toInt() },
+                                    diagnosticsEnabled = diagnosticsEnabled
                                 )
                             },
                             enabled = canCreate && !isLoading,
@@ -259,6 +263,72 @@ fun HostSetupScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Surface(
+                color = DarkSlate,
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (diagnosticsEnabled) NeonOrange else BorderColor
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { diagnosticsEnabled = !diagnosticsEnabled }
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(if (diagnosticsEnabled) NeonOrange.copy(alpha = 0.2f) else Gunmetal),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Analytics,
+                            contentDescription = null,
+                            tint = if (diagnosticsEnabled) NeonOrange else TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "DIAGNOSTICS & TELEMETRY",
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Monitors audio & network health on all devices. Automatically emails Excel report to code4changeteam@gmail.com on ride completion.",
+                            color = TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Switch(
+                        checked = diagnosticsEnabled,
+                        onCheckedChange = { diagnosticsEnabled = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = NeonOrange,
+                            uncheckedThumbColor = TextSecondary,
+                            uncheckedTrackColor = Gunmetal
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedButton(
                 onClick = onImportRouteClick,
@@ -282,7 +352,8 @@ fun HostSetupScreen(
                         origin = origin.trim().ifBlank { null },
                         destination = destination.trim().ifBlank { null },
                         meetupPoint = meetupPoint.trim().ifBlank { null },
-                        estimatedDurationMin = durationHours.trim().toFloatOrNull()?.let { (it * 60).toInt() }
+                        estimatedDurationMin = durationHours.trim().toFloatOrNull()?.let { (it * 60).toInt() },
+                        diagnosticsEnabled = diagnosticsEnabled
                     )
                 },
                 enabled = canCreate && !isLoading,

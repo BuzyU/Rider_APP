@@ -57,6 +57,12 @@ class NetworkDiagnosticsCollector @Inject constructor(
     private val _isCollecting = MutableStateFlow(false)
     val isCollecting: StateFlow<Boolean> = _isCollecting.asStateFlow()
 
+    private val _latestSelfMetric = MutableStateFlow<SelfMetricSample?>(null)
+    val latestSelfMetric: StateFlow<SelfMetricSample?> = _latestSelfMetric.asStateFlow()
+
+    private val _sampleCount = MutableStateFlow(0)
+    val sampleCount: StateFlow<Int> = _sampleCount.asStateFlow()
+
     private var activeSession: DiagSessionEntity? = null
     private var sampleJob: Job? = null
     private var flushJob: Job? = null
@@ -183,6 +189,9 @@ class NetworkDiagnosticsCollector @Inject constructor(
             thermalStatus = thermal,
             isForeground = isFg
         )
+
+        _latestSelfMetric.value = self
+        _sampleCount.value += 1
 
         val selfJson = gson.toJson(self)
         database.sampleDao().insert(

@@ -43,32 +43,11 @@ app.use('/api/emergency', authMiddleware, emergencyRoutes)
 
 app.use(errorMiddleware)
 
-const { exec } = require('child_process')
-const path = require('path')
 const prisma = require('./db')
 const diagnosticService = require('./services/diagnosticService')
 
-function runPrismaMigrate() {
-    return new Promise((resolve) => {
-        exec('npx prisma migrate deploy', {
-            cwd: path.resolve(__dirname, '..'),
-            env: process.env
-        }, (err, stdout, stderr) => {
-            if (err) {
-                console.warn('[DB] prisma migrate deploy warning:', err.message)
-            } else {
-                console.log('[DB] prisma migrate deploy completed:', (stdout || '').trim())
-            }
-            resolve()
-        })
-    })
-}
-
 async function ensureDbExtensions() {
-    // 1. Try running official Prisma migrations
-    await runPrismaMigrate()
-
-    // 2. Run fallback DDL queries individually with IF NOT EXISTS to guarantee schema parity
+    // Run DDL queries individually with IF NOT EXISTS to guarantee schema parity through poolers
     const fallbackStatements = [
         // Enum values
         `ALTER TYPE "InviteStatus" ADD VALUE IF NOT EXISTS 'REMOVED'`,
@@ -190,28 +169,23 @@ async function ensureDbExtensions() {
     }
 }
 
-async function startServer() {
-    try {
-        await ensureDbExtensions()
-    } catch (e) {
+const PORT = process.env.PORT || 3000
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`)
+    ensureDbExtensions().then(() => {
+        console.log('[DB] Database schema verified and initialized.')
+        const idleInterval = setInterval(() => {
+            diagnosticService.checkIdleDiagnosticRuns().catch(() => {})
+        }, 60 * 1000)
+        if (idleInterval.unref) idleInterval.unref()
+
+        const retentionInterval = setInterval(() => {
+            diagnosticService.cleanOldDiagnosticRuns().catch(() => {})
+        }, 24 * 60 * 60 * 1000)
+        if (retentionInterval.unref) retentionInterval.unref()
+    }).catch((e) => {
         console.warn('[DB] ensureDbExtensions warning:', e.message)
-    }
-
-    // Start background intervals once DB setup is completed
-    const idleInterval = setInterval(() => {
-        diagnosticService.checkIdleDiagnosticRuns().catch(() => {})
-    }, 60 * 1000)
-    if (idleInterval.unref) idleInterval.unref()
-
-    const retentionInterval = setInterval(() => {
-        diagnosticService.cleanOldDiagnosticRuns().catch(() => {})
-    }, 24 * 60 * 60 * 1000)
-    if (retentionInterval.unref) retentionInterval.unref()
-
-    const PORT = process.env.PORT || 3000
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
-}
-
-startServer()
+    })
+})
 
 module.exports = { app, ensureDbExtensions }

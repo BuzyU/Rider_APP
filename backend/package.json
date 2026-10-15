@@ -6,8 +6,8 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "start": "prisma migrate deploy && node src/server.js",
-    "build": "prisma generate && prisma migrate deploy",
+    "start": "node src/server.js",
+    "build": "prisma generate",
     "postinstall": "prisma generate",
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "diag:test-email": "node scripts/test_email.js"

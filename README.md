@@ -4,13 +4,14 @@
 
 RiderVoice is a Jetpack Compose Android application designed for motorcycle convoys. It enables hands-free push-to-talk (PTT) communication over WebRTC, squad coordination, active ride telemetry, and over-the-air (OTA) application updates. It is backed by a Node.js Express REST API, Prisma PostgreSQL (Supabase), and LiveKit for real-time audio.
 
-> **Latest Release:** [**v0.0.3.11 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.11)  
+> **Latest Release:** [**v0.0.3.12 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.12)  
 > For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md).
 
 ---
 
 ## 🚀 Key Features
 
+- **VOX Latency & Network Optimization (v0.0.3.12)** – Low-latency VOX audio release tuning, elimination of RED redundant audio packet overhead on 32kbps channels, cache stampede protection on backend services, rate-limiter memory sweep, and Android foreground service lifecycle hardening.
 - **Convoy Namespace Disambiguation & Resilient SMTP Pooling (v0.0.3.11)** – Enabled multi-host identical convoy naming with automated numerical suffix disambiguation, resilient production SMTP connection pooling with idle dead-socket purging, SSL fallback on port 465, and isolated transactional invite acceptance notifications.
 - **VOX Responsiveness & Squad Comms Optimization (v0.0.3.10)** – Tuned VOX hold timing to 900ms for crisper turn-taking, rich squad participant identities with real display names, non-blocking audio TX processing, instant backend HTTP port binding for fast platform boot, and transactional SMTP convoy dispatch.
 - **Bluetooth Hardware Carrier Routing & Diagnostics UX (v0.0.3.9)** – Real hardware confirmation for Bluetooth SCO / BLE headsets via `AudioRouteDecisionEngine` and `OnCommunicationDeviceChangedListener` with 3-second loudspeaker fallback; strict room token security claim verification; and opt-in convoy diagnostics with participant consent dialogs and 90s grace period close.

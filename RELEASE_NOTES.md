@@ -1,3 +1,31 @@
+## RiderVoice v0.0.3.12 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.12** introduces low-latency VOX audio release tuning with responsive polling intervals, eliminates packet overhead by disabling redundant encoding for low-bitrate intercom streams, adds in-flight cache stampede protection on backend services, implements automatic rate-limiter memory reclamation, and reinforces Android foreground service coroutine lifecycle management.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.12` |
+| **Version Code** | `3012` |
+| **Release Tag** | [`v0.0.3.12`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.12) |
+| **Download APK** | [`Rider_APP-v0.0.3.12.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.12/Rider_APP-v0.0.3.12.apk) |
+
+---
+
+### 🎙️ VOX Engine & Latency Optimization
+- **Responsive Mic Release**: Reduced open-mic polling delay to 20ms and shortened safety-net inactivity cutoff from 5000ms to 2500ms, releasing the microphone channel faster when speaking ceases.
+- **Accurate Noise Floor Calibration**: Validates non-zero acoustic frames during initialization to prevent initial threshold miscalibration.
+- **Eliminated RED Packet Jitter**: Disabled redundant packet encoding on 32kbps audio channels, cutting unnecessary packet size overhead on cellular connections.
+
+---
+
+### 🛡️ Network Resilience & Memory Optimization
+- **Emergency Limiter Pruning**: Added periodic timestamp sweeping to prevent sliding-window rate limiters from accumulating unreferenced memory on the backend.
+- **Cache Stampede Guard**: Implemented in-flight Promise tracking in backend caching to ensure concurrent callers share a single fetch execution.
+- **Foreground Service Hardening**: Upgraded voice foreground service to `SupervisorJob` and ensured complete coroutine scope cancellation on service destruction.
+
+---
+
 ## RiderVoice v0.0.3.11 Release Notes
 
 ### 🚀 Overview

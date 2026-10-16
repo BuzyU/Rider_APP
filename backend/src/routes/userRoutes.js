@@ -1,11 +1,14 @@
 const express = require('express')
 const router = express.Router()
 const prisma = require('../db')
+const cacheService = require('../services/cacheService')
 
 router.post('/profile', async (req, res, next) => {
     const id = req.user.uid
     const { handle, displayName, bikeModel, bio, phone } = req.body
     const cleanHandle = handle ? handle.replace(/^@/, '').trim() : undefined
+    const isGuestEmail = req.user?.email && req.user.email.endsWith('@guest.ridervoice.local')
+    const userEmail = isGuestEmail ? null : (req.user?.email || null)
 
     try {
         const user = await prisma.user.upsert({
@@ -16,11 +19,11 @@ router.post('/profile', async (req, res, next) => {
                 ...(bikeModel !== undefined && { bikeModel }),
                 ...(bio !== undefined && { bio }),
                 ...(phone !== undefined && { phone }),
-                ...(req.user?.email && { email: req.user.email })
+                ...(userEmail && { email: userEmail })
             },
             create: {
                 id,
-                email: req.user.email || null,
+                email: userEmail,
                 handle: cleanHandle || null,
                 displayName: displayName || null,
                 bikeModel: bikeModel || null,
@@ -38,6 +41,8 @@ router.post('/profile', async (req, res, next) => {
                 createdAt: true
             }
         })
+        cacheService.del(`user_me:${id}`)
+        cacheService.del(`user_name:${id}`)
         res.json({
             ...user,
             createdAt: user.createdAt ? user.createdAt.toISOString() : null
@@ -93,6 +98,10 @@ router.get('/search', async (req, res, next) => {
 
 router.get('/me', async (req, res, next) => {
     try {
+        const cacheKey = `user_me:${req.user.uid}`
+        const cached = cacheService.get(cacheKey)
+        if (cached) return res.json(cached)
+
         const user = await prisma.user.findUnique({
             where: { id: req.user.uid },
             select: {
@@ -107,10 +116,12 @@ router.get('/me', async (req, res, next) => {
             }
         })
         if (!user) return res.status(404).json({ error: 'Profile not found. Call POST /profile first.' })
-        res.json({
+        const payload = {
             ...user,
             createdAt: user.createdAt ? user.createdAt.toISOString() : null
-        })
+        }
+        cacheService.set(cacheKey, payload, 30000)
+        res.json(payload)
     } catch (error) {
         next(error)
     }

@@ -3,6 +3,7 @@ const router = express.Router()
 const prisma = require('../db')
 const notificationService = require('../services/notificationService')
 const emailService = require('../services/emailService')
+const cacheService = require('../services/cacheService')
 
 router.post('/invite', async (req, res, next) => {
     const inviterId = req.user.uid
@@ -61,6 +62,7 @@ router.post('/invite', async (req, res, next) => {
         const invite = await prisma.rideInvite.create({
             data: { roomId: room.id, inviterId, inviteeId, status: 'PENDING' }
         })
+        cacheService.del(`lobby_status:${room.name}`)
 
         if (inviter) {
             notificationService.sendRideInvite(
@@ -118,6 +120,9 @@ router.post('/respond', async (req, res, next) => {
             where: { id: inviteId },
             data: { status: response }
         })
+        if (invite.room?.name) {
+            cacheService.del(`lobby_status:${invite.room.name}`)
+        }
 
         if (response === 'ACCEPTED') {
             let hostName = null

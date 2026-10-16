@@ -1,9 +1,13 @@
 package com.ridervoice.security
 
+import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,13 +31,43 @@ class AuthRepository @Inject constructor() {
         }
     }
 
-    suspend fun signInAnonymously(): Boolean {
+    suspend fun signInAnonymously(): String? {
+        val existing = auth.currentUser
+        if (existing != null) {
+            if (existing.isAnonymous || existing.email?.endsWith("@guest.ridervoice.local") == true) {
+                return null
+            }
+            signOut()
+        }
         return try {
             auth.signInAnonymously().await()
-            true
+            null
         } catch (e: Exception) {
-            e.printStackTrace()
-            false
+            val isRestricted = e.message?.contains("ADMIN_ONLY_OPERATION") == true ||
+                e.message?.contains("admin-restricted-operation") == true ||
+                (e is FirebaseAuthException && e.errorCode == "ERROR_OPERATION_NOT_ALLOWED")
+
+            if (isRestricted || e !is FirebaseNetworkException) {
+                try {
+                    val guestUid = UUID.randomUUID().toString().replace("-", "").take(12)
+                    val guestEmail = "guest_${guestUid}@guest.ridervoice.local"
+                    val guestPass = "Gst!" + UUID.randomUUID().toString().replace("-", "").take(16) + "#9A"
+                    auth.createUserWithEmailAndPassword(guestEmail, guestPass).await()
+                    val profileUpdates = UserProfileChangeRequest.Builder()
+                        .setDisplayName("Guest Rider")
+                        .build()
+                    auth.currentUser?.updateProfile(profileUpdates)?.await()
+                    null
+                } catch (fallbackErr: Exception) {
+                    if (fallbackErr is FirebaseNetworkException) {
+                        "Network error. Please check your internet connection."
+                    } else {
+                        fallbackErr.localizedMessage ?: "Guest sign-in failed."
+                    }
+                }
+            } else {
+                "Network error. Please check your internet connection."
+            }
         }
     }
 

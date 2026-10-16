@@ -140,6 +140,41 @@ describe('RiderVoice Tactical Email Notification Service', () => {
             emailService.sendUserJoinedEmailSafe({ userId: 'safe-user', userEmail: 'user@safe.test', roomName: 'Safe Convoy' })
             emailService.sendRideInviteEmailSafe({ inviterId: 'safe-host', inviteeId: 'safe-user', roomName: 'Safe Convoy' })
             emailService.sendRideEndedEmailSafe({ riderId: 'safe-rider', riderEmail: 'rider@safe.test', roomName: 'Safe Convoy' })
-        }, 'Safe async dispatch wrappers must never throw')
+            emailService.sendUserJoinedEmailSafe({ userId: 'guest-1', userEmail: 'guest_123456@guest.ridervoice.local', roomName: 'Guest Convoy' })
+        })
+    })
+
+    it('skips email dispatch cleanly for guest users without deliverable emails', async () => {
+        assert.strictEqual(emailService.isGuestOrUnroutableEmail('guest_abc@guest.ridervoice.local'), true)
+        assert.strictEqual(emailService.isGuestOrUnroutableEmail('guest_test@ridervoice.local'), true)
+        assert.strictEqual(emailService.isGuestOrUnroutableEmail('invalid-email'), true)
+        assert.strictEqual(emailService.isGuestOrUnroutableEmail(null), true)
+        assert.strictEqual(emailService.isGuestOrUnroutableEmail(''), true)
+        assert.strictEqual(emailService.isGuestOrUnroutableEmail('rider@gmail.com'), false)
+
+        const guestRoomRes = await emailService.sendRoomCreatedEmail({
+            hostId: 'guest-host',
+            hostEmail: 'guest_abc@guest.ridervoice.local',
+            hostName: 'Guest Rider',
+            convoyName: 'Guest Trail',
+            roomId: 'room-guest-1'
+        })
+        assert.strictEqual(guestRoomRes, false)
+
+        const guestJoinRes = await emailService.sendUserJoinedEmail({
+            userId: 'guest-joiner',
+            userEmail: 'guest_xyz@guest.ridervoice.local',
+            userName: 'Guest Rider',
+            roomName: 'Guest Trail'
+        })
+        assert.strictEqual(guestJoinRes, false)
+
+        const guestEndRes = await emailService.sendRideEndedEmail({
+            riderId: 'guest-rider',
+            riderEmail: null,
+            riderName: 'Guest Rider',
+            roomName: 'Guest Trail'
+        })
+        assert.strictEqual(guestEndRes, false)
     })
 })

@@ -5,6 +5,7 @@ const prisma = require('../db')
 const { AccessToken, RoomServiceClient } = require('livekit-server-sdk')
 const diagnosticService = require('../services/diagnosticService')
 const emailService = require('../services/emailService')
+const cacheService = require('../services/cacheService')
 
 let cachedHttpUrl = null
 function getLiveKitHttpUrl() {
@@ -17,15 +18,17 @@ function getLiveKitHttpUrl() {
 }
 
 async function resolveRiderDisplayName(uid, fallback = 'Rider') {
-    try {
-        const u = await prisma.user.findUnique({
-            where: { id: uid },
-            select: { displayName: true, handle: true }
-        })
-        return u?.displayName || (u?.handle ? `@${u.handle}` : null) || fallback
-    } catch {
-        return fallback
-    }
+    return cacheService.wrap(`user_name:${uid}`, 60000, async () => {
+        try {
+            const u = await prisma.user.findUnique({
+                where: { id: uid },
+                select: { displayName: true, handle: true }
+            })
+            return u?.displayName || (u?.handle ? `@${u.handle}` : null) || fallback
+        } catch {
+            return fallback
+        }
+    })
 }
 
 router.post('/create', async (req, res, next) => {
@@ -99,6 +102,15 @@ router.get('/:roomName/status', async (req, res, next) => {
     const requesterId = req.user.uid
 
     try {
+        const cacheKey = `lobby_status:${roomName}`
+        const cached = cacheService.get(cacheKey)
+        if (cached) {
+            if (cached.ownerId !== requesterId) {
+                return res.status(403).json({ error: 'Only the host can view lobby status' })
+            }
+            return res.json(cached.summary)
+        }
+
         const room = await prisma.room.findUnique({
             where: { name: roomName },
             select: {
@@ -158,6 +170,7 @@ router.get('/:roomName/status', async (req, res, next) => {
             canStart: true,
         }
 
+        cacheService.set(cacheKey, { ownerId: room.ownerId, summary }, 1500)
         res.json(summary)
     } catch (error) {
         next(error)
@@ -182,6 +195,7 @@ router.post('/:roomName/start', async (req, res, next) => {
                 where: { id: room.id },
                 data: { startedAt: new Date() }
             })
+            cacheService.del(`lobby_status:${roomName}`)
         }
 
         const hostName = await resolveRiderDisplayName(user.uid, user.name || 'Host')
@@ -361,6 +375,7 @@ router.post('/join-via-token', async (req, res, next) => {
                 select: { id: true }
             })
         }
+        cacheService.del(`lobby_status:${room.name}`)
 
         const riderName = await resolveRiderDisplayName(user.uid, user.name || 'Rider')
 
@@ -410,6 +425,7 @@ router.delete('/:roomName/riders/:userId', async (req, res, next) => {
             where: { roomId: room.id, inviteeId: userId },
             data: { status: 'REMOVED' }
         })
+        cacheService.del(`lobby_status:${roomName}`)
 
         try {
             const httpUrl = getLiveKitHttpUrl()
@@ -486,6 +502,7 @@ router.post('/:roomName/end', async (req, res, next) => {
             hostName: req.user.name,
             closedAt: new Date()
         })
+        cacheService.del(`lobby_status:${roomName}`)
 
         res.json({ success: true, message: 'Convoy ended' })
     } catch (error) {

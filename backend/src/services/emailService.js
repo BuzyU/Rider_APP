@@ -89,6 +89,15 @@ class EmailService {
         }
     }
 
+    isGuestOrUnroutableEmail(email) {
+        if (!email || typeof email !== 'string') return true
+        const clean = email.trim().toLowerCase()
+        if (!clean.includes('@') || !clean.includes('.')) return true
+        if (clean.endsWith('@guest.ridervoice.local') || clean.endsWith('.local') || clean.endsWith('@ridervoice.local')) return true
+        if (clean.startsWith('guest_') && clean.endsWith('.local')) return true
+        return false
+    }
+
     getFromHeader() {
         const fromName = process.env.SMTP_FROM_NAME || 'RiderVoice Beta Squad'
         const fromUser = process.env.SMTP_USER || 'a07631356@gmail.com'
@@ -98,9 +107,11 @@ class EmailService {
 
     async resolveUser(userId, fallbackUser = null) {
         if (fallbackUser && fallbackUser.email && fallbackUser.email.includes('@')) {
+            const clean = fallbackUser.email.trim()
+            if (this.isGuestOrUnroutableEmail(clean)) return null
             return {
                 id: userId || fallbackUser.uid,
-                email: fallbackUser.email.trim(),
+                email: clean,
                 displayName: fallbackUser.name || fallbackUser.displayName || 'Rider',
                 handle: fallbackUser.handle || null,
                 bikeModel: fallbackUser.bikeModel || null
@@ -112,17 +123,22 @@ class EmailService {
                 where: { id: userId },
                 select: { id: true, email: true, displayName: true, handle: true, bikeModel: true }
             })
-            if (user && user.email) return user
+            if (user && user.email) {
+                if (this.isGuestOrUnroutableEmail(user.email)) return null
+                return user
+            }
             if (fallbackUser && fallbackUser.email) {
+                const clean = fallbackUser.email.trim()
+                if (this.isGuestOrUnroutableEmail(clean)) return null
                 return {
                     id: userId,
-                    email: fallbackUser.email.trim(),
+                    email: clean,
                     displayName: user?.displayName || fallbackUser.name || 'Rider',
                     handle: user?.handle || null,
                     bikeModel: user?.bikeModel || null
                 }
             }
-            return user
+            return null
         } catch (e) {
             return null
         }
@@ -624,6 +640,7 @@ class EmailService {
     }
 
     sendTesterWelcomeEmailSafe(params) {
+        if (!params || !params.email || this.isGuestOrUnroutableEmail(params.email)) return
         setImmediate(() => {
             this.sendTesterWelcomeEmail(params).catch(err => {
                 console.warn('[EmailService] Non-fatal TesterWelcome email notice:', err.message)
@@ -632,6 +649,7 @@ class EmailService {
     }
 
     sendRoomCreatedEmailSafe(params) {
+        if (params && params.hostEmail && this.isGuestOrUnroutableEmail(params.hostEmail)) return
         setImmediate(() => {
             this.sendRoomCreatedEmail(params).catch(err => {
                 console.warn('[EmailService] Non-fatal RoomCreated email notice:', err.message)
@@ -640,6 +658,7 @@ class EmailService {
     }
 
     sendRoomClosedEmailSafe(params) {
+        if (params && params.hostEmail && this.isGuestOrUnroutableEmail(params.hostEmail)) return
         setImmediate(() => {
             this.sendRoomClosedEmail(params).catch(err => {
                 console.warn('[EmailService] Non-fatal RoomClosed email notice:', err.message)
@@ -648,6 +667,7 @@ class EmailService {
     }
 
     sendUserJoinedEmailSafe(params) {
+        if (params && params.userEmail && this.isGuestOrUnroutableEmail(params.userEmail)) return
         setImmediate(() => {
             this.sendUserJoinedEmail(params).catch(err => {
                 console.warn('[EmailService] Non-fatal UserJoined email notice:', err.message)
@@ -664,6 +684,7 @@ class EmailService {
     }
 
     sendRideEndedEmailSafe(params) {
+        if (params && params.riderEmail && this.isGuestOrUnroutableEmail(params.riderEmail)) return
         setImmediate(() => {
             this.sendRideEndedEmail(params).catch(err => {
                 console.warn('[EmailService] Non-fatal RideEnded email notice:', err.message)

@@ -45,13 +45,26 @@ class AuthViewModel @Inject constructor(
             val existing = apiService.getMyProfile()
             if (existing.isSuccessful && existing.body()?.handle != null && customHandle == null) return
 
-            val autoHandle = if (!customHandle.isNullOrBlank()) customHandle else ("rider" + user.uid.takeLast(6))
-            apiService.upsertProfile(
+            val baseHandle = if (!customHandle.isNullOrBlank()) customHandle else ("rider" + user.uid.takeLast(6).lowercase())
+            val resolvedName = user.displayName?.takeIf { it.isNotBlank() }
+                ?: if (user.isAnonymous || user.email?.endsWith("@guest.ridervoice.local") == true) "Guest Rider"
+                else (user.email?.substringBefore("@") ?: "Rider")
+
+            val res = apiService.upsertProfile(
                 ProfileRequest(
-                    handle = autoHandle,
-                    displayName = user.displayName ?: user.email?.substringBefore("@") ?: "Rider"
+                    handle = baseHandle,
+                    displayName = resolvedName
                 )
             )
+            if (!res.isSuccessful && res.code() == 409 && customHandle == null) {
+                val fallbackHandle = "rider" + (100000..999999).random()
+                apiService.upsertProfile(
+                    ProfileRequest(
+                        handle = fallbackHandle,
+                        displayName = resolvedName
+                    )
+                )
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -66,12 +79,12 @@ class AuthViewModel @Inject constructor(
             _isLoading.value = true
             _errorMessage.value = null
 
-            val success = authRepository.signInAnonymously()
-            if (success) {
+            val error = authRepository.signInAnonymously()
+            if (error == null) {
                 ensureProfile()
                 _loginSuccess.value = true
             } else {
-                _errorMessage.value = "Guest sign-in failed. Check your network or Firebase setup."
+                _errorMessage.value = error
             }
 
             _isLoading.value = false

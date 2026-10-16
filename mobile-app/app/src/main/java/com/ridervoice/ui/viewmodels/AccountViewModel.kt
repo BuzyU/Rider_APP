@@ -83,7 +83,8 @@ class AccountViewModel @Inject constructor(
                     resolvedPhotoUrl = firebaseUser.photoUrl.toString()
                 }
 
-                if (firebaseUser.isAnonymous) {
+                val isGuest = firebaseUser.isAnonymous || firebaseUser.email?.endsWith("@guest.ridervoice.local") == true
+                if (isGuest) {
                     detectedProvider = "Guest"
                 }
             }
@@ -116,6 +117,14 @@ class AccountViewModel @Inject constructor(
 
             if (handle.isBlank() && firebaseUser != null) {
                 handle = "rider" + firebaseUser.uid.takeLast(6)
+            }
+
+            val isGuestUser = firebaseUser?.isAnonymous == true || firebaseUser?.email?.endsWith("@guest.ridervoice.local") == true
+            if (isGuestUser) {
+                email = "Guest Session (Unlinked)"
+                if (displayName.isBlank() || displayName.startsWith("guest_")) {
+                    displayName = "Guest Rider"
+                }
             }
 
             _uiState.value = AccountUiState(

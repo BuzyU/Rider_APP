@@ -1,6 +1,7 @@
 const express = require("express");
 const { AccessToken } = require("livekit-server-sdk");
 const prisma = require("../db");
+const cacheService = require("../services/cacheService");
 
 const router = express.Router();
 
@@ -42,19 +43,17 @@ router.post("/room/token", async (req, res) => {
         .json({ error: "No accepted invite found for this room" });
     }
 
-    let participantName = user.name || "Rider";
-    try {
-      const dbUser = await prisma.user.findUnique({
-        where: { id: user.uid },
-        select: { displayName: true, handle: true },
-      });
-      if (dbUser?.displayName) {
-        participantName = dbUser.displayName;
-      } else if (dbUser?.handle) {
-        participantName = `@${dbUser.handle}`;
+    const participantName = await cacheService.wrap(`user_name:${user.uid}`, 60000, async () => {
+      try {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.uid },
+          select: { displayName: true, handle: true },
+        });
+        return dbUser?.displayName || (dbUser?.handle ? `@${dbUser.handle}` : null) || user.name || "Rider";
+      } catch (e) {
+        return user.name || "Rider";
       }
-    } catch (e) {
-    }
+    });
 
     const at = new AccessToken(
       process.env.LIVEKIT_API_KEY,

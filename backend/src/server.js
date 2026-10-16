@@ -21,6 +21,12 @@ const testerRoutes = require('./routes/testerRoutes')
 const app = express()
 app.set('trust proxy', 1)
 
+app.use((req, res, next) => {
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('Keep-Alive', 'timeout=65')
+    next()
+})
+
 app.use(cors())
 app.use(requestLogger)
 app.use(rateLimiter)
@@ -191,8 +197,11 @@ async function ensureDbExtensions() {
 }
 
 const PORT = process.env.PORT || 3000
+const keepAliveService = require('./services/keepAliveService')
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
+    keepAliveService.start()
     ensureDbExtensions().then(() => {
         console.log('[DB] Database schema verified and initialized.')
         const idleInterval = setInterval(() => {

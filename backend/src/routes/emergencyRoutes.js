@@ -5,6 +5,24 @@ const notificationService = require('../services/notificationService')
 
 const alertTimestamps = new Map()
 
+function sweepAlertTimestamps() {
+    const cutoff = Date.now() - 60000
+    for (const [userId, history] of alertTimestamps.entries()) {
+        let firstValid = 0
+        while (firstValid < history.length && history[firstValid] <= cutoff) {
+            firstValid++
+        }
+        if (firstValid >= history.length) {
+            alertTimestamps.delete(userId)
+        } else if (firstValid > 0) {
+            alertTimestamps.set(userId, history.slice(firstValid))
+        }
+    }
+}
+
+const alertSweepInterval = setInterval(sweepAlertTimestamps, 2 * 60 * 1000)
+if (alertSweepInterval.unref) alertSweepInterval.unref()
+
 const emergencyRateLimiter = (req, res, next) => {
     const userId = req.user?.uid || req.ip
     const now = Date.now()

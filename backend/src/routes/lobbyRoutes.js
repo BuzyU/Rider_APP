@@ -534,6 +534,8 @@ router.post('/:roomName/transfer-host', async (req, res, next) => {
             select: { id: true }
         })
 
+        cacheService.del(`lobby_status:${roomName}`)
+
         res.json({ success: true, newHostId })
     } catch (error) {
         next(error)
@@ -570,6 +572,8 @@ async function updateDiagnosticsHandler(req, res, next) {
             data: { diagnosticsEnabled: Boolean(diagnosticsEnabled) },
             select: { diagnosticsEnabled: true }
         })
+
+        cacheService.del(`lobby_status:${roomName}`)
 
         res.json({ success: true, diagnosticsEnabled: updated.diagnosticsEnabled })
     } catch (error) {

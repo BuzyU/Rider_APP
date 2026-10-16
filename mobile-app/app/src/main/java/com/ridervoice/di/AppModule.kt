@@ -30,6 +30,10 @@ object AppModule {
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         val builder = OkHttpClient.Builder()
+            .connectTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
 
         if (com.ridervoice.BuildConfig.DEBUG) {
             builder.addInterceptor(HttpLoggingInterceptor().apply {

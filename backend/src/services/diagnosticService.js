@@ -12,13 +12,27 @@ function createMailer() {
             }
         }
     }
+    const host = process.env.SMTP_HOST || 'smtp.gmail.com'
+    const port = parseInt(process.env.SMTP_PORT || '465', 10)
+    const user = process.env.SMTP_USER || 'a07631356@gmail.com'
+    const pass = (process.env.SMTP_PASS || 'orvr bsie eyks kbyb').replace(/\s+/g, '')
     return nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587', 10),
-        secure: process.env.SMTP_PORT === '465',
+        host,
+        port,
+        secure: port === 465,
         auth: {
-            user: process.env.SMTP_USER,
-            pass: (process.env.SMTP_PASS || '').replace(/\s+/g, '')
+            user,
+            pass
+        },
+        pool: true,
+        maxConnections: 3,
+        idleTimeout: 30000,
+        connectionTimeout: 10000,
+        greetingTimeout: 7500,
+        socketTimeout: 15000,
+        tls: {
+            rejectUnauthorized: true,
+            minVersion: 'TLSv1.2'
         }
     })
 }

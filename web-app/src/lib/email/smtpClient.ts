@@ -39,8 +39,12 @@ export async function sendSmtpMail(options: SendMailOptions): Promise<SendMailRe
       user,
       pass,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 7500,
+    socketTimeout: 15000,
     tls: {
       rejectUnauthorized: true,
+      minVersion: 'TLSv1.2',
     },
   });
 

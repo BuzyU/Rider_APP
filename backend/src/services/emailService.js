@@ -59,9 +59,34 @@ class EmailService {
             auth: {
                 user,
                 pass
+            },
+            pool: true,
+            maxConnections: 3,
+            maxMessages: 100,
+            idleTimeout: 30000,
+            connectionTimeout: 10000,
+            greetingTimeout: 7500,
+            socketTimeout: 15000,
+            tls: {
+                rejectUnauthorized: true,
+                minVersion: 'TLSv1.2'
             }
         })
         return this.transporter
+    }
+
+    async sendMailWithRetry(mailOptions) {
+        let transporter = this.getTransporter()
+        try {
+            return await transporter.sendMail(mailOptions)
+        } catch (error) {
+            if (process.env.NODE_ENV !== 'test') {
+                this.transporter = null
+                transporter = this.getTransporter()
+                return await transporter.sendMail(mailOptions)
+            }
+            throw error
+        }
     }
 
     getFromHeader() {
@@ -317,8 +342,7 @@ class EmailService {
                 noteBox: `Have questions or a riding club? Reply directly to this email to coordinate group test rides.`
             })
 
-            const transporter = this.getTransporter()
-            const result = await transporter.sendMail({
+            const result = await this.sendMailWithRetry({
                 from: this.getFromHeader(),
                 to: email.trim(),
                 subject,
@@ -329,6 +353,7 @@ class EmailService {
             console.log(`[EmailService] Tester Welcome email dispatched to ${email} (MsgID: ${result.messageId})`)
             return true
         } catch (error) {
+            this.transporter = null
             console.error('[EmailService] Error in sendTesterWelcomeEmail:', error.message)
             return false
         }
@@ -367,8 +392,7 @@ class EmailService {
                 noteBox: `A good host keeps the pack tight and the lines clear. Lead the way!`
             })
 
-            const transporter = this.getTransporter()
-            const result = await transporter.sendMail({
+            const result = await this.sendMailWithRetry({
                 from: this.getFromHeader(),
                 to: host.email,
                 subject,
@@ -379,6 +403,7 @@ class EmailService {
             console.log(`[EmailService] Room Created email dispatched to ${host.email} (MsgID: ${result.messageId})`)
             return true
         } catch (error) {
+            this.transporter = null
             console.error('[EmailService] Error in sendRoomCreatedEmail:', error.message)
             return false
         }
@@ -415,8 +440,7 @@ class EmailService {
                 noteBox: `Bikes parked, engines cooling. Great run out there today.`
             })
 
-            const transporter = this.getTransporter()
-            const result = await transporter.sendMail({
+            const result = await this.sendMailWithRetry({
                 from: this.getFromHeader(),
                 to: host.email,
                 subject,
@@ -427,6 +451,7 @@ class EmailService {
             console.log(`[EmailService] Room Closed email dispatched to ${host.email} (MsgID: ${result.messageId})`)
             return true
         } catch (error) {
+            this.transporter = null
             console.error('[EmailService] Error in sendRoomClosedEmail:', error.message)
             return false
         }
@@ -470,8 +495,7 @@ class EmailService {
                 noteBox: `Never ride faster than your guardian angel can fly. Stay connected.`
             })
 
-            const transporter = this.getTransporter()
-            const result = await transporter.sendMail({
+            const result = await this.sendMailWithRetry({
                 from: this.getFromHeader(),
                 to: rider.email,
                 subject,
@@ -482,6 +506,7 @@ class EmailService {
             console.log(`[EmailService] User Joined email dispatched to ${rider.email} (MsgID: ${result.messageId})`)
             return true
         } catch (error) {
+            this.transporter = null
             console.error('[EmailService] Error in sendUserJoinedEmail:', error.message)
             return false
         }
@@ -524,8 +549,7 @@ class EmailService {
                 noteBox: `Good friends ride together. Great friends never drop a comms link.`
             })
 
-            const transporter = this.getTransporter()
-            const result = await transporter.sendMail({
+            const result = await this.sendMailWithRetry({
                 from: this.getFromHeader(),
                 to: invitee.email,
                 subject,
@@ -536,6 +560,7 @@ class EmailService {
             console.log(`[EmailService] Ride Invite email dispatched to ${invitee.email} (MsgID: ${result.messageId})`)
             return true
         } catch (error) {
+            this.transporter = null
             console.error('[EmailService] Error in sendRideInviteEmail:', error.message)
             return false
         }
@@ -581,8 +606,7 @@ class EmailService {
                 noteBox: `It is not about the destination; it is about the squad you ride with.`
             })
 
-            const transporter = this.getTransporter()
-            const result = await transporter.sendMail({
+            const result = await this.sendMailWithRetry({
                 from: this.getFromHeader(),
                 to: rider.email,
                 subject,
@@ -593,6 +617,7 @@ class EmailService {
             console.log(`[EmailService] Post-Ride Recap email dispatched to ${rider.email} (MsgID: ${result.messageId})`)
             return true
         } catch (error) {
+            this.transporter = null
             console.error('[EmailService] Error in sendRideEndedEmail:', error.message)
             return false
         }

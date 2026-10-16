@@ -37,18 +37,25 @@ router.post('/create', async (req, res, next) => {
     }
 
     try {
+        let finalConvoyName = String(convoyName).trim()
         const existing = await prisma.room.findUnique({
-            where: { name: convoyName },
+            where: { name: finalConvoyName },
             select: { id: true }
         })
         if (existing) {
-            return res.status(409).json({ error: 'A convoy with that name already exists' })
+            let suffix = 2
+            let candidate = `${finalConvoyName}-${suffix}`
+            while (await prisma.room.findUnique({ where: { name: candidate }, select: { id: true } })) {
+                suffix++
+                candidate = `${finalConvoyName}-${suffix}`
+            }
+            finalConvoyName = candidate
         }
 
         const diagBool = diagnosticsEnabled === true
         const room = await prisma.room.create({
             data: {
-                name: convoyName,
+                name: finalConvoyName,
                 ownerId: hostId,
                 diagnosticsEnabled: diagBool
             },

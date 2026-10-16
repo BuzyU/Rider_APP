@@ -102,9 +102,7 @@ router.post('/respond', async (req, res, next) => {
                 room: {
                     select: {
                         name: true,
-                        owner: {
-                            select: { displayName: true, handle: true }
-                        }
+                        ownerId: true
                     }
                 }
             }
@@ -122,14 +120,26 @@ router.post('/respond', async (req, res, next) => {
         })
 
         if (response === 'ACCEPTED') {
-            const riderName = req.user.name || (req.user.email ? req.user.email.split('@')[0] : 'A rider')
-            notificationService.sendInviteAccepted(
-                riderName,
-                invite.inviterId,
-                invite.room?.name
-            ).catch(err => console.error('[Notification] sendInviteAccepted error:', err.message))
+            let hostName = null
+            if (invite.room?.ownerId) {
+                try {
+                    const hostUser = await prisma.user.findUnique({
+                        where: { id: invite.room.ownerId },
+                        select: { displayName: true, handle: true }
+                    })
+                    hostName = hostUser?.displayName || (hostUser?.handle ? `@${hostUser.handle}` : null)
+                } catch {}
+            }
 
-            const hostName = invite.room?.owner?.displayName || (invite.room?.owner?.handle ? `@${invite.room.owner.handle}` : null)
+            const riderName = req.user.name || (req.user.email ? req.user.email.split('@')[0] : 'A rider')
+            try {
+                notificationService.sendInviteAccepted(
+                    riderName,
+                    invite.inviterId,
+                    invite.room?.name
+                ).catch(err => console.error('[Notification] sendInviteAccepted error:', err.message))
+            } catch {}
+
             emailService.sendUserJoinedEmailSafe({
                 userId: inviteeId,
                 userEmail: req.user.email,

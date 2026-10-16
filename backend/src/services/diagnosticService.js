@@ -3,10 +3,6 @@ const prisma = require('../db')
 const { validateBatchPayload } = require('./diagnosticValidator')
 const ExcelJS = require('exceljs')
 
-/**
- * Creates nodemailer transporter. Uses SMTP credentials from env if available,
- * otherwise falls back to mock logger transport for safe development/testing.
- */
 function createMailer() {
     if (process.env.NODE_ENV === 'test' || !process.env.SMTP_HOST || process.env.SMTP_HOST === 'localhost') {
         return {
@@ -27,10 +23,6 @@ function createMailer() {
     })
 }
 
-/**
- * Verifies that the authenticated caller is a member of the convoy (owner or accepted invite).
- * Returns the Room record.
- */
 async function verifyConvoyMembership(convoyIdOrName, userId) {
     if (!convoyIdOrName) {
         const error = new Error('Missing convoyId in request')
@@ -73,10 +65,6 @@ async function verifyConvoyMembership(convoyIdOrName, userId) {
     return room
 }
 
-/**
- * Retrieves the rider's ID and handle strictly from the database.
- * Uses real handle when present; Rider_<uid> only as fallback.
- */
 async function getRiderIdentity(userId) {
     const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -93,17 +81,10 @@ async function getRiderIdentity(userId) {
     }
 }
 
-/**
- * Rider joins or starts an active DiagnosticRun for a convoy.
- * Allocates testNumber sequentially inside a transaction.
- * Concurrency-safe: simultaneous joins yield exactly ONE active run.
- * Re-joining clears any previous stoppedAt and lastSeq.
- */
 async function joinDiagnosticRun(convoyIdOrName, user) {
     const room = await verifyConvoyMembership(convoyIdOrName, user.uid)
     const { riderId, handle } = await getRiderIdentity(user.uid)
 
-    // 1. Find or create active run
     let activeRun = await prisma.diagnosticRun.findFirst({
         where: {
             convoyId: room.id,
@@ -129,7 +110,7 @@ async function joinDiagnosticRun(convoyIdOrName, user) {
                 }
             })
         } catch (err) {
-            // If a concurrent join raced and created the active run first
+            
             activeRun = await prisma.diagnosticRun.findFirst({
                 where: {
                     convoyId: room.id,
@@ -141,7 +122,6 @@ async function joinDiagnosticRun(convoyIdOrName, user) {
         }
     }
 
-    // 2. Re-joining clears stoppedAt and lastSeq
     const participant = await prisma.diagnosticParticipant.upsert({
         where: {
             runId_riderId: {
@@ -176,11 +156,6 @@ async function joinDiagnosticRun(convoyIdOrName, user) {
     }
 }
 
-/**
- * Checks whether a run is ready to close:
- * Every participant must have stopped (stoppedAt != null) and reported lastSeq,
- * and every batch from sequence 1..lastSeq must have been received for all participants.
- */
 async function isRunReadyToClose(runId) {
     const run = await prisma.diagnosticRun.findUnique({
         where: { id: runId },
@@ -215,7 +190,7 @@ async function isRunReadyToClose(runId) {
 
             for (let seq = 1; seq <= requiredLastSeq; seq++) {
                 if (!riderBatches.has(seq)) {
-                    // Sequence gap: in-flight batch still missing
+                    
                     return false
                 }
             }
@@ -225,12 +200,6 @@ async function isRunReadyToClose(runId) {
     return true
 }
 
-/**
- * Posts a batch of diagnostic metrics idempotently.
- * Enforces that caller is a registered DiagnosticParticipant of this run.
- * Validates payload schema against contract.
- * If run was already closed, stores the late batch for subsequent exports without re-emailing.
- */
 async function postDiagnosticBatch(runId, sequenceNumber, payload, user) {
     if (!runId || sequenceNumber === undefined || sequenceNumber === null || !payload) {
         const error = new Error('Missing runId, sequenceNumber, or payload')
@@ -238,12 +207,10 @@ async function postDiagnosticBatch(runId, sequenceNumber, payload, user) {
         throw error
     }
 
-    // Validate payload types, ranges, limits
     validateBatchPayload(payload)
 
     const { riderId } = await getRiderIdentity(user.uid)
 
-    // Authorization: Verify authenticated user is a registered participant in this run
     const participant = await prisma.diagnosticParticipant.findUnique({
         where: {
             runId_riderId: {
@@ -269,13 +236,11 @@ async function postDiagnosticBatch(runId, sequenceNumber, payload, user) {
         throw error
     }
 
-    // Update participant's last batch timestamp
     await prisma.diagnosticParticipant.update({
         where: { id: participant.id },
         data: { lastBatchAt: new Date() }
     })
 
-    // Upsert batch for idempotent deduplication
     const seqNum = parseInt(sequenceNumber, 10)
     const batch = await prisma.diagnosticBatch.upsert({
         where: {
@@ -297,7 +262,6 @@ async function postDiagnosticBatch(runId, sequenceNumber, payload, user) {
         }
     })
 
-    // If run is still ACTIVE, check if this batch completes all expected batches 1..lastSeq
     if (run.status === 'ACTIVE') {
         const ready = await isRunReadyToClose(runId)
         if (ready) {
@@ -312,15 +276,9 @@ async function postDiagnosticBatch(runId, sequenceNumber, payload, user) {
     }
 }
 
-/**
- * Rider stops diagnostic recording.
- * Requires lastSeq (integer).
- * Enforces that caller is a registered DiagnosticParticipant of this run.
- */
 async function stopDiagnosticRun(runId, lastSeq, user) {
     const { riderId } = await getRiderIdentity(user.uid)
 
-    // Authorization: Caller must be a registered participant
     const participant = await prisma.diagnosticParticipant.findUnique({
         where: {
             runId_riderId: {
@@ -346,7 +304,6 @@ async function stopDiagnosticRun(runId, lastSeq, user) {
         }
     })
 
-    // Check if run is ready to close (all participants stopped and 1..lastSeq received)
     const ready = await isRunReadyToClose(runId)
     let closed = false
     if (ready) {
@@ -359,13 +316,10 @@ async function stopDiagnosticRun(runId, lastSeq, user) {
     }
 }
 
-/**
- * Neutralizes CSV formula injection and escapes special characters.
- */
 function sanitizeCsvCell(val) {
     if (val === undefined || val === null) return ''
     let str = String(val)
-    // Neutralize formula injection (=, +, -, @, tab, CR)
+    
     if (/^[=+\-@\t\r]/.test(str)) {
         str = `'${str}`
     }
@@ -375,19 +329,12 @@ function sanitizeCsvCell(val) {
     return str
 }
 
-/**
- * Converts metric samples to CSV strings safely.
- */
 function buildCsv(headers, rows) {
     const headerLine = headers.join(',')
     const dataLines = rows.map(r => headers.map(h => sanitizeCsvCell(r[h])).join(','))
     return [headerLine, ...dataLines].join('\n')
 }
 
-/**
- * Sanitizes zip folder and file path segments.
- * Strips path separators, '..', control chars, trailing dots/spaces, and caps length at 50 chars.
- */
 function sanitizeZipSegment(name, fallback = 'item') {
     if (!name) return fallback
     let clean = name
@@ -400,9 +347,6 @@ function sanitizeZipSegment(name, fallback = 'item') {
     return clean || fallback
 }
 
-/**
- * Collects and prepares all files and summaries for a run in-memory.
- */
 async function buildRunExportData(runId) {
     const run = await prisma.diagnosticRun.findUnique({
         where: { id: runId },
@@ -421,13 +365,11 @@ async function buildRunExportData(runId) {
     const testFolder = `Test_${run.testNumber}`
     const rootPathInZip = `${convoyClean}/${testFolder}`
 
-    // Map of rider IDs to handles for server-side resolution
     const riderIdToHandle = new Map()
     for (const p of run.participants) {
         riderIdToHandle.set(p.riderId, p.handle)
     }
 
-    // Resolve any remaining remote rider IDs that may not be in participants
     const allBatches = run.batches || []
     const unknownRemoteIds = new Set()
     for (const b of allBatches) {
@@ -449,7 +391,6 @@ async function buildRunExportData(runId) {
         }
     }
 
-    // Group batches by riderId
     const batchesByRider = new Map()
     for (const batch of allBatches) {
         if (!batchesByRider.has(batch.riderId)) {
@@ -488,7 +429,7 @@ async function buildRunExportData(runId) {
             const p = b.payload || {}
             if (Array.isArray(p.selfMetrics)) {
                 for (const sm of p.selfMetrics) {
-                    // Ensure rtt_ms is explicitly null when missing, never 0
+                    
                     const rttMs = sm.rtt_ms !== undefined && sm.rtt_ms !== null && Number(sm.rtt_ms) > 0
                         ? Number(sm.rtt_ms)
                         : null
@@ -527,7 +468,7 @@ async function buildRunExportData(runId) {
             }
             if (Array.isArray(p.inboundMetrics)) {
                 for (const im of p.inboundMetrics) {
-                    // Resolve remote rider identity (uid) to handle, keep raw uid as extra column
+                    
                     const mappedHandle = riderIdToHandle.get(im.remote_rider) || im.remote_rider
                     inboundRows.push({
                         ...im,
@@ -693,9 +634,6 @@ ${participantSummaries.map(p => `| ${p.handle} | ${p.totalBatches} | ${p.lastSeq
     }
 }
 
-/**
- * Builds in-memory ZIP archive as a Buffer. Never persists to disk.
- */
 function buildZipBuffer(files) {
     return new Promise((resolve, reject) => {
         const archiverModule = require('archiver')
@@ -716,9 +654,6 @@ function buildZipBuffer(files) {
     })
 }
 
-/**
- * Neutralizes strings starting with =, +, -, @ to prevent Excel/CSV formula injection.
- */
 function neutralizeFormula(val) {
     if (val === null || val === undefined) return ''
     if (typeof val === 'string' && /^[=+\-@]/.test(val)) {
@@ -727,14 +662,6 @@ function neutralizeFormula(val) {
     return val
 }
 
-/**
- * Builds multi-sheet Excel (.xlsx) workbook Buffer distinguishing every rider and their telemetry.
- * Strictly adheres to:
- * 1. Has a 'Summary' sheet plus exactly one sheet per rider.
- * 2. Sheet names are valid (<=31 chars, none of []:*?/\), unique, with fallback 'Rider'.
- * 3. Timestamps are real date cells, numbers are numeric.
- * 4. Cells starting with = + - @ are neutralised.
- */
 async function buildExcelBuffer(exportData) {
     const { run, participantSummaries, riderSelfRows } = exportData
     const workbook = new ExcelJS.Workbook()
@@ -754,7 +681,6 @@ async function buildExcelBuffer(exportData) {
         return null
     }
 
-    // 1. Summary Sheet (named strictly 'Summary')
     const summarySheet = workbook.addWorksheet('Summary')
     summarySheet.columns = [
         { header: 'Property', key: 'property', width: 28 },
@@ -787,7 +713,6 @@ async function buildExcelBuffer(exportData) {
         ])
     }
 
-    // Helper for unique valid sheet names (<= 31 chars, none of []:*?/\, fallback 'Rider')
     const usedNames = new Set(['summary'])
     function sanitizeSheetName(rawName) {
         let clean = (rawName || '').replace(/[\[\]:*?/\\]/g, '').trim()
@@ -805,7 +730,6 @@ async function buildExcelBuffer(exportData) {
         return candidate
     }
 
-    // Exactly one sheet per rider
     for (const p of (participantSummaries || [])) {
         const sheetName = sanitizeSheetName(p.handle)
         const sheet = workbook.addWorksheet(sheetName)
@@ -848,21 +772,14 @@ async function buildExcelBuffer(exportData) {
     return Buffer.from(buffer)
 }
 
-/**
- * Closes and exports a DiagnosticRun idempotently.
- * Generates both multi-sheet Excel spreadsheet and ZIP archive in memory.
- * Uses conditional updateMany to claim emailedAt preventing double-sends,
- * and releases the claim if SMTP fails.
- */
 async function closeAndExportRun(runId, options = {}) {
-    // 1. Fetch current run state
+    
     const runState = await prisma.diagnosticRun.findUnique({
         where: { id: runId },
         include: { participants: true, batches: true, room: true }
     })
     if (!runState) return false
 
-    // Check participants status
     const allStopped = runState.participants.every(p => p.stoppedAt != null)
     const graceSeconds = parseInt(process.env.DIAG_CLOSE_GRACE_SECONDS || '90', 10)
 
@@ -874,7 +791,6 @@ async function closeAndExportRun(runId, options = {}) {
         }
     }
 
-    // If closing with missing riders, mark missing riders as incomplete
     for (const p of runState.participants) {
         if (!p.stoppedAt) {
             await prisma.diagnosticParticipant.update({
@@ -886,7 +802,6 @@ async function closeAndExportRun(runId, options = {}) {
         }
     }
 
-    // Atomic state transition: ACTIVE -> CLOSED
     const updateCount = await prisma.diagnosticRun.updateMany({
         where: {
             id: runId,
@@ -899,7 +814,7 @@ async function closeAndExportRun(runId, options = {}) {
     })
 
     if (updateCount.count === 0 && runState.status !== 'ACTIVE') {
-        // Already closed by another request
+        
         return false
     }
 
@@ -908,11 +823,9 @@ async function closeAndExportRun(runId, options = {}) {
 
     const { run, convoyClean, participantSummaries, runSummaryMd, files } = exportData
 
-    // Build ZIP in memory
     const zipBuffer = await buildZipBuffer(files)
     const fileSizeMb = (zipBuffer.length / (1024 * 1024)).toFixed(2)
 
-    // Save metadata summary in DB
     await prisma.diagnosticRun.update({
         where: { id: run.id },
         data: {
@@ -926,13 +839,11 @@ async function closeAndExportRun(runId, options = {}) {
         }
     })
 
-    // Don't email runs with zero batches
     if (run.batches.length === 0) {
         console.log(`[Diagnostic] Run ${run.id} has 0 batches. Skipping email dispatch.`)
         return true
     }
 
-    // 2. Email dispatch with pre-claim to prevent double-send
     const emailTo = process.env.DIAG_EMAIL_TO || 'code4changeteam@gmail.com'
     const isSmtpConfigured = (process.env.SMTP_HOST && process.env.SMTP_USER) || process.env.NODE_ENV === 'test' || options.mailer != null
 
@@ -942,7 +853,7 @@ async function closeAndExportRun(runId, options = {}) {
     }
 
     if (emailTo) {
-        // Atomically claim the right to email this run
+        
         const claimResult = await prisma.diagnosticRun.updateMany({
             where: {
                 id: run.id,
@@ -969,7 +880,6 @@ async function closeAndExportRun(runId, options = {}) {
                 attachments: []
             }
 
-            // Over-20MB threshold: send text summary only without attachment
             if (excelBuffer.length <= 20 * 1024 * 1024) {
                 mailOptions.attachments.push({
                     filename: excelFileName,
@@ -984,7 +894,7 @@ async function closeAndExportRun(runId, options = {}) {
                 await mailer.sendMail(mailOptions)
                 console.log(`[Diagnostic] Emailed Excel report to ${emailTo} (size: ${(excelBuffer.length / 1024).toFixed(1)} KB)`)
             } catch (emailErr) {
-                // On failure, release the claim so it can be retried
+                
                 await prisma.diagnosticRun.update({
                     where: { id: run.id },
                     data: { emailedAt: null }
@@ -997,13 +907,9 @@ async function closeAndExportRun(runId, options = {}) {
     return true
 }
 
-/**
- * Checks for idle runs and closes them automatically.
- * Evaluates max(lastBatchAt, joinedAt) per participant so non-uploading riders cannot hold a run open.
- */
 async function checkIdleDiagnosticRuns() {
     try {
-        const timeoutMs = parseInt(process.env.DIAG_IDLE_TIMEOUT_MS || '600000', 10) // 10 minutes default
+        const timeoutMs = parseInt(process.env.DIAG_IDLE_TIMEOUT_MS || '600000', 10) 
         const now = Date.now()
 
         const activeRuns = await prisma.diagnosticRun.findMany({
@@ -1018,7 +924,6 @@ async function checkIdleDiagnosticRuns() {
         for (const run of activeRuns) {
             if (run.participants.length === 0) continue
 
-            // Determine if all participants are idle past timeout threshold
             const allParticipantsIdle = run.participants.every(p => {
                 const lastActivity = p.lastBatchAt && p.lastBatchAt > p.joinedAt ? p.lastBatchAt : p.joinedAt
                 return (now - new Date(lastActivity).getTime()) > timeoutMs
@@ -1034,9 +939,6 @@ async function checkIdleDiagnosticRuns() {
     }
 }
 
-/**
- * Data retention job: deletes runs and batches older than DIAG_RETENTION_DAYS (default: 30 days).
- */
 async function cleanOldDiagnosticRuns() {
     try {
         const retentionDays = parseInt(process.env.DIAG_RETENTION_DAYS || '30', 10)

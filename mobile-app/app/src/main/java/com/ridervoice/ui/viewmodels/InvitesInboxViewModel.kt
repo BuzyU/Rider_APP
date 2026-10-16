@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.ridervoice.models.InviteRespondRequest
+import com.ridervoice.models.JoinTokenRequest
 import com.ridervoice.models.RideInvite
+import com.ridervoice.models.RideSession
 import com.ridervoice.network.ApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,24 +24,25 @@ class InvitesInboxViewModel @Inject constructor(
     val invites: StateFlow<List<RideInvite>> = _invites.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
-    val isLoading = _isLoading.asStateFlow()
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
-    val error = _error.asStateFlow()
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     fun loadInvites() {
         val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
             try {
                 val response = apiService.getPendingInvites(userId)
                 if (response.isSuccessful) {
                     _invites.value = response.body() ?: emptyList()
                 } else {
-                    _error.value = "Failed to load invites"
+                    _error.value = "Failed to load invites (${response.code()})"
                 }
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = e.localizedMessage ?: "Failed to load invites"
             } finally {
                 _isLoading.value = false
             }
@@ -57,26 +60,31 @@ class InvitesInboxViewModel @Inject constructor(
                 if (response.isSuccessful) {
                     _invites.value = _invites.value.filter { it.id != invite.id }
                     if (accept) {
-
-                        val tokenReq = com.ridervoice.models.JoinTokenRequest(invite.room.name)
+                        val tokenReq = JoinTokenRequest(invite.room.name)
                         val tokenRes = apiService.getJoinToken(tokenReq)
                         if (tokenRes.isSuccessful && tokenRes.body() != null) {
                             val body = tokenRes.body()!!
-                            com.ridervoice.models.RideSession.livekitToken = body.token
-                            com.ridervoice.models.RideSession.livekitUrl = body.livekitUrl
-                            com.ridervoice.models.RideSession.activeRoomName = invite.room.name
-                            com.ridervoice.models.RideSession.isHost = false
+                            RideSession.livekitToken = body.token
+                            RideSession.livekitUrl = body.livekitUrl
+                            RideSession.activeRoomName = invite.room.name
+                            RideSession.diagnosticsEnabled = body.diagnosticsEnabled
+                            RideSession.testNumber = body.testNumber
+                            RideSession.isHost = false
                             onAcceptSuccess(invite.room.name)
                         } else {
                             _error.value = "Failed to get join token"
                         }
                     }
                 } else {
-                    _error.value = "Failed to respond to invite"
+                    _error.value = "Failed to respond to invite (${response.code()})"
                 }
             } catch (e: Exception) {
-                _error.value = e.message
+                _error.value = e.localizedMessage ?: "Failed to respond to invite"
             }
         }
+    }
+
+    fun clearError() {
+        _error.value = null
     }
 }

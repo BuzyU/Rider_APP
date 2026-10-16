@@ -16,6 +16,7 @@ const roomRoutes = require('./routes/roomRoutes')
 const lobbyRoutes = require('./routes/lobbyRoutes')
 const emergencyRoutes = require('./routes/emergencyRoutes')
 const diagnosticRoutes = require('./routes/diagnosticRoutes')
+const testerRoutes = require('./routes/testerRoutes')
 
 const app = express()
 app.set('trust proxy', 1)
@@ -24,7 +25,6 @@ app.use(cors())
 app.use(requestLogger)
 app.use(rateLimiter)
 
-// Mount diagnostics routes before global express.json so route-level 5MB batch parser is not preempted
 app.use('/api/diagnostics', diagnosticRoutes)
 
 app.use(express.json({ limit: '10mb' }))
@@ -32,6 +32,9 @@ app.use(express.json({ limit: '10mb' }))
 app.use('/api/health', healthRoute)
 app.use('/health', healthRoute)
 app.use('/', healthRoute)
+
+app.use('/api/tester-application', testerRoutes)
+app.use('/api/testers', testerRoutes)
 
 app.use('/api/rooms', authMiddleware, roomRoutes)
 app.use('/api/users', authMiddleware, profileRoutes)
@@ -47,20 +50,41 @@ const prisma = require('./db')
 const diagnosticService = require('./services/diagnosticService')
 
 async function ensureDbExtensions() {
-    // Run DDL queries individually with IF NOT EXISTS to guarantee schema parity through poolers
     const fallbackStatements = [
-        // Enum values
         `ALTER TYPE "InviteStatus" ADD VALUE IF NOT EXISTS 'REMOVED'`,
-
-        // Room columns
         `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "diagnosticsEnabled" BOOLEAN NOT NULL DEFAULT false`,
         `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "startedAt" TIMESTAMP(3)`,
-
-        // RideSession columns
         `ALTER TABLE "RideSession" ADD COLUMN IF NOT EXISTS "roomName" TEXT`,
         `ALTER TABLE "RideSession" ADD COLUMN IF NOT EXISTS "diagnosticsEnabled" BOOLEAN NOT NULL DEFAULT false`,
 
-        // RoomJoinToken table
+        `CREATE TABLE IF NOT EXISTS "waitlist" (
+            "id" TEXT NOT NULL,
+            "email" TEXT NOT NULL,
+            "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT "waitlist_pkey" PRIMARY KEY ("id")
+        )`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS "waitlist_email_key" ON "waitlist"("email")`,
+        `CREATE INDEX IF NOT EXISTS "waitlist_email_idx" ON "waitlist"("email")`,
+
+        `CREATE TABLE IF NOT EXISTS "tester_applications" (
+            "id" TEXT NOT NULL,
+            "name" TEXT NOT NULL,
+            "email" TEXT NOT NULL,
+            "phone" TEXT,
+            "device_model" TEXT,
+            "motorcycle_model" TEXT,
+            "experience_notes" TEXT,
+            "apk_version" TEXT DEFAULT 'v0.0.3.8',
+            "status" TEXT NOT NULL DEFAULT 'PENDING',
+            "download_count" INTEGER DEFAULT 1,
+            "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT "tester_applications_pkey" PRIMARY KEY ("id")
+        )`,
+        `CREATE INDEX IF NOT EXISTS "tester_applications_email_idx" ON "tester_applications"("email")`,
+        `CREATE INDEX IF NOT EXISTS "tester_applications_status_idx" ON "tester_applications"("status")`,
+        `CREATE INDEX IF NOT EXISTS "tester_applications_created_at_idx" ON "tester_applications"("created_at" DESC)`,
+
         `CREATE TABLE IF NOT EXISTS "RoomJoinToken" (
             "id" TEXT NOT NULL,
             "token" TEXT NOT NULL,
@@ -80,7 +104,6 @@ async function ensureDbExtensions() {
             END IF;
         END $$;`,
 
-        // DiagnosticRun table
         `CREATE TABLE IF NOT EXISTS "DiagnosticRun" (
             "id" TEXT NOT NULL,
             "convoyId" TEXT NOT NULL,
@@ -95,7 +118,6 @@ async function ensureDbExtensions() {
         `CREATE UNIQUE INDEX IF NOT EXISTS "DiagnosticRun_convoyId_testNumber_key" ON "DiagnosticRun"("convoyId", "testNumber")`,
         `CREATE INDEX IF NOT EXISTS "DiagnosticRun_convoyId_status_idx" ON "DiagnosticRun"("convoyId", "status")`,
 
-        // DiagnosticParticipant table
         `CREATE TABLE IF NOT EXISTS "DiagnosticParticipant" (
             "id" TEXT NOT NULL,
             "runId" TEXT NOT NULL,
@@ -111,7 +133,6 @@ async function ensureDbExtensions() {
         `CREATE INDEX IF NOT EXISTS "DiagnosticParticipant_runId_idx" ON "DiagnosticParticipant"("runId")`,
         `CREATE INDEX IF NOT EXISTS "DiagnosticParticipant_riderId_idx" ON "DiagnosticParticipant"("riderId")`,
 
-        // DiagnosticBatch table
         `CREATE TABLE IF NOT EXISTS "DiagnosticBatch" (
             "id" TEXT NOT NULL,
             "runId" TEXT NOT NULL,
@@ -124,7 +145,6 @@ async function ensureDbExtensions() {
         `CREATE UNIQUE INDEX IF NOT EXISTS "DiagnosticBatch_runId_riderId_sequenceNumber_key" ON "DiagnosticBatch"("runId", "riderId", "sequenceNumber")`,
         `CREATE INDEX IF NOT EXISTS "DiagnosticBatch_runId_riderId_idx" ON "DiagnosticBatch"("runId", "riderId")`,
 
-        // Diagnostic Foreign Keys
         `DO $$
         BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'DiagnosticRun_convoyId_fkey') THEN
@@ -146,13 +166,14 @@ async function ensureDbExtensions() {
             END IF;
         END $$;`,
 
-        // Performance Indices
         `CREATE INDEX IF NOT EXISTS "DeviceToken_userId_idx" ON "DeviceToken"("userId")`,
         `CREATE INDEX IF NOT EXISTS "Friendship_requesterId_status_idx" ON "Friendship"("requesterId", "status")`,
         `CREATE INDEX IF NOT EXISTS "Friendship_addresseeId_status_idx" ON "Friendship"("addresseeId", "status")`,
         `CREATE INDEX IF NOT EXISTS "RideInvite_roomId_status_idx" ON "RideInvite"("roomId", "status")`,
         `CREATE INDEX IF NOT EXISTS "RideInvite_inviteeId_status_idx" ON "RideInvite"("inviteeId", "status")`,
         `CREATE INDEX IF NOT EXISTS "RideInvite_inviterId_status_idx" ON "RideInvite"("inviterId", "status")`,
+        `CREATE INDEX IF NOT EXISTS "RideInvite_roomId_inviteeId_status_idx" ON "RideInvite"("roomId", "inviteeId", "status")`,
+        `CREATE INDEX IF NOT EXISTS "RoomJoinToken_expiresAt_idx" ON "RoomJoinToken"("expiresAt")`,
         `CREATE INDEX IF NOT EXISTS "RideSession_riderId_startTime_idx" ON "RideSession"("riderId", "startTime" DESC)`,
         `CREATE INDEX IF NOT EXISTS "ConvoyEvent_rideId_idx" ON "ConvoyEvent"("rideId")`,
         `CREATE INDEX IF NOT EXISTS "EmergencyAlert_roomName_senderId_idx" ON "EmergencyAlert"("roomName", "senderId")`,

@@ -93,31 +93,27 @@ class RoomViewModel @Inject constructor(
 
     init {
         liveKitManager.participants
-            .onEach { activeIdentities ->
+            .onEach { incoming ->
                 val now = System.currentTimeMillis()
-                val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                val incomingIds = incoming.map { it.identity }.toSet()
                 val current = _participants.value.toMutableList()
 
                 current.forEachIndexed { idx, p ->
-                    if (!activeIdentities.contains(p.identity) && !p.isGhost) {
+                    if (!incomingIds.contains(p.identity) && !p.isGhost) {
                         current[idx] = p.copy(isGhost = true, disconnectedAt = now)
                     }
                 }
 
-                activeIdentities.forEach { identity ->
-                    val idx = current.indexOfFirst { it.identity == identity }
-                    val name = if (identity == currentUid) {
-                        currentUserName.ifBlank { "You" }
-                    } else null
-
+                incoming.forEach { incomingParticipant ->
+                    val idx = current.indexOfFirst { it.identity == incomingParticipant.identity }
                     if (idx >= 0) {
                         current[idx] = current[idx].copy(
                             isGhost = false,
                             disconnectedAt = null,
-                            displayName = name ?: current[idx].displayName
+                            displayName = incomingParticipant.displayName ?: current[idx].displayName
                         )
                     } else {
-                        current.add(Participant(identity = identity, displayName = name))
+                        current.add(incomingParticipant)
                     }
                 }
                 _participants.value = current
@@ -208,7 +204,6 @@ class RoomViewModel @Inject constructor(
                     }
                 }
                 
-                // Security check: Token must decode to the matching convoy room
                 val isTokenValid = com.ridervoice.utils.JwtRoomClaimDecoder.validateRoom(effectiveToken, roomName)
                 val sessionRoom = com.ridervoice.models.RideSession.activeRoomName
                 val isSessionMatch = sessionRoom == null || sessionRoom == roomName
@@ -238,7 +233,6 @@ class RoomViewModel @Inject constructor(
         liveKitManager.setDeafened(deafened)
     }
 
-    /** Applied on join only (not live-updated while a ride is active). */
     private fun applyAudioSettings() {
         val sensitivity = when (securePrefs.getString("settings_vox_sensitivity", "Medium")) {
             "Low" -> 0.2f
@@ -246,10 +240,8 @@ class RoomViewModel @Inject constructor(
             else -> 0.5f
         }
         voxEngine.setSensitivity(sensitivity)
-        // "Open mic" is the existing VOX on/off setting; defaults to enabled.
         voxEngine.setVoxEnabled(securePrefs.getBoolean("settings_open_mic", true))
         liveKitManager.noiseSuppressionEnabled = securePrefs.getBoolean("settings_noise_cancellation", true)
-        // Headset / PTT settings (UX-1: migrated from raw headset_prefs to SecurePreferences)
         val hardwarePttEnabled = securePrefs.getBoolean("settings_hardware_ptt", true)
         val hybridVoxEnabled = securePrefs.getBoolean("settings_hybrid_vox", true)
         voxEngine.setHardwarePttEnabled(hardwarePttEnabled)

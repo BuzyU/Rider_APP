@@ -42,10 +42,6 @@ data class RoutedDeviceInfo(
     fun display(): String = if (productName.isNotBlank()) "$productName ($typeName)" else typeName
 }
 
-/**
- * Single owner of audio mode, communication device / SCO, speakerphone and audio focus.
- * Uses AudioRouteDecisionEngine to ensure devices become ACTIVE only when confirmed by the hardware.
- */
 @Singleton
 class AudioDeviceRouter(
     private val context: Context?,
@@ -245,7 +241,6 @@ class AudioDeviceRouter(
 
         gateway.registerAudioDeviceCallback(deviceCallback, Handler(Looper.getMainLooper()))
 
-        // API 31+: Register OnCommunicationDeviceChangedListener to receive actual hardware routing confirmations
         val executor = if (context != null) ContextCompat.getMainExecutor(context) else Executor { runnable -> runnable.run() }
         gateway.registerCommunicationDeviceListener(executor) { desc ->
             onCommunicationDeviceChanged(desc)
@@ -366,9 +361,10 @@ class AudioDeviceRouter(
         }
 
         val speakerDesc = availableDevices.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
-        val speakerCandidate = CandidateDevice.Speaker(speakerDesc?.id ?: 999, "Speaker")
 
         if (manualOverrideRoute == "SPEAKER") {
+            gateway.stopBluetoothSco()
+            gateway.isBluetoothScoOn = false
             gateway.clearCommunicationDevice()
             gateway.isSpeakerphoneOn = true
             if (speakerDesc != null) {
@@ -378,6 +374,7 @@ class AudioDeviceRouter(
             _requestedDevice.value = AudioDevice.Speakerphone
             _routedOutput.value = RoutedDeviceInfo(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, "Speakerphone", "Loudspeaker")
             _routerState.value = RouterState.ACTIVE
+            _republishRequests.tryEmit(Unit)
             return
         }
 
@@ -416,6 +413,7 @@ class AudioDeviceRouter(
                 _routerState.value = RouterState.CONNECTING_BT
 
                 Log.d(TAG, "Requesting communicationDevice: ${desc.productName} (id=${desc.id}, type=${desc.type})")
+                gateway.isSpeakerphoneOn = false
                 val requestAccepted = gateway.setCommunicationDevice(desc)
 
                 if (!requestAccepted) {
@@ -424,10 +422,7 @@ class AudioDeviceRouter(
                     return
                 }
 
-                // Launch 500ms, 1500ms, 3000ms logging as required by B7
                 startVerificationLogging(desc)
-
-                // Check if already matching
                 val currentComm = gateway.getCommunicationDevice()
                 if (currentComm?.id == desc.id) {
                     Log.d(TAG, "Communication device matched immediately: id=${desc.id}")
@@ -500,9 +495,6 @@ class AudioDeviceRouter(
         _routerState.value = RouterState.ACTIVE
     }
 
-    /**
-     * Called when framework OnCommunicationDeviceChangedListener fires.
-     */
     fun onCommunicationDeviceChanged(device: AudioDeviceDescriptor?) {
         Log.d(TAG, "Communication device changed event: ${device?.productName} (id=${device?.id}, type=${device?.type})")
         if (device != null) {
@@ -518,10 +510,6 @@ class AudioDeviceRouter(
         }
     }
 
-    /**
-     * B7: Logging (tag AudioDeviceRouter): requested device, communicationDevice
-     * after 500 ms / 1500 ms / 3000 ms, AudioRecord.routedDevice type and AudioTrack routedDevice type.
-     */
     private fun startVerificationLogging(requested: AudioDeviceDescriptor) {
         verificationLoggingJob?.cancel()
         verificationLoggingJob = scope.launch {
@@ -668,8 +656,6 @@ class AudioDeviceRouter(
         }
     }
 }
-
-// ── Data types ────────────────────────────────────────────────────────────────
 
 sealed class AudioDevice {
     data class BluetoothSco(val deviceName: String) : AudioDevice()

@@ -57,6 +57,17 @@ class NotificationService {
         })
     }
 
+    async sendInviteAccepted(riderName, inviterId, roomName) {
+        await this.sendToUser(inviterId, {
+            data: {
+                type: 'INVITE_ACCEPTED',
+                riderName: String(riderName),
+                roomName: String(roomName),
+                channelId: 'CHANNEL_CONVOY'
+            }
+        })
+    }
+
     async sendEmergencyAlert(userIds, alertType, lat, lng, senderId = '', senderName = '', roomName = '') {
         const payload = {
             data: {

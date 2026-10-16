@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 const prisma = require('../db')
 const notificationService = require('../services/notificationService')
+const emailService = require('../services/emailService')
 
 router.post('/invite', async (req, res, next) => {
     const inviterId = req.user.uid
@@ -69,6 +70,13 @@ router.post('/invite', async (req, res, next) => {
             ).catch(err => console.error('[Notification] sendRideInvite non-fatal error:', err.message))
         }
 
+        emailService.sendRideInviteEmailSafe({
+            inviterId,
+            inviteeId,
+            roomName: room.name,
+            roomId: room.id
+        })
+
         res.status(201).json(invite)
     } catch (error) {
         next(error)
@@ -86,7 +94,20 @@ router.post('/respond', async (req, res, next) => {
     try {
         const invite = await prisma.rideInvite.findUnique({
             where: { id: inviteId },
-            select: { id: true, inviteeId: true, status: true }
+            select: {
+                id: true,
+                inviteeId: true,
+                inviterId: true,
+                status: true,
+                room: {
+                    select: {
+                        name: true,
+                        owner: {
+                            select: { displayName: true, handle: true }
+                        }
+                    }
+                }
+            }
         })
         if (!invite || invite.inviteeId !== inviteeId) {
             return res.status(403).json({ error: 'Not your invite' })
@@ -99,6 +120,26 @@ router.post('/respond', async (req, res, next) => {
             where: { id: inviteId },
             data: { status: response }
         })
+
+        if (response === 'ACCEPTED') {
+            const riderName = req.user.name || (req.user.email ? req.user.email.split('@')[0] : 'A rider')
+            notificationService.sendInviteAccepted(
+                riderName,
+                invite.inviterId,
+                invite.room?.name
+            ).catch(err => console.error('[Notification] sendInviteAccepted error:', err.message))
+
+            const hostName = invite.room?.owner?.displayName || (invite.room?.owner?.handle ? `@${invite.room.owner.handle}` : null)
+            emailService.sendUserJoinedEmailSafe({
+                userId: inviteeId,
+                userEmail: req.user.email,
+                userName: req.user.name,
+                roomName: invite.room?.name,
+                hostName,
+                joinedAt: new Date()
+            })
+        }
+
         res.json(updated)
     } catch (error) {
         next(error)
@@ -124,7 +165,8 @@ router.get('/invites/:userId', async (req, res, next) => {
                 createdAt: true,
                 inviter: { select: { handle: true, displayName: true } },
                 room: { select: { name: true } }
-            }
+            },
+            orderBy: { createdAt: 'desc' }
         })
 
         const formatted = new Array(invites.length)

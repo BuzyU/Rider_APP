@@ -1,5 +1,6 @@
 const express = require('express')
 const prisma = require('../db')
+const emailService = require('../services/emailService')
 
 const router = express.Router()
 
@@ -50,6 +51,20 @@ router.post('/sync', async (req, res) => {
 
             return created
         })
+
+        if (parsedEndTime) {
+            emailService.sendRideEndedEmailSafe({
+                riderId,
+                riderEmail: req.user.email,
+                riderName: req.user.name,
+                roomName,
+                startTime: parsedStartTime,
+                endTime: parsedEndTime,
+                distanceKm: parsedDistance,
+                privacyState,
+                rideId: ride.id
+            })
+        }
 
         res.status(201).json({ success: true, rideId: ride.id })
     } catch (error) {

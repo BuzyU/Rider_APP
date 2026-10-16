@@ -5,10 +5,6 @@ const authMiddleware = require('../middleware/authMiddleware')
 
 const router = express.Router()
 
-/**
- * Timing-safe admin key verification middleware.
- * Disabled completely if DIAG_ADMIN_KEY is unset or empty.
- */
 function requireAdminKey(req, res, next) {
     const configuredKey = process.env.DIAG_ADMIN_KEY
     if (!configuredKey || configuredKey.trim() === '') {
@@ -32,10 +28,6 @@ function requireAdminKey(req, res, next) {
     next()
 }
 
-/**
- * Dedicated body parser with 5MB limit for batch telemetry.
- * Returns HTTP 413 with explicit error when exceeded.
- */
 function batchBodyParser(req, res, next) {
     express.json({ limit: '5mb' })(req, res, (err) => {
         if (err) {
@@ -50,7 +42,6 @@ function batchBodyParser(req, res, next) {
     })
 }
 
-// Rider joins or starts diagnostic run for a convoy
 router.post('/join', express.json(), authMiddleware, async (req, res, next) => {
     try {
         const { convoyId } = req.body
@@ -65,7 +56,6 @@ router.post('/join', express.json(), authMiddleware, async (req, res, next) => {
     }
 })
 
-// Ingest a batch of diagnostic telemetry (idempotent via runId + riderId + sequenceNumber)
 router.post('/batches', batchBodyParser, authMiddleware, async (req, res, next) => {
     try {
         const { runId, sequenceNumber, payload } = req.body
@@ -79,7 +69,6 @@ router.post('/batches', batchBodyParser, authMiddleware, async (req, res, next) 
     }
 })
 
-// Rider stops recording (requires lastSeq)
 router.post('/stop', express.json(), authMiddleware, async (req, res, next) => {
     try {
         const { runId, lastSeq } = req.body
@@ -93,7 +82,6 @@ router.post('/stop', express.json(), authMiddleware, async (req, res, next) => {
     }
 })
 
-// Export on-demand ZIP archive built from DB in memory (admin key protected)
 router.get('/runs/:runId/export', requireAdminKey, async (req, res, next) => {
     try {
         const { runId } = req.params
@@ -115,7 +103,6 @@ router.get('/runs/:runId/export', requireAdminKey, async (req, res, next) => {
     }
 })
 
-// Get latest diagnostic summary for a room/convoy so the app can show it
 router.get('/runs/room/:roomName/latest', authMiddleware, async (req, res, next) => {
     try {
         const { roomName } = req.params
@@ -153,7 +140,6 @@ router.get('/runs/room/:roomName/latest', authMiddleware, async (req, res, next)
     }
 })
 
-// Export on-demand Excel spreadsheet (.xlsx) for riders or admin
 router.get('/runs/:runId/excel', authMiddleware, async (req, res, next) => {
     try {
         const { runId } = req.params
@@ -175,7 +161,6 @@ router.get('/runs/:runId/excel', authMiddleware, async (req, res, next) => {
     }
 })
 
-// Finalize run and dispatch email to code4changeteam@gmail.com
 router.post('/runs/:runId/finalize', authMiddleware, async (req, res, next) => {
     try {
         const { runId } = req.params
@@ -186,7 +171,6 @@ router.post('/runs/:runId/finalize', authMiddleware, async (req, res, next) => {
     }
 })
 
-// Finalize run by roomName and dispatch Excel to code4changeteam@gmail.com
 router.post('/runs/room/:roomName/finalize', authMiddleware, async (req, res, next) => {
     try {
         const { roomName } = req.params
@@ -208,7 +192,6 @@ router.post('/runs/room/:roomName/finalize', authMiddleware, async (req, res, ne
     }
 })
 
-// Manually trigger run closure and export (admin key protected)
 router.post('/runs/:runId/close', requireAdminKey, async (req, res, next) => {
     try {
         const { runId } = req.params

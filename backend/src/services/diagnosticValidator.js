@@ -1,8 +1,3 @@
-/**
- * Validates diagnostic batch payloads against contract specifications.
- * Enforces types, finite numbers, plausible ranges, string lengths, and max rows.
- */
-
 const MAX_BATCH_ROWS = 200
 const VALID_NETWORK_TYPES = new Set(['WIFI', 'CELLULAR', 'ETHERNET', 'VPN', 'UNKNOWN'])
 const VALID_THERMAL_STATUSES = new Set(['NONE', 'LIGHT', 'MODERATE', 'SEVERE', 'CRITICAL', 'EMERGENCY', 'SHUTDOWN'])
@@ -25,7 +20,6 @@ function validateBatchPayload(payload) {
         throw createValidationError(`Batch row count (${totalRows}) exceeds the maximum limit of ${MAX_BATCH_ROWS} samples`)
     }
 
-    // 1. Validate selfMetrics
     for (let i = 0; i < selfMetrics.length; i++) {
         const sm = selfMetrics[i]
         if (!sm || typeof sm !== 'object') {
@@ -75,7 +69,6 @@ function validateBatchPayload(payload) {
         }
     }
 
-    // 2. Validate inboundMetrics
     for (let i = 0; i < inboundMetrics.length; i++) {
         const im = inboundMetrics[i]
         if (!im || typeof im !== 'object') {
@@ -111,7 +104,6 @@ function validateBatchPayload(payload) {
         }
     }
 
-    // 3. Validate events
     for (let i = 0; i < events.length; i++) {
         const ev = events[i]
         if (!ev || typeof ev !== 'object') {

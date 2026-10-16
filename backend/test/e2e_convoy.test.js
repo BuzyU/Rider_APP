@@ -289,7 +289,7 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
 
             // 6. Assert captured email
             assert.ok(capturedEmail, 'Diagnostic email must be captured')
-            assert.strictEqual(capturedEmail.to, 'code4changeteam@gmail.com')
+            assert.strictEqual(capturedEmail.to, process.env.DIAG_EMAIL_TO || 'code4changeteam@gmail.com')
             assert.strictEqual(capturedEmail.attachments.length, 1)
             const attachment = capturedEmail.attachments[0]
             assert.ok(attachment.filename.endsWith('.xlsx'))

@@ -41,27 +41,22 @@ class JoinRoomViewModel @Inject constructor(
                     RideSession.activeRoomName = body.roomName
                     RideSession.isHost = false
                     onSuccess(body.roomName)
-                } else if (res.code() == 404) {
-
-                    RideSession.activeRoomName = cleanToken
-                    RideSession.isHost = false
-                    onSuccess(cleanToken)
                 } else {
-                    val errorMsg = res.errorBody()?.string()?.let { body ->
+                    val msg = res.errorBody()?.string()?.let { b ->
                         try {
-                            val json = org.json.JSONObject(body)
-                            json.optString("error", "Error ${res.code()}")
-                        } catch (e: Exception) {
-                            null
-                        }
-                    } ?: "Link expired or invalid"
-                    _error.value = errorMsg
+                            val obj = org.json.JSONObject(b)
+                            if (obj.has("error")) obj.getString("error") else null
+                        } catch (e: Exception) { null }
+                    } ?: when (res.code()) {
+                        404 -> "Invalid or expired join link"
+                        410 -> "This convoy join link has expired"
+                        403 -> "You are not authorized to join this convoy"
+                        else -> "Failed to join convoy (${res.code()})"
+                    }
+                    _error.value = msg
                 }
             } catch (e: Exception) {
-
-                RideSession.activeRoomName = cleanToken
-                RideSession.isHost = false
-                onSuccess(cleanToken)
+                _error.value = "Connection failed: ${e.localizedMessage ?: "Check your network"}"
             } finally {
                 _isConnecting.value = false
             }

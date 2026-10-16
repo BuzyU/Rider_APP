@@ -12,7 +12,6 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
         serviceAccount = require('../../riderapp-5ce68-firebase-adminsdk-fbsvc-7c77e002fa.json')
     } catch (e) {
-        // File not found on disk
     }
 }
 
@@ -28,9 +27,20 @@ if (!serviceAccount) {
         console.warn('[FirebaseAdmin] Running in DEVELOPMENT mode without Firebase credentials. Verify FIREBASE_SERVICE_ACCOUNT.')
     }
 } else if (!admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    })
+    try {
+        if (serviceAccount.private_key) {
+            serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n')
+        }
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        })
+    } catch (e) {
+        if (process.env.NODE_ENV === 'test') {
+            console.warn('[FirebaseAdmin] Test mode initialized without live Firebase certificate:', e.message)
+        } else {
+            throw e
+        }
+    }
 }
 
 module.exports = admin

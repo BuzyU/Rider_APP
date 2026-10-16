@@ -64,8 +64,8 @@ class LiveKitManager @Inject constructor(
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState
 
-    private val _participants = MutableStateFlow<List<String>>(emptyList())
-    val participants: StateFlow<List<String>> = _participants
+    private val _participants = MutableStateFlow<List<com.ridervoice.models.Participant>>(emptyList())
+    val participants: StateFlow<List<com.ridervoice.models.Participant>> = _participants
 
     private val _remoteLocations = MutableStateFlow<Map<String, RiderLocation>>(emptyMap())
     val remoteLocations: StateFlow<Map<String, RiderLocation>> = _remoteLocations
@@ -73,7 +73,6 @@ class LiveKitManager @Inject constructor(
     private val _activeSpeaker = MutableStateFlow<String?>(null)
     val activeSpeaker: StateFlow<String?> = _activeSpeaker
 
-    /** Actual transmit state of the published microphone track (set only after the SDK confirms). */
     private val _isMicEnabled = MutableStateFlow(false)
     val isMicEnabled: StateFlow<Boolean> = _isMicEnabled
 
@@ -83,15 +82,12 @@ class LiveKitManager @Inject constructor(
     private val _isUserMuted = MutableStateFlow(false)
     val isUserMuted: StateFlow<Boolean> = _isUserMuted
 
-    /** Set from Settings (noise cancellation toggle). Only affects noiseSuppression. */
     @Volatile var noiseSuppressionEnabled: Boolean = true
 
     private val micMutex = Mutex()
     private val publishMutex = Mutex()
 
-    /** Result of VOX/PTT. */
     @Volatile private var voiceGateOpen = false
-    /** Notification/UI mute. */
     @Volatile private var userMuted = false
 
     private var deviceJob: Job? = null
@@ -129,7 +125,6 @@ class LiveKitManager @Inject constructor(
         voxEngine.onMicStateChange = { open -> onVoiceGate(open) }
         audioDeviceRouter.onFocusRegained = { restartVox() }
 
-        // Release any previous Room (reconnect path) so we never leak a WebRTC stack.
         eventsJob?.cancel()
         runCatching { room?.disconnect() }
         runCatching { room?.release() }
@@ -153,7 +148,6 @@ class LiveKitManager @Inject constructor(
 
         scope.launch {
             audioDeviceRouter.republishRequests.collect {
-                Log.i(TAG, "Republish request received from AudioDeviceRouter — forcing audio track republish")
                 publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
                 voxEngine.updatePreferredDevice()
                 restartVox()
@@ -161,7 +155,6 @@ class LiveKitManager @Inject constructor(
         }
 
         try {
-            // AudioDeviceRouter is the single owner of audio mode / routing / focus.
             val newRoom = LiveKit.create(
                 appContext = context,
                 overrides = LiveKitOverrides(
@@ -174,6 +167,8 @@ class LiveKitManager @Inject constructor(
                                     voxEngine.onTxFrame(data, audioSamples.sampleRate)
                                 }
                             }
+                            builder.setUseHardwareAcousticEchoCanceler(true)
+                            builder.setUseHardwareNoiseSuppressor(true)
                         }
                     )
                 )
@@ -182,7 +177,6 @@ class LiveKitManager @Inject constructor(
 
             newRoom.connect(url = url, token = token)
 
-            // B3: Wait until router has a confirmed final device (or has definitively fallen back) BEFORE publishAudioTrack
             withTimeoutOrNull(5000) {
                 while (audioDeviceRouter.routerState.value != RouterState.ACTIVE &&
                        audioDeviceRouter.routerState.value != RouterState.FAILED) {
@@ -194,7 +188,6 @@ class LiveKitManager @Inject constructor(
 
             _connectionState.value = ConnectionState.CONNECTED
             reconnectAttempts = 0
-            Log.d(TAG, "Room connected ✓")
             updateParticipantList()
 
             startVoxSafely()
@@ -202,30 +195,27 @@ class LiveKitManager @Inject constructor(
             eventsJob = scope.launch { newRoom.events.collect { event -> handleEvent(event) } }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Connection failed: ${e.message}")
             _connectionState.value = ConnectionState.FAILED
             scheduleReconnect()
         }
     }
 
     private suspend fun startVoxSafely() {
-        // Wait for the router to settle so calibration measures the real input device.
         withTimeoutOrNull(5000) {
             while (audioDeviceRouter.routerState.value != RouterState.ACTIVE) delay(100)
         }
-        delay(1500)
+        delay(150)
         try {
             voxEngine.start()
         } catch (e: Exception) {
-            // AudioRecord failure must never crash the process; stay connected in PTT-only mode.
-            Log.e(TAG, "VOX engine failed to start — continuing in PTT-only mode: ${e.message}")
+            Log.e(TAG, "VOX start fallback: ${e.message}")
         }
     }
 
     private fun restartVox() {
         if (_connectionState.value != ConnectionState.CONNECTED) return
         scope.launch {
-            try { voxEngine.stop() } catch (e: Exception) { Log.w(TAG, "VOX stop failed: ${e.message}") }
+            try { voxEngine.stop() } catch (e: Exception) { Log.w(TAG, "VOX stop: ${e.message}") }
             startVoxSafely()
         }
     }
@@ -244,9 +234,6 @@ class LiveKitManager @Inject constructor(
     private suspend fun applyMic() {
         val want = voiceGateOpen && !userMuted
         val lp = room?.localParticipant ?: return
-        // The SDK DROPS muted tracks on a full reconnect. If our publication is gone,
-        // republish OUR track with OUR options instead of letting setMicrophoneEnabled(true)
-        // auto-create a default track.
         if (lp.getTrackPublication(Track.Source.MICROPHONE) == null) {
             if (_connectionState.value == ConnectionState.CONNECTED || localAudioTrack != null) {
                 publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
@@ -258,9 +245,6 @@ class LiveKitManager @Inject constructor(
             val ok = try { lp.setMicrophoneEnabled(want) } catch (e: Exception) { false }
             if (ok) {
                 _isMicEnabled.value = want
-                Log.d(TAG, "Mic ${if (want) "OPEN" else "CLOSED"}")
-            } else {
-                Log.w(TAG, "setMicrophoneEnabled($want) failed")
             }
         }
     }
@@ -279,27 +263,30 @@ class LiveKitManager @Inject constructor(
             }
             localAudioTrack = null
 
-            Log.d(TAG, "Publishing audio track for device: ${device.displayName()}, options: $opts")
             val track = try {
                 lp.createAudioTrack(name = "microphone", options = opts).also {
                     runCatching { it.start() }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to create audio track: ${e.message}", e)
                 null
             } ?: return@withLock false
 
             val ok = try {
-                lp.publishAudioTrack(track, AudioTrackPublishOptions(dtx = false))
+                lp.publishAudioTrack(
+                    track,
+                    AudioTrackPublishOptions(
+                        dtx = false,
+                        red = true,
+                        audioBitrate = 32000
+                    )
+                )
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to publish audio track: ${e.message}")
                 false
             }
             if (ok) {
                 localAudioTrack = track
                 lastOptions = opts
                 runCatching { track.prewarm() }
-                // Publication exists now, so this really mutes (fixes hot-mic-at-join).
                 runCatching { lp.setMicrophoneEnabled(false) }
                 _isMicEnabled.value = false
                 true
@@ -308,7 +295,7 @@ class LiveKitManager @Inject constructor(
                 false
             }
         }
-        if (published) applyMic()
+        if (published) scope.launch { applyMic() }
     }
 
     private fun buildAudioTrackOptions(device: AudioDevice): LocalAudioTrackOptions {
@@ -316,7 +303,7 @@ class LiveKitManager @Inject constructor(
         return when (device) {
             is AudioDevice.BluetoothSco -> LocalAudioTrackOptions(
                 noiseSuppression = ns,
-                echoCancellation = true,
+                echoCancellation = false,
                 autoGainControl = false,
                 highPassFilter = true,
                 typingNoiseDetection = false
@@ -368,13 +355,14 @@ class LiveKitManager @Inject constructor(
                 updateParticipantList()
                 _remoteLocations.update { it - (event.participant.identity?.value ?: return) }
             }
-            is RoomEvent.Reconnecting -> Log.w(TAG, "Room reconnecting…")
+            is RoomEvent.Reconnecting -> {}
             is RoomEvent.Reconnected -> {
-                Log.d(TAG, "Room reconnected — re-asserting mic gate")
-                scope.launch { applyMic() }
+                scope.launch {
+                    applyMic()
+                    restartVox()
+                }
             }
             is RoomEvent.Disconnected -> {
-                Log.w(TAG, "Room disconnected (reason: ${event.error?.message})")
                 _connectionState.value = ConnectionState.DISCONNECTED
                 _remoteLocations.value = emptyMap()
                 _activeSpeaker.value = null
@@ -387,11 +375,10 @@ class LiveKitManager @Inject constructor(
                     val peerId = event.participant?.identity?.value ?: loc.riderId
                     _remoteLocations.update { it + (peerId to loc.copy(riderId = peerId)) }
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to parse telemetry: ${e.message}")
+                    Log.w(TAG, "Telemetry parse error: ${e.message}")
                 }
             }
             is RoomEvent.TrackSubscribed -> {
-                Log.d(TAG, "Remote track subscribed: ${event.track.kind}")
                 (event.track as? RemoteAudioTrack)?.let { remoteTrack ->
                     remoteTrack.enabled = true
                     remoteTrack.setVolume(if (_deafened.value) 0.0 else 1.0)
@@ -406,12 +393,21 @@ class LiveKitManager @Inject constructor(
     }
 
     private fun updateParticipantList() {
+        val localParticipant = room?.localParticipant
+        val localIdentity = localParticipant?.identity?.value
+        val localName = localParticipant?.name?.takeIf { it.isNotBlank() }
+
         val remotes = room?.remoteParticipants?.values
-            ?.mapNotNull { it.identity?.value ?: it.sid.value }
-            ?: emptyList()
-        val local = room?.localParticipant?.identity?.value
-        _participants.value = if (!local.isNullOrBlank() && !remotes.contains(local)) {
-            listOf(local) + remotes
+            ?.filter { !it.identity?.value.isNullOrBlank() }
+            ?.map { p ->
+                com.ridervoice.models.Participant(
+                    identity = p.identity!!.value,
+                    displayName = p.name?.takeIf { it.isNotBlank() }
+                )
+            } ?: emptyList()
+
+        _participants.value = if (!localIdentity.isNullOrBlank()) {
+            listOf(com.ridervoice.models.Participant(identity = localIdentity, displayName = localName)) + remotes
         } else {
             remotes
         }
@@ -419,7 +415,6 @@ class LiveKitManager @Inject constructor(
 
     private fun scheduleReconnect() {
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            Log.e(TAG, "Max reconnect attempts reached — giving up")
             _connectionState.value = ConnectionState.FAILED
             return
         }
@@ -427,9 +422,7 @@ class LiveKitManager @Inject constructor(
         reconnectJob?.cancel()
         reconnectJob = scope.launch {
             reconnectAttempts++
-
             val delayMs = minOf(2000L * reconnectAttempts, 30_000L)
-            Log.d(TAG, "Reconnect attempt $reconnectAttempts in ${delayMs}ms")
             _connectionState.value = ConnectionState.RECONNECTING
             delay(delayMs)
 
@@ -444,7 +437,6 @@ class LiveKitManager @Inject constructor(
              _connectionState.value == ConnectionState.DISCONNECTED ||
              _connectionState.value == ConnectionState.RECONNECTING) &&
             lastUrl.isNotBlank() && lastToken.isNotBlank()) {
-            Log.i(TAG, "Network restored — resetting retry counter and auto-reconnecting")
             reconnectAttempts = 0
             reconnectJob?.cancel()
             scope.launch { connectInternal(lastUrl, lastToken) }
@@ -462,9 +454,8 @@ class LiveKitManager @Inject constructor(
         val speedKmh = (location.speed ?: 0f) * 3.6f
         val isStationary = speedKmh < 1.5f
 
-        // Suppress broadcast if stationary and displacement < 3 meters, unless 30s heartbeat
         if (prev != null && isStationary && dist < 3.0f && (now - lastBroadcastTime) < 30_000L) {
-            return // Skip packet; saves modem TX power
+            return
         }
 
         lastBroadcastLoc = location
@@ -473,11 +464,9 @@ class LiveKitManager @Inject constructor(
         scope.launch {
             try {
                 val bytes = gson.toJson(location).toByteArray(Charsets.UTF_8)
-                room?.localParticipant?.publishData(
-                    bytes
-                )
+                room?.localParticipant?.publishData(bytes)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to publish location: ${e.message}")
+                Log.w(TAG, "Location publish: ${e.message}")
             }
         }
     }
@@ -503,7 +492,6 @@ class LiveKitManager @Inject constructor(
         localAudioTrack = null
         lastOptions = null
 
-        // disconnect() alone does not free the PeerConnectionFactory / ADM; release() does.
         runCatching { room?.disconnect() }
         runCatching { room?.release() }
         room = null
@@ -512,22 +500,14 @@ class LiveKitManager @Inject constructor(
         _participants.value = emptyList()
         _activeSpeaker.value = null
         _isMicEnabled.value = false
-        Log.d(TAG, "Disconnected cleanly")
     }
 
-    /**
-     * Collects a real-time parsed WebRTC stats snapshot from publisher and subscriber peer connections
-     * and remote participant audio tracks.
-     * Uses suspendCancellableCoroutine with LiveKit's RTCStatsCollectorCallback APIs.
-     * Does NOT leak any WebRTC or Room instances outside of this class.
-     */
     suspend fun collectStatsSnapshot(): StatsSnapshot? {
         val currentRoom = room ?: return null
         if (_connectionState.value != ConnectionState.CONNECTED) return null
 
         val now = System.currentTimeMillis()
 
-        // 1. Collect publisher stats report
         val pubReport: RTCStatsReport? = suspendCancellableCoroutine { cont ->
             try {
                 currentRoom.getPublisherRTCStats { report ->
@@ -538,7 +518,6 @@ class LiveKitManager @Inject constructor(
             }
         }
 
-        // 2. Collect subscriber stats report
         val subReport: RTCStatsReport? = suspendCancellableCoroutine { cont ->
             try {
                 currentRoom.getSubscriberRTCStats { report ->
@@ -549,7 +528,6 @@ class LiveKitManager @Inject constructor(
             }
         }
 
-        // 3. Parse publisher candidate-pair & outbound-rtp
         var pubRttMs: Double? = null
         var pubBytesSent = 0L
         var pubPacketsSent = 0L
@@ -558,7 +536,7 @@ class LiveKitManager @Inject constructor(
             if (stat.type == "candidate-pair" && (stat.members["nominated"] == true || stat.members["state"] == "succeeded")) {
                 val rtt = (stat.members["currentRoundTripTime"] as? Number)?.toDouble()
                 if (rtt != null) {
-                    pubRttMs = rtt * 1000.0 // seconds to milliseconds
+                    pubRttMs = rtt * 1000.0
                 }
                 pubBytesSent = (stat.members["bytesSent"] as? Number)?.toLong() ?: pubBytesSent
                 pubPacketsSent = (stat.members["packetsSent"] as? Number)?.toLong() ?: pubPacketsSent
@@ -579,7 +557,6 @@ class LiveKitManager @Inject constructor(
             }
         }
 
-        // 4. Parse subscriber candidate-pair & totals
         var subRttMs: Double? = null
         var subBytesRecv = 0L
         var subPacketsRecv = 0L
@@ -595,23 +572,19 @@ class LiveKitManager @Inject constructor(
             }
         }
 
-        // 5. Parse per-remote-rider inbound tracks (track -> participant mapping)
         val inboundRiders = mutableListOf<InboundRiderStats>()
         val remoteParticipants = currentRoom.remoteParticipants
 
         for ((identity, participant) in remoteParticipants) {
             val riderHandle = identity.value.ifBlank { participant.sid.value }
 
-            // Find audio publications for this remote participant
             val audioPubs = participant.trackPublications.values.filter { it.kind == Track.Kind.AUDIO }
             for (pub in audioPubs) {
                 val trackSid = pub.sid
                 val track = pub.track
 
-                // Attempt per-track stats getter first
                 val trackReport = try { track?.getRTCStats() } catch (e: Exception) { null }
 
-                // Search trackReport or fallback to subscriber report matching trackIdentifier / trackId
                 val inboundStat: RTCStats? = trackReport?.statsMap?.values?.firstOrNull { it.type == "inbound-rtp" }
                     ?: subReport?.statsMap?.values?.firstOrNull { stat ->
                         stat.type == "inbound-rtp" && (
@@ -625,7 +598,7 @@ class LiveKitManager @Inject constructor(
                     val pktsRecv = (inboundStat.members["packetsReceived"] as? Number)?.toLong() ?: 0L
                     val pktsLost = (inboundStat.members["packetsLost"] as? Number)?.toLong() ?: 0L
                     val jitterRaw = (inboundStat.members["jitter"] as? Number)?.toDouble()
-                    val jitterMs = jitterRaw?.times(1000.0) // seconds to ms
+                    val jitterMs = jitterRaw?.times(1000.0)
                     val bytesRecv = (inboundStat.members["bytesReceived"] as? Number)?.toLong() ?: 0L
                     val jbDelay = (inboundStat.members["jitterBufferDelay"] as? Number)?.toDouble()
                     val concealed = (inboundStat.members["concealedSamples"] as? Number)?.toLong()

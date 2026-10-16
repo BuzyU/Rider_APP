@@ -23,13 +23,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Gate controller. The detector core lives in [VoxDetector].
- *
- * NOTE (pre-roll): this engine only flips the LiveKit mute flag, so the first ~60 ms
- * (ATTACK_FRAMES * 20 ms) of an utterance is lost. Faking pre-roll is not possible with a
- * mute gate; feeding VOX from the WebRTC capture itself (optional step 9a) is the real fix.
- */
 @Singleton
 class VoxEngine @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -45,7 +38,7 @@ class VoxEngine @Inject constructor(
     private val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
     private val FRAME = VoxDetector.FRAME
     private val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)
-    private val bufferSize = maxOf(minBuf * 4, FRAME * 2 * 10) // >= 200 ms headroom
+    private val bufferSize = maxOf(minBuf * 4, FRAME * 2 * 10)
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
@@ -84,7 +77,6 @@ class VoxEngine @Inject constructor(
                 bufferSize
             )
             if (rec.state != AudioRecord.STATE_INITIALIZED) {
-                Log.w(TAG, "VOICE_RECOGNITION not initialized, falling back to MIC source")
                 rec.release()
                 rec = AudioRecord(
                     MediaRecorder.AudioSource.MIC,
@@ -95,7 +87,6 @@ class VoxEngine @Inject constructor(
                 )
             }
             if (rec.state != AudioRecord.STATE_INITIALIZED) {
-                Log.w(TAG, "MIC source not initialized, falling back to VOICE_COMMUNICATION")
                 rec.release()
                 rec = AudioRecord(
                     MediaRecorder.AudioSource.VOICE_COMMUNICATION,
@@ -106,7 +97,6 @@ class VoxEngine @Inject constructor(
                 )
             }
             if (rec.state != AudioRecord.STATE_INITIALIZED) {
-                Log.e(TAG, "AudioRecord failed to initialise (state=${rec.state}) — PTT-only mode")
                 rec.release()
                 return
             }
@@ -126,7 +116,7 @@ class VoxEngine @Inject constructor(
                 audioDeviceRouter.onInputRoutingChanged(record.routedDevice)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "VOX AudioRecord start failed — PTT-only mode: ${e.message}", e)
+            Log.e(TAG, "VOX AudioRecord start failed: ${e.message}", e)
             audioRecord?.release()
             audioRecord = null
             return
@@ -136,18 +126,19 @@ class VoxEngine @Inject constructor(
         pollJob = scope.launch {
             val frame = ShortArray(FRAME)
 
-            Log.d(TAG, "Calibrating noise floor...")
             calibrateNoiseFloor(record, frame)
-            Log.d(TAG, "Noise floor calibrated: ${detector.floor}")
             evaluateHardwareRecordingState()
 
             while (isActive) {
-                if (audioRecord?.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-                    val now = System.currentTimeMillis()
-                    if (_isMicOpen.value && !pttOverride && lastTxFrameTime > 0L && (now - lastTxFrameTime > 5000L)) {
-                        Log.w(TAG, "No TX frames received for >5s while VOX open — safety net closing mic")
+                val now = System.currentTimeMillis()
+                if (_isMicOpen.value) {
+                    if (!pttOverride && lastTxFrameTime > 0L && (now - lastTxFrameTime > 5000L)) {
                         closeMic()
                     }
+                    delay(40)
+                    continue
+                }
+                if (audioRecord?.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
                     delay(50)
                     continue
                 }
@@ -157,16 +148,15 @@ class VoxEngine @Inject constructor(
                 val rms = detector.rms(frame, read)
                 _currentAmplitude.value = rms
 
-                if (!pttOverride) {
+                if (!pttOverride && !_isMicOpen.value) {
                     detector.updateFloor(rms)
                     _noiseFloor.value = detector.floor
                 }
 
                 if (voxEnabled && !pttOverride) {
-                    when (detector.evaluate(rms, System.currentTimeMillis(), _isMicOpen.value)) {
+                    when (detector.evaluate(rms, now, false)) {
                         VoxDetector.Decision.OPEN -> openMic(isFromVox = true)
-                        VoxDetector.Decision.CLOSE -> closeMic()
-                        VoxDetector.Decision.NONE -> {}
+                        else -> {}
                     }
                 }
             }
@@ -207,12 +197,10 @@ class VoxEngine @Inject constructor(
 
     fun setHardwarePttEnabled(enabled: Boolean) {
         hardwarePttEnabled = enabled
-        Log.d(TAG, "Hardware PTT enabled: $enabled")
     }
 
     fun setHybridVoxMode(enabled: Boolean) {
         hybridVoxMode = enabled
-        Log.d(TAG, "Hybrid VOX mode: $enabled")
     }
 
     fun setVoxEnabled(enabled: Boolean) {
@@ -222,30 +210,25 @@ class VoxEngine @Inject constructor(
     }
 
     private fun evaluateHardwareRecordingState() {
-        val isTransmitting = _isMicOpen.value || pttOverride
-        val shouldRecord = voxEnabled && !isTransmitting
         val record = audioRecord ?: return
+        val shouldRecord = voxEnabled && !_isMicOpen.value && !pttOverride
         if (shouldRecord && record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
             try {
                 record.startRecording()
-                Log.d(TAG, "AudioRecord hardware resumed for VOX monitoring")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start AudioRecord: ${e.message}")
             }
-        } else if (!shouldRecord && record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+        } else if (!shouldRecord && !_isMicOpen.value && !pttOverride && record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
             try {
                 record.stop()
-                Log.d(TAG, "AudioRecord hardware suspended while transmitting/idle")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to stop AudioRecord: ${e.message}")
             }
         }
     }
 
-    /** sensitivity 0..1, higher = MORE sensitive (lower open threshold). */
     fun setSensitivity(sensitivity: Float) {
         detector.openRatio = 4.0f - 2.0f * sensitivity.coerceIn(0f, 1f)
-        Log.d(TAG, "VOX open ratio set to ${detector.openRatio}")
     }
 
     fun updateSpeed(speedMps: Float) {
@@ -254,7 +237,6 @@ class VoxEngine @Inject constructor(
 
     private fun openMic(isFromVox: Boolean = false) {
         if (_isMicOpen.value) return
-        Log.d(TAG, "VOX OPEN (floor=${detector.floor.toInt()}, threshold=${detector.openThreshold.toInt()})")
         _isMicOpen.value = true
         lastTxFrameTime = System.currentTimeMillis()
         evaluateHardwareRecordingState()
@@ -263,7 +245,6 @@ class VoxEngine @Inject constructor(
 
     private fun closeMic() {
         if (!_isMicOpen.value) return
-        Log.d(TAG, "VOX CLOSE")
         _isMicOpen.value = false
         detector.resetAttack()
         evaluateHardwareRecordingState()
@@ -272,10 +253,6 @@ class VoxEngine @Inject constructor(
 
     @Volatile private var lastTxFrameTime = 0L
 
-    /**
-     * Called by LiveKit/WebRTC SamplesReadyCallback on each TX audio frame while transmitting.
-     * Keeps VOX active without HAL hardware contention and evaluates speech completion (VOX-CUT-1).
-     */
     fun onTxFrame(pcmBytes: ByteArray, sampleRate: Int = 16000) {
         if (!_isMicOpen.value && !pttOverride) return
         val now = System.currentTimeMillis()
@@ -297,23 +274,16 @@ class VoxEngine @Inject constructor(
         val rms = detector.rms(frame, j)
         _currentAmplitude.value = rms
 
-        if (!pttOverride) {
-            detector.updateFloor(rms)
-            _noiseFloor.value = detector.floor
-
-            if (voxEnabled) {
-                when (detector.evaluate(rms, now, isOpen = true)) {
-                    VoxDetector.Decision.CLOSE -> {
-                        Log.d(TAG, "VOX speech ended (silence hold expired) -> closing mic")
-                        closeMic()
-                    }
-                    else -> {}
+        if (!pttOverride && voxEnabled) {
+            when (detector.evaluate(rms, now, isOpen = true)) {
+                VoxDetector.Decision.CLOSE -> {
+                    closeMic()
                 }
+                else -> {}
             }
         }
     }
 
-    /** 1 s pass of 20 ms frames; 25th percentile of the high-passed RMS. */
     private fun calibrateNoiseFloor(record: AudioRecord, frame: ShortArray) {
         val samples = ArrayList<Float>(50)
         repeat(50) {
@@ -328,7 +298,6 @@ class VoxEngine @Inject constructor(
         }
     }
 
-    /** Steers the VOX capture to the same input the router selected (API 23+). */
     private fun preferCommunicationInput(record: AudioRecord) {
         try {
             val inputs = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
@@ -350,11 +319,9 @@ class VoxEngine @Inject constructor(
             }
             val target = wantedType?.let { t -> inputs.firstOrNull { it.type == t } }
             if (target != null) {
-                val ok = record.setPreferredDevice(target)
-                Log.d(TAG, "VOX preferred input type=${target.type} accepted=$ok")
+                record.setPreferredDevice(target)
             } else {
                 record.setPreferredDevice(null)
-                Log.d(TAG, "VOX preferred input reset to null (follows AudioManager communication device)")
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 audioDeviceRouter.onInputRoutingChanged(record.routedDevice)
@@ -364,7 +331,6 @@ class VoxEngine @Inject constructor(
         }
     }
 
-    /** Re-evaluates preferred input on the active AudioRecord when AudioDeviceRouter updates route */
     fun updatePreferredDevice() {
         val record = audioRecord ?: return
         preferCommunicationInput(record)

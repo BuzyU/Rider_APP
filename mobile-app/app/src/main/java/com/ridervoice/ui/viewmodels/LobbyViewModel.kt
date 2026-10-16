@@ -3,12 +3,16 @@ package com.ridervoice.ui.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ridervoice.models.LobbyStatus
+import com.ridervoice.models.RideSession
+import com.ridervoice.models.TransferHostRequest
 import com.ridervoice.network.ApiService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,23 +25,24 @@ class LobbyViewModel @Inject constructor(
     val lobbyStatus: StateFlow<LobbyStatus?> = _lobbyStatus.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
-    val error = _error.asStateFlow()
+    val error: StateFlow<String?> = _error.asStateFlow()
 
-    private var isPolling = false
-    private var pollingJob: kotlinx.coroutines.Job? = null
+    private var pollingJob: Job? = null
 
     fun startPolling(roomName: String) {
         pollingJob?.cancel()
-        isPolling = true
         pollingJob = viewModelScope.launch {
-            while (isPolling) {
+            while (isActive) {
                 try {
                     val response = apiService.getLobbyStatus(roomName)
                     if (response.isSuccessful) {
                         _lobbyStatus.value = response.body()
+                    } else if (response.code() == 404 || response.code() == 403) {
+                        _error.value = "Convoy session ended or access revoked"
+                        break
                     }
                 } catch (e: Exception) {
-                    _error.value = e.message
+                    _error.value = e.localizedMessage ?: "Network connection issue"
                 }
                 delay(3000)
             }
@@ -45,7 +50,6 @@ class LobbyViewModel @Inject constructor(
     }
 
     fun stopPolling() {
-        isPolling = false
         pollingJob?.cancel()
         pollingJob = null
     }
@@ -69,12 +73,10 @@ class LobbyViewModel @Inject constructor(
                 if (res.isSuccessful && res.body() != null) {
                     _shareLink.value = res.body()!!.shareUrl
                 } else {
-
-                    _shareLink.value = "ridervoice://join/${android.net.Uri.encode(safeRoom)}"
+                    _linkError.value = "Failed to generate link (${res.code()})"
                 }
             } catch (e: Exception) {
-
-                _shareLink.value = "ridervoice://join/${android.net.Uri.encode(safeRoom)}"
+                _linkError.value = e.localizedMessage ?: "Failed to generate link"
             } finally {
                 _isGeneratingLink.value = false
             }
@@ -86,7 +88,6 @@ class LobbyViewModel @Inject constructor(
             try {
                 val res = apiService.removeRiderFromConvoy(roomName, userId)
                 if (res.isSuccessful) {
-
                     val statusRes = apiService.getLobbyStatus(roomName)
                     if (statusRes.isSuccessful) {
                         _lobbyStatus.value = statusRes.body()
@@ -114,7 +115,7 @@ class LobbyViewModel @Inject constructor(
     fun transferHost(roomName: String, newHostId: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             try {
-                val res = apiService.transferHost(roomName, com.ridervoice.models.TransferHostRequest(newHostId))
+                val res = apiService.transferHost(roomName, TransferHostRequest(newHostId))
                 if (res.isSuccessful) {
                     onSuccess()
                 } else {
@@ -135,10 +136,10 @@ class LobbyViewModel @Inject constructor(
             try {
                 val res = apiService.startRide(roomName)
                 if (res.isSuccessful && res.body() != null) {
-                    com.ridervoice.models.RideSession.livekitToken = res.body()!!.token
-                    com.ridervoice.models.RideSession.livekitUrl = res.body()!!.livekitUrl
-                    com.ridervoice.models.RideSession.activeRoomName = roomName
-                    com.ridervoice.models.RideSession.isHost = true
+                    RideSession.livekitToken = res.body()!!.token
+                    RideSession.livekitUrl = res.body()!!.livekitUrl
+                    RideSession.activeRoomName = roomName
+                    RideSession.isHost = true
                     onStartSuccess()
                 } else {
                     _error.value = "Failed to start ride: ${res.errorBody()?.string() ?: "Unknown error"}"
@@ -147,5 +148,10 @@ class LobbyViewModel @Inject constructor(
                 _error.value = e.message
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopPolling()
     }
 }

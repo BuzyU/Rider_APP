@@ -5,12 +5,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/**
- * Pure-JVM voice-activity detector core (no Android dependencies, unit-testable).
- *
- * Operates on 20 ms frames (320 samples @ 16 kHz). The high-pass filter is applied ONLY to
- * the detector's own copy of the samples; transmitted audio is never touched.
- */
 class VoxDetector(sampleRate: Int = 16000) {
 
     enum class Decision { NONE, OPEN, CLOSE }
@@ -18,8 +12,8 @@ class VoxDetector(sampleRate: Int = 16000) {
     companion object {
         const val FRAME = 320
         const val CLOSE_RATIO = 1.8f
-        const val ATTACK_FRAMES = 3
-        const val HOLD_MS = 900L
+        const val ATTACK_FRAMES = 5
+        const val HOLD_MS = 1400L
         const val FLOOR_MIN = 120f
         const val FLOOR_MAX = 4000f
         const val DEFAULT_OPEN_RATIO = 3.0f
@@ -28,13 +22,12 @@ class VoxDetector(sampleRate: Int = 16000) {
     @Volatile var openRatio = DEFAULT_OPEN_RATIO
     @Volatile var speedExtra = 1.0f
 
-    var floor = 800f
+    @Volatile var floor = 800f
         private set
 
     private var aboveFrames = 0
     private var lastSpeechTime = 0L
 
-    // Biquad high-pass, fc = 300 Hz, Q = 0.707
     private val b0: Float
     private val b1: Float
     private val b2: Float
@@ -60,7 +53,6 @@ class VoxDetector(sampleRate: Int = 16000) {
     val openThreshold: Float get() = floor * openRatio * speedExtra
     val closeThreshold: Float get() = floor * CLOSE_RATIO * speedExtra
 
-    /** Speed factor: 1.0 / 1.19 (>80 km/h) / 1.41 (>120 km/h). */
     fun setSpeedKmh(kmh: Float) {
         speedExtra = when {
             kmh > 120f -> 1.41f
@@ -69,7 +61,7 @@ class VoxDetector(sampleRate: Int = 16000) {
         }
     }
 
-    /** RMS of the high-passed frame (updates filter state). */
+    @Synchronized
     fun rms(frame: ShortArray, count: Int): Float {
         if (count <= 0) return 0f
         var sum = 0.0
@@ -83,7 +75,7 @@ class VoxDetector(sampleRate: Int = 16000) {
         return sqrt(sum / count).toFloat()
     }
 
-    /** Runs on EVERY frame when PTT is not held (also while the mic is open -> no latch). */
+    @Synchronized
     fun updateFloor(rms: Float) {
         var f = floor
         f += when {
@@ -94,10 +86,12 @@ class VoxDetector(sampleRate: Int = 16000) {
         floor = f.coerceIn(FLOOR_MIN, FLOOR_MAX)
     }
 
+    @Synchronized
     fun setFloor(value: Float) {
         floor = value.coerceIn(FLOOR_MIN, FLOOR_MAX)
     }
 
+    @Synchronized
     fun evaluate(rms: Float, now: Long, isOpen: Boolean): Decision {
         if (!isOpen) {
             aboveFrames = if (rms >= openThreshold) aboveFrames + 1 else 0
@@ -116,11 +110,13 @@ class VoxDetector(sampleRate: Int = 16000) {
         return Decision.NONE
     }
 
+    @Synchronized
     fun onPttRelease(now: Long) {
         lastSpeechTime = now
         aboveFrames = 0
     }
 
+    @Synchronized
     fun resetAttack() {
         aboveFrames = 0
     }

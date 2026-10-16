@@ -4,6 +4,7 @@ const crypto = require('crypto')
 const prisma = require('../db')
 const { AccessToken, RoomServiceClient } = require('livekit-server-sdk')
 const diagnosticService = require('../services/diagnosticService')
+const emailService = require('../services/emailService')
 
 let cachedHttpUrl = null
 function getLiveKitHttpUrl() {
@@ -13,6 +14,18 @@ function getLiveKitHttpUrl() {
         .replace('wss://', 'https://')
         .replace('ws://', 'http://')
     return cachedHttpUrl
+}
+
+async function resolveRiderDisplayName(uid, fallback = 'Rider') {
+    try {
+        const u = await prisma.user.findUnique({
+            where: { id: uid },
+            select: { displayName: true, handle: true }
+        })
+        return u?.displayName || (u?.handle ? `@${u.handle}` : null) || fallback
+    } catch {
+        return fallback
+    }
 }
 
 router.post('/create', async (req, res, next) => {
@@ -53,6 +66,15 @@ router.post('/create', async (req, res, next) => {
                 console.warn('[Diagnostic Auto-Start]:', err.message)
             }
         }
+
+        emailService.sendRoomCreatedEmailSafe({
+            hostId,
+            hostEmail: req.user.email,
+            hostName: req.user.name,
+            convoyName: room.name,
+            roomId: room.id,
+            createdAt: new Date()
+        })
 
         res.status(201).json({
             roomId: room.id,
@@ -155,12 +177,14 @@ router.post('/:roomName/start', async (req, res, next) => {
             })
         }
 
+        const hostName = await resolveRiderDisplayName(user.uid, user.name || 'Host')
+
         const at = new AccessToken(
             process.env.LIVEKIT_API_KEY,
             process.env.LIVEKIT_API_SECRET,
-            { identity: user.uid, name: user.name || 'Host', ttl: '6h' }
+            { identity: user.uid, name: hostName, ttl: '6h' }
         )
-        at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true })
+        at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true, canPublishData: true })
         const token = await at.toJwt()
 
         res.json({
@@ -201,13 +225,23 @@ router.post('/join-token', async (req, res, next) => {
             return res.status(403).json({ error: 'No accepted invite found for this room' })
         }
 
+        const riderName = await resolveRiderDisplayName(user.uid, user.name || 'Rider')
+
         const at = new AccessToken(
             process.env.LIVEKIT_API_KEY,
             process.env.LIVEKIT_API_SECRET,
-            { identity: user.uid, name: user.name || 'Rider', ttl: '6h' }
+            { identity: user.uid, name: riderName, ttl: '6h' }
         )
-        at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true })
+        at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true, canPublishData: true })
         const token = await at.toJwt()
+
+        emailService.sendUserJoinedEmailSafe({
+            userId: user.uid,
+            userEmail: user.email,
+            userName: user.name,
+            roomName,
+            joinedAt: new Date()
+        })
 
         res.json({
             token,
@@ -321,13 +355,23 @@ router.post('/join-via-token', async (req, res, next) => {
             })
         }
 
+        const riderName = await resolveRiderDisplayName(user.uid, user.name || 'Rider')
+
         const at = new AccessToken(
             process.env.LIVEKIT_API_KEY,
             process.env.LIVEKIT_API_SECRET,
-            { identity: user.uid, name: user.name || 'Rider', ttl: '6h' }
+            { identity: user.uid, name: riderName, ttl: '6h' }
         )
-        at.addGrant({ roomJoin: true, room: room.name, canPublish: true, canSubscribe: true })
+        at.addGrant({ roomJoin: true, room: room.name, canPublish: true, canSubscribe: true, canPublishData: true })
         const livekitToken = await at.toJwt()
+
+        emailService.sendUserJoinedEmailSafe({
+            userId: user.uid,
+            userEmail: user.email,
+            userName: user.name,
+            roomName: room.name,
+            joinedAt: new Date()
+        })
 
         res.json({
             token: livekitToken,
@@ -367,7 +411,7 @@ router.delete('/:roomName/riders/:userId', async (req, res, next) => {
                 await svc.removeParticipant(roomName, userId)
             }
         } catch (lkError) {
-            console.warn(`[LiveKit] removeParticipant non-fatal notice for ${userId}:`, lkError.message)
+            console.warn(`[LiveKit] removeParticipant notice for ${userId}:`, lkError.message)
         }
 
         res.json({ success: true, removedUserId: userId })
@@ -401,7 +445,6 @@ router.post('/:roomName/end', async (req, res, next) => {
             console.warn(`[LiveKit] deleteRoom notice for ${roomName}:`, lkError.message)
         }
 
-        // Close and export active diagnostic run (generates Excel spreadsheet & emails to code4changeteam@gmail.com)
         try {
             const activeRun = await prisma.diagnosticRun.findFirst({
                 where: {
@@ -428,6 +471,14 @@ router.post('/:roomName/end', async (req, res, next) => {
         } catch (diagErr) {
             console.warn('[Diagnostic] Could not check active run on ride end:', diagErr.message)
         }
+
+        emailService.sendRoomClosedEmailSafe({
+            roomName,
+            hostId,
+            hostEmail: req.user.email,
+            hostName: req.user.name,
+            closedAt: new Date()
+        })
 
         res.json({ success: true, message: 'Convoy ended' })
     } catch (error) {
@@ -465,7 +516,6 @@ router.post('/:roomName/transfer-host', async (req, res, next) => {
     }
 })
 
-// Owner-only endpoint to toggle diagnostics prior to ride start
 async function updateDiagnosticsHandler(req, res, next) {
     const { roomName } = req.params
     const user = req.user

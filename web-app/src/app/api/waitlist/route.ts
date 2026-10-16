@@ -16,7 +16,6 @@ export async function POST(request: Request) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // 1. Attempt database insertion (resilient to missing table schema cache errors)
     try {
       const { data: existing } = await supabaseAdmin
         .from('waitlist')
@@ -45,23 +44,27 @@ export async function POST(request: Request) {
       console.warn('[Waitlist DB Warning] Database write failed (allowing signup to succeed):', dbErr);
     }
 
-    // 2. Send professional waitlist confirmation email via Google SMTP (no APK download links)
+    let emailSent = false;
+    let emailMessageId: string | undefined;
     try {
       const emailPayload = buildWaitlistWelcomeEmail(normalizedEmail);
-      await sendSmtpMail({
+      const res = await sendSmtpMail({
         to: normalizedEmail,
         subject: emailPayload.subject,
         html: emailPayload.html,
         text: emailPayload.text,
       });
-      console.log(`[SMTP] Successfully sent waitlist welcome email to ${normalizedEmail}`);
+      emailSent = res.success;
+      emailMessageId = res.messageId;
     } catch (mailError) {
       console.warn(`[SMTP Warning] Failed to send waitlist email to ${normalizedEmail}:`, mailError);
     }
 
     return NextResponse.json({
       success: true,
-      message: "You're on the priority waitlist! Keep an eye on your inbox for rollout updates."
+      message: "You're on the priority waitlist! Keep an eye on your inbox for rollout updates.",
+      emailSent,
+      emailMessageId
     });
   } catch (error: unknown) {
     console.error('Waitlist API Error:', error);

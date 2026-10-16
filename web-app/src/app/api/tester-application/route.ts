@@ -3,7 +3,6 @@ import { supabaseAdmin } from '@/utils/supabase/admin';
 import { sendSmtpMail } from '@/lib/email/smtpClient';
 import { buildTesterWelcomeEmail } from '@/lib/email/templates';
 
-// Fallback release metadata matching latest GitHub release
 const DEFAULT_RELEASE = {
   version: 'v0.0.3.10',
   releaseName: 'RiderVoice v0.0.3.10',
@@ -77,7 +76,6 @@ export async function POST(request: Request) {
     const normalizedName = name.trim();
     const release = await getLatestRelease();
 
-    // Store in Supabase table "tester_applications"
     try {
       const { data: existing, error: selectErr } = await supabaseAdmin
         .from('tester_applications')
@@ -122,7 +120,8 @@ export async function POST(request: Request) {
       console.warn('Warning: Supabase write failed:', dbError);
     }
 
-    // Send professional priority waitlist confirmation email via Google SMTP (no direct APK download in email)
+    let emailSent = false;
+    let emailMessageId: string | undefined;
     try {
       const emailPayload = buildTesterWelcomeEmail({
         name: normalizedName,
@@ -130,13 +129,14 @@ export async function POST(request: Request) {
         version: release.version,
       });
 
-      await sendSmtpMail({
+      const res = await sendSmtpMail({
         to: normalizedEmail,
         subject: emailPayload.subject,
         html: emailPayload.html,
         text: emailPayload.text,
       });
-      console.log(`[SMTP] Successfully sent priority waitlist confirmation email to ${normalizedEmail}`);
+      emailSent = res.success;
+      emailMessageId = res.messageId;
     } catch (mailError) {
       console.warn(`[SMTP Warning] Failed to send confirmation email to ${normalizedEmail}:`, mailError);
     }
@@ -144,7 +144,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: 'Application received! You are on our priority waitlist.',
-      release
+      release,
+      emailSent,
+      emailMessageId
     });
   } catch (error: unknown) {
     console.error('Tester application API error:', error);
@@ -187,5 +189,3 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
-

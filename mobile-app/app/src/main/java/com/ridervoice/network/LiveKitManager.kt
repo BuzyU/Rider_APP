@@ -235,7 +235,7 @@ class LiveKitManager @Inject constructor(
         val want = voiceGateOpen && !userMuted
         val lp = room?.localParticipant ?: return
         if (lp.getTrackPublication(Track.Source.MICROPHONE) == null) {
-            if (_connectionState.value == ConnectionState.CONNECTED || localAudioTrack != null) {
+            if (_connectionState.value == ConnectionState.CONNECTED && localAudioTrack == null) {
                 publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
             }
             return
@@ -276,7 +276,7 @@ class LiveKitManager @Inject constructor(
                     track,
                     AudioTrackPublishOptions(
                         dtx = false,
-                        red = true,
+                        red = false,
                         audioBitrate = 32000
                     )
                 )
@@ -372,8 +372,11 @@ class LiveKitManager @Inject constructor(
                 try {
                     val json = String(event.data, Charsets.UTF_8)
                     val loc = gson.fromJson(json, RiderLocation::class.java)
-                    val peerId = event.participant?.identity?.value ?: loc.riderId
-                    _remoteLocations.update { it + (peerId to loc.copy(riderId = peerId)) }
+                    val peerId = event.participant?.identity?.value?.takeIf { it.isNotBlank() }
+                        ?: loc.riderId?.takeIf { it.isNotBlank() }
+                    if (peerId != null) {
+                        _remoteLocations.update { it + (peerId to loc.copy(riderId = peerId)) }
+                    }
                 } catch (e: Exception) {
                     Log.w(TAG, "Telemetry parse error: ${e.message}")
                 }
@@ -422,7 +425,7 @@ class LiveKitManager @Inject constructor(
         reconnectJob?.cancel()
         reconnectJob = scope.launch {
             reconnectAttempts++
-            val delayMs = minOf(2000L * reconnectAttempts, 30_000L)
+            val delayMs = minOf(1000L * reconnectAttempts, 30_000L)
             _connectionState.value = ConnectionState.RECONNECTING
             delay(delayMs)
 
@@ -485,6 +488,8 @@ class LiveKitManager @Inject constructor(
         audioDeviceRouter.onFocusRegained = null
         _deafened.value = false
 
+        runCatching { room?.disconnect() }
+
         voxEngine.stop()
         audioDeviceRouter.stop()
 
@@ -492,7 +497,6 @@ class LiveKitManager @Inject constructor(
         localAudioTrack = null
         lastOptions = null
 
-        runCatching { room?.disconnect() }
         runCatching { room?.release() }
         room = null
 

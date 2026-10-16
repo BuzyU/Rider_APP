@@ -65,14 +65,14 @@ class InvitesInboxViewModel @Inject constructor(
                         if (tokenRes.isSuccessful && tokenRes.body() != null) {
                             val body = tokenRes.body()!!
                             RideSession.livekitToken = body.token
-                            RideSession.livekitUrl = body.livekitUrl
+                            RideSession.livekitUrl = body.livekitUrl.ifBlank { com.ridervoice.utils.Constants.LIVEKIT_URL }
                             RideSession.activeRoomName = invite.room.name
                             RideSession.diagnosticsEnabled = body.diagnosticsEnabled
                             RideSession.testNumber = body.testNumber
                             RideSession.isHost = false
                             onAcceptSuccess(invite.room.name)
                         } else {
-                            _error.value = "Failed to get join token"
+                            _error.value = "Invite accepted but failed to connect. Please retry joining from the Home screen."
                         }
                     }
                 } else {

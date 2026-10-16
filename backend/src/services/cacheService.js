@@ -1,6 +1,7 @@
 class CacheService {
     constructor() {
         this.cache = new Map()
+        this._pending = new Map()
         this.maxSize = 5000
         this.hits = 0
         this.misses = 0
@@ -50,16 +51,20 @@ class CacheService {
         return deleted
     }
 
-    async wrap(key, ttlMs, fetcher) {
+    wrap(key, ttlMs, fetcher) {
         const cached = this.get(key)
-        if (cached !== null && cached !== undefined) {
-            return cached
-        }
-        const fresh = await fetcher()
-        if (fresh !== undefined && fresh !== null) {
-            this.set(key, fresh, ttlMs)
-        }
-        return fresh
+        if (cached !== null && cached !== undefined) return Promise.resolve(cached)
+        if (this._pending.has(key)) return this._pending.get(key)
+        const promise = fetcher().then(value => {
+            this._pending.delete(key)
+            if (value !== undefined && value !== null) this.set(key, value, ttlMs)
+            return value
+        }).catch(err => {
+            this._pending.delete(key)
+            throw err
+        })
+        this._pending.set(key, promise)
+        return promise
     }
 
     sweep() {

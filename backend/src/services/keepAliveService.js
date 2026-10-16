@@ -33,7 +33,8 @@ class KeepAliveService {
         if (this.heartbeatInterval.unref) this.heartbeatInterval.unref()
 
         const executePing = async () => {
-            const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.API_URL || 'https://rider-app-sjxm.onrender.com'
+            const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.API_URL
+            if (!externalUrl) return
             const targetUrl = `${externalUrl.replace(/\/+$/, '')}/api/health`
             try {
                 const controller = new AbortController()

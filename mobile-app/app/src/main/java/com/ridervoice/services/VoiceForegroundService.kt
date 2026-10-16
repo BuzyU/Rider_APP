@@ -26,6 +26,7 @@ import com.ridervoice.security.SecurePreferences
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -41,7 +42,7 @@ class VoiceForegroundService : Service() {
     @Inject
     lateinit var networkDiagnosticsCollector: com.ridervoice.diagnostics.collector.NetworkDiagnosticsCollector
 
-    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val channelId = "tactical_voice_channel"
     private val notificationId = 1
 
@@ -176,9 +177,9 @@ class VoiceForegroundService : Service() {
     }
 
     private fun debouncedUpdateNotification() {
-        if (updateJob?.isActive == true) return
+        updateJob?.cancel()
         updateJob = serviceScope.launch {
-            delay(500)
+            delay(300)
             updateNotificationImmediate()
         }
     }
@@ -241,6 +242,7 @@ class VoiceForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        serviceScope.cancel()
         networkDiagnosticsCollector.stopSession()
         liveKitManager.disconnect()
         wakeLock?.let {

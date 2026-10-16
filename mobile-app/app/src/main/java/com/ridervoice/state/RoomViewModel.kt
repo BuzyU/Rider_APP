@@ -89,7 +89,7 @@ class RoomViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    private var currentUserName = ""
+
 
     init {
         liveKitManager.participants
@@ -124,7 +124,7 @@ class RoomViewModel @Inject constructor(
             .filterNotNull()
             .onEach { loc ->
                 val myIdentity = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-                    ?: currentUserName
+                    ?: return@onEach
 
                 voxEngine.updateSpeed(loc.speed)
 
@@ -158,7 +158,7 @@ class RoomViewModel @Inject constructor(
                 val now = System.currentTimeMillis()
                 _participants.value = _participants.value.filter { p ->
                     if (p.isGhost && p.disconnectedAt != null) {
-                        (now - p.disconnectedAt) < (15 * 60 * 1000)
+                        (now - p.disconnectedAt) < (2 * 60 * 1000)
                     } else true
                 }
             }
@@ -166,7 +166,6 @@ class RoomViewModel @Inject constructor(
     }
 
     fun joinRoom(roomName: String, userName: String) {
-        currentUserName = userName
         locationService.startTracking()
         rideRecorder.startRecording(roomName)
         thermalManager.startMonitoring(viewModelScope)

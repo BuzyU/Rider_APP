@@ -132,10 +132,10 @@ class VoxEngine @Inject constructor(
             while (isActive) {
                 val now = System.currentTimeMillis()
                 if (_isMicOpen.value) {
-                    if (!pttOverride && lastTxFrameTime > 0L && (now - lastTxFrameTime > 5000L)) {
+                    if (!pttOverride && lastTxFrameTime > 0L && (now - lastTxFrameTime > 2500L)) {
                         closeMic()
                     }
-                    delay(40)
+                    delay(20)
                     continue
                 }
                 if (audioRecord?.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
@@ -286,9 +286,14 @@ class VoxEngine @Inject constructor(
 
     private fun calibrateNoiseFloor(record: AudioRecord, frame: ShortArray) {
         val samples = ArrayList<Float>(50)
-        repeat(50) {
+        var attempts = 0
+        while (samples.size < 50 && attempts < 200) {
             val read = record.read(frame, 0, FRAME)
-            if (read > 0) samples.add(detector.rms(frame, read))
+            attempts++
+            if (read > 0) {
+                val rms = detector.rms(frame, read)
+                if (rms > 0f) samples.add(rms)
+            }
         }
         if (samples.isNotEmpty()) {
             val sorted = samples.sorted()

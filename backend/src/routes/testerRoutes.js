@@ -57,7 +57,7 @@ router.post('/', async (req, res, next) => {
         emailService.sendTesterWelcomeEmailSafe({
             name: normalizedName,
             email: normalizedEmail,
-            version: 'v0.0.3.10',
+            version: 'v0.0.3.11',
             releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/latest'
         })
 

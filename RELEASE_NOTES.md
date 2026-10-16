@@ -1,3 +1,31 @@
+## RiderVoice v0.0.3.11 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.11** introduces automated convoy namespace disambiguation allowing squad hosts to freely reuse convoy names without collisions, establishes resilient SMTP connection pooling with proactive dead-socket pruning and SSL fallback on port 465, resolves relational database queries on ride invite acceptance, and isolates push notification dispatch for crash-proof squad coordination.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.11` |
+| **Version Code** | `3011` |
+| **Release Tag** | [`v0.0.3.11`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.11) |
+| **Download APK** | [`Rider_APP-v0.0.3.11.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.11/Rider_APP-v0.0.3.11.apk) |
+
+---
+
+### 🏍️ Convoy Namespace Disambiguation & Room Creation
+- **Identical Convoy Name Support**: Eliminated 409 Conflict errors when multiple riders create convoys sharing the same name. Automatically assigns clean disambiguated room identifiers while preserving user-facing convoy naming.
+- **Relational Integrity on Invite Acceptance**: Resolved Prisma nested relation query mismatch on `RideInvite.findUnique`, preventing runtime 500 exceptions when squad members accept invitations.
+- **Fail-Safe Push Notifications**: Isolated FCM notification dispatch on invite confirmation so third-party push hiccups never interrupt or fail the HTTP response.
+
+---
+
+### 📧 SMTP Reliability & Connection Pooling
+- **Connection Pooling**: Integrated Nodemailer connection pooling (`maxConnections: 3`, `maxMessages: 100`, `idleTimeout: 30000`) preventing stale connections from timing out on successive email dispatches.
+- **Port 465 SSL Default**: Defaulted diagnostic and notification dispatchers to direct SSL on port 465 with explicit socket timeouts, bypassing cloud host port 587 timeouts.
+- **Auto-Recovery Reconnect**: Automatically purges stale pool sockets and provisions a fresh transporter with a seamless single retry on socket errors.
+
+---
+
 ## RiderVoice v0.0.3.10 Release Notes
 
 ### 🚀 Overview

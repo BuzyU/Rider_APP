@@ -4,15 +4,15 @@ import { sendSmtpMail } from '@/lib/email/smtpClient';
 import { buildTesterWelcomeEmail } from '@/lib/email/templates';
 
 const DEFAULT_RELEASE = {
-  version: 'v0.0.3.10',
-  releaseName: 'RiderVoice v0.0.3.10',
-  fileName: 'Rider_APP-v0.0.3.10.apk',
-  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.10/Rider_APP-v0.0.3.10.apk',
-  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.10',
+  version: 'v0.0.3.11',
+  releaseName: 'RiderVoice v0.0.3.11',
+  fileName: 'Rider_APP-v0.0.3.11.apk',
+  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.11/Rider_APP-v0.0.3.11.apk',
+  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.11',
   sha256: 'Pending release verification',
   fileSize: '~50 MB',
   targetArch: 'Universal ARM (arm64-v8a, armeabi-v7a)',
-  highlights: 'VOX hold time optimization, rich squad participant metadata, instant port binding, and automated applicant email notifications'
+  highlights: 'Duplicate convoy name disambiguation, robust SMTP connection pooling with auto-recovery, and ride invite relation fix'
 };
 
 async function getLatestRelease() {

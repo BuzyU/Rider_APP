@@ -184,7 +184,7 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
                 runId,
                 sequenceNumber: 1,
                 payload: {
-                    deviceInfo: { app_version: 'v0.0.3.10', os_version: 'Android 14', device_model: 'Pixel 8' },
+                    deviceInfo: { app_version: 'v0.0.3.11', os_version: 'Android 14', device_model: 'Pixel 8' },
                     selfMetrics: [
                         {
                             timestamp: Math.floor(Date.now() / 1000),
@@ -226,7 +226,7 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
                 runId,
                 sequenceNumber: 1,
                 payload: {
-                    deviceInfo: { app_version: 'v0.0.3.10', os_version: 'Android 13', device_model: 'Galaxy S23' },
+                    deviceInfo: { app_version: 'v0.0.3.11', os_version: 'Android 13', device_model: 'Galaxy S23' },
                     selfMetrics: [
                         {
                             timestamp: Math.floor(Date.now() / 1000),

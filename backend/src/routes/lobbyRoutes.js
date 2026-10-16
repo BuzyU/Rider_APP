@@ -17,6 +17,21 @@ function getLiveKitHttpUrl() {
     return cachedHttpUrl
 }
 
+function extractCleanToken(input) {
+    if (!input || typeof input !== 'string') return ''
+    let cleaned = input.trim()
+    if (cleaned.startsWith('ridervoice://join/')) {
+        cleaned = cleaned.slice('ridervoice://join/'.length)
+    } else if (cleaned.includes('/join/')) {
+        cleaned = cleaned.slice(cleaned.indexOf('/join/') + '/join/'.length)
+    }
+    if (cleaned.includes('token=')) {
+        cleaned = cleaned.slice(cleaned.indexOf('token=') + 'token='.length)
+    }
+    cleaned = cleaned.split('?')[0].split('&')[0].split('#')[0].replace(/\/+$/, '').trim()
+    return cleaned
+}
+
 async function resolveRiderDisplayName(uid, fallback = 'Rider') {
     return cacheService.wrap(`user_name:${uid}`, 60000, async () => {
         try {
@@ -327,9 +342,12 @@ router.post('/join-via-token', async (req, res, next) => {
 
     if (!token) return res.status(400).json({ error: 'token is required' })
 
+    const cleanToken = extractCleanToken(token)
+    if (!cleanToken) return res.status(400).json({ error: 'token is required' })
+
     try {
-        const joinTokenRecord = await prisma.roomJoinToken.findUnique({
-            where: { token },
+        let joinTokenRecord = await prisma.roomJoinToken.findUnique({
+            where: { token: cleanToken },
             select: {
                 expiresAt: true,
                 room: {
@@ -343,15 +361,44 @@ router.post('/join-via-token', async (req, res, next) => {
             }
         })
 
-        if (!joinTokenRecord) {
-            return res.status(404).json({ error: 'Invalid or expired convoy link' })
+        if (!joinTokenRecord && cleanToken.toLowerCase() !== cleanToken) {
+            joinTokenRecord = await prisma.roomJoinToken.findUnique({
+                where: { token: cleanToken.toLowerCase() },
+                select: {
+                    expiresAt: true,
+                    room: {
+                        select: {
+                            id: true,
+                            name: true,
+                            ownerId: true,
+                            diagnosticsEnabled: true
+                        }
+                    }
+                }
+            })
         }
 
-        if (new Date() > joinTokenRecord.expiresAt) {
-            return res.status(410).json({ error: 'Convoy join link has expired' })
+        let room
+        if (joinTokenRecord) {
+            if (new Date() > joinTokenRecord.expiresAt) {
+                return res.status(410).json({ error: 'Convoy join link has expired' })
+            }
+            room = joinTokenRecord.room
+        } else {
+            const roomByName = await prisma.room.findUnique({
+                where: { name: cleanToken },
+                select: {
+                    id: true,
+                    name: true,
+                    ownerId: true,
+                    diagnosticsEnabled: true
+                }
+            })
+            if (!roomByName) {
+                return res.status(404).json({ error: 'Invalid or expired convoy link' })
+            }
+            room = roomByName
         }
-
-        const room = joinTokenRecord.room
 
         const existingInvite = await prisma.rideInvite.findFirst({
             where: { roomId: room.id, inviteeId: user.uid },

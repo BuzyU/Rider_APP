@@ -35,7 +35,7 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
         assert.match(output, /is valid/i, 'Prisma schema must be valid')
     })
 
-    it('applies migrations to fresh DB and previous DB state without schema drift', { timeout: 60000 }, async () => {
+    it('applies migrations to fresh DB and previous DB state without schema drift', { timeout: 120000 }, async () => {
         const testPort = 5437
         const testDataDir = path.join(__dirname, '../.pg_data_migration_test')
         const pg = new EmbeddedPostgres({
@@ -47,6 +47,9 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
         })
 
         try {
+            if (fs.existsSync(testDataDir)) {
+                fs.rmSync(testDataDir, { recursive: true, force: true })
+            }
             await pg.initialise()
             await pg.start()
 

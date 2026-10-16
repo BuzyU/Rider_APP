@@ -5,6 +5,21 @@ const cacheService = require("../services/cacheService");
 
 const router = express.Router();
 
+function extractCleanToken(input) {
+  if (!input || typeof input !== "string") return "";
+  let cleaned = input.trim();
+  if (cleaned.startsWith("ridervoice://join/")) {
+    cleaned = cleaned.slice("ridervoice://join/".length);
+  } else if (cleaned.includes("/join/")) {
+    cleaned = cleaned.slice(cleaned.indexOf("/join/") + "/join/".length);
+  }
+  if (cleaned.includes("token=")) {
+    cleaned = cleaned.slice(cleaned.indexOf("token=") + "token=".length);
+  }
+  cleaned = cleaned.split("?")[0].split("&")[0].split("#")[0].replace(/\/+$/, "").trim();
+  return cleaned;
+}
+
 router.post("/room/token", async (req, res) => {
   try {
     const { roomName } = req.body;
@@ -16,8 +31,15 @@ router.post("/room/token", async (req, res) => {
         .json({ error: "Missing roomName in request body" });
     }
 
-    const existingRoom = await prisma.room.findUnique({
-      where: { name: roomName },
+    const cleanInput = extractCleanToken(roomName);
+    if (!cleanInput) {
+      return res
+        .status(400)
+        .json({ error: "Missing roomName in request body" });
+    }
+
+    let existingRoom = await prisma.room.findUnique({
+      where: { name: cleanInput },
       select: {
         id: true,
         name: true,
@@ -31,16 +53,84 @@ router.post("/room/token", async (req, res) => {
       },
     });
 
+    let isTokenJoin = false;
+    if (!existingRoom) {
+      try {
+        let joinTokenRecord = await prisma.roomJoinToken.findUnique({
+          where: { token: cleanInput },
+          select: {
+            expiresAt: true,
+            room: {
+              select: {
+                id: true,
+                name: true,
+                ownerId: true,
+                diagnosticsEnabled: true,
+              },
+            },
+          },
+        });
+
+        if (!joinTokenRecord && cleanInput.toLowerCase() !== cleanInput) {
+          joinTokenRecord = await prisma.roomJoinToken.findUnique({
+            where: { token: cleanInput.toLowerCase() },
+            select: {
+              expiresAt: true,
+              room: {
+                select: {
+                  id: true,
+                  name: true,
+                  ownerId: true,
+                  diagnosticsEnabled: true,
+                },
+              },
+            },
+          });
+        }
+
+        if (joinTokenRecord) {
+          if (new Date() > joinTokenRecord.expiresAt) {
+            return res.status(410).json({ error: "Convoy join link has expired" });
+          }
+          existingRoom = joinTokenRecord.room;
+          existingRoom.invites = [];
+          isTokenJoin = true;
+        }
+      } catch (tokenLookupErr) {
+      }
+    }
+
     if (!existingRoom) {
       return res.status(404).json({ error: "Room not found" });
     }
 
     const isAuthorized =
-      existingRoom.ownerId === user.uid || existingRoom.invites.length > 0;
-    if (!isAuthorized) {
-      return res
-        .status(403)
-        .json({ error: "No accepted invite found for this room" });
+      existingRoom.ownerId === user.uid ||
+      (existingRoom.invites && existingRoom.invites.length > 0);
+
+    if (!isAuthorized || isTokenJoin) {
+      const existingInvite = await prisma.rideInvite.findFirst({
+        where: { roomId: existingRoom.id, inviteeId: user.uid },
+        select: { id: true },
+      });
+      if (existingInvite) {
+        await prisma.rideInvite.update({
+          where: { id: existingInvite.id },
+          data: { status: "ACCEPTED" },
+          select: { id: true },
+        });
+      } else {
+        await prisma.rideInvite.create({
+          data: {
+            roomId: existingRoom.id,
+            inviterId: existingRoom.ownerId,
+            inviteeId: user.uid,
+            status: "ACCEPTED",
+          },
+          select: { id: true },
+        });
+      }
+      cacheService.del(`lobby_status:${existingRoom.name}`);
     }
 
     const participantName = await cacheService.wrap(`user_name:${user.uid}`, 60000, async () => {
@@ -67,7 +157,7 @@ router.post("/room/token", async (req, res) => {
 
     at.addGrant({
       roomJoin: true,
-      room: roomName,
+      room: existingRoom.name,
       canPublish: true,
       canSubscribe: true,
       canPublishData: true,
@@ -81,7 +171,7 @@ router.post("/room/token", async (req, res) => {
 
     res.json({
       token,
-      roomName,
+      roomName: existingRoom.name,
       diagnosticsEnabled: existingRoom.diagnosticsEnabled ?? activeRun != null,
       testNumber: activeRun?.testNumber || null,
     });

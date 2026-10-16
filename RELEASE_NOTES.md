@@ -1,3 +1,38 @@
+## RiderVoice v0.0.3.10 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.10** optimizes VOX responsiveness with reduced silence hold timing for crisper intercom turn-taking, delivers rich squad participant metadata with proper display names across LiveKit channels, introduces instant backend port binding for fast platform initialization, and enhances transactional SMTP notifications.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.10` |
+| **Version Code** | `3010` |
+| **Release Tag** | [`v0.0.3.10`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.10) |
+| **Download APK** | [`Rider_APP-v0.0.3.10.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.10/Rider_APP-v0.0.3.10.apk) |
+
+---
+
+### 🎙️ VOX Engine & Audio Pipeline Optimization
+- **Tuned Speech Hold Window**: Reduced VOX silence hold duration from 1400ms to 900ms (`HOLD_MS = 900L`), significantly eliminating conversational dead-air and improving helmet intercom turn-taking while riding at speed.
+- **Non-Contending Capture Evaluation**: Suspends local `AudioRecord` polling while transmitting, preventing hardware driver contention and CPU wakeups.
+- **Lightweight Audio Threading**: Removed noisy logging from high-frequency audio callbacks to minimize garbage collector pressure on lower-end hardware.
+
+---
+
+### 👥 Squad Metadata & Lobby Resilience
+- **Rich Participant Models**: Upgraded LiveKit participant subscriptions to map both identities and display names into structured `Participant` objects.
+- **Lobby Coroutine Lifecycle**: Bound lobby polling to coroutine scope activity (`isActive`) with proper cleanup in `onCleared()`, preventing orphan polling tasks.
+- **Frictionless Error Feedback**: Added descriptive error messages for expired or invalid convoy join links (404/410/403).
+
+---
+
+### 🌐 Backend & Infrastructure Resilience
+- **Instant Port Binding**: Server binds HTTP listener immediately on start, allowing cloud hosters (e.g. Render) to satisfy health-checks without waiting for DDL completion.
+- **Pooler-Safe Async Migrations**: Executes database schema extensions asynchronously in a transaction-pooler safe manner.
+- **Transactional Comms Relay**: Integrated HTML email templates via authenticated SMTP for tester onboarding, squad dispatch, and ride completion debriefs.
+
+---
+
 ## RiderVoice v0.0.3.9 Release Notes
 
 ### 🚀 Overview

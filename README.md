@@ -4,13 +4,14 @@
 
 RiderVoice is a Jetpack Compose Android application designed for motorcycle convoys. It enables hands-free push-to-talk (PTT) communication over WebRTC, squad coordination, active ride telemetry, and over-the-air (OTA) application updates. It is backed by a Node.js Express REST API, Prisma PostgreSQL (Supabase), and LiveKit for real-time audio.
 
-> **Latest Release:** [**v0.0.3.9 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.9)  
+> **Latest Release:** [**v0.0.3.10 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.10)  
 > For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md).
 
 ---
 
 ## 🚀 Key Features
 
+- **VOX Responsiveness & Squad Comms Optimization (v0.0.3.10)** – Tuned VOX hold timing to 900ms for crisper turn-taking, rich squad participant identities with real display names, non-blocking audio TX processing, instant backend HTTP port binding for fast platform boot, and transactional SMTP convoy dispatch.
 - **Bluetooth Hardware Carrier Routing & Diagnostics UX (v0.0.3.9)** – Real hardware confirmation for Bluetooth SCO / BLE headsets via `AudioRouteDecisionEngine` and `OnCommunicationDeviceChangedListener` with 3-second loudspeaker fallback; strict room token security claim verification; and opt-in convoy diagnostics with participant consent dialogs and 90s grace period close.
 - **Live Network Diagnostics & Telemetry Pipeline (v0.0.3.8)** – Multi-rider voice & network telemetry recording inside `VoiceForegroundService`. Collects 2-second WebRTC stats (RTT, jitter, interval loss %, packets/bytes), device health (battery, thermals, transport), crash-safe SQLite Room staging (`DiagnosticsDatabase`), idempotent WorkManager chunked uploads (<=200 rows), and automated backend multi-rider ZIP export (`self.csv`, `inbound.csv`, `events.csv`, `run_summary.md`) with live SMTP email reporting.
 - **P0 VOX Voice Engine & WebRTC ADM Relay (v0.0.3.7)** – Fixed 2-second forced mic cut via direct `JavaAudioDeviceModule.setSamplesReadyCallback` transmit PCM relay to dynamic RMS detector, regression coverage, dead code purge (`DEAD-1..11`), Settings UI/UX consumer cleanup with inlined headset controls (`UX-1..5`), and speed-tiered GNSS battery management (`BAT-1..3`).
@@ -31,12 +32,12 @@ RiderVoice is a Jetpack Compose Android application designed for motorcycle conv
 
 You can download the latest signed APK directly from GitHub Releases:
 
-- 📱 [**Download RiderVoice v0.0.3.9 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.9/Rider_APP-v0.0.3.9.apk)
-- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.9/Rider_APP-v0.0.3.9.apk.sha256)
+- 📱 [**Download RiderVoice v0.0.3.10 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.10/Rider_APP-v0.0.3.10.apk)
+- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.10/Rider_APP-v0.0.3.10.apk.sha256)
 
 ### Sideloading Instructions:
 
-1. Download `Rider_APP-v0.0.3.9.apk` onto your Android phone (or transfer via USB/Quick Share).
+1. Download `Rider_APP-v0.0.3.10.apk` onto your Android phone (or transfer via USB/Quick Share).
 2. Open your device's **Files** app and tap the APK.
 3. If prompted by Android, toggle **"Allow from this source"**.
 4. Tap **Install**. Subsequent updates can be downloaded directly from within the app under **Settings → Check for OTA Updates**.

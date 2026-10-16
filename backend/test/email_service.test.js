@@ -57,7 +57,7 @@ describe('RiderVoice Tactical Email Notification Service', () => {
         const result = await emailService.sendTesterWelcomeEmail({
             name: 'Piyush Dukare',
             email: 'piyushdukare789@gmail.com',
-            version: 'v0.0.3.9'
+            version: 'v0.0.3.10'
         })
         assert.strictEqual(result, true, 'sendTesterWelcomeEmail must return true')
     })

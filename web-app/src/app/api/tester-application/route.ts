@@ -5,15 +5,15 @@ import { buildTesterWelcomeEmail } from '@/lib/email/templates';
 
 // Fallback release metadata matching latest GitHub release
 const DEFAULT_RELEASE = {
-  version: 'v0.0.3.9',
-  releaseName: 'RiderVoice v0.0.3.9',
-  fileName: 'Rider_APP-v0.0.3.9.apk',
-  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.9/Rider_APP-v0.0.3.9.apk',
-  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.9',
+  version: 'v0.0.3.10',
+  releaseName: 'RiderVoice v0.0.3.10',
+  fileName: 'Rider_APP-v0.0.3.10.apk',
+  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.10/Rider_APP-v0.0.3.10.apk',
+  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.10',
   sha256: 'Pending release verification',
   fileSize: '~50 MB',
   targetArch: 'Universal ARM (arm64-v8a, armeabi-v7a)',
-  highlights: 'Bluetooth SCO hardware route confirmations, room token security claim verification, and convoy diagnostics UX'
+  highlights: 'VOX hold time optimization, rich squad participant metadata, instant port binding, and automated applicant email notifications'
 };
 
 async function getLatestRelease() {

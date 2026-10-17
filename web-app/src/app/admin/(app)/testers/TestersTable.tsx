@@ -22,11 +22,8 @@ interface TestersTableProps {
   initialApplications: TesterApplicationRow[];
 }
 
-export default function TestersTable({
-  initialApplications,
-}: TestersTableProps) {
-  const [applications, setApplications] =
-    useState<TesterApplicationRow[]>(initialApplications);
+export default function TestersTable({ initialApplications }: TestersTableProps) {
+  const [applications, setApplications] = useState<TesterApplicationRow[]>(initialApplications);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -35,7 +32,7 @@ export default function TestersTable({
     setUpdatingId(id);
     const previous = applications;
     setApplications((prev) =>
-      prev.map((app) => (app.id === id ? { ...app, status } : app)),
+      prev.map((app) => (app.id === id ? { ...app, status } : app))
     );
 
     try {
@@ -59,9 +56,7 @@ export default function TestersTable({
   };
 
   if (!applications.length) {
-    return (
-      <div className="admin-empty">No tester applications submitted yet.</div>
-    );
+    return <div className="admin-empty">No tester applications submitted yet.</div>;
   }
 
   return (
@@ -95,10 +90,7 @@ export default function TestersTable({
                 <td>
                   <div>{app.email}</div>
                   {app.phone && (
-                    <div
-                      className="admin-muted"
-                      style={{ fontSize: "0.85rem" }}
-                    >
+                    <div className="admin-muted" style={{ fontSize: "0.85rem" }}>
                       {app.phone}
                     </div>
                   )}
@@ -106,10 +98,7 @@ export default function TestersTable({
                 <td>
                   {app.motorcycle_model && <div>{app.motorcycle_model}</div>}
                   {app.device_model && (
-                    <div
-                      className="admin-muted"
-                      style={{ fontSize: "0.85rem" }}
-                    >
+                    <div className="admin-muted" style={{ fontSize: "0.85rem" }}>
                       {app.device_model}
                     </div>
                   )}
@@ -123,17 +112,15 @@ export default function TestersTable({
                       currentStatus === "APPROVED"
                         ? "admin-tag--success"
                         : currentStatus === "REJECTED"
-                          ? "admin-tag--danger"
-                          : ""
+                        ? "admin-tag--danger"
+                        : ""
                     }`}
                   >
                     {currentStatus}
                   </span>
                 </td>
                 <td style={{ maxWidth: "220px", wordBreak: "break-word" }}>
-                  {app.experience_notes || (
-                    <span className="admin-muted">—</span>
-                  )}
+                  {app.experience_notes || <span className="admin-muted">—</span>}
                 </td>
                 <td>{app.apk_version || "v0.0.3.13"}</td>
                 <td>{new Date(app.created_at).toLocaleDateString()}</td>
@@ -155,11 +142,7 @@ export default function TestersTable({
                         type="button"
                         disabled={updatingId === app.id}
                         className="admin-button admin-button--ghost"
-                        style={{
-                          padding: "4px 10px",
-                          fontSize: "0.8rem",
-                          color: "#dc2626",
-                        }}
+                        style={{ padding: "4px 10px", fontSize: "0.8rem", color: "#dc2626" }}
                         onClick={() => updateStatus(app.id, "REJECTED")}
                       >
                         Reject
@@ -175,3 +158,4 @@ export default function TestersTable({
     </>
   );
 }
+

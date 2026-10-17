@@ -394,7 +394,7 @@ class LiveKitManager @Inject constructor(
                 _connectionState.value = ConnectionState.DISCONNECTED
                 _remoteLocations.value = emptyMap()
                 _activeSpeaker.value = null
-                val reasonName = event.reason?.name ?: ""
+                val reasonName = event.reason.name
                 if (reasonName.contains("ROOM_DELETED", ignoreCase = true) ||
                     reasonName.contains("USER_REJECTED", ignoreCase = true)) {
                     _convoyEnded.value = true

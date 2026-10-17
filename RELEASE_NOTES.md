@@ -1,3 +1,37 @@
+## RiderVoice v0.0.3.13 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.13** delivers seamless hands-free VOX auto-gate detection for motorcycle helmets, synchronized host end-ride termination and teardown across convoy members, resilient invite code & deep link URL resolution, and refined compiler hygiene.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.13` |
+| **Version Code** | `3013` |
+| **Release Tag** | [`v0.0.3.13`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.13) |
+| **Download APK** | [`Rider_APP-v0.0.3.13.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.13/Rider_APP-v0.0.3.13.apk) |
+
+---
+
+### 🎙️ Hands-Free VOX Intercom Auto-Gate
+- **Speech Auto-Detection**: Microphone channel automatically opens upon detecting voice directly from the WebRTC audio frame stream, providing true hands-free communication for helmet riders without touching buttons.
+- **Automatic Silence Hold & Release**: Voice gate automatically closes after speech completes, maintaining clean audio without clipping natural syllable pauses.
+- **Dual Stream Evaluation**: Dynamically evaluates acoustic levels both when mic is open and closed, eliminating hardware conflicts on Bluetooth SCO helmet headsets.
+
+---
+
+### 🏁 Synchronized Convoy Termination & Exit Teardown
+- **Host End-Ride Broadcast**: Broadcasts `CONVOY_ENDED` signal across LiveKit data channels immediately when the host ends the ride, notifying all convoy participants with zero delay.
+- **Automated Teardown & Room Exit**: Non-host riders automatically exit room screens, release hardware audio devices, cleanly terminate foreground services, and navigate back to ride summary.
+- **LiveKit Room Deletion Detection**: Gracefully recognizes LiveKit server room deletion and suppresses stale reconnection loops.
+
+---
+
+### 🔗 Resilient Invite Resolution & Deep Linking
+- **URL & Code Extraction**: Automatically extracts clean convoy tokens from full web links (`https://.../join/TOKEN`, `ridervoice://...`), uppercase input, or raw join codes.
+- **Case-Insensitive Resolution**: Fallback queries preserve invite link validity regardless of keyboard autocorrect or casing.
+
+---
+
 ## RiderVoice v0.0.3.12 Release Notes
 
 ### 🚀 Overview

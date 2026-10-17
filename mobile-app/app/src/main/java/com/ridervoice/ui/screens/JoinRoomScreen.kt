@@ -34,7 +34,6 @@ fun JoinRoomScreen(
     var userName by remember {
         mutableStateOf(currentUser?.displayName ?: currentUser?.email?.substringBefore("@") ?: "Rider")
     }
-    var manualConnecting by remember { mutableStateOf(false) }
 
     val isTokenConnecting by viewModel.isConnecting.collectAsState()
     val tokenError by viewModel.error.collectAsState()
@@ -187,13 +186,13 @@ fun JoinRoomScreen(
 
                 OutlinedTextField(
                     value = roomCode,
-                    onValueChange = { roomCode = it.uppercase() },
-                    label = { Text("Convoy Room Code") },
-                    placeholder = { Text("e.g. LONAVALA-01", color = TextSecondary) },
+                    onValueChange = { roomCode = it },
+                    label = { Text("Convoy Room Code or Invite Link") },
+                    placeholder = { Text("e.g. LONAVALA-01 or paste invite link", color = TextSecondary) },
                     leadingIcon = { Icon(Icons.Default.MeetingRoom, contentDescription = null, tint = NeonOrange) },
                     supportingText = {
                         if (roomCode.isBlank()) {
-                            Text("Enter the unique code or convoy name", color = TextSecondary, style = MaterialTheme.typography.bodyMedium, fontSize = 11.sp)
+                            Text("Enter room code, invite code, or paste invite link", color = TextSecondary, style = MaterialTheme.typography.bodyMedium, fontSize = 11.sp)
                         }
                     },
                     singleLine = true,
@@ -237,7 +236,7 @@ fun JoinRoomScreen(
                 Button(
                     onClick = {
                         if (canJoin) {
-                            viewModel.joinByRoomCode(roomCode.trim(), userName.trim()) { resolvedRoom ->
+                            viewModel.smartJoin(roomCode.trim(), userName.trim()) { resolvedRoom ->
                                 onJoin(resolvedRoom, userName.trim())
                             }
                         }

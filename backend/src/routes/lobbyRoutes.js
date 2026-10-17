@@ -509,6 +509,12 @@ router.post('/:roomName/end', async (req, res, next) => {
             const httpUrl = getLiveKitHttpUrl()
             if (httpUrl && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET) {
                 const svc = new RoomServiceClient(httpUrl, process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET)
+                try {
+                    const dataPayload = Buffer.from(JSON.stringify({ type: 'CONVOY_ENDED', roomName }))
+                    await svc.sendData(roomName, dataPayload, 0)
+                } catch (sendErr) {
+                    console.warn(`[LiveKit] sendData notice for ${roomName}:`, sendErr.message)
+                }
                 await svc.deleteRoom(roomName)
             }
         } catch (lkError) {

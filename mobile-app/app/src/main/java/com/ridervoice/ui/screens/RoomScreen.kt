@@ -81,6 +81,7 @@ fun RoomScreen(
     var isVoiceChannelExpanded by remember { mutableStateOf(false) }
     var isPttPressed by remember { mutableStateOf(false) }
     val isDeafened by viewModel.deafened.collectAsState()
+    val convoyEnded by viewModel.convoyEnded.collectAsState()
     var showLeaveConfirmDialog by remember { mutableStateOf(false) }
     var showAudioRoutePicker by remember { mutableStateOf(false) }
     var showDiagnosticsDialog by remember { mutableStateOf(false) }
@@ -106,6 +107,12 @@ fun RoomScreen(
         com.ridervoice.models.RideSession.clear()
         context.stopService(Intent(context, VoiceForegroundService::class.java))
         onLeave()
+    }
+
+    LaunchedEffect(convoyEnded) {
+        if (convoyEnded) {
+            exitRideCleanup()
+        }
     }
 
     BackHandler {

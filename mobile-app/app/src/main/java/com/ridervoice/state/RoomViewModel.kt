@@ -89,6 +89,8 @@ class RoomViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
+    val convoyEnded: StateFlow<Boolean> = liveKitManager.convoyEnded
+
 
 
     init {
@@ -160,6 +162,22 @@ class RoomViewModel @Inject constructor(
                     if (p.isGhost && p.disconnectedAt != null) {
                         (now - p.disconnectedAt) < (2 * 60 * 1000)
                     } else true
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(10_000)
+                val active = com.ridervoice.models.RideSession.activeRoomName
+                if (!com.ridervoice.models.RideSession.isHost && !active.isNullOrBlank() && !liveKitManager.convoyEnded.value) {
+                    try {
+                        val res = apiService.getLobbyStatus(active)
+                        if (res.code() == 404) {
+                            liveKitManager.signalConvoyEnded()
+                        }
+                    } catch (e: Exception) {
+                    }
                 }
             }
         }
@@ -281,6 +299,7 @@ class RoomViewModel @Inject constructor(
     fun endRideForEveryone(roomName: String, onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
+                liveKitManager.broadcastConvoyEnded(roomName)
                 networkDiagnosticsCollector.stopSession()
                 apiService.endRideForEveryone(roomName)
             } catch (e: Exception) {

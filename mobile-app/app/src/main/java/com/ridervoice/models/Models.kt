@@ -23,7 +23,9 @@ data class LobbyStatus(
     val acceptedCount: Int,
     val pendingCount: Int,
     val declinedCount: Int,
-    val canStart: Boolean
+    val canStart: Boolean,
+    val isRideStarted: Boolean = false,
+    val isHost: Boolean = false
 )
 
 data class LobbyInviteEntry(

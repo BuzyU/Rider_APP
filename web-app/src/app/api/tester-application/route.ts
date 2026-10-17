@@ -4,15 +4,15 @@ import { sendSmtpMail } from '@/lib/email/smtpClient';
 import { buildTesterWelcomeEmail } from '@/lib/email/templates';
 
 const DEFAULT_RELEASE = {
-  version: 'v0.0.3.13',
-  releaseName: 'RiderVoice v0.0.3.13',
-  fileName: 'Rider_APP-v0.0.3.13.apk',
-  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.13/Rider_APP-v0.0.3.13.apk',
-  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.13',
+  version: 'v0.0.3.14',
+  releaseName: 'RiderVoice v0.0.3.14',
+  fileName: 'Rider_APP-v0.0.3.14.apk',
+  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.14/Rider_APP-v0.0.3.14.apk',
+  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.14',
   sha256: 'Pending release verification',
   fileSize: '~50 MB',
   targetArch: 'Universal ARM (arm64-v8a, armeabi-v7a)',
-  highlights: 'Hands-free continuous VOX auto-gate detection, synchronized host end-ride termination and teardown across convoy'
+  highlights: 'Android 9 OEM motion crash protection, synchronized convoy lobby and host start, callsign invite navigation'
 };
 
 async function getLatestRelease() {

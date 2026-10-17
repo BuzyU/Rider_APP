@@ -100,6 +100,26 @@ router.post("/room/token", async (req, res) => {
       }
     }
 
+    if (!existingRoom && typeof prisma.room.findFirst === "function") {
+      try {
+        existingRoom = await prisma.room.findFirst({
+          where: { name: { equals: cleanInput, mode: "insensitive" } },
+          select: {
+            id: true,
+            name: true,
+            ownerId: true,
+            diagnosticsEnabled: true,
+            invites: {
+              where: { inviteeId: user.uid, status: "ACCEPTED" },
+              select: { id: true },
+              take: 1,
+            },
+          },
+        });
+      } catch (findErr) {
+      }
+    }
+
     if (!existingRoom) {
       return res.status(404).json({ error: "Room not found" });
     }

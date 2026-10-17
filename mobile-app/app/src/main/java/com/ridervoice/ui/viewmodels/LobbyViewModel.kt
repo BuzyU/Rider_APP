@@ -35,8 +35,23 @@ class LobbyViewModel @Inject constructor(
             while (isActive) {
                 try {
                     val response = apiService.getLobbyStatus(roomName)
-                    if (response.isSuccessful) {
-                        _lobbyStatus.value = response.body()
+                    if (response.isSuccessful && response.body() != null) {
+                        val body = response.body()!!
+                        _lobbyStatus.value = body
+                        RideSession.isHost = body.isHost
+                        RideSession.activeRoomName = body.convoyName
+                        if (!body.isHost && RideSession.livekitToken.isNullOrBlank()) {
+                            try {
+                                val tokenRes = apiService.getJoinToken(com.ridervoice.models.JoinTokenRequest(roomName))
+                                if (tokenRes.isSuccessful && tokenRes.body() != null) {
+                                    val tb = tokenRes.body()!!
+                                    RideSession.livekitToken = tb.token
+                                    RideSession.livekitUrl = tb.livekitUrl.ifBlank { com.ridervoice.utils.Constants.LIVEKIT_URL }
+                                    RideSession.diagnosticsEnabled = tb.diagnosticsEnabled
+                                    RideSession.testNumber = tb.testNumber
+                                }
+                            } catch (_: Exception) {}
+                        }
                     } else if (response.code() == 404 || response.code() == 403) {
                         _error.value = "Convoy session ended or access revoked"
                         break

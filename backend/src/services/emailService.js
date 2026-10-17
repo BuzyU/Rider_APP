@@ -344,7 +344,7 @@ class EmailService {
                 ctaUrl: releasePageUrl || 'https://github.com/BuzyU/Rider_APP/releases/latest',
                 specsTitle: 'Release Specifications',
                 specs: [
-                    { label: 'Target Version', value: version || 'v0.0.3.14' },
+                    { label: 'Target Version', value: version || 'v0.0.3.12' },
                     { label: 'Architecture', value: 'Universal ARM (arm64-v8a)' },
                     { label: 'Deployment Stage', value: 'Closed Beta Wave' },
                     { label: 'Waitlist Status', value: 'Confirmed & Queued', color: '#10b981', dotColor: '#10b981' }

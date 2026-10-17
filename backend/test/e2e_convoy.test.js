@@ -25,9 +25,6 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
 
         let server
         try {
-            if (fs.existsSync(testDataDir)) {
-                fs.rmSync(testDataDir, { recursive: true, force: true })
-            }
             await pg.initialise()
             await pg.start()
             await pg.createDatabase(dbName)

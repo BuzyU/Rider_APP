@@ -113,14 +113,6 @@ class VoiceForegroundService : Service() {
             }
         }
 
-        serviceScope.launch {
-            liveKitManager.convoyEnded.collectLatest { ended ->
-                if (ended) {
-                    stopSelf()
-                }
-            }
-        }
-
         // Network Diagnostics Collector: Observe toggle + connection state with pure DiagnosticsGating policy
         serviceScope.launch {
             combine(

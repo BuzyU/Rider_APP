@@ -136,8 +136,8 @@ fun NavGraph(
             LobbyScreen(
                 convoyName   = convoyName,
                 onStartRide  = {
-                    val isHost = com.ridervoice.models.RideSession.isHost
-                    navController.navigate(Routes.deviceSetupPath(convoyName, isHost = isHost))
+
+                    navController.navigate(Routes.deviceSetupPath(convoyName, isHost = true))
                 },
                 onBackClick  = { navController.popBackStack() }
             )
@@ -146,7 +146,8 @@ fun NavGraph(
         composable(Routes.INVITES_INBOX) {
             InvitesInboxScreen(
                 onInviteAccepted = { convoyName ->
-                    navController.navigate(Routes.lobbyPath(convoyName))
+
+                    navController.navigate(Routes.deviceSetupPath(convoyName, isHost = false))
                 },
                 onBackClick = { navController.popBackStack() }
             )
@@ -299,7 +300,7 @@ fun NavGraph(
         composable(Routes.JOIN_ROOM) {
             JoinRoomScreen(
                 onJoin = { roomCode, _ ->
-                    navController.navigate(Routes.lobbyPath(roomCode))
+                    navController.navigate(Routes.deviceSetupPath(roomCode, isHost = false))
                 },
                 onBackClick = { navController.popBackStack() }
             )
@@ -312,7 +313,7 @@ fun NavGraph(
             JoinRoomScreen(
                 initialToken = token,
                 onJoin = { roomCode, _ ->
-                    navController.navigate(Routes.lobbyPath(roomCode))
+                    navController.navigate(Routes.deviceSetupPath(roomCode, isHost = false))
                 },
                 onBackClick = { navController.popBackStack() }
             )

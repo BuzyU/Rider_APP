@@ -240,20 +240,4 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-    override fun dispatchGenericMotionEvent(ev: android.view.MotionEvent?): Boolean {
-        return try {
-            super.dispatchGenericMotionEvent(ev)
-        } catch (e: IllegalStateException) {
-            true
-        }
-    }
-
-    override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
-        return try {
-            super.dispatchTouchEvent(ev)
-        } catch (e: IllegalStateException) {
-            true
-        }
-    }
 }

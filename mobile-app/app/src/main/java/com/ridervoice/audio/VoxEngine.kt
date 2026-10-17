@@ -138,10 +138,6 @@ class VoxEngine @Inject constructor(
                     delay(20)
                     continue
                 }
-                if (lastTxFrameTime > 0L && (now - lastTxFrameTime < 500L)) {
-                    delay(20)
-                    continue
-                }
                 if (audioRecord?.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
                     delay(50)
                     continue
@@ -258,6 +254,7 @@ class VoxEngine @Inject constructor(
     @Volatile private var lastTxFrameTime = 0L
 
     fun onTxFrame(pcmBytes: ByteArray, sampleRate: Int = 16000) {
+        if (!_isMicOpen.value && !pttOverride) return
         val now = System.currentTimeMillis()
         lastTxFrameTime = now
 
@@ -278,18 +275,11 @@ class VoxEngine @Inject constructor(
         _currentAmplitude.value = rms
 
         if (!pttOverride && voxEnabled) {
-            if (!_isMicOpen.value) {
-                detector.updateFloor(rms)
-                _noiseFloor.value = detector.floor
-                when (detector.evaluate(rms, now, isOpen = false)) {
-                    VoxDetector.Decision.OPEN -> openMic(isFromVox = true)
-                    else -> {}
+            when (detector.evaluate(rms, now, isOpen = true)) {
+                VoxDetector.Decision.CLOSE -> {
+                    closeMic()
                 }
-            } else {
-                when (detector.evaluate(rms, now, isOpen = true)) {
-                    VoxDetector.Decision.CLOSE -> closeMic()
-                    else -> {}
-                }
+                else -> {}
             }
         }
     }

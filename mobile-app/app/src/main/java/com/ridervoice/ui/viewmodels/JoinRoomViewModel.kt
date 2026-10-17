@@ -23,26 +23,8 @@ class JoinRoomViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    fun extractTokenOrCode(input: String): String = JoinRoomResponseHandler.extractTokenOrCode(input)
-
-    fun smartJoin(input: String, userName: String, onSuccess: (roomName: String) -> Unit) {
-        val cleaned = extractTokenOrCode(input)
-        if (cleaned.isBlank()) {
-            _error.value = "Room code or invite link is required"
-            return
-        }
-        val isHexToken = cleaned.matches(Regex("^[a-fA-F0-9]{8,64}$"))
-        val isUrl = input.contains("://") || input.contains("/join/") || input.contains("token=")
-
-        if (isHexToken || isUrl) {
-            joinViaToken(cleaned, onSuccess)
-        } else {
-            joinByRoomCode(cleaned, userName, onSuccess)
-        }
-    }
-
     fun joinViaToken(token: String, onSuccess: (roomName: String) -> Unit) {
-        val cleanToken = extractTokenOrCode(token)
+        val cleanToken = token.trim()
         if (cleanToken.isBlank()) {
             _error.value = "Invalid or missing join token"
             return
@@ -60,30 +42,18 @@ class JoinRoomViewModel @Inject constructor(
                     RideSession.isHost = false
                     onSuccess(body.roomName)
                 } else {
-                    val roomRes = apiService.getRoomToken(com.ridervoice.models.RoomTokenRequest(cleanToken))
-                    if (roomRes.isSuccessful && roomRes.body() != null) {
-                        val roomBody = roomRes.body()!!
-                        RideSession.livekitToken = roomBody.token
-                        RideSession.activeRoomName = roomBody.roomName
-                        RideSession.diagnosticsEnabled = roomBody.diagnosticsEnabled
-                        RideSession.testNumber = roomBody.testNumber
-                        RideSession.livekitUrl = com.ridervoice.utils.Constants.LIVEKIT_URL
-                        RideSession.isHost = false
-                        onSuccess(roomBody.roomName)
-                    } else {
-                        val msg = res.errorBody()?.string()?.let { b ->
-                            try {
-                                val obj = org.json.JSONObject(b)
-                                if (obj.has("error")) obj.getString("error") else null
-                            } catch (e: Exception) { null }
-                        } ?: when (res.code()) {
-                            404 -> "Invalid or expired join link"
-                            410 -> "This convoy join link has expired"
-                            403 -> "You are not authorized to join this convoy"
-                            else -> "Failed to join convoy (${res.code()})"
-                        }
-                        _error.value = msg
+                    val msg = res.errorBody()?.string()?.let { b ->
+                        try {
+                            val obj = org.json.JSONObject(b)
+                            if (obj.has("error")) obj.getString("error") else null
+                        } catch (e: Exception) { null }
+                    } ?: when (res.code()) {
+                        404 -> "Invalid or expired join link"
+                        410 -> "This convoy join link has expired"
+                        403 -> "You are not authorized to join this convoy"
+                        else -> "Failed to join convoy (${res.code()})"
                     }
+                    _error.value = msg
                 }
             } catch (e: Exception) {
                 _error.value = "Connection failed: ${e.localizedMessage ?: "Check your network"}"
@@ -94,7 +64,7 @@ class JoinRoomViewModel @Inject constructor(
     }
 
     fun joinByRoomCode(roomCode: String, userName: String, onSuccess: (roomName: String) -> Unit) {
-        val cleanCode = extractTokenOrCode(roomCode)
+        val cleanCode = roomCode.trim()
         if (cleanCode.isBlank()) {
             _error.value = "Room callsign/code is required"
             return
@@ -104,44 +74,26 @@ class JoinRoomViewModel @Inject constructor(
             _error.value = null
             try {
                 val res = apiService.getRoomToken(com.ridervoice.models.RoomTokenRequest(cleanCode))
-                if (res.isSuccessful && res.body() != null) {
-                    JoinRoomResponseHandler.processTokenResponse(
-                        isSuccessful = true,
-                        statusCode = res.code(),
-                        body = res.body(),
-                        errorBodyString = null,
-                        onSuccess = { roomName -> onSuccess(roomName) },
-                        onError = { msg -> _error.value = msg },
-                        updateSession = { body ->
-                            RideSession.livekitToken = body.token
-                            RideSession.activeRoomName = body.roomName
-                            RideSession.diagnosticsEnabled = body.diagnosticsEnabled
-                            RideSession.testNumber = body.testNumber
-                            RideSession.livekitUrl = com.ridervoice.utils.Constants.LIVEKIT_URL
-                            RideSession.isHost = false
-                        }
-                    )
-                } else {
-                    val tokenRes = apiService.joinViaToken(JoinViaTokenRequest(cleanCode))
-                    if (tokenRes.isSuccessful && tokenRes.body() != null) {
-                        val body = tokenRes.body()!!
+                JoinRoomResponseHandler.processTokenResponse(
+                    isSuccessful = res.isSuccessful,
+                    statusCode = res.code(),
+                    body = res.body(),
+                    errorBodyString = res.errorBody()?.string(),
+                    onSuccess = { roomName ->
+                        onSuccess(roomName)
+                    },
+                    onError = { msg ->
+                        _error.value = msg
+                    },
+                    updateSession = { body ->
                         RideSession.livekitToken = body.token
-                        RideSession.livekitUrl = body.livekitUrl
                         RideSession.activeRoomName = body.roomName
+                        RideSession.diagnosticsEnabled = body.diagnosticsEnabled
+                        RideSession.testNumber = body.testNumber
+                        RideSession.livekitUrl = com.ridervoice.utils.Constants.LIVEKIT_URL
                         RideSession.isHost = false
-                        onSuccess(body.roomName)
-                    } else {
-                        JoinRoomResponseHandler.processTokenResponse(
-                            isSuccessful = false,
-                            statusCode = res.code(),
-                            body = null,
-                            errorBodyString = res.errorBody()?.string(),
-                            onSuccess = { roomName -> onSuccess(roomName) },
-                            onError = { msg -> _error.value = msg },
-                            updateSession = {}
-                        )
                     }
-                }
+                )
             } catch (e: Exception) {
                 _error.value = "Connection error: ${e.localizedMessage ?: "Check network"}"
             } finally {
@@ -156,20 +108,6 @@ class JoinRoomViewModel @Inject constructor(
 }
 
 object JoinRoomResponseHandler {
-    fun extractTokenOrCode(input: String): String {
-        var cleaned = input.trim()
-        if (cleaned.startsWith("ridervoice://join/", ignoreCase = true)) {
-            cleaned = cleaned.substring("ridervoice://join/".length)
-        } else if (cleaned.contains("/join/")) {
-            cleaned = cleaned.substringAfter("/join/")
-        }
-        if (cleaned.contains("token=")) {
-            cleaned = cleaned.substringAfter("token=")
-        }
-        cleaned = cleaned.substringBefore("?").substringBefore("&").substringBefore("#").trim()
-        return cleaned.removeSuffix("/")
-    }
-
     fun processTokenResponse(
         isSuccessful: Boolean,
         statusCode: Int,

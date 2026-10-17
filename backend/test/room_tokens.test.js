@@ -27,9 +27,6 @@ describe('Gate 1: Room Tokens', () => {
         originals.roomFindUnique = prisma.room.findUnique
         originals.roomCreate = prisma.room.create
         originals.rideInviteCreate = prisma.rideInvite.create
-        originals.rideInviteFindFirst = prisma.rideInvite.findFirst
-        originals.rideInviteUpdate = prisma.rideInvite.update
-        originals.roomJoinTokenFindUnique = prisma.roomJoinToken.findUnique
         originals.diagnosticRunFindFirst = prisma.diagnosticRun.findFirst
 
         app = express()
@@ -51,18 +48,10 @@ describe('Gate 1: Room Tokens', () => {
         baseUrl = `http://127.0.0.1:${port}`
     })
 
-    beforeEach(() => {
-        currentUser = { uid: 'user_123', name: 'Rider Dave' }
-        prisma.roomJoinToken.findUnique = async () => null
-    })
-
     after(async () => {
         prisma.room.findUnique = originals.roomFindUnique
         prisma.room.create = originals.roomCreate
         prisma.rideInvite.create = originals.rideInviteCreate
-        prisma.rideInvite.findFirst = originals.rideInviteFindFirst
-        prisma.rideInvite.update = originals.rideInviteUpdate
-        prisma.roomJoinToken.findUnique = originals.roomJoinTokenFindUnique
         prisma.diagnosticRun.findFirst = originals.diagnosticRunFindFirst
 
         if (server) {
@@ -174,83 +163,5 @@ describe('Gate 1: Room Tokens', () => {
         assert.ok(payload.video)
         assert.strictEqual(payload.video.room, 'Mountain-Ride')
         assert.strictEqual(payload.video.roomJoin, true)
-    })
-
-    it('POST /room/token resolves invite token and full url to room and returns 200', async () => {
-        currentUser = { uid: 'invite_rider_1', name: 'Charlie' }
-
-        prisma.room.findUnique = async () => null
-        prisma.roomJoinToken.findUnique = async ({ where }) => {
-            if (where.token === 'abcdef1234567890') {
-                return {
-                    expiresAt: new Date(Date.now() + 60000),
-                    room: {
-                        id: 'room_from_token',
-                        name: 'Lonavala-Express',
-                        ownerId: 'host_leader',
-                        diagnosticsEnabled: false
-                    }
-                }
-            }
-            return null
-        }
-        prisma.rideInvite.findFirst = async () => null
-        let inviteCreated = false
-        prisma.rideInvite.create = async () => {
-            inviteCreated = true
-            return { id: 'new_invite_id' }
-        }
-        prisma.diagnosticRun.findFirst = async () => null
-
-        const res = await fetch(`${baseUrl}/api/rooms/room/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roomName: 'ridervoice://join/abcdef1234567890?param=1#section' })
-        })
-
-        assert.strictEqual(res.status, 200)
-        const body = await res.json()
-        assert.ok(body.token)
-        assert.strictEqual(body.roomName, 'Lonavala-Express')
-        assert.strictEqual(inviteCreated, true)
-
-        const payload = decodeJwtPayload(body.token)
-        assert.strictEqual(payload.video.room, 'Lonavala-Express')
-    })
-
-    it('POST /join-via-token resolves uppercase and url-prefixed invite token and returns 200', async () => {
-        currentUser = { uid: 'invite_rider_2', name: 'Diana' }
-
-        prisma.roomJoinToken.findUnique = async ({ where }) => {
-            if (where.token === 'fedcba0987654321') {
-                return {
-                    expiresAt: new Date(Date.now() + 60000),
-                    room: {
-                        id: 'room_from_token_2',
-                        name: 'Goa-Coastal-Ride',
-                        ownerId: 'host_leader_2',
-                        diagnosticsEnabled: true
-                    }
-                }
-            }
-            return null
-        }
-        prisma.rideInvite.findFirst = async () => null
-        prisma.rideInvite.create = async () => ({ id: 'new_inv_id_2' })
-
-        const res = await fetch(`${baseUrl}/api/lobby/join-via-token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: 'https://ridervoice.com/join/FEDCBA0987654321' })
-        })
-
-        assert.strictEqual(res.status, 200)
-        const body = await res.json()
-        assert.ok(body.token)
-        assert.strictEqual(body.roomName, 'Goa-Coastal-Ride')
-        assert.strictEqual(body.diagnosticsEnabled, true)
-
-        const payload = decodeJwtPayload(body.token)
-        assert.strictEqual(payload.video.room, 'Goa-Coastal-Ride')
     })
 })

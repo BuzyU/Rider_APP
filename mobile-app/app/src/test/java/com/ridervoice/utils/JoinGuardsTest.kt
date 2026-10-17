@@ -221,34 +221,4 @@ class JoinGuardsTest {
         assertNotNull(errorMessage)
         assertTrue(errorMessage!!.contains("convoy-bravo"))
     }
-
-    @Test
-    fun `extractTokenOrCode strips deep link prefix accurately`() {
-        val extracted = JoinRoomResponseHandler.extractTokenOrCode("ridervoice://join/a1b2c3d4e5f67890")
-        assertEquals("a1b2c3d4e5f67890", extracted)
-    }
-
-    @Test
-    fun `extractTokenOrCode strips https join url with query and fragment`() {
-        val extracted = JoinRoomResponseHandler.extractTokenOrCode("https://app.ridervoice.com/join/a1b2c3d4e5f67890?param=1#sec")
-        assertEquals("a1b2c3d4e5f67890", extracted)
-    }
-
-    @Test
-    fun `extractTokenOrCode extracts token from query parameter`() {
-        val extracted = JoinRoomResponseHandler.extractTokenOrCode("https://app.ridervoice.com/api?token=a1b2c3d4e5f67890")
-        assertEquals("a1b2c3d4e5f67890", extracted)
-    }
-
-    @Test
-    fun `extractTokenOrCode preserves standard convoy room names`() {
-        val extracted = JoinRoomResponseHandler.extractTokenOrCode("  LONAVALA-01  ")
-        assertEquals("LONAVALA-01", extracted)
-    }
-
-    @Test
-    fun `extractTokenOrCode strips trailing slashes`() {
-        val extracted = JoinRoomResponseHandler.extractTokenOrCode("https://ridervoice.com/join/tok12345/")
-        assertEquals("tok12345", extracted)
-    }
 }

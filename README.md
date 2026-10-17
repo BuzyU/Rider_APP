@@ -4,15 +4,13 @@
 
 RiderVoice is a Jetpack Compose Android application designed for motorcycle convoys. It enables hands-free push-to-talk (PTT) communication over WebRTC, squad coordination, active ride telemetry, and over-the-air (OTA) application updates. It is backed by a Node.js Express REST API, Prisma PostgreSQL (Supabase), and LiveKit for real-time audio.
 
-> **Latest Release:** [**v0.0.3.14 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.14)  
+> **Latest Release:** [**v0.0.3.12 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.12)  
 > For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md).
 
 ---
 
 ## 🚀 Key Features
 
-- **Android 9 OEM Crash Protection & Synchronized Convoy Lobby (v0.0.3.14)** – Intercepts OEM synthetic accessibility gesture crashes (`ACTION_HOVER_EXIT`) on Android 9 devices, prevents convoy room fragmentation by reusing host room instances, authorizes all accepted riders to access the lobby status with live squad tune-in, automatically transitions lobby riders into active ride HUD upon host start, and routes dispatch callsign invites into the lobby.
-- **Hands-Free VOX Auto-Gate & Host Ride Termination (v0.0.3.13)** – Seamless hands-free mic auto-activation on speech detection and automatic silence hold release for helmet riders, synchronized host end-ride termination broadcasting over LiveKit data channels with automatic room cleanup and foreground service teardown across all convoy riders, and deep link URL/case-insensitive join code resolution.
 - **VOX Latency & Network Optimization (v0.0.3.12)** – Low-latency VOX audio release tuning, elimination of RED redundant audio packet overhead on 32kbps channels, cache stampede protection on backend services, rate-limiter memory sweep, and Android foreground service lifecycle hardening.
 - **Convoy Namespace Disambiguation & Resilient SMTP Pooling (v0.0.3.11)** – Enabled multi-host identical convoy naming with automated numerical suffix disambiguation, resilient production SMTP connection pooling with idle dead-socket purging, SSL fallback on port 465, and isolated transactional invite acceptance notifications.
 - **VOX Responsiveness & Squad Comms Optimization (v0.0.3.10)** – Tuned VOX hold timing to 900ms for crisper turn-taking, rich squad participant identities with real display names, non-blocking audio TX processing, instant backend HTTP port binding for fast platform boot, and transactional SMTP convoy dispatch.
@@ -36,12 +34,12 @@ RiderVoice is a Jetpack Compose Android application designed for motorcycle conv
 
 You can download the latest signed APK directly from GitHub Releases:
 
-- 📱 [**Download RiderVoice v0.0.3.14 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.14/Rider_APP-v0.0.3.14.apk)
-- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.14/Rider_APP-v0.0.3.14.apk.sha256)
+- 📱 [**Download RiderVoice v0.0.3.11 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.11/Rider_APP-v0.0.3.11.apk)
+- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.11/Rider_APP-v0.0.3.11.apk.sha256)
 
 ### Sideloading Instructions:
 
-1. Download `Rider_APP-v0.0.3.14.apk` onto your Android phone (or transfer via USB/Quick Share).
+1. Download `Rider_APP-v0.0.3.11.apk` onto your Android phone (or transfer via USB/Quick Share).
 2. Open your device's **Files** app and tap the APK.
 3. If prompted by Android, toggle **"Allow from this source"**.
 4. Tap **Install**. Subsequent updates can be downloaded directly from within the app under **Settings → Check for OTA Updates**.

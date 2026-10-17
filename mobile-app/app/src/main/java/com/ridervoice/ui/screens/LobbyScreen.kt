@@ -54,14 +54,6 @@ fun LobbyScreen(
         }
     }
 
-    LaunchedEffect(lobbyStatus?.isRideStarted) {
-        if (lobbyStatus?.isRideStarted == true) {
-            val isHost = lobbyStatus?.isHost == true
-            homeViewModel.setActiveRide(convoyName, isHost = isHost)
-            onStartRide()
-        }
-    }
-
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
@@ -368,59 +360,28 @@ fun LobbyScreen(
                 }
             }
 
-            if (status.isHost) {
-                val canStart = true
-                val startLabel = if (accepted.isNotEmpty()) {
-                    "START RIDE (${accepted.size + 1} RIDERS)"
-                } else {
-                    "START RIDE SOLO (CONVOY OPEN)"
-                }
-
-                TacticalButton(
-                    text = startLabel,
-                    onClick = {
-                        viewModel.startRide(convoyName, onStartSuccess = {
-                            homeViewModel.setActiveRide(convoyName, isHost = true)
-                            onStartRide()
-                        })
-                    },
-                    enabled = canStart,
-                    color = NeonOrange,
-                    textColor = if (ThemeState.isDarkTheme) Color.Black else Color.White,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
-                )
+            val canStart = true
+            val startLabel = if (accepted.isNotEmpty()) {
+                "START RIDE (${accepted.size + 1} RIDERS)"
             } else {
-                Surface(
-                    color = DarkSlate,
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen.copy(alpha = 0.6f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = TechGreen,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "TUNED IN • WAITING FOR HOST TO START RIDE",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TechGreen,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
-                }
+                "START RIDE SOLO (CONVOY OPEN)"
             }
+
+            TacticalButton(
+                text = startLabel,
+                onClick = {
+                    viewModel.startRide(convoyName, onStartSuccess = {
+                        homeViewModel.setActiveRide(convoyName, isHost = true)
+                        onStartRide()
+                    })
+                },
+                enabled = canStart,
+                color = NeonOrange,
+                textColor = if (ThemeState.isDarkTheme) Color.Black else Color.White,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            )
         }
     }
 }

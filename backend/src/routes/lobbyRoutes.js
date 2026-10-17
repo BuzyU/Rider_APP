@@ -17,21 +17,6 @@ function getLiveKitHttpUrl() {
     return cachedHttpUrl
 }
 
-function extractCleanToken(input) {
-    if (!input || typeof input !== 'string') return ''
-    let cleaned = input.trim()
-    if (cleaned.startsWith('ridervoice://join/')) {
-        cleaned = cleaned.slice('ridervoice://join/'.length)
-    } else if (cleaned.includes('/join/')) {
-        cleaned = cleaned.slice(cleaned.indexOf('/join/') + '/join/'.length)
-    }
-    if (cleaned.includes('token=')) {
-        cleaned = cleaned.slice(cleaned.indexOf('token=') + 'token='.length)
-    }
-    cleaned = cleaned.split('?')[0].split('&')[0].split('#')[0].replace(/\/+$/, '').trim()
-    return cleaned
-}
-
 async function resolveRiderDisplayName(uid, fallback = 'Rider') {
     return cacheService.wrap(`user_name:${uid}`, 60000, async () => {
         try {
@@ -58,60 +43,31 @@ router.post('/create', async (req, res, next) => {
         let finalConvoyName = String(convoyName).trim()
         const existing = await prisma.room.findUnique({
             where: { name: finalConvoyName },
-            select: { id: true, ownerId: true }
+            select: { id: true }
         })
-        const diagBool = diagnosticsEnabled === true
-        let room
         if (existing) {
-            if (existing.ownerId === hostId) {
-                room = await prisma.room.update({
-                    where: { id: existing.id },
-                    data: {
-                        diagnosticsEnabled: diagBool,
-                        startedAt: null
-                    },
-                    select: {
-                        id: true,
-                        name: true,
-                        diagnosticsEnabled: true
-                    }
-                })
-                cacheService.del(`lobby_status:${finalConvoyName}`)
-            } else {
-                let suffix = 2
-                let candidate = `${finalConvoyName}-${suffix}`
-                while (await prisma.room.findUnique({ where: { name: candidate }, select: { id: true } })) {
-                    suffix++
-                    candidate = `${finalConvoyName}-${suffix}`
-                }
-                finalConvoyName = candidate
-                room = await prisma.room.create({
-                    data: {
-                        name: finalConvoyName,
-                        ownerId: hostId,
-                        diagnosticsEnabled: diagBool
-                    },
-                    select: {
-                        id: true,
-                        name: true,
-                        diagnosticsEnabled: true
-                    }
-                })
+            let suffix = 2
+            let candidate = `${finalConvoyName}-${suffix}`
+            while (await prisma.room.findUnique({ where: { name: candidate }, select: { id: true } })) {
+                suffix++
+                candidate = `${finalConvoyName}-${suffix}`
             }
-        } else {
-            room = await prisma.room.create({
-                data: {
-                    name: finalConvoyName,
-                    ownerId: hostId,
-                    diagnosticsEnabled: diagBool
-                },
-                select: {
-                    id: true,
-                    name: true,
-                    diagnosticsEnabled: true
-                }
-            })
+            finalConvoyName = candidate
         }
+
+        const diagBool = diagnosticsEnabled === true
+        const room = await prisma.room.create({
+            data: {
+                name: finalConvoyName,
+                ownerId: hostId,
+                diagnosticsEnabled: diagBool
+            },
+            select: {
+                id: true,
+                name: true,
+                diagnosticsEnabled: true
+            }
+        })
 
         if (diagBool) {
             try {
@@ -149,29 +105,24 @@ router.get('/:roomName/status', async (req, res, next) => {
         const cacheKey = `lobby_status:${roomName}`
         const cached = cacheService.get(cacheKey)
         if (cached) {
-            const isAuthorized = cached.ownerId === requesterId || (cached.participantIds && cached.participantIds.includes(requesterId))
-            if (isAuthorized) {
-                return res.json({
-                    ...cached.summary,
-                    isHost: cached.ownerId === requesterId
-                })
+            if (cached.ownerId !== requesterId) {
+                return res.status(403).json({ error: 'Only the host can view lobby status' })
             }
+            return res.json(cached.summary)
         }
 
-        let room = await prisma.room.findUnique({
+        const room = await prisma.room.findUnique({
             where: { name: roomName },
             select: {
                 id: true,
                 name: true,
                 ownerId: true,
                 diagnosticsEnabled: true,
-                startedAt: true,
                 invites: {
                     where: { status: { not: 'REMOVED' } },
                     select: {
                         id: true,
                         status: true,
-                        inviteeId: true,
                         invitee: {
                             select: { id: true, handle: true, displayName: true, bikeModel: true }
                         }
@@ -180,49 +131,19 @@ router.get('/:roomName/status', async (req, res, next) => {
             }
         })
 
-        if (!room) {
-            room = await prisma.room.findFirst({
-                where: { name: { equals: roomName, mode: 'insensitive' } },
-                select: {
-                    id: true,
-                    name: true,
-                    ownerId: true,
-                    diagnosticsEnabled: true,
-                    startedAt: true,
-                    invites: {
-                        where: { status: { not: 'REMOVED' } },
-                        select: {
-                            id: true,
-                            status: true,
-                            inviteeId: true,
-                            invitee: {
-                                select: { id: true, handle: true, displayName: true, bikeModel: true }
-                            }
-                        }
-                    }
-                }
-            })
-        }
-
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
-        const isOwner = room.ownerId === requesterId
-        const isInvited = room.invites.some(i => i.inviteeId === requesterId || i.invitee?.id === requesterId)
-
-        if (!isOwner && !isInvited) {
-            return res.status(403).json({ error: 'You are not a member of this convoy' })
+        if (room.ownerId !== requesterId) {
+            return res.status(403).json({ error: 'Only the host can view lobby status' })
         }
 
         let acceptedCount = 0
         let pendingCount = 0
         let declinedCount = 0
 
-        const participantIds = [room.ownerId]
         const formattedInvites = new Array(room.invites.length)
         for (let i = 0; i < room.invites.length; i++) {
             const inv = room.invites[i]
-            if (inv.invitee?.id) participantIds.push(inv.invitee.id)
-            if (inv.inviteeId && !participantIds.includes(inv.inviteeId)) participantIds.push(inv.inviteeId)
             formattedInvites[i] = {
                 inviteId: inv.id,
                 status: inv.status,
@@ -238,8 +159,6 @@ router.get('/:roomName/status', async (req, res, next) => {
             else if (inv.status === 'DECLINED') declinedCount++
         }
 
-        const isRideStarted = !!room.startedAt
-
         const summary = {
             roomId: room.id,
             convoyName: room.name,
@@ -249,11 +168,9 @@ router.get('/:roomName/status', async (req, res, next) => {
             pendingCount,
             declinedCount,
             canStart: true,
-            isRideStarted,
-            isHost: isOwner
         }
 
-        cacheService.set(cacheKey, { ownerId: room.ownerId, participantIds, summary }, 1500)
+        cacheService.set(cacheKey, { ownerId: room.ownerId, summary }, 1500)
         res.json(summary)
     } catch (error) {
         next(error)
@@ -265,16 +182,10 @@ router.post('/:roomName/start', async (req, res, next) => {
     const user = req.user
 
     try {
-        let room = await prisma.room.findUnique({
+        const room = await prisma.room.findUnique({
             where: { name: roomName },
-            select: { id: true, name: true, ownerId: true, diagnosticsEnabled: true, startedAt: true }
+            select: { id: true, ownerId: true, diagnosticsEnabled: true, startedAt: true }
         })
-        if (!room) {
-            room = await prisma.room.findFirst({
-                where: { name: { equals: roomName, mode: 'insensitive' } },
-                select: { id: true, name: true, ownerId: true, diagnosticsEnabled: true, startedAt: true }
-            })
-        }
 
         if (!room) return res.status(404).json({ error: 'Room not found' })
         if (room.ownerId !== user.uid) return res.status(403).json({ error: 'Only the host can start the ride' })
@@ -284,7 +195,6 @@ router.post('/:roomName/start', async (req, res, next) => {
                 where: { id: room.id },
                 data: { startedAt: new Date() }
             })
-            cacheService.del(`lobby_status:${room.name}`)
             cacheService.del(`lobby_status:${roomName}`)
         }
 
@@ -295,12 +205,12 @@ router.post('/:roomName/start', async (req, res, next) => {
             process.env.LIVEKIT_API_SECRET,
             { identity: user.uid, name: hostName, ttl: '6h' }
         )
-        at.addGrant({ roomJoin: true, room: room.name, canPublish: true, canSubscribe: true, canPublishData: true })
+        at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true, canPublishData: true })
         const token = await at.toJwt()
 
         res.json({
             token,
-            roomName: room.name,
+            roomName,
             livekitUrl: process.env.LIVEKIT_URL,
             diagnosticsEnabled: room.diagnosticsEnabled
         })
@@ -316,11 +226,10 @@ router.post('/join-token', async (req, res, next) => {
     if (!roomName) return res.status(400).json({ error: 'roomName is required' })
 
     try {
-        let room = await prisma.room.findUnique({
+        const room = await prisma.room.findUnique({
             where: { name: roomName },
             select: {
                 id: true,
-                name: true,
                 ownerId: true,
                 diagnosticsEnabled: true,
                 invites: {
@@ -330,31 +239,12 @@ router.post('/join-token', async (req, res, next) => {
                 }
             }
         })
-        if (!room) {
-            room = await prisma.room.findFirst({
-                where: { name: { equals: roomName, mode: 'insensitive' } },
-                select: {
-                    id: true,
-                    name: true,
-                    ownerId: true,
-                    diagnosticsEnabled: true,
-                    invites: {
-                        where: { inviteeId: user.uid, status: 'ACCEPTED' },
-                        select: { id: true },
-                        take: 1
-                    }
-                }
-            })
-        }
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
         const isAuthorized = room.ownerId === user.uid || room.invites.length > 0
         if (!isAuthorized) {
             return res.status(403).json({ error: 'No accepted invite found for this room' })
         }
-
-        cacheService.del(`lobby_status:${room.name}`)
-        cacheService.del(`lobby_status:${roomName}`)
 
         const riderName = await resolveRiderDisplayName(user.uid, user.name || 'Rider')
 
@@ -363,20 +253,20 @@ router.post('/join-token', async (req, res, next) => {
             process.env.LIVEKIT_API_SECRET,
             { identity: user.uid, name: riderName, ttl: '6h' }
         )
-        at.addGrant({ roomJoin: true, room: room.name, canPublish: true, canSubscribe: true, canPublishData: true })
+        at.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true, canPublishData: true })
         const token = await at.toJwt()
 
         emailService.sendUserJoinedEmailSafe({
             userId: user.uid,
             userEmail: user.email,
             userName: user.name,
-            roomName: room.name,
+            roomName,
             joinedAt: new Date()
         })
 
         res.json({
             token,
-            roomName: room.name,
+            roomName,
             livekitUrl: process.env.LIVEKIT_URL,
             diagnosticsEnabled: room.diagnosticsEnabled
         })
@@ -390,7 +280,7 @@ router.post('/:roomName/share-link', async (req, res, next) => {
     const user = req.user
 
     try {
-        let room = await prisma.room.findUnique({
+        const room = await prisma.room.findUnique({
             where: { name: roomName },
             select: {
                 id: true,
@@ -402,20 +292,6 @@ router.post('/:roomName/share-link', async (req, res, next) => {
                 }
             }
         })
-        if (!room) {
-            room = await prisma.room.findFirst({
-                where: { name: { equals: roomName, mode: 'insensitive' } },
-                select: {
-                    id: true,
-                    ownerId: true,
-                    invites: {
-                        where: { inviteeId: user.uid, status: 'ACCEPTED' },
-                        select: { id: true },
-                        take: 1
-                    }
-                }
-            })
-        }
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
         const isAuthorized = room.ownerId === user.uid || room.invites.length > 0
@@ -451,12 +327,9 @@ router.post('/join-via-token', async (req, res, next) => {
 
     if (!token) return res.status(400).json({ error: 'token is required' })
 
-    const cleanToken = extractCleanToken(token)
-    if (!cleanToken) return res.status(400).json({ error: 'token is required' })
-
     try {
-        let joinTokenRecord = await prisma.roomJoinToken.findUnique({
-            where: { token: cleanToken },
+        const joinTokenRecord = await prisma.roomJoinToken.findUnique({
+            where: { token },
             select: {
                 expiresAt: true,
                 room: {
@@ -470,55 +343,15 @@ router.post('/join-via-token', async (req, res, next) => {
             }
         })
 
-        if (!joinTokenRecord && cleanToken.toLowerCase() !== cleanToken) {
-            joinTokenRecord = await prisma.roomJoinToken.findUnique({
-                where: { token: cleanToken.toLowerCase() },
-                select: {
-                    expiresAt: true,
-                    room: {
-                        select: {
-                            id: true,
-                            name: true,
-                            ownerId: true,
-                            diagnosticsEnabled: true
-                        }
-                    }
-                }
-            })
+        if (!joinTokenRecord) {
+            return res.status(404).json({ error: 'Invalid or expired convoy link' })
         }
 
-        let room
-        if (joinTokenRecord) {
-            if (new Date() > joinTokenRecord.expiresAt) {
-                return res.status(410).json({ error: 'Convoy join link has expired' })
-            }
-            room = joinTokenRecord.room
-        } else {
-            let roomByName = await prisma.room.findUnique({
-                where: { name: cleanToken },
-                select: {
-                    id: true,
-                    name: true,
-                    ownerId: true,
-                    diagnosticsEnabled: true
-                }
-            })
-            if (!roomByName) {
-                roomByName = await prisma.room.findFirst({
-                    where: { name: { equals: cleanToken, mode: 'insensitive' } },
-                    select: {
-                        id: true,
-                        name: true,
-                        ownerId: true,
-                        diagnosticsEnabled: true
-                    }
-                })
-            }
-            if (!roomByName) {
-                return res.status(404).json({ error: 'Invalid or expired convoy link' })
-            }
-            room = roomByName
+        if (new Date() > joinTokenRecord.expiresAt) {
+            return res.status(410).json({ error: 'Convoy join link has expired' })
         }
+
+        const room = joinTokenRecord.room
 
         const existingInvite = await prisma.rideInvite.findFirst({
             where: { roomId: room.id, inviteeId: user.uid },
@@ -615,16 +448,10 @@ router.post('/:roomName/end', async (req, res, next) => {
     const hostId = req.user.uid
 
     try {
-        let room = await prisma.room.findUnique({
+        const room = await prisma.room.findUnique({
             where: { name: roomName },
-            select: { id: true, name: true, ownerId: true }
+            select: { ownerId: true }
         })
-        if (!room) {
-            room = await prisma.room.findFirst({
-                where: { name: { equals: roomName, mode: 'insensitive' } },
-                select: { id: true, name: true, ownerId: true }
-            })
-        }
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
         if (room.ownerId !== hostId) {
@@ -635,22 +462,16 @@ router.post('/:roomName/end', async (req, res, next) => {
             const httpUrl = getLiveKitHttpUrl()
             if (httpUrl && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET) {
                 const svc = new RoomServiceClient(httpUrl, process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET)
-                try {
-                    const dataPayload = Buffer.from(JSON.stringify({ type: 'CONVOY_ENDED', roomName: room.name }))
-                    await svc.sendData(room.name, dataPayload, 0)
-                } catch (sendErr) {
-                    console.warn(`[LiveKit] sendData notice for ${room.name}:`, sendErr.message)
-                }
-                await svc.deleteRoom(room.name)
+                await svc.deleteRoom(roomName)
             }
         } catch (lkError) {
-            console.warn(`[LiveKit] deleteRoom notice for ${room.name}:`, lkError.message)
+            console.warn(`[LiveKit] deleteRoom notice for ${roomName}:`, lkError.message)
         }
 
         try {
             const activeRun = await prisma.diagnosticRun.findFirst({
                 where: {
-                    room: { name: room.name },
+                    room: { name: roomName },
                     status: 'ACTIVE'
                 },
                 include: { participants: true }
@@ -675,13 +496,12 @@ router.post('/:roomName/end', async (req, res, next) => {
         }
 
         emailService.sendRoomClosedEmailSafe({
-            roomName: room.name,
+            roomName,
             hostId,
             hostEmail: req.user.email,
             hostName: req.user.name,
             closedAt: new Date()
         })
-        cacheService.del(`lobby_status:${room.name}`)
         cacheService.del(`lobby_status:${roomName}`)
 
         res.json({ success: true, message: 'Convoy ended' })

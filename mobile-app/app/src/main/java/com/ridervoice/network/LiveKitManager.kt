@@ -36,8 +36,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import org.json.JSONObject
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
@@ -84,31 +82,6 @@ class LiveKitManager @Inject constructor(
     private val _isUserMuted = MutableStateFlow(false)
     val isUserMuted: StateFlow<Boolean> = _isUserMuted
 
-    private val _convoyEnded = MutableStateFlow(false)
-    val convoyEnded: StateFlow<Boolean> = _convoyEnded.asStateFlow()
-
-    fun signalConvoyEnded() {
-        _convoyEnded.value = true
-    }
-
-    fun resetConvoyEnded() {
-        _convoyEnded.value = false
-    }
-
-    fun broadcastConvoyEnded(roomName: String) {
-        scope.launch {
-            try {
-                val payload = JSONObject().apply {
-                    put("type", "CONVOY_ENDED")
-                    put("roomName", roomName)
-                }.toString().toByteArray(Charsets.UTF_8)
-                room?.localParticipant?.publishData(payload)
-            } catch (e: Exception) {
-                Log.w(TAG, "broadcastConvoyEnded: ${e.message}")
-            }
-        }
-    }
-
     @Volatile var noiseSuppressionEnabled: Boolean = true
 
     private val micMutex = Mutex()
@@ -139,7 +112,6 @@ class LiveKitManager @Inject constructor(
         lastUrl = url
         lastToken = token
         reconnectAttempts = 0
-        _convoyEnded.value = false
 
         scope.launch { connectInternal(url, token) }
     }
@@ -394,22 +366,11 @@ class LiveKitManager @Inject constructor(
                 _connectionState.value = ConnectionState.DISCONNECTED
                 _remoteLocations.value = emptyMap()
                 _activeSpeaker.value = null
-                val reasonName = event.reason.name
-                if (reasonName.contains("ROOM_DELETED", ignoreCase = true) ||
-                    reasonName.contains("USER_REJECTED", ignoreCase = true)) {
-                    _convoyEnded.value = true
-                }
-                if (!_convoyEnded.value) {
-                    scheduleReconnect()
-                }
+                scheduleReconnect()
             }
             is RoomEvent.DataReceived -> {
                 try {
                     val json = String(event.data, Charsets.UTF_8)
-                    if (json.contains("\"CONVOY_ENDED\"")) {
-                        _convoyEnded.value = true
-                        return
-                    }
                     val loc = gson.fromJson(json, RiderLocation::class.java)
                     val peerId = event.participant?.identity?.value?.takeIf { it.isNotBlank() }
                         ?: loc.riderId?.takeIf { it.isNotBlank() }
@@ -456,7 +417,6 @@ class LiveKitManager @Inject constructor(
     }
 
     private fun scheduleReconnect() {
-        if (_convoyEnded.value) return
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
             _connectionState.value = ConnectionState.FAILED
             return
@@ -469,14 +429,13 @@ class LiveKitManager @Inject constructor(
             _connectionState.value = ConnectionState.RECONNECTING
             delay(delayMs)
 
-            if (_connectionState.value == ConnectionState.RECONNECTING && !_convoyEnded.value) {
+            if (_connectionState.value == ConnectionState.RECONNECTING) {
                 connectInternal(lastUrl, lastToken)
             }
         }
     }
 
     fun onNetworkRestored() {
-        if (_convoyEnded.value) return
         if ((_connectionState.value == ConnectionState.FAILED ||
              _connectionState.value == ConnectionState.DISCONNECTED ||
              _connectionState.value == ConnectionState.RECONNECTING) &&

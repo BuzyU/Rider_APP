@@ -222,7 +222,7 @@ class VoxEngine @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start AudioRecord: ${e.message}")
             }
-        } else if (!shouldRecord && !_isMicOpen.value && !pttOverride && record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+        } else if (!shouldRecord && record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
             try {
                 record.stop()
             } catch (e: Exception) {

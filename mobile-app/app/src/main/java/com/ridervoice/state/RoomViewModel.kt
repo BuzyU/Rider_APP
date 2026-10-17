@@ -96,15 +96,10 @@ class RoomViewModel @Inject constructor(
     init {
         liveKitManager.participants
             .onEach { incoming ->
-                val now = System.currentTimeMillis()
-                val incomingIds = incoming.map { it.identity }.toSet()
                 val current = _participants.value.toMutableList()
+                val incomingIds = incoming.map { it.identity }.toSet()
 
-                current.forEachIndexed { idx, p ->
-                    if (!incomingIds.contains(p.identity) && !p.isGhost) {
-                        current[idx] = p.copy(isGhost = true, disconnectedAt = now)
-                    }
-                }
+                current.removeAll { !incomingIds.contains(it.identity) }
 
                 incoming.forEach { incomingParticipant ->
                     val idx = current.indexOfFirst { it.identity == incomingParticipant.identity }
@@ -115,7 +110,7 @@ class RoomViewModel @Inject constructor(
                             displayName = incomingParticipant.displayName ?: current[idx].displayName
                         )
                     } else {
-                        current.add(incomingParticipant)
+                        current.add(incomingParticipant.copy(isGhost = false))
                     }
                 }
                 _participants.value = current
@@ -184,6 +179,7 @@ class RoomViewModel @Inject constructor(
     }
 
     fun joinRoom(roomName: String, userName: String) {
+        _participants.value = emptyList()
         locationService.startTracking()
         rideRecorder.startRecording(roomName)
         thermalManager.startMonitoring(viewModelScope)
@@ -197,12 +193,13 @@ class RoomViewModel @Inject constructor(
         applyAudioSettings()
 
         val existingToken = com.ridervoice.models.RideSession.livekitToken
-        val url = com.ridervoice.models.RideSession.livekitUrl.ifBlank { Constants.LIVEKIT_URL }
+        val isTokenForThisRoom = existingToken.isNotBlank() &&
+            com.ridervoice.utils.JwtRoomClaimDecoder.validateRoom(existingToken, roomName)
 
         viewModelScope.launch {
             _error.value = null
             try {
-                val effectiveToken = if (existingToken.isNotBlank()) {
+                val effectiveToken = if (isTokenForThisRoom) {
                     existingToken
                 } else {
                     val res = apiService.getRoomToken(com.ridervoice.models.RoomTokenRequest(roomName))
@@ -210,6 +207,10 @@ class RoomViewModel @Inject constructor(
                         val body = res.body()!!
                         com.ridervoice.models.RideSession.livekitToken = body.token
                         com.ridervoice.models.RideSession.activeRoomName = body.roomName
+                        body.roomId?.let { com.ridervoice.models.RideSession.activeRoomId = it }
+                        body.livekitUrl?.takeIf { it.isNotBlank() }?.let {
+                            com.ridervoice.models.RideSession.livekitUrl = it
+                        }
                         com.ridervoice.models.RideSession.diagnosticsEnabled = body.diagnosticsEnabled
                         com.ridervoice.models.RideSession.testNumber = body.testNumber
                         if (body.diagnosticsEnabled) {
@@ -220,18 +221,12 @@ class RoomViewModel @Inject constructor(
                         throw Exception("Could not fetch credentials for convoy $roomName (code ${res.code()})")
                     }
                 }
-                
-                val isTokenValid = com.ridervoice.utils.JwtRoomClaimDecoder.validateRoom(effectiveToken, roomName)
-                val sessionRoom = com.ridervoice.models.RideSession.activeRoomName
-                val isSessionMatch = sessionRoom == null || sessionRoom == roomName
 
-                if (!isTokenValid || !isSessionMatch) {
-                    liveKitManager.disconnect()
-                    _error.value = "Security validation failed: Token room claim does not match convoy $roomName"
-                    return@launch
-                }
+                val canonicalRoom = com.ridervoice.utils.JwtRoomClaimDecoder.extractRoomName(effectiveToken) ?: roomName
+                com.ridervoice.models.RideSession.activeRoomName = canonicalRoom
 
-                liveKitManager.connect(url, effectiveToken)
+                val effectiveUrl = com.ridervoice.models.RideSession.livekitUrl.ifBlank { Constants.LIVEKIT_URL }
+                liveKitManager.connect(effectiveUrl, effectiveToken)
             } catch (e: Exception) {
                 _error.value = "Connection error: ${e.message}"
             }

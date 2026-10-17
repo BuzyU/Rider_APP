@@ -21,7 +21,8 @@ router.post('/invite', async (req, res, next) => {
             where: {
                 OR: [
                     { id: roomId },
-                    { name: roomId }
+                    { name: roomId },
+                    { name: { equals: roomId, mode: 'insensitive' } }
                 ]
             },
             select: { id: true, name: true }
@@ -63,6 +64,7 @@ router.post('/invite', async (req, res, next) => {
             data: { roomId: room.id, inviterId, inviteeId, status: 'PENDING' }
         })
         cacheService.del(`lobby_status:${room.name}`)
+        cacheService.del(`lobby_status:${room.id}`)
 
         if (inviter) {
             notificationService.sendRideInvite(
@@ -100,9 +102,11 @@ router.post('/respond', async (req, res, next) => {
                 id: true,
                 inviteeId: true,
                 inviterId: true,
+                roomId: true,
                 status: true,
                 room: {
                     select: {
+                        id: true,
                         name: true,
                         ownerId: true
                     }
@@ -122,6 +126,9 @@ router.post('/respond', async (req, res, next) => {
         })
         if (invite.room?.name) {
             cacheService.del(`lobby_status:${invite.room.name}`)
+        }
+        if (invite.roomId || invite.room?.id) {
+            cacheService.del(`lobby_status:${invite.roomId || invite.room?.id}`)
         }
 
         if (response === 'ACCEPTED') {

@@ -40,15 +40,18 @@ class LobbyViewModel @Inject constructor(
                         _lobbyStatus.value = body
                         RideSession.isHost = body.isHost
                         RideSession.activeRoomName = body.convoyName
+                        RideSession.activeRoomId = body.roomId
                         if (!body.isHost && RideSession.livekitToken.isNullOrBlank()) {
                             try {
-                                val tokenRes = apiService.getJoinToken(com.ridervoice.models.JoinTokenRequest(roomName))
+                                val tokenRes = apiService.getJoinToken(com.ridervoice.models.JoinTokenRequest(roomName = body.convoyName, roomId = body.roomId))
                                 if (tokenRes.isSuccessful && tokenRes.body() != null) {
                                     val tb = tokenRes.body()!!
                                     RideSession.livekitToken = tb.token
                                     RideSession.livekitUrl = tb.livekitUrl.ifBlank { com.ridervoice.utils.Constants.LIVEKIT_URL }
                                     RideSession.diagnosticsEnabled = tb.diagnosticsEnabled
                                     RideSession.testNumber = tb.testNumber
+                                    RideSession.activeRoomId = tb.roomId ?: body.roomId
+                                    RideSession.activeRoomName = tb.roomName
                                 }
                             } catch (_: Exception) {}
                         }
@@ -151,9 +154,11 @@ class LobbyViewModel @Inject constructor(
             try {
                 val res = apiService.startRide(roomName)
                 if (res.isSuccessful && res.body() != null) {
-                    RideSession.livekitToken = res.body()!!.token
-                    RideSession.livekitUrl = res.body()!!.livekitUrl
-                    RideSession.activeRoomName = roomName
+                    val body = res.body()!!
+                    RideSession.livekitToken = body.token
+                    RideSession.livekitUrl = body.livekitUrl
+                    RideSession.activeRoomName = body.roomName
+                    RideSession.activeRoomId = body.roomId
                     RideSession.isHost = true
                     onStartSuccess()
                 } else {

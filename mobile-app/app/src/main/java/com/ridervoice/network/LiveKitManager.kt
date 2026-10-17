@@ -202,6 +202,7 @@ class LiveKitManager @Inject constructor(
                 )
             )
             room = newRoom
+            eventsJob = scope.launch { newRoom.events.collect { event -> handleEvent(event) } }
 
             newRoom.connect(url = url, token = token)
 
@@ -217,10 +218,9 @@ class LiveKitManager @Inject constructor(
             _connectionState.value = ConnectionState.CONNECTED
             reconnectAttempts = 0
             updateParticipantList()
+            ensureRemoteAudioTracksEnabled()
 
             startVoxSafely()
-
-            eventsJob = scope.launch { newRoom.events.collect { event -> handleEvent(event) } }
 
         } catch (e: Exception) {
             _connectionState.value = ConnectionState.FAILED
@@ -262,18 +262,15 @@ class LiveKitManager @Inject constructor(
     private suspend fun applyMic() {
         val want = voiceGateOpen && !userMuted
         val lp = room?.localParticipant ?: return
-        if (lp.getTrackPublication(Track.Source.MICROPHONE) == null) {
-            if (_connectionState.value == ConnectionState.CONNECTED && localAudioTrack == null) {
+        if (localAudioTrack == null) {
+            if (_connectionState.value == ConnectionState.CONNECTED) {
                 publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
             }
             return
         }
         micMutex.withLock {
             localAudioTrack?.enabled = want
-            val ok = try { lp.setMicrophoneEnabled(want) } catch (e: Exception) { false }
-            if (ok) {
-                _isMicEnabled.value = want
-            }
+            _isMicEnabled.value = want
         }
     }
 
@@ -314,9 +311,8 @@ class LiveKitManager @Inject constructor(
             if (ok) {
                 localAudioTrack = track
                 lastOptions = opts
-                runCatching { track.prewarm() }
-                runCatching { lp.setMicrophoneEnabled(false) }
-                _isMicEnabled.value = false
+                track.enabled = voiceGateOpen && !userMuted
+                _isMicEnabled.value = track.enabled
                 true
             } else {
                 runCatching { track.stop() }
@@ -369,29 +365,53 @@ class LiveKitManager @Inject constructor(
         applyDeafen()
     }
 
-    private fun applyDeafen() {
+    private fun ensureRemoteAudioTracksEnabled() {
         val v = if (_deafened.value) 0.0 else 1.0
         room?.remoteParticipants?.values?.forEach { p ->
-            p.audioTrackPublications.forEach { (_, t) -> (t as? RemoteAudioTrack)?.setVolume(v) }
+            p.audioTrackPublications.forEach { (_, track) ->
+                (track as? RemoteAudioTrack)?.let { remoteTrack ->
+                    remoteTrack.enabled = true
+                    remoteTrack.setVolume(v)
+                }
+            }
         }
+    }
+
+    private fun applyDeafen() {
+        ensureRemoteAudioTracksEnabled()
     }
 
     private fun handleEvent(event: RoomEvent) {
         when (event) {
-            is RoomEvent.ParticipantConnected    -> updateParticipantList()
+            is RoomEvent.ParticipantConnected -> {
+                updateParticipantList()
+                ensureRemoteAudioTracksEnabled()
+            }
             is RoomEvent.ParticipantDisconnected -> {
                 updateParticipantList()
                 _remoteLocations.update { it - (event.participant.identity?.value ?: return) }
+            }
+            is RoomEvent.TrackSubscribed -> {
+                (event.track as? RemoteAudioTrack)?.let { remoteTrack ->
+                    remoteTrack.enabled = true
+                    remoteTrack.setVolume(if (_deafened.value) 0.0 else 1.0)
+                }
+                updateParticipantList()
+            }
+            is RoomEvent.TrackPublished -> {
+                ensureRemoteAudioTracksEnabled()
             }
             is RoomEvent.Reconnecting -> {}
             is RoomEvent.Reconnected -> {
                 scope.launch {
                     applyMic()
+                    ensureRemoteAudioTracksEnabled()
                     restartVox()
                 }
             }
             is RoomEvent.Disconnected -> {
                 _connectionState.value = ConnectionState.DISCONNECTED
+                _participants.value = emptyList()
                 _remoteLocations.value = emptyMap()
                 _activeSpeaker.value = null
                 val reasonName = event.reason.name
@@ -418,12 +438,6 @@ class LiveKitManager @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Telemetry parse error: ${e.message}")
-                }
-            }
-            is RoomEvent.TrackSubscribed -> {
-                (event.track as? RemoteAudioTrack)?.let { remoteTrack ->
-                    remoteTrack.enabled = true
-                    remoteTrack.setVolume(if (_deafened.value) 0.0 else 1.0)
                 }
             }
             is RoomEvent.ActiveSpeakersChanged -> {

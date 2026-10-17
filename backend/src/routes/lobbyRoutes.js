@@ -56,17 +56,30 @@ router.post('/create', async (req, res, next) => {
 
     try {
         let finalConvoyName = String(convoyName).trim()
-        const existing = await prisma.room.findUnique({
+        let existing = await prisma.room.findUnique({
             where: { name: finalConvoyName },
-            select: { id: true, ownerId: true }
+            select: { id: true, ownerId: true, startedAt: true, createdAt: true, name: true }
         })
+        if (!existing && typeof prisma.room.findFirst === 'function') {
+            existing = await prisma.room.findFirst({
+                where: { name: { equals: finalConvoyName, mode: 'insensitive' } },
+                select: { id: true, ownerId: true, startedAt: true, createdAt: true, name: true }
+            })
+            if (existing) {
+                finalConvoyName = existing.name
+            }
+        }
         const diagBool = diagnosticsEnabled === true
         let room
         if (existing) {
-            if (existing.ownerId === hostId) {
+            const isOwner = Boolean(existing.ownerId && existing.ownerId === hostId)
+            const isStale = Boolean(existing.startedAt != null || (existing.createdAt && (Date.now() - new Date(existing.createdAt).getTime() > 6 * 60 * 60 * 1000)))
+            if (isOwner && isStale) {
+                await prisma.rideInvite.deleteMany({ where: { roomId: existing.id } }).catch(() => {})
                 room = await prisma.room.update({
                     where: { id: existing.id },
                     data: {
+                        ownerId: hostId,
                         diagnosticsEnabled: diagBool,
                         startedAt: null
                     },
@@ -178,11 +191,17 @@ router.get('/:roomName/status', async (req, res, next) => {
                     }
                 }
             }
-        })
+        }).catch(() => null)
 
-        if (!room) {
+        if (!room && typeof prisma.room.findFirst === 'function') {
             room = await prisma.room.findFirst({
-                where: { name: { equals: roomName, mode: 'insensitive' } },
+                where: {
+                    OR: [
+                        { id: roomName },
+                        { name: roomName },
+                        { name: { equals: roomName, mode: 'insensitive' } }
+                    ]
+                },
                 select: {
                     id: true,
                     name: true,
@@ -201,7 +220,7 @@ router.get('/:roomName/status', async (req, res, next) => {
                         }
                     }
                 }
-            })
+            }).catch(() => null)
         }
 
         if (!room) return res.status(404).json({ error: 'Room not found' })
@@ -227,10 +246,10 @@ router.get('/:roomName/status', async (req, res, next) => {
                 inviteId: inv.id,
                 status: inv.status,
                 invitee: {
-                    id: inv.invitee.id,
-                    handle: inv.invitee.handle || inv.invitee.displayName || 'Rider',
-                    displayName: inv.invitee.displayName,
-                    bikeModel: inv.invitee.bikeModel
+                    id: inv.invitee?.id || inv.inviteeId,
+                    handle: inv.invitee?.handle || inv.invitee?.displayName || 'Rider',
+                    displayName: inv.invitee?.displayName || inv.invitee?.handle || 'Rider',
+                    bikeModel: inv.invitee?.bikeModel || null
                 },
             }
             if (inv.status === 'ACCEPTED') acceptedCount++
@@ -268,12 +287,18 @@ router.post('/:roomName/start', async (req, res, next) => {
         let room = await prisma.room.findUnique({
             where: { name: roomName },
             select: { id: true, name: true, ownerId: true, diagnosticsEnabled: true, startedAt: true }
-        })
-        if (!room) {
+        }).catch(() => null)
+        if (!room && typeof prisma.room.findFirst === 'function') {
             room = await prisma.room.findFirst({
-                where: { name: { equals: roomName, mode: 'insensitive' } },
+                where: {
+                    OR: [
+                        { id: roomName },
+                        { name: roomName },
+                        { name: { equals: roomName, mode: 'insensitive' } }
+                    ]
+                },
                 select: { id: true, name: true, ownerId: true, diagnosticsEnabled: true, startedAt: true }
-            })
+            }).catch(() => null)
         }
 
         if (!room) return res.status(404).json({ error: 'Room not found' })
@@ -285,6 +310,7 @@ router.post('/:roomName/start', async (req, res, next) => {
                 data: { startedAt: new Date() }
             })
             cacheService.del(`lobby_status:${room.name}`)
+            cacheService.del(`lobby_status:${room.id}`)
             cacheService.del(`lobby_status:${roomName}`)
         }
 
@@ -301,7 +327,8 @@ router.post('/:roomName/start', async (req, res, next) => {
         res.json({
             token,
             roomName: room.name,
-            livekitUrl: process.env.LIVEKIT_URL,
+            roomId: room.id,
+            livekitUrl: process.env.LIVEKIT_URL || "wss://rider-com-app-u46cadz0.livekit.cloud",
             diagnosticsEnabled: room.diagnosticsEnabled
         })
     } catch (error) {
@@ -310,14 +337,15 @@ router.post('/:roomName/start', async (req, res, next) => {
 })
 
 router.post('/join-token', async (req, res, next) => {
-    const { roomName } = req.body
+    const { roomName, roomId } = req.body
     const user = req.user
+    const target = String(roomId || roomName || '').trim()
 
-    if (!roomName) return res.status(400).json({ error: 'roomName is required' })
+    if (!target) return res.status(400).json({ error: 'roomName or roomId is required' })
 
     try {
         let room = await prisma.room.findUnique({
-            where: { name: roomName },
+            where: { name: target },
             select: {
                 id: true,
                 name: true,
@@ -329,10 +357,16 @@ router.post('/join-token', async (req, res, next) => {
                     take: 1
                 }
             }
-        })
-        if (!room) {
+        }).catch(() => null)
+        if (!room && typeof prisma.room.findFirst === 'function') {
             room = await prisma.room.findFirst({
-                where: { name: { equals: roomName, mode: 'insensitive' } },
+                where: {
+                    OR: [
+                        { id: target },
+                        { name: target },
+                        { name: { equals: target, mode: 'insensitive' } }
+                    ]
+                },
                 select: {
                     id: true,
                     name: true,
@@ -344,7 +378,7 @@ router.post('/join-token', async (req, res, next) => {
                         take: 1
                     }
                 }
-            })
+            }).catch(() => null)
         }
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
@@ -354,7 +388,8 @@ router.post('/join-token', async (req, res, next) => {
         }
 
         cacheService.del(`lobby_status:${room.name}`)
-        cacheService.del(`lobby_status:${roomName}`)
+        cacheService.del(`lobby_status:${room.id}`)
+        cacheService.del(`lobby_status:${target}`)
 
         const riderName = await resolveRiderDisplayName(user.uid, user.name || 'Rider')
 
@@ -377,7 +412,8 @@ router.post('/join-token', async (req, res, next) => {
         res.json({
             token,
             roomName: room.name,
-            livekitUrl: process.env.LIVEKIT_URL,
+            roomId: room.id,
+            livekitUrl: process.env.LIVEKIT_URL || "wss://rider-com-app-u46cadz0.livekit.cloud",
             diagnosticsEnabled: room.diagnosticsEnabled
         })
     } catch (error) {
@@ -394,6 +430,7 @@ router.post('/:roomName/share-link', async (req, res, next) => {
             where: { name: roomName },
             select: {
                 id: true,
+                name: true,
                 ownerId: true,
                 invites: {
                     where: { inviteeId: user.uid, status: 'ACCEPTED' },
@@ -401,12 +438,19 @@ router.post('/:roomName/share-link', async (req, res, next) => {
                     take: 1
                 }
             }
-        })
-        if (!room) {
+        }).catch(() => null)
+        if (!room && typeof prisma.room.findFirst === 'function') {
             room = await prisma.room.findFirst({
-                where: { name: { equals: roomName, mode: 'insensitive' } },
+                where: {
+                    OR: [
+                        { id: roomName },
+                        { name: roomName },
+                        { name: { equals: roomName, mode: 'insensitive' } }
+                    ]
+                },
                 select: {
                     id: true,
+                    name: true,
                     ownerId: true,
                     invites: {
                         where: { inviteeId: user.uid, status: 'ACCEPTED' },
@@ -414,7 +458,7 @@ router.post('/:roomName/share-link', async (req, res, next) => {
                         take: 1
                     }
                 }
-            })
+            }).catch(() => null)
         }
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
@@ -437,6 +481,8 @@ router.post('/:roomName/share-link', async (req, res, next) => {
 
         res.json({
             token,
+            roomId: room.id,
+            roomName: room.name,
             shareUrl: `ridervoice://join/${token}`,
             expiresAt: expiresAt.toISOString()
         })
@@ -494,8 +540,14 @@ router.post('/join-via-token', async (req, res, next) => {
             }
             room = joinTokenRecord.room
         } else {
-            let roomByName = await prisma.room.findUnique({
-                where: { name: cleanToken },
+            let roomByName = await prisma.room.findFirst({
+                where: {
+                    OR: [
+                        { id: cleanToken },
+                        { name: cleanToken },
+                        { name: { equals: cleanToken, mode: 'insensitive' } }
+                    ]
+                },
                 select: {
                     id: true,
                     name: true,
@@ -503,17 +555,6 @@ router.post('/join-via-token', async (req, res, next) => {
                     diagnosticsEnabled: true
                 }
             })
-            if (!roomByName) {
-                roomByName = await prisma.room.findFirst({
-                    where: { name: { equals: cleanToken, mode: 'insensitive' } },
-                    select: {
-                        id: true,
-                        name: true,
-                        ownerId: true,
-                        diagnosticsEnabled: true
-                    }
-                })
-            }
             if (!roomByName) {
                 return res.status(404).json({ error: 'Invalid or expired convoy link' })
             }
@@ -543,6 +584,7 @@ router.post('/join-via-token', async (req, res, next) => {
             })
         }
         cacheService.del(`lobby_status:${room.name}`)
+        cacheService.del(`lobby_status:${room.id}`)
 
         const riderName = await resolveRiderDisplayName(user.uid, user.name || 'Rider')
 
@@ -565,7 +607,8 @@ router.post('/join-via-token', async (req, res, next) => {
         res.json({
             token: livekitToken,
             roomName: room.name,
-            livekitUrl: process.env.LIVEKIT_URL,
+            roomId: room.id,
+            livekitUrl: process.env.LIVEKIT_URL || "wss://rider-com-app-u46cadz0.livekit.cloud",
             diagnosticsEnabled: room.diagnosticsEnabled
         })
     } catch (error) {
@@ -578,10 +621,22 @@ router.delete('/:roomName/riders/:userId', async (req, res, next) => {
     const hostId = req.user.uid
 
     try {
-        const room = await prisma.room.findUnique({
+        let room = await prisma.room.findUnique({
             where: { name: roomName },
-            select: { id: true, ownerId: true }
-        })
+            select: { id: true, name: true, ownerId: true }
+        }).catch(() => null)
+        if (!room && typeof prisma.room.findFirst === 'function') {
+            room = await prisma.room.findFirst({
+                where: {
+                    OR: [
+                        { id: roomName },
+                        { name: roomName },
+                        { name: { equals: roomName, mode: 'insensitive' } }
+                    ]
+                },
+                select: { id: true, name: true, ownerId: true }
+            }).catch(() => null)
+        }
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
         if (room.ownerId !== hostId) {
@@ -592,13 +647,15 @@ router.delete('/:roomName/riders/:userId', async (req, res, next) => {
             where: { roomId: room.id, inviteeId: userId },
             data: { status: 'REMOVED' }
         })
+        cacheService.del(`lobby_status:${room.name}`)
+        cacheService.del(`lobby_status:${room.id}`)
         cacheService.del(`lobby_status:${roomName}`)
 
         try {
             const httpUrl = getLiveKitHttpUrl()
             if (httpUrl && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET) {
                 const svc = new RoomServiceClient(httpUrl, process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET)
-                await svc.removeParticipant(roomName, userId)
+                await svc.removeParticipant(room.name, userId)
             }
         } catch (lkError) {
             console.warn(`[LiveKit] removeParticipant notice for ${userId}:`, lkError.message)
@@ -618,12 +675,18 @@ router.post('/:roomName/end', async (req, res, next) => {
         let room = await prisma.room.findUnique({
             where: { name: roomName },
             select: { id: true, name: true, ownerId: true }
-        })
-        if (!room) {
+        }).catch(() => null)
+        if (!room && typeof prisma.room.findFirst === 'function') {
             room = await prisma.room.findFirst({
-                where: { name: { equals: roomName, mode: 'insensitive' } },
+                where: {
+                    OR: [
+                        { id: roomName },
+                        { name: roomName },
+                        { name: { equals: roomName, mode: 'insensitive' } }
+                    ]
+                },
                 select: { id: true, name: true, ownerId: true }
-            })
+            }).catch(() => null)
         }
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
@@ -682,6 +745,7 @@ router.post('/:roomName/end', async (req, res, next) => {
             closedAt: new Date()
         })
         cacheService.del(`lobby_status:${room.name}`)
+        cacheService.del(`lobby_status:${room.id}`)
         cacheService.del(`lobby_status:${roomName}`)
 
         res.json({ success: true, message: 'Convoy ended' })
@@ -698,10 +762,22 @@ router.post('/:roomName/transfer-host', async (req, res, next) => {
     if (!newHostId) return res.status(400).json({ error: 'newHostId is required' })
 
     try {
-        const room = await prisma.room.findUnique({
+        let room = await prisma.room.findUnique({
             where: { name: roomName },
-            select: { id: true, ownerId: true }
-        })
+            select: { id: true, name: true, ownerId: true }
+        }).catch(() => null)
+        if (!room && typeof prisma.room.findFirst === 'function') {
+            room = await prisma.room.findFirst({
+                where: {
+                    OR: [
+                        { id: roomName },
+                        { name: roomName },
+                        { name: { equals: roomName, mode: 'insensitive' } }
+                    ]
+                },
+                select: { id: true, name: true, ownerId: true }
+            }).catch(() => null)
+        }
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
         if (room.ownerId !== hostId) {
@@ -714,6 +790,8 @@ router.post('/:roomName/transfer-host', async (req, res, next) => {
             select: { id: true }
         })
 
+        cacheService.del(`lobby_status:${room.name}`)
+        cacheService.del(`lobby_status:${room.id}`)
         cacheService.del(`lobby_status:${roomName}`)
 
         res.json({ success: true, newHostId })
@@ -732,10 +810,22 @@ async function updateDiagnosticsHandler(req, res, next) {
     }
 
     try {
-        const room = await prisma.room.findUnique({
+        let room = await prisma.room.findUnique({
             where: { name: roomName },
-            select: { id: true, ownerId: true, startedAt: true }
-        })
+            select: { id: true, name: true, ownerId: true, startedAt: true }
+        }).catch(() => null)
+        if (!room && typeof prisma.room.findFirst === 'function') {
+            room = await prisma.room.findFirst({
+                where: {
+                    OR: [
+                        { id: roomName },
+                        { name: roomName },
+                        { name: { equals: roomName, mode: 'insensitive' } }
+                    ]
+                },
+                select: { id: true, name: true, ownerId: true, startedAt: true }
+            }).catch(() => null)
+        }
 
         if (!room) return res.status(404).json({ error: 'Room not found' })
 
@@ -753,6 +843,8 @@ async function updateDiagnosticsHandler(req, res, next) {
             select: { diagnosticsEnabled: true }
         })
 
+        cacheService.del(`lobby_status:${room.name}`)
+        cacheService.del(`lobby_status:${room.id}`)
         cacheService.del(`lobby_status:${roomName}`)
 
         res.json({ success: true, diagnosticsEnabled: updated.diagnosticsEnabled })

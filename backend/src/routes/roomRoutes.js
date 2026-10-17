@@ -51,7 +51,32 @@ router.post("/room/token", async (req, res) => {
           take: 1,
         },
       },
-    });
+    }).catch(() => null);
+
+    if (!existingRoom && typeof prisma.room.findFirst === "function") {
+      try {
+        existingRoom = await prisma.room.findFirst({
+          where: {
+            OR: [
+              { id: cleanInput },
+              { name: cleanInput },
+              { name: { equals: cleanInput, mode: "insensitive" } },
+            ],
+          },
+          select: {
+            id: true,
+            name: true,
+            ownerId: true,
+            diagnosticsEnabled: true,
+            invites: {
+              where: { inviteeId: user.uid, status: "ACCEPTED" },
+              select: { id: true },
+              take: 1,
+            },
+          },
+        });
+      } catch (findErr) {}
+    }
 
     let isTokenJoin = false;
     if (!existingRoom) {
@@ -192,6 +217,8 @@ router.post("/room/token", async (req, res) => {
     res.json({
       token,
       roomName: existingRoom.name,
+      roomId: existingRoom.id,
+      livekitUrl: process.env.LIVEKIT_URL || "wss://rider-com-app-u46cadz0.livekit.cloud",
       diagnosticsEnabled: existingRoom.diagnosticsEnabled ?? activeRun != null,
       testNumber: activeRun?.testNumber || null,
     });

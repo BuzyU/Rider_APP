@@ -44,13 +44,15 @@ data class LobbyRiderInfo(
 data class StartRideResponse(
     val token: String,
     val roomName: String,
+    val roomId: String? = null,
     val livekitUrl: String,
     val diagnosticsEnabled: Boolean = false,
     val testNumber: Int? = null
 )
 
 data class JoinTokenRequest(
-    val roomName: String
+    val roomName: String,
+    val roomId: String? = null
 )
 
 data class SosAlertRequest(
@@ -111,6 +113,8 @@ enum class DeviceType { BLUETOOTH_SCO, BLUETOOTH_A2DP, WIRED, USB, EARPIECE }
 data class RoomData(
     val roomName: String,
     val token: String,
+    val roomId: String? = null,
+    val livekitUrl: String? = null,
     val diagnosticsEnabled: Boolean = false,
     val testNumber: Int? = null
 )
@@ -121,6 +125,7 @@ object RideSession {
     var livekitUrl: String = ""
     var livekitToken: String = ""
     var activeRoomName: String? = null
+    var activeRoomId: String? = null
     var isHost: Boolean = false
     var diagnosticsEnabled: Boolean = false
     var testNumber: Int? = null
@@ -129,6 +134,7 @@ object RideSession {
         livekitUrl = ""
         livekitToken = ""
         activeRoomName = null
+        activeRoomId = null
         isHost = false
         diagnosticsEnabled = false
         testNumber = null
@@ -138,7 +144,9 @@ object RideSession {
 data class ShareLinkResponse(
     val token: String,
     val shareUrl: String,
-    val expiresAt: String
+    val expiresAt: String,
+    val roomId: String? = null,
+    val roomName: String? = null
 )
 
 data class JoinViaTokenRequest(

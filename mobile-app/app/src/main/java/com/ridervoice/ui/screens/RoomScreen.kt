@@ -851,7 +851,7 @@ fun RoomScreen(
 
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     items(
-                        items = participants,
+                        items = participants.filter { !it.isGhost },
                         key = { it.identity }
                     ) { participant ->
                         val isCurrentUser = (participant.identity == currentUid)

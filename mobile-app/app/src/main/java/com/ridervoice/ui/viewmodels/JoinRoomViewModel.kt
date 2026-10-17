@@ -57,6 +57,7 @@ class JoinRoomViewModel @Inject constructor(
                     RideSession.livekitToken = body.token
                     RideSession.livekitUrl = body.livekitUrl
                     RideSession.activeRoomName = body.roomName
+                    RideSession.activeRoomId = body.roomId
                     RideSession.isHost = false
                     onSuccess(body.roomName)
                 } else {
@@ -65,9 +66,10 @@ class JoinRoomViewModel @Inject constructor(
                         val roomBody = roomRes.body()!!
                         RideSession.livekitToken = roomBody.token
                         RideSession.activeRoomName = roomBody.roomName
+                        RideSession.activeRoomId = roomBody.roomId
                         RideSession.diagnosticsEnabled = roomBody.diagnosticsEnabled
                         RideSession.testNumber = roomBody.testNumber
-                        RideSession.livekitUrl = com.ridervoice.utils.Constants.LIVEKIT_URL
+                        RideSession.livekitUrl = roomBody.livekitUrl?.takeIf { it.isNotBlank() } ?: com.ridervoice.utils.Constants.LIVEKIT_URL
                         RideSession.isHost = false
                         onSuccess(roomBody.roomName)
                     } else {
@@ -115,9 +117,10 @@ class JoinRoomViewModel @Inject constructor(
                         updateSession = { body ->
                             RideSession.livekitToken = body.token
                             RideSession.activeRoomName = body.roomName
+                            RideSession.activeRoomId = body.roomId
                             RideSession.diagnosticsEnabled = body.diagnosticsEnabled
                             RideSession.testNumber = body.testNumber
-                            RideSession.livekitUrl = com.ridervoice.utils.Constants.LIVEKIT_URL
+                            RideSession.livekitUrl = body.livekitUrl?.takeIf { it.isNotBlank() } ?: com.ridervoice.utils.Constants.LIVEKIT_URL
                             RideSession.isHost = false
                         }
                     )
@@ -128,6 +131,7 @@ class JoinRoomViewModel @Inject constructor(
                         RideSession.livekitToken = body.token
                         RideSession.livekitUrl = body.livekitUrl
                         RideSession.activeRoomName = body.roomName
+                        RideSession.activeRoomId = body.roomId
                         RideSession.isHost = false
                         onSuccess(body.roomName)
                     } else {

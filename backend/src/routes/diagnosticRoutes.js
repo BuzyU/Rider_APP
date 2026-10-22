@@ -1,9 +1,31 @@
+/**
+ * diagnosticRoutes.js – Phase 6 fix (H13)
+ *
+ * H13 – IDOR: diagnostic routes required only auth, not membership.
+ * Fix: all run-level routes check membership before serving data.
+ *   - /runs/:runId/excel – ACCEPTED member or owner only
+ *   - /runs/:runId/finalize – owner only
+ *   - /runs/:runId/export – admin key (unchanged, OK)
+ *   - /runs/:runId/close – admin key (unchanged, OK)
+ *   - /runs/room/:roomName/latest – ACCEPTED member or owner
+ *   - /runs/room/:roomName/finalize – owner only
+ *   - /join – already guarded by diagnosticService (member must be in active run)
+ *   - /batches – guarded by diagnosticService (runId must match participant)
+ *   - /stop – guarded by diagnosticService
+ */
+
+'use strict'
+
 const express = require('express')
 const crypto = require('crypto')
+const prisma = require('../db')
 const diagnosticService = require('../services/diagnosticService')
 const authMiddleware = require('../middleware/authMiddleware')
+const { resolveRoom, ResolverError } = require('../services/roomResolver')
 
 const router = express.Router()
+
+// ─── Admin key guard ──────────────────────────────────────────────────────────
 
 function requireAdminKey(req, res, next) {
     const configuredKey = process.env.DIAG_ADMIN_KEY
@@ -28,6 +50,8 @@ function requireAdminKey(req, res, next) {
     next()
 }
 
+// ─── Batch body parser ────────────────────────────────────────────────────────
+
 function batchBodyParser(req, res, next) {
     express.json({ limit: '5mb' })(req, res, (err) => {
         if (err) {
@@ -42,6 +66,51 @@ function batchBodyParser(req, res, next) {
     })
 }
 
+// ─── H13 membership guard helpers ────────────────────────────────────────────
+
+/**
+ * Get the room for a diagnostic run. Returns null if not found.
+ */
+async function getRoomForRun(runId) {
+    const run = await prisma.diagnosticRun.findUnique({
+        where: { id: runId },
+        select: {
+            id: true,
+            room: {
+                select: { id: true, ownerId: true, status: true }
+            }
+        }
+    })
+    return run
+}
+
+/**
+ * Check if a user is the owner of a run's room.
+ */
+async function isRoomOwner(runId, userId) {
+    const run = await getRoomForRun(runId)
+    return run?.room?.ownerId === userId
+}
+
+/**
+ * Check if a user is an ACCEPTED member (or owner) of a run's room.
+ */
+async function isRoomMember(runId, userId) {
+    const run = await getRoomForRun(runId)
+    if (!run) return false
+    const room = run.room
+    if (room.ownerId === userId) return true
+    const invite = await prisma.rideInvite.findUnique({
+        where: { roomId_inviteeId: { roomId: room.id, inviteeId: userId } },
+        select: { status: true }
+    })
+    return invite?.status === 'ACCEPTED'
+}
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
+// POST /api/diagnostics/join
+// Member must be in the convoy for this run
 router.post('/join', express.json(), authMiddleware, async (req, res, next) => {
     try {
         const { convoyId } = req.body
@@ -56,6 +125,7 @@ router.post('/join', express.json(), authMiddleware, async (req, res, next) => {
     }
 })
 
+// POST /api/diagnostics/batches
 router.post('/batches', batchBodyParser, authMiddleware, async (req, res, next) => {
     try {
         const { runId, sequenceNumber, payload } = req.body
@@ -69,6 +139,7 @@ router.post('/batches', batchBodyParser, authMiddleware, async (req, res, next) 
     }
 })
 
+// POST /api/diagnostics/stop
 router.post('/stop', express.json(), authMiddleware, async (req, res, next) => {
     try {
         const { runId, lastSeq } = req.body
@@ -82,6 +153,7 @@ router.post('/stop', express.json(), authMiddleware, async (req, res, next) => {
     }
 })
 
+// GET /api/diagnostics/runs/:runId/export – admin key only (H13: unchanged, admin-only)
 router.get('/runs/:runId/export', requireAdminKey, async (req, res, next) => {
     try {
         const { runId } = req.params
@@ -103,14 +175,26 @@ router.get('/runs/:runId/export', requireAdminKey, async (req, res, next) => {
     }
 })
 
-router.get('/runs/room/:roomName/latest', authMiddleware, async (req, res, next) => {
+// GET /api/diagnostics/runs/room/:roomRef/latest – H13: ACCEPTED member or owner
+router.get('/runs/room/:roomRef/latest', authMiddleware, async (req, res, next) => {
     try {
-        const { roomName } = req.params
-        const prisma = require('../db')
+        const { roomRef } = req.params
+        const userId = req.user.uid
+
+        const room = await resolveRoom(roomRef)
+        const isOwner = room.ownerId === userId
+        if (!isOwner) {
+            const invite = await prisma.rideInvite.findUnique({
+                where: { roomId_inviteeId: { roomId: room.id, inviteeId: userId } },
+                select: { status: true }
+            })
+            if (!invite || invite.status !== 'ACCEPTED') {
+                return res.status(403).json({ error: 'Only convoy members can view diagnostic runs' })
+            }
+        }
+
         const run = await prisma.diagnosticRun.findFirst({
-            where: {
-                room: { name: roomName }
-            },
+            where: { convoyId: room.id },
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
@@ -136,15 +220,25 @@ router.get('/runs/room/:roomName/latest', authMiddleware, async (req, res, next)
         }
         res.json(run)
     } catch (err) {
+        if (err instanceof ResolverError) {
+            return res.status(err.status).json({ error: err.message, code: err.code })
+        }
         next(err)
     }
 })
 
+// GET /api/diagnostics/runs/:runId/excel – H13: ACCEPTED member or owner
 router.get('/runs/:runId/excel', authMiddleware, async (req, res, next) => {
     try {
         const { runId } = req.params
-        const exportData = await diagnosticService.buildRunExportData(runId)
+        const userId = req.user.uid
 
+        // H13 – authorization check
+        if (!await isRoomMember(runId, userId)) {
+            return res.status(403).json({ error: 'Only convoy members can download diagnostic reports' })
+        }
+
+        const exportData = await diagnosticService.buildRunExportData(runId)
         if (!exportData) {
             return res.status(404).json({ error: 'Diagnostic run not found' })
         }
@@ -161,9 +255,17 @@ router.get('/runs/:runId/excel', authMiddleware, async (req, res, next) => {
     }
 })
 
+// POST /api/diagnostics/runs/:runId/finalize – H13: OWNER only
 router.post('/runs/:runId/finalize', authMiddleware, async (req, res, next) => {
     try {
         const { runId } = req.params
+        const userId = req.user.uid
+
+        // H13 – owner-only
+        if (!await isRoomOwner(runId, userId)) {
+            return res.status(403).json({ error: 'Only the convoy owner can finalize diagnostic runs' })
+        }
+
         const closed = await diagnosticService.closeAndExportRun(runId)
         res.json({ success: true, runClosed: closed })
     } catch (err) {
@@ -171,15 +273,24 @@ router.post('/runs/:runId/finalize', authMiddleware, async (req, res, next) => {
     }
 })
 
-router.post('/runs/room/:roomName/finalize', authMiddleware, async (req, res, next) => {
+// POST /api/diagnostics/runs/room/:roomRef/finalize – H13: OWNER only
+router.post('/runs/room/:roomRef/finalize', authMiddleware, async (req, res, next) => {
     try {
-        const { roomName } = req.params
-        const prisma = require('../db')
+        const { roomRef } = req.params
+        const userId = req.user.uid
+
+        const room = await resolveRoom(roomRef).catch(() => null)
+        if (!room) {
+            return res.status(404).json({ error: 'Room not found' })
+        }
+
+        // H13 – owner only
+        if (room.ownerId !== userId) {
+            return res.status(403).json({ error: 'Only the convoy owner can finalize diagnostic runs' })
+        }
+
         const activeRun = await prisma.diagnosticRun.findFirst({
-            where: {
-                room: { name: roomName },
-                status: 'ACTIVE'
-            },
+            where: { convoyId: room.id, status: 'ACTIVE' },
             orderBy: { testNumber: 'desc' }
         })
         if (!activeRun) {
@@ -188,10 +299,14 @@ router.post('/runs/room/:roomName/finalize', authMiddleware, async (req, res, ne
         const closed = await diagnosticService.closeAndExportRun(activeRun.id)
         res.json({ success: true, runClosed: closed, runId: activeRun.id })
     } catch (err) {
+        if (err instanceof ResolverError) {
+            return res.status(err.status).json({ error: err.message, code: err.code })
+        }
         next(err)
     }
 })
 
+// POST /api/diagnostics/runs/:runId/close – admin key only (unchanged)
 router.post('/runs/:runId/close', requireAdminKey, async (req, res, next) => {
     try {
         const { runId } = req.params

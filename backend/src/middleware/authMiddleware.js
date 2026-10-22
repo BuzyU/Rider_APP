@@ -17,6 +17,25 @@ function sweepSyncedUsers() {
 const sweepInterval = setInterval(sweepSyncedUsers, 5 * 60 * 1000)
 if (sweepInterval.unref) sweepInterval.unref()
 
+/**
+ * Phase 8.9 – Legacy client gate helper.
+ * Returns true if the client should be blocked (upgrade required).
+ */
+function isLegacyBlocked(appVersion) {
+    if (process.env.LEGACY_CLIENTS_ALLOWED !== 'false') return false
+    const minVersion = process.env.MIN_APP_VERSION
+    if (!minVersion || !appVersion) return false
+    // Simple semver compare (major.minor.patch only)
+    const parse = v => v.replace(/[^0-9.]/g, '').split('.').map(Number)
+    const [mj, mn, mp] = parse(minVersion)
+    const [aj, an, ap] = parse(appVersion)
+    if (aj < mj) return true
+    if (aj > mj) return false
+    if (an < mn) return true
+    if (an > mn) return false
+    return ap < mp
+}
+
 module.exports = async (req, res, next) => {
     const authHeader = req.headers.authorization
 
@@ -30,6 +49,9 @@ module.exports = async (req, res, next) => {
     }
 
     const token = parts[1]
+
+    // Phase 0.6 – attach app version to every authenticated request
+    req.appVersion = req.headers['x-app-version'] || null
 
     try {
         const tokenKey = token.length > 32 ? token.slice(-32) : token
@@ -89,6 +111,17 @@ module.exports = async (req, res, next) => {
                     syncedUsers.set(decodedToken.uid, now)
                 }
             }
+        }
+
+        // Phase 8.9 – legacy client gate (426 Upgrade Required)
+        if (isLegacyBlocked(req.appVersion)) {
+            const apkUrl = process.env.APK_DOWNLOAD_URL || 'https://ridervoice.app/download'
+            return res.status(426).json({
+                error: 'Upgrade required',
+                code: 'UPGRADE_REQUIRED',
+                minVersion: process.env.MIN_APP_VERSION,
+                apkUrl
+            })
         }
 
         next()

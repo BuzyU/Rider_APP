@@ -28,6 +28,10 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
         originals.roomJoinTokenFindUnique = prisma.roomJoinToken.findUnique
         originals.rideInviteFindFirst = prisma.rideInvite.findFirst
         originals.rideInviteCreate = prisma.rideInvite.create
+        originals.rideInviteFindUnique = prisma.rideInvite.findUnique
+        originals.rideInviteUpdate = prisma.rideInvite.update
+        originals.rideInviteCount = prisma.rideInvite.count
+        originals.roomJoinTokenUpdate = prisma.roomJoinToken.update
 
         app = express()
         app.use(express.json())
@@ -147,11 +151,13 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
 
     it('/status returns diagnosticsEnabled', async () => {
         currentUser = { uid: 'host_123', name: 'Host Rider' }
-        prisma.room.findUnique = async () => ({
+        prisma.room.findFirst = async () => ({
             id: 'room_xyz',
             name: 'Status-Test-Room',
+            status: 'LOBBY',
             ownerId: 'host_123',
             diagnosticsEnabled: true,
+            startedAt: null,
             invites: []
         })
 
@@ -163,17 +169,21 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
 
     it('/start returns diagnosticsEnabled', async () => {
         currentUser = { uid: 'host_123', name: 'Host Rider' }
-        prisma.room.findUnique = async () => ({
+        prisma.room.findFirst = async () => ({
             id: 'room_xyz',
             name: 'Start-Test-Room',
+            status: 'LOBBY',
             ownerId: 'host_123',
             diagnosticsEnabled: true,
             startedAt: null
         })
+        prisma.rideInvite.count = async () => 0
         prisma.room.update = async () => ({})
 
         const res = await fetch(`${baseUrl}/api/lobby/Start-Test-Room/start`, {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ allowSolo: true })
         })
         assert.strictEqual(res.status, 200)
         const body = await res.json()
@@ -183,13 +193,14 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
 
     it('/join-token returns diagnosticsEnabled', async () => {
         currentUser = { uid: 'rider_accepted', name: 'Rider Ace' }
-        prisma.room.findUnique = async () => ({
+        prisma.room.findFirst = async () => ({
             id: 'room_xyz',
             name: 'Join-Test-Room',
+            status: 'LOBBY',
             ownerId: 'host_123',
-            diagnosticsEnabled: false,
-            invites: [{ id: 'invite_ace' }]
+            diagnosticsEnabled: false
         })
+        prisma.rideInvite.findUnique = async () => ({ status: 'ACCEPTED' })
 
         const res = await fetch(`${baseUrl}/api/lobby/join-token`, {
             method: 'POST',
@@ -207,15 +218,22 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
             id: 'token_1',
             token: 'valid_link_token',
             expiresAt: new Date(Date.now() + 100000),
+            revokedAt: null,
+            maxUses: null,
+            useCount: 0,
+            createdById: 'host_123',
             room: {
                 id: 'room_link_xyz',
                 name: 'Link-Joined-Room',
                 ownerId: 'host_123',
+                status: 'LOBBY',
                 diagnosticsEnabled: true
             }
         })
-        prisma.rideInvite.findFirst = async () => null
-        prisma.rideInvite.create = async () => ({ id: 'inv_link' })
+        let joined = false
+        prisma.rideInvite.findUnique = async () => (joined ? { id: 'inv_link', status: 'ACCEPTED' } : null)
+        prisma.rideInvite.create = async () => { joined = true; return { id: 'inv_link' } }
+        prisma.roomJoinToken.update = async () => ({})
 
         const res = await fetch(`${baseUrl}/api/lobby/join-via-token`, {
             method: 'POST',
@@ -231,7 +249,8 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
     it('only the owner can change diagnostics flag, and only before ride starts', async () => {
         // 1. Non-owner tries to change -> 403
         currentUser = { uid: 'random_rider', name: 'Not Owner' }
-        prisma.room.findUnique = async () => ({
+        prisma.room.findFirst = async () => ({
+            status: 'LOBBY',
             id: 'room_modify',
             name: 'Protected-Convoy',
             ownerId: 'host_123',
@@ -250,9 +269,10 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
 
         // 2. Owner tries to change after ride has started -> 400
         currentUser = { uid: 'host_123', name: 'Host Rider' }
-        prisma.room.findUnique = async () => ({
+        prisma.room.findFirst = async () => ({
             id: 'room_modify',
             name: 'Protected-Convoy',
+            status: 'ACTIVE',
             ownerId: 'host_123',
             diagnosticsEnabled: true,
             startedAt: new Date() // ride already started!
@@ -268,7 +288,8 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
         assert.strictEqual(body.error, 'Cannot change diagnostics setting after ride has started')
 
         // 3. Owner changes before ride starts -> 200 and updates
-        prisma.room.findUnique = async () => ({
+        prisma.room.findFirst = async () => ({
+            status: 'LOBBY',
             id: 'room_modify',
             name: 'Protected-Convoy',
             ownerId: 'host_123',
@@ -305,6 +326,10 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
         prisma.roomJoinToken.findUnique = originals.roomJoinTokenFindUnique
         prisma.rideInvite.findFirst = originals.rideInviteFindFirst
         prisma.rideInvite.create = originals.rideInviteCreate
+        prisma.rideInvite.findUnique = originals.rideInviteFindUnique
+        prisma.rideInvite.update = originals.rideInviteUpdate
+        prisma.rideInvite.count = originals.rideInviteCount
+        prisma.roomJoinToken.update = originals.roomJoinTokenUpdate
 
         if (server) {
             await new Promise(r => server.close(r))

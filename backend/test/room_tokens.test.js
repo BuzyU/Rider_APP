@@ -25,6 +25,10 @@ describe('Gate 1: Room Tokens', () => {
 
     before(async () => {
         originals.roomFindUnique = prisma.room.findUnique
+        originals.roomFindFirst = prisma.room.findFirst
+        originals.inviteFindUnique = prisma.rideInvite.findUnique
+        originals.userFindUnique = prisma.user.findUnique
+        prisma.user.findUnique = async () => null
         originals.roomCreate = prisma.room.create
         originals.rideInviteCreate = prisma.rideInvite.create
         originals.rideInviteFindFirst = prisma.rideInvite.findFirst
@@ -58,6 +62,9 @@ describe('Gate 1: Room Tokens', () => {
 
     after(async () => {
         prisma.room.findUnique = originals.roomFindUnique
+        prisma.room.findFirst = originals.roomFindFirst
+        prisma.rideInvite.findUnique = originals.inviteFindUnique
+        prisma.user.findUnique = originals.userFindUnique
         prisma.room.create = originals.roomCreate
         prisma.rideInvite.create = originals.rideInviteCreate
         prisma.rideInvite.findFirst = originals.rideInviteFindFirst
@@ -74,7 +81,7 @@ describe('Gate 1: Room Tokens', () => {
         let roomCreated = false
         let inviteCreated = false
 
-        prisma.room.findUnique = async () => null
+        prisma.room.findFirst = async () => null
         prisma.room.create = async () => {
             roomCreated = true
             return { id: 'should_not_exist' }
@@ -100,13 +107,14 @@ describe('Gate 1: Room Tokens', () => {
     it('POST /join-token returns 403 without an accepted invite', async () => {
         currentUser = { uid: 'uninvited_rider', name: 'Stranger' }
 
-        prisma.room.findUnique = async () => ({
+        prisma.room.findFirst = async () => ({
             id: 'room_abc',
             name: 'Convoy-Secret',
+            status: 'LOBBY',
             ownerId: 'host_rider_999',
-            diagnosticsEnabled: true,
-            invites: [] // No accepted invite for uninvited_rider
+            diagnosticsEnabled: true
         })
+        prisma.rideInvite.findUnique = async () => null // No invite for uninvited_rider
 
         const res = await fetch(`${baseUrl}/api/lobby/join-token`, {
             method: 'POST',
@@ -116,18 +124,18 @@ describe('Gate 1: Room Tokens', () => {
 
         assert.strictEqual(res.status, 403)
         const body = await res.json()
-        assert.strictEqual(body.error, 'No accepted invite found for this room')
+        assert.strictEqual(body.error, 'Not a member of this convoy')
     })
 
     it('JWT issued by /room/token has video.room == requested room', async () => {
         currentUser = { uid: 'accepted_rider_1', name: 'Alice' }
 
-        prisma.room.findUnique = async () => ({
+        prisma.room.findFirst = async () => ({
             id: 'room_123',
             name: 'Tour-De-Coast',
+            status: 'LOBBY',
             ownerId: 'accepted_rider_1',
-            diagnosticsEnabled: true,
-            invites: []
+            diagnosticsEnabled: true
         })
         prisma.diagnosticRun.findFirst = async () => null
 
@@ -151,13 +159,15 @@ describe('Gate 1: Room Tokens', () => {
     it('JWT issued by /join-token has video.room == requested room', async () => {
         currentUser = { uid: 'accepted_rider_2', name: 'Bob' }
 
-        prisma.room.findUnique = async () => ({
+        prisma.room.findFirst = async () => ({
             id: 'room_456',
             name: 'Mountain-Ride',
+            status: 'LOBBY',
             ownerId: 'host_999',
-            diagnosticsEnabled: true,
-            invites: [{ id: 'invite_bob' }]
+            diagnosticsEnabled: true
         })
+        prisma.rideInvite.findUnique = async () => ({ status: 'ACCEPTED' })
+        prisma.diagnosticRun.findFirst = async () => null
 
         const res = await fetch(`${baseUrl}/api/lobby/join-token`, {
             method: 'POST',

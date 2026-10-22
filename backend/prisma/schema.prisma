@@ -25,6 +25,7 @@ model User {
   deviceTokens           DeviceToken[]
   rides                  RideSession[]
   alerts                 EmergencyAlert[] @relation("AlertSender")
+  ownedRooms             Room[]        @relation("RoomOwner")
 }
 
 model DeviceToken {
@@ -60,20 +61,40 @@ model Friendship {
   @@index([addresseeId, status])
 }
 
+// Phase 1: RoomStatus enum for explicit lifecycle
+enum RoomStatus {
+  LOBBY
+  ACTIVE
+  ENDED
+}
+
 model Room {
   id                 String       @id @default(uuid())
-  name               String       @unique
+  name               String
+  status             RoomStatus   @default(LOBBY)
   ownerId            String
   diagnosticsEnabled Boolean      @default(false)
   startedAt          DateTime?
+  endedAt            DateTime?
+  joinCode           String?      @unique
+  // Phase 1.5: optional ride metadata
+  origin             String?
+  destination        String?
+  meetupPoint        String?
+  estimatedDurationMin Int?
   createdAt          DateTime     @default(now())
   
+  owner          User           @relation("RoomOwner", fields: [ownerId], references: [id])
   invites        RideInvite[]
   alerts         EmergencyAlert[]
   joinTokens     RoomJoinToken[]
   diagnosticRuns DiagnosticRun[]
 
+  // Partial unique: name unique among non-ENDED rooms enforced by DB index (see migration)
+  // Cannot use @@unique here because it is conditional; enforced via raw SQL unique index.
   @@index([ownerId])
+  @@index([status])
+  @@index([name, status])
 }
 
 enum InviteStatus {
@@ -81,32 +102,49 @@ enum InviteStatus {
   ACCEPTED
   DECLINED
   REMOVED
+  LEFT
+}
+
+// Phase 1B: source of a membership row
+enum InviteSource {
+  HOST_INVITE
+  SHARE_LINK
+  JOIN_CODE
 }
 
 model RoomJoinToken {
-  id        String   @id @default(uuid())
-  roomId    String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id           String    @id @default(uuid())
+  roomId       String
+  token        String    @unique
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+  createdById  String?
+  revokedAt    DateTime?
+  maxUses      Int?
+  useCount     Int       @default(0)
 
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room         Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@index([roomId])
+  @@index([expiresAt])
 }
 
 model RideInvite {
-  id          String       @id @default(uuid())
+  id          String        @id @default(uuid())
   roomId      String
   inviterId   String
   inviteeId   String
-  status      InviteStatus @default(PENDING)
-  createdAt   DateTime     @default(now())
+  status      InviteStatus  @default(PENDING)
+  source      InviteSource  @default(HOST_INVITE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   room        Room @relation(fields: [roomId], references: [id])
   inviter     User @relation("Inviter", fields: [inviterId], references: [id])
   invitee     User @relation("Invitee", fields: [inviteeId], references: [id])
 
+  // Phase 1B: one membership row per (room, invitee)
+  @@unique([roomId, inviteeId])
   @@index([roomId, status])
   @@index([inviteeId, status])
   @@index([inviterId, status])
@@ -116,15 +154,18 @@ model RideSession {
   id           String         @id @default(uuid())
   riderId      String
   roomName     String?
+  clientRideId String?        // Phase 8.5: idempotency key for sync
   startTime    DateTime
   endTime      DateTime?
   distanceKm   Float
   privacyState String         @default("PRIVATE")
   routeJson    String?
+  diagnosticsEnabled Boolean  @default(false)
   
   user         User           @relation(fields: [riderId], references: [id])
   events       ConvoyEvent[]
 
+  @@unique([riderId, clientRideId])
   @@index([riderId, startTime(sort: Desc)])
 }
 
@@ -207,6 +248,7 @@ model DiagnosticRun {
   createdAt    DateTime                @default(now())
   closedAt     DateTime?
   emailedAt    DateTime?
+  closeAt      DateTime?               // Phase 6.9: persisted grace-close timestamp
   summary      Json?
 
   room         Room                    @relation(fields: [convoyId], references: [id], onDelete: Cascade)
@@ -247,5 +289,3 @@ model DiagnosticBatch {
   @@unique([runId, riderId, sequenceNumber])
   @@index([runId, riderId])
 }
-
-

@@ -1,5 +1,6 @@
 package com.ridervoice.di
 
+import com.ridervoice.BuildConfig
 import com.ridervoice.network.ApiService
 import com.ridervoice.utils.Constants
 import dagger.Module
@@ -66,6 +67,8 @@ object AppModule {
                 if (token != null) {
                     requestBuilder.addHeader("Authorization", "Bearer $token")
                 }
+                // Phase 0 – P0.6: X-App-Version header for server-side client identification
+                requestBuilder.addHeader("X-App-Version", BuildConfig.VERSION_NAME)
 
                 chain.proceed(requestBuilder.build())
             }

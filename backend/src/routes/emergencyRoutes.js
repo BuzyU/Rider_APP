@@ -2,6 +2,14 @@ const express = require('express')
 const router = express.Router()
 const prisma = require('../db')
 const notificationService = require('../services/notificationService')
+const { isReservedName } = require('../services/roomResolver')
+
+// H9 – regional emergency number fallback (replaces the old GLOBAL room SOS)
+const REGIONAL_EMERGENCY = {
+    IN: { number: '112', name: 'National Emergency' },
+    US: { number: '911', name: 'Emergency Services' },
+    default: { number: '112', name: 'Emergency Services' }
+}
 
 const alertTimestamps = new Map()
 
@@ -56,7 +64,19 @@ const emergencyRateLimiter = (req, res, next) => {
 router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
     const userId = req.user.uid
     const { roomName, lat, lng } = req.body
-    if (!roomName) return res.status(400).json({ error: 'roomName is required' })
+
+    // H9 – GLOBAL is reserved; return emergency contact info instead
+    if (!roomName || isReservedName(roomName)) {
+        const countryCode = req.headers['x-country-code'] || 'default'
+        const emergency = REGIONAL_EMERGENCY[countryCode] || REGIONAL_EMERGENCY.default
+        return res.status(200).json({
+            type: 'REGIONAL_EMERGENCY',
+            emergencyNumber: emergency.number,
+            emergencyName: emergency.name,
+            message: 'Call your local emergency number immediately. No convoy room was specified.',
+            sent: false
+        })
+    }
 
     try {
         const room = await prisma.room.findUnique({
@@ -64,6 +84,7 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
             select: {
                 id: true,
                 name: true,
+
                 ownerId: true,
                 invites: {
                     where: { status: 'ACCEPTED' },

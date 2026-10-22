@@ -1,231 +1,90 @@
-const express = require("express");
-const { AccessToken } = require("livekit-server-sdk");
-const prisma = require("../db");
-const cacheService = require("../services/cacheService");
+/**
+ * roomRoutes.js – Phase 1 rewrite
+ *
+ * Fixes:
+ *   A1 – roomCreate:false (delegated to tokenService)
+ *   A2 – all token paths use issueRoomToken()
+ *   F3 – 2h TTL with expiresAt in response
+ *   H3 – 410 for ENDED rooms (via resolveRoom)
+ */
 
-const router = express.Router();
+'use strict'
+
+const express = require('express')
+const router = express.Router()
+const { resolveRoom, ResolverError } = require('../services/roomResolver')
+const { issueRoomToken } = require('../services/tokenService')
 
 function extractCleanToken(input) {
-  if (!input || typeof input !== "string") return "";
-  let cleaned = input.trim();
-  if (cleaned.startsWith("ridervoice://join/")) {
-    cleaned = cleaned.slice("ridervoice://join/".length);
-  } else if (cleaned.includes("/join/")) {
-    cleaned = cleaned.slice(cleaned.indexOf("/join/") + "/join/".length);
-  }
-  if (cleaned.includes("token=")) {
-    cleaned = cleaned.slice(cleaned.indexOf("token=") + "token=".length);
-  }
-  cleaned = cleaned.split("?")[0].split("&")[0].split("#")[0].replace(/\/+$/, "").trim();
-  return cleaned;
+    if (!input || typeof input !== 'string') return ''
+    let cleaned = input.trim()
+    if (cleaned.startsWith('ridervoice://join/')) {
+        cleaned = cleaned.slice('ridervoice://join/'.length)
+    } else if (cleaned.includes('/join/')) {
+        cleaned = cleaned.slice(cleaned.indexOf('/join/') + '/join/'.length)
+    }
+    if (cleaned.includes('token=')) {
+        cleaned = cleaned.slice(cleaned.indexOf('token=') + 'token='.length)
+    }
+    cleaned = cleaned.split('?')[0].split('&')[0].split('#')[0].replace(/\/+$/, '').trim()
+    return cleaned
 }
 
-router.post("/room/token", async (req, res) => {
-  try {
-    const { roomName } = req.body;
-    const user = req.user;
+// POST /api/rooms/room/token
+// Issues a LiveKit token for an ACTIVE room. The caller must already be a member.
+router.post('/room/token', async (req, res) => {
+    try {
+        const { roomName, roomId } = req.body
+        const user = req.user
 
-    if (!roomName) {
-      return res
-        .status(400)
-        .json({ error: "Missing roomName in request body" });
-    }
-
-    const cleanInput = extractCleanToken(roomName);
-    if (!cleanInput) {
-      return res
-        .status(400)
-        .json({ error: "Missing roomName in request body" });
-    }
-
-    let existingRoom = await prisma.room.findUnique({
-      where: { name: cleanInput },
-      select: {
-        id: true,
-        name: true,
-        ownerId: true,
-        diagnosticsEnabled: true,
-        invites: {
-          where: { inviteeId: user.uid, status: "ACCEPTED" },
-          select: { id: true },
-          take: 1,
-        },
-      },
-    }).catch(() => null);
-
-    if (!existingRoom && typeof prisma.room.findFirst === "function") {
-      try {
-        existingRoom = await prisma.room.findFirst({
-          where: {
-            OR: [
-              { id: cleanInput },
-              { name: cleanInput },
-              { name: { equals: cleanInput, mode: "insensitive" } },
-            ],
-          },
-          select: {
-            id: true,
-            name: true,
-            ownerId: true,
-            diagnosticsEnabled: true,
-            invites: {
-              where: { inviteeId: user.uid, status: "ACCEPTED" },
-              select: { id: true },
-              take: 1,
-            },
-          },
-        });
-      } catch (findErr) {}
-    }
-
-    let isTokenJoin = false;
-    if (!existingRoom) {
-      try {
-        let joinTokenRecord = await prisma.roomJoinToken.findUnique({
-          where: { token: cleanInput },
-          select: {
-            expiresAt: true,
-            room: {
-              select: {
-                id: true,
-                name: true,
-                ownerId: true,
-                diagnosticsEnabled: true,
-              },
-            },
-          },
-        });
-
-        if (!joinTokenRecord && cleanInput.toLowerCase() !== cleanInput) {
-          joinTokenRecord = await prisma.roomJoinToken.findUnique({
-            where: { token: cleanInput.toLowerCase() },
-            select: {
-              expiresAt: true,
-              room: {
-                select: {
-                  id: true,
-                  name: true,
-                  ownerId: true,
-                  diagnosticsEnabled: true,
-                },
-              },
-            },
-          });
+        const rawRef = roomId || roomName
+        if (!rawRef) {
+            return res.status(400).json({ error: 'roomId or roomName is required' })
         }
+        const ref = extractCleanToken(rawRef) || rawRef
 
-        if (joinTokenRecord) {
-          if (new Date() > joinTokenRecord.expiresAt) {
-            return res.status(410).json({ error: "Convoy join link has expired" });
-          }
-          existingRoom = joinTokenRecord.room;
-          existingRoom.invites = [];
-          isTokenJoin = true;
+        const room = await resolveRoom(ref)
+        const result = await issueRoomToken(user, room)
+        res.json(result)
+    } catch (error) {
+        if (error instanceof ResolverError) {
+            return res.status(error.status).json({ error: error.message, code: error.code })
         }
-      } catch (tokenLookupErr) {
-      }
+        if (error.status) {
+            return res.status(error.status).json({ error: error.message, code: error.code })
+        }
+        console.error('Error generating token:', error)
+        res.status(500).json({ error: 'Failed to generate token' })
     }
+})
 
-    if (!existingRoom && typeof prisma.room.findFirst === "function") {
-      try {
-        existingRoom = await prisma.room.findFirst({
-          where: { name: { equals: cleanInput, mode: "insensitive" } },
-          select: {
-            id: true,
-            name: true,
-            ownerId: true,
-            diagnosticsEnabled: true,
-            invites: {
-              where: { inviteeId: user.uid, status: "ACCEPTED" },
-              select: { id: true },
-              take: 1,
-            },
-          },
-        });
-      } catch (findErr) {
-      }
+// POST /api/rooms/token/refresh
+// F3 – token refresh: exchange an expiring token for a fresh one.
+// Client should call this ~5 minutes before token expiry.
+router.post('/token/refresh', async (req, res) => {
+    try {
+        const { roomId, roomName } = req.body
+        const user = req.user
+
+        const rawRef = roomId || roomName
+        if (!rawRef) {
+            return res.status(400).json({ error: 'roomId or roomName is required' })
+        }
+        const ref = extractCleanToken(rawRef) || rawRef
+
+        const room = await resolveRoom(ref)
+        const result = await issueRoomToken(user, room)
+        res.json(result)
+    } catch (error) {
+        if (error instanceof ResolverError) {
+            return res.status(error.status).json({ error: error.message, code: error.code })
+        }
+        if (error.status) {
+            return res.status(error.status).json({ error: error.message, code: error.code })
+        }
+        console.error('Error refreshing token:', error)
+        res.status(500).json({ error: 'Failed to refresh token' })
     }
+})
 
-    if (!existingRoom) {
-      return res.status(404).json({ error: "Room not found" });
-    }
-
-    const isAuthorized =
-      existingRoom.ownerId === user.uid ||
-      (existingRoom.invites && existingRoom.invites.length > 0);
-
-    if (!isAuthorized || isTokenJoin) {
-      const existingInvite = await prisma.rideInvite.findFirst({
-        where: { roomId: existingRoom.id, inviteeId: user.uid },
-        select: { id: true },
-      });
-      if (existingInvite) {
-        await prisma.rideInvite.update({
-          where: { id: existingInvite.id },
-          data: { status: "ACCEPTED" },
-          select: { id: true },
-        });
-      } else {
-        await prisma.rideInvite.create({
-          data: {
-            roomId: existingRoom.id,
-            inviterId: existingRoom.ownerId,
-            inviteeId: user.uid,
-            status: "ACCEPTED",
-          },
-          select: { id: true },
-        });
-      }
-      cacheService.del(`lobby_status:${existingRoom.name}`);
-    }
-
-    const participantName = await cacheService.wrap(`user_name:${user.uid}`, 60000, async () => {
-      try {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.uid },
-          select: { displayName: true, handle: true },
-        });
-        return dbUser?.displayName || (dbUser?.handle ? `@${dbUser.handle}` : null) || user.name || "Rider";
-      } catch (e) {
-        return user.name || "Rider";
-      }
-    });
-
-    const at = new AccessToken(
-      process.env.LIVEKIT_API_KEY,
-      process.env.LIVEKIT_API_SECRET,
-      {
-        identity: user.uid,
-        name: participantName,
-        ttl: "6h",
-      },
-    );
-
-    at.addGrant({
-      roomJoin: true,
-      room: existingRoom.name,
-      canPublish: true,
-      canSubscribe: true,
-      canPublishData: true,
-    });
-    const token = await at.toJwt();
-
-    const activeRun = await prisma.diagnosticRun.findFirst({
-      where: { convoyId: existingRoom.id, status: "ACTIVE" },
-      select: { id: true, testNumber: true },
-    });
-
-    res.json({
-      token,
-      roomName: existingRoom.name,
-      roomId: existingRoom.id,
-      livekitUrl: process.env.LIVEKIT_URL || "wss://rider-com-app-u46cadz0.livekit.cloud",
-      diagnosticsEnabled: existingRoom.diagnosticsEnabled ?? activeRun != null,
-      testNumber: activeRun?.testNumber || null,
-    });
-  } catch (error) {
-    console.error("Error generating token:", error);
-    res.status(500).json({ error: "Failed to generate token" });
-  }
-});
-
-module.exports = router;
+module.exports = router

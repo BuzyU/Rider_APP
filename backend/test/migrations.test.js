@@ -73,6 +73,7 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             const baseSchemaPath = path.join(__dirname, '../supabase_schema.sql')
             const testerAppSchemaPath = path.join(__dirname, '../supabase_tester_applications.sql')
             const diagMigrationPath = path.join(__dirname, '../prisma/migrations/20261014_add_network_diagnostics/migration.sql')
+            const phase1MigrationPath = path.join(__dirname, '../prisma/migrations/20261023_phase1_room_lifecycle_membership/migration.sql')
 
             async function setupDb(dbName) {
                 await runSqlFile(dbName, baseSchemaPath)
@@ -112,6 +113,7 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
 
             // Apply new additive migration to previous DB state
             await runSqlFile('ridervoice_prev', migrationSqlPath)
+            await runSqlFile('ridervoice_prev', phase1MigrationPath)
 
             // Verify columns now exist in ridervoice_prev
             const upgradedClient = new Client({ host: 'localhost', port: testPort, user: 'postgres', password: 'password', database: 'ridervoice_prev' })
@@ -126,6 +128,7 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             // 2. Fresh DB (base schema + past migration + new migration)
             await setupDb('ridervoice_fresh')
             await runSqlFile('ridervoice_fresh', migrationSqlPath)
+            await runSqlFile('ridervoice_fresh', phase1MigrationPath)
 
             // 3. Diff fresh DB against schema.prisma and assert no drift
             const dbUrl = `postgresql://postgres:password@localhost:${testPort}/ridervoice_fresh`

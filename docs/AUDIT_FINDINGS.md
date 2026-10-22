@@ -1,13 +1,14 @@
 # RiderVoice Audit Findings Tracker
 
-Branch: `fix/master-v0.0.3.15`. Status is updated as work lands.
+Branch: `main` (consolidated on top of `origin/main` at `65e718c`). Status is updated as work lands.
 Legend: FIXED = verified by automated test/build; PARTIAL = part done; TODO = not started.
 RUNTIME items cannot be verified without a device and are listed in the final report.
 
-## Verification baseline
-- Backend: `npm test` in `backend/` -> 41 passing (baseline was 37).
-- Android: `gradlew :app:testDebugUnitTest` passes. Needs JDK 17 (`~/.jdks/jbr-17.0.14`);
-  the `JAVA_HOME` in the user environment points to a missing directory.
+## Verification baseline & CI status
+- Backend: `npm test` in `backend/` -> 56 passing across 10 test suites (baseline was 37).
+- Android: `gradlew :app:testDebugUnitTest` and `:app:assembleDebug` pass.
+- Web app: `npm run build` passes with Next.js webpack production build.
+- GitHub Actions workflow (`.github/workflows/build.yml`): All 3 jobs verified locally.
 
 ## Phase 0 / Phase 1 (backend room identity, lifecycle, membership)
 | Area | Status | Notes |

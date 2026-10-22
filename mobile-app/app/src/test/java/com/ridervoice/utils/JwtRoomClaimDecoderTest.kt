@@ -55,4 +55,42 @@ class JwtRoomClaimDecoderTest {
         assertNull(JwtRoomClaimDecoder.extractRoomName(missingClaimToken))
         assertFalse(JwtRoomClaimDecoder.validateRoom(missingClaimToken, "convoy-alpha"))
     }
+
+    private fun tokenWith(room: String, exp: Long?): String {
+        val expPart = if (exp != null) ""","exp":$exp""" else ""
+        val payload = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+            """{"video":{"room":"$room","roomJoin":true}$expPart}""".toByteArray(StandardCharsets.UTF_8)
+        )
+        return "h.$payload.s"
+    }
+
+    @Test
+    fun `validate accepts fresh token for matching room`() {
+        val t = tokenWith("room-1", 10_000)
+        assertEquals(JwtRoomClaimDecoder.TokenCheck.VALID, JwtRoomClaimDecoder.validate(t, "room-1", nowEpochSeconds = 1_000))
+    }
+
+    @Test
+    fun `validate rejects expired token`() {
+        val t = tokenWith("room-1", 1_000)
+        assertEquals(JwtRoomClaimDecoder.TokenCheck.EXPIRED, JwtRoomClaimDecoder.validate(t, "room-1", nowEpochSeconds = 1_100))
+    }
+
+    @Test
+    fun `validate asks for refresh when near expiry`() {
+        val t = tokenWith("room-1", 1_200)
+        assertEquals(JwtRoomClaimDecoder.TokenCheck.NEEDS_REFRESH, JwtRoomClaimDecoder.validate(t, "room-1", nowEpochSeconds = 1_000))
+    }
+
+    @Test
+    fun `validate rejects wrong room`() {
+        val t = tokenWith("room-1", 10_000)
+        assertEquals(JwtRoomClaimDecoder.TokenCheck.WRONG_ROOM, JwtRoomClaimDecoder.validate(t, "room-2", nowEpochSeconds = 1_000))
+    }
+
+    @Test
+    fun `validate treats token without exp as valid and malformed as malformed`() {
+        assertEquals(JwtRoomClaimDecoder.TokenCheck.VALID, JwtRoomClaimDecoder.validate(tokenWith("room-1", null), "room-1"))
+        assertEquals(JwtRoomClaimDecoder.TokenCheck.MALFORMED, JwtRoomClaimDecoder.validate("garbage", "room-1"))
+    }
 }

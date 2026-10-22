@@ -199,7 +199,10 @@ class RoomViewModel @Inject constructor(
         viewModelScope.launch {
             _error.value = null
             try {
-                val effectiveToken = if (isTokenForThisRoom) {
+                val cachedOk = existingToken.isNotBlank() &&
+                    com.ridervoice.utils.JwtRoomClaimDecoder.validate(existingToken, roomName) ==
+                    com.ridervoice.utils.JwtRoomClaimDecoder.TokenCheck.VALID
+                val effectiveToken = if (cachedOk) {
                     existingToken
                 } else {
                     val res = apiService.getRoomToken(com.ridervoice.models.RoomTokenRequest(roomName))

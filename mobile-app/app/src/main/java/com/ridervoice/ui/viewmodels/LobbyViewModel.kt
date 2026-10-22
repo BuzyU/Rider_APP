@@ -27,6 +27,12 @@ class LobbyViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    /** Why polling stopped for good, or null while the room is still live/pollable (H3). */
+    enum class Terminal { ENDED, REMOVED, NOT_FOUND }
+
+    private val _terminal = MutableStateFlow<Terminal?>(null)
+    val terminal: StateFlow<Terminal?> = _terminal.asStateFlow()
+
     private var pollingJob: Job? = null
 
     fun startPolling(roomName: String) {
@@ -55,9 +61,23 @@ class LobbyViewModel @Inject constructor(
                                 }
                             } catch (_: Exception) {}
                         }
-                    } else if (response.code() == 404 || response.code() == 403) {
-                        _error.value = "Convoy session ended or access revoked"
-                        break
+                    } else when (response.code()) {
+                        410 -> {
+                            _terminal.value = Terminal.ENDED
+                            _error.value = "This convoy has ended"
+                            break
+                        }
+                        403 -> {
+                            _terminal.value = Terminal.REMOVED
+                            _error.value = "You are no longer part of this convoy"
+                            break
+                        }
+                        404 -> {
+                            _terminal.value = Terminal.NOT_FOUND
+                            _error.value = "Convoy not found"
+                            break
+                        }
+                        else -> { /* transient (5xx etc.): keep polling */ }
                     }
                 } catch (e: Exception) {
                     _error.value = e.localizedMessage ?: "Network connection issue"

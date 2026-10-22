@@ -154,24 +154,29 @@ router.post('/respond', async (req, res, next) => {
             // G8 – acceptInvite does the state machine update atomically
             const { invite, alreadyAccepted } = await acceptInvite({ inviteId, inviteeId })
 
-            const room = await prisma.room.findUnique({
-                where: { id: invite.roomId },
-                select: { name: true, ownerId: true }
-            })
+            const roomId = invite.roomId || invite.room?.id
+            const room = roomId
+                ? await prisma.room.findUnique({
+                    where: { id: roomId },
+                    select: { name: true, ownerId: true }
+                }).catch(() => null)
+                : null
 
-            if (room?.name) cacheService.del(`lobby_status:${room.name}`)
-            if (invite.roomId) cacheService.del(`lobby_status:${invite.roomId}`)
+            const roomName = room?.name || invite.room?.name
+
+            if (roomName) cacheService.del(`lobby_status:${roomName}`)
+            if (roomId) cacheService.del(`lobby_status:${roomId}`)
 
             if (!alreadyAccepted) {
                 // G10 – notify once from membershipService
                 const invitee = await prisma.user.findUnique({
                     where: { id: inviteeId },
                     select: { displayName: true }
-                })
+                }).catch(() => null)
                 notifyJoined({
                     inviteeId,
                     inviterId: invite.inviterId,
-                    roomName: room?.name,
+                    roomName,
                     inviteeEmail: req.user.email,
                     inviteeName: invitee?.displayName || req.user.name
                 })

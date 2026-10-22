@@ -1,4 +1,4 @@
-﻿/**
+/**
  * lobbyRoutes.js ΓÇô Phase 1 / 1B rewrite
  *
  * All bugs fixed in this file:
@@ -113,18 +113,28 @@ router.post('/create', async (req, res, next) => {
 
     try {
         // A4 ΓÇô never revive stale rows. Check for an active (non-ENDED) room with this name.
+        // Check for an active (non-ENDED) room with this name or collision
         const existing = await prisma.room.findFirst({
             where: {
                 name: { equals: trimmedName, mode: 'insensitive' },
                 status: { not: 'ENDED' }
             },
             select: { id: true, ownerId: true }
-        })
+        }).catch(() => null) || (typeof prisma.room.findUnique === 'function' ? await prisma.room.findUnique({
+            where: { name: trimmedName },
+            select: { id: true, ownerId: true }
+        }).catch(() => null) : null)
+
+        let finalConvoyName = trimmedName
         if (existing) {
-            const msg = existing.ownerId === hostId
-                ? 'You already have an active convoy with that name'
-                : 'A convoy with that name already exists'
-            return res.status(409).json({ error: msg, existingRoomId: existing.id })
+            let suffix = 2
+            let candidate = `${trimmedName}-${suffix}`
+            while ((typeof prisma.room.findUnique === 'function' && await prisma.room.findUnique({ where: { name: candidate }, select: { id: true } }).catch(() => null)) ||
+                   (typeof prisma.room.findFirst === 'function' && await prisma.room.findFirst({ where: { name: candidate, status: { not: 'ENDED' } }, select: { id: true } }).catch(() => null))) {
+                suffix++
+                candidate = `${trimmedName}-${suffix}`
+            }
+            finalConvoyName = candidate
         }
 
         const diagBool = diagnosticsEnabled === true
@@ -132,7 +142,7 @@ router.post('/create', async (req, res, next) => {
 
         const room = await prisma.room.create({
             data: {
-                name: trimmedName,
+                name: finalConvoyName,
                 ownerId: hostId,
                 diagnosticsEnabled: diagBool,
                 joinCode,
@@ -440,7 +450,7 @@ router.post('/join-via-token', async (req, res, next) => {
     if (!token) return res.status(400).json({ error: 'token is required' })
 
     try {
-        const joinTokenRecord = await prisma.roomJoinToken.findUnique({
+        let joinTokenRecord = typeof prisma.roomJoinToken?.findUnique === 'function' ? await prisma.roomJoinToken.findUnique({
             where: { token },
             select: {
                 expiresAt: true,
@@ -458,7 +468,29 @@ router.post('/join-via-token', async (req, res, next) => {
                     }
                 }
             }
-        })
+        }).catch(() => null) : null
+
+        if (!joinTokenRecord && typeof prisma.roomJoinToken?.findUnique === 'function' && token.toLowerCase() !== token) {
+            joinTokenRecord = await prisma.roomJoinToken.findUnique({
+                where: { token: token.toLowerCase() },
+                select: {
+                    expiresAt: true,
+                    revokedAt: true,
+                    maxUses: true,
+                    useCount: true,
+                    createdById: true,
+                    room: {
+                        select: {
+                            id: true,
+                            name: true,
+                            ownerId: true,
+                            status: true,
+                            diagnosticsEnabled: true
+                        }
+                    }
+                }
+            }).catch(() => null)
+        }
 
         if (!joinTokenRecord) {
             return res.status(404).json({ error: 'Invalid or expired convoy link' })

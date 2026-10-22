@@ -167,7 +167,7 @@ async function acceptInvite({ inviteId, inviteeId }) {
     })
 
     if (!invite || invite.inviteeId !== inviteeId) {
-        const err = new Error('Invite not found or does not belong to you')
+        const err = new Error('Not your invite')
         err.status = 403
         err.code = 'NOT_YOUR_INVITE'
         throw err

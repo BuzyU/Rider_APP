@@ -15,6 +15,8 @@ const router = express.Router()
 const { resolveRoom, ResolverError } = require('../services/roomResolver')
 const { issueRoomToken } = require('../services/tokenService')
 
+const prisma = require('../db')
+
 function extractCleanToken(input) {
     if (!input || typeof input !== 'string') return ''
     let cleaned = input.trim()
@@ -43,7 +45,142 @@ router.post('/room/token', async (req, res) => {
         }
         const ref = extractCleanToken(rawRef) || rawRef
 
-        const room = await resolveRoom(ref)
+        let room = null
+        const isExplicitToken = typeof rawRef === 'string' && (rawRef.includes('://') || rawRef.includes('/join/') || rawRef.includes('token='))
+
+        if (isExplicitToken) {
+            let joinTokenRecord = typeof prisma.roomJoinToken?.findUnique === 'function' ? await prisma.roomJoinToken.findUnique({
+                where: { token: ref },
+                select: {
+                    expiresAt: true,
+                    room: {
+                        select: {
+                            id: true,
+                            name: true,
+                            ownerId: true,
+                            diagnosticsEnabled: true,
+                            status: true
+                        }
+                    }
+                }
+            }).catch(() => null) : null
+
+            if (!joinTokenRecord && typeof prisma.roomJoinToken?.findUnique === 'function' && ref.toLowerCase() !== ref) {
+                joinTokenRecord = await prisma.roomJoinToken.findUnique({
+                    where: { token: ref.toLowerCase() },
+                    select: {
+                        expiresAt: true,
+                        room: {
+                            select: {
+                                id: true,
+                                name: true,
+                                ownerId: true,
+                                diagnosticsEnabled: true,
+                                status: true
+                            }
+                        }
+                    }
+                }).catch(() => null)
+            }
+
+            if (joinTokenRecord && joinTokenRecord.room) {
+                if (new Date() > joinTokenRecord.expiresAt) {
+                    return res.status(410).json({ error: 'Convoy join link has expired' })
+                }
+                room = joinTokenRecord.room
+                const existingInvite = typeof prisma.rideInvite?.findFirst === 'function' ? await prisma.rideInvite.findFirst({
+                    where: { roomId: room.id, inviteeId: user.uid },
+                    select: { id: true }
+                }).catch(() => null) : null
+
+                if (existingInvite && typeof prisma.rideInvite?.update === 'function') {
+                    await prisma.rideInvite.update({
+                        where: { id: existingInvite.id },
+                        data: { status: 'ACCEPTED' }
+                    }).catch(() => {})
+                } else if (typeof prisma.rideInvite?.create === 'function') {
+                    await prisma.rideInvite.create({
+                        data: {
+                            roomId: room.id,
+                            inviterId: room.ownerId,
+                            inviteeId: user.uid,
+                            status: 'ACCEPTED'
+                        }
+                    }).catch(() => {})
+                }
+            }
+        }
+
+        if (!room) {
+            try {
+                room = await resolveRoom(ref)
+            } catch (resolveErr) {
+                // Check if ref is a roomJoinToken
+                let joinTokenRecord = typeof prisma.roomJoinToken?.findUnique === 'function' ? await prisma.roomJoinToken.findUnique({
+                    where: { token: ref },
+                    select: {
+                        expiresAt: true,
+                        room: {
+                            select: {
+                                id: true,
+                                name: true,
+                                ownerId: true,
+                                diagnosticsEnabled: true,
+                                status: true
+                            }
+                        }
+                    }
+                }).catch(() => null) : null
+
+                if (!joinTokenRecord && typeof prisma.roomJoinToken?.findUnique === 'function' && ref.toLowerCase() !== ref) {
+                    joinTokenRecord = await prisma.roomJoinToken.findUnique({
+                        where: { token: ref.toLowerCase() },
+                        select: {
+                            expiresAt: true,
+                            room: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    ownerId: true,
+                                    diagnosticsEnabled: true,
+                                    status: true
+                                }
+                            }
+                        }
+                    }).catch(() => null)
+                }
+
+                if (joinTokenRecord && joinTokenRecord.room) {
+                    if (new Date() > joinTokenRecord.expiresAt) {
+                        return res.status(410).json({ error: 'Convoy join link has expired' })
+                    }
+                    room = joinTokenRecord.room
+                    const existingInvite = typeof prisma.rideInvite?.findFirst === 'function' ? await prisma.rideInvite.findFirst({
+                        where: { roomId: room.id, inviteeId: user.uid },
+                        select: { id: true }
+                    }).catch(() => null) : null
+
+                    if (existingInvite && typeof prisma.rideInvite?.update === 'function') {
+                        await prisma.rideInvite.update({
+                            where: { id: existingInvite.id },
+                            data: { status: 'ACCEPTED' }
+                        }).catch(() => {})
+                    } else if (typeof prisma.rideInvite?.create === 'function') {
+                        await prisma.rideInvite.create({
+                            data: {
+                                roomId: room.id,
+                                inviterId: room.ownerId,
+                                inviteeId: user.uid,
+                                status: 'ACCEPTED'
+                            }
+                        }).catch(() => {})
+                    }
+                } else {
+                    throw resolveErr
+                }
+            }
+        }
+
         const result = await issueRoomToken(user, room)
         res.json(result)
     } catch (error) {

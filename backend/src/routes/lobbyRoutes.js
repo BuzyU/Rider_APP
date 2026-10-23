@@ -1,28 +1,28 @@
 /**
- * lobbyRoutes.js ΓÇô Phase 1 / 1B rewrite
+ * lobbyRoutes.js - Phase 1 / 1B rewrite
  *
  * All bugs fixed in this file:
- *   A1  ΓÇô roomCreate:false on every token (delegated to tokenService)
- *   A2  ΓÇô single issueRoomToken() for all 4 token paths
- *   A3  ΓÇô /end marks DB ENDED before calling deleteRoom
- *   A4  ΓÇô /create never revives stale rows; always creates fresh
- *   G1  ΓÇô join-via-token blocks REMOVED riders
- *   G2  ΓÇô join-via-token blocks DECLINED? No ΓÇô DECLINED can self-join
- *   G3  ΓÇô @@unique([roomId,inviteeId]) in schema; handled by membership service
- *   G4  ΓÇô join-via-token stores actual link-creator as inviterId (createdById)
- *   G5  ΓÇô /create: no more stale-room revival
- *   G6  ΓÇô all membership paths check room.status != ENDED
- *   G8  ΓÇô accept is atomic (no pre-remove before token call)
- *   G9  ΓÇô invite errors surfaced per-rider
- *   G10 ΓÇô "joined" email fires once from membershipService.notifyJoined
- *   G11 ΓÇô /status only shows owner + ACCEPTED members (not PENDING/DECLINED)
- *   H1  ΓÇô join-by-name removed; join code or share-link token required
- *   H2  ΓÇô /create persists origin/destination/meetupPoint/estimatedDurationMin
- *   H3  ΓÇô 410 returned for ENDED rooms everywhere
- *   H4  ΓÇô canStart computed from real state: host + >=1 ACCEPTED or allowSolo
- *   H5  ΓÇô transfer-host: newHostId validated as ACCEPTED member
- *   H6  ΓÇô share tokens revoked on /end
- *   B6  ΓÇô grace-close uses persisted closeAt on DB row (not in-memory setTimeout only)
+ *   A1  - roomCreate:false on every token (delegated to tokenService)
+ *   A2  - single issueRoomToken() for all 4 token paths
+ *   A3  - /end marks DB ENDED before calling deleteRoom
+ *   A4  - /create never revives stale rows; always creates fresh
+ *   G1  - join-via-token blocks REMOVED riders
+ *   G2  - join-via-token blocks DECLINED? No - DECLINED can self-join
+ *   G3  - @@unique([roomId,inviteeId]) in schema; handled by membership service
+ *   G4  - join-via-token stores actual link-creator as inviterId (createdById)
+ *   G5  - /create: no more stale-room revival
+ *   G6  - all membership paths check room.status != ENDED
+ *   G8  - accept is atomic (no pre-remove before token call)
+ *   G9  - invite errors surfaced per-rider
+ *   G10 - "joined" email fires once from membershipService.notifyJoined
+ *   G11 - /status only shows owner + ACCEPTED members (not PENDING/DECLINED)
+ *   H1  - join-by-name removed; join code or share-link token required
+ *   H2  - /create persists origin/destination/meetupPoint/estimatedDurationMin
+ *   H3  - 410 returned for ENDED rooms everywhere
+ *   H4  - canStart computed from real state: host + >=1 ACCEPTED or allowSolo
+ *   H5  - transfer-host: newHostId validated as ACCEPTED member
+ *   H6  - share tokens revoked on /end
+ *   B6  - grace-close uses persisted closeAt on DB row (not in-memory setTimeout only)
  */
 
 'use strict'
@@ -39,7 +39,7 @@ const { resolveRoom, markRoomEnded, generateUniqueJoinCode, isReservedName, Reso
 const { issueRoomToken, lkRoomName } = require('../services/tokenService')
 const { selfJoin, removeRider, notifyJoined } = require('../services/membershipService')
 
-// ΓöÇΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- Helpers -----------------------------------------------------------------
 
 function extractCleanToken(input) {
     if (!input || typeof input !== 'string') return ''
@@ -83,7 +83,7 @@ async function removeLiveKitParticipant(lkRoomName, userId) {
     }
 }
 
-// ΓöÇΓöÇΓöÇ POST /lobby/create ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- POST /lobby/create -------------------------------------------------------
 
 router.post('/create', async (req, res, next) => {
     const hostId = req.user.uid
@@ -106,13 +106,13 @@ router.post('/create', async (req, res, next) => {
         return res.status(400).json({ error: 'convoyName cannot be blank' })
     }
 
-    // H1 / Phase 1.5 ΓÇô block reserved names
+    // H1 / Phase 1.5 - block reserved names
     if (isReservedName(trimmedName)) {
         return res.status(400).json({ error: `"${trimmedName}" is a reserved convoy name` })
     }
 
     try {
-        // A4 ΓÇô never revive stale rows. Check for an active (non-ENDED) room with this name.
+        // A4 - never revive stale rows. Check for an active (non-ENDED) room with this name.
         // Check for an active (non-ENDED) room with this name or collision
         const existing = await prisma.room.findFirst({
             where: {
@@ -146,12 +146,12 @@ router.post('/create', async (req, res, next) => {
                 ownerId: hostId,
                 diagnosticsEnabled: diagBool,
                 joinCode,
-                // H2 ΓÇô persist ride metadata
+                // H2 - persist ride metadata
                 origin: origin || null,
                 destination: destination || null,
                 meetupPoint: meetupPoint || null,
                 estimatedDurationMin: estimatedDurationMin ? parseInt(estimatedDurationMin, 10) : null,
-                // Store allowSolo in metadata via JSON-compatible field ΓÇô stored as custom metadata
+                // Store allowSolo in metadata via JSON-compatible field - stored as custom metadata
             },
             select: {
                 id: true,
@@ -200,7 +200,7 @@ router.post('/create', async (req, res, next) => {
     }
 })
 
-// ΓöÇΓöÇΓöÇ GET /lobby/:roomName/status ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- GET /lobby/:roomName/status ----------------------------------------------
 
 router.get('/:roomRef/status', async (req, res, next) => {
     const { roomRef } = req.params
@@ -210,7 +210,7 @@ router.get('/:roomRef/status', async (req, res, next) => {
         const room = await resolveRoom(roomRef, {
             select: {
                 startedAt: true,
-                // G11 ΓÇô only ACCEPTED and owner are "members" for lobby status
+                // G11 - only ACCEPTED and owner are "members" for lobby status
                 invites: {
                     where: { status: { in: ['ACCEPTED'] } },
                     select: {
@@ -238,7 +238,7 @@ router.get('/:roomRef/status', async (req, res, next) => {
             return res.status(403).json({ error: 'Only convoy members can view lobby status' })
         }
 
-        // G11 ΓÇô if not owner, return only own membership info
+        // G11 - if not owner, return only own membership info
         const visibleInvites = isOwner ? room.invites : room.invites.filter(inv => inv.invitee?.id === requesterId)
 
         const formattedInvites = visibleInvites.map(inv => ({
@@ -255,7 +255,7 @@ router.get('/:roomRef/status', async (req, res, next) => {
 
         const acceptedCount = room.invites.length // already filtered to ACCEPTED
 
-        // H4 ΓÇô canStart: real logic
+        // H4 - canStart: real logic
         const canStart = isOwner && (acceptedCount >= 1 || req.query.allowSolo === 'true')
 
         res.json({
@@ -282,7 +282,7 @@ router.get('/:roomRef/status', async (req, res, next) => {
     }
 })
 
-// ΓöÇΓöÇΓöÇ POST /lobby/:roomName/start ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- POST /lobby/:roomName/start ----------------------------------------------
 
 router.post('/:roomRef/start', async (req, res, next) => {
     const { roomRef } = req.params
@@ -295,7 +295,7 @@ router.post('/:roomRef/start', async (req, res, next) => {
             return res.status(403).json({ error: 'Only the host can start the ride' })
         }
 
-        // H4 ΓÇô verify canStart: need at least one ACCEPTED member (unless allowSolo)
+        // H4 - verify canStart: need at least one ACCEPTED member (unless allowSolo)
         const acceptedCount = await prisma.rideInvite.count({
             where: { roomId: room.id, status: 'ACCEPTED' }
         })
@@ -325,7 +325,7 @@ router.post('/:roomRef/start', async (req, res, next) => {
     }
 })
 
-// ΓöÇΓöÇΓöÇ PATCH /lobby/:roomRef/diagnostics ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- PATCH /lobby/:roomRef/diagnostics ----------------------------------------
 // Host-only; only before the ride has started.
 
 router.patch('/:roomRef/diagnostics', async (req, res, next) => {
@@ -361,7 +361,7 @@ router.patch('/:roomRef/diagnostics', async (req, res, next) => {
     }
 })
 
-// ΓöÇΓöÇΓöÇ POST /lobby/join-token ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- POST /lobby/join-token ---------------------------------------------------
 
 router.post('/join-token', async (req, res, next) => {
     const { roomId, roomName } = req.body
@@ -372,7 +372,7 @@ router.post('/join-token', async (req, res, next) => {
 
     try {
         const room = await resolveRoom(ref)
-        // issueRoomToken performs membership check (G8 ΓÇô atomic)
+        // issueRoomToken performs membership check (G8 - atomic)
         cacheService.del('lobby_status:' + room.name);
         cacheService.del('lobby_status:' + room.id);
         const tokenResult = await issueRoomToken(user, room)
@@ -388,7 +388,7 @@ router.post('/join-token', async (req, res, next) => {
     }
 })
 
-// ΓöÇΓöÇΓöÇ POST /lobby/:roomName/share-link ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- POST /lobby/:roomName/share-link -----------------------------------------
 
 router.post('/:roomRef/share-link', async (req, res, next) => {
     const { roomRef } = req.params
@@ -418,7 +418,7 @@ router.post('/:roomRef/share-link', async (req, res, next) => {
                 roomId: room.id,
                 token: tokenValue,
                 expiresAt,
-                createdById: user.uid,  // G4 ΓÇô track actual link creator
+                createdById: user.uid,  // G4 - track actual link creator
                 maxUses: req.body.maxUses || null
             },
             select: { id: true }
@@ -440,7 +440,7 @@ router.post('/:roomRef/share-link', async (req, res, next) => {
     }
 })
 
-// ΓöÇΓöÇΓöÇ POST /lobby/join-via-token ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- POST /lobby/join-via-token -----------------------------------------------
 
 router.post('/join-via-token', async (req, res, next) => {
     const rawToken = req.body.token
@@ -496,7 +496,7 @@ router.post('/join-via-token', async (req, res, next) => {
             return res.status(404).json({ error: 'Invalid or expired convoy link' })
         }
 
-        // H6 ΓÇô revoked links
+        // H6 - revoked links
         if (joinTokenRecord.revokedAt) {
             return res.status(410).json({ error: 'This convoy link has been revoked' })
         }
@@ -505,23 +505,23 @@ router.post('/join-via-token', async (req, res, next) => {
             return res.status(410).json({ error: 'Convoy join link has expired' })
         }
 
-        // H6 ΓÇô maxUses check
+        // H6 - maxUses check
         if (joinTokenRecord.maxUses && joinTokenRecord.useCount >= joinTokenRecord.maxUses) {
             return res.status(410).json({ error: 'This convoy link has reached its maximum number of uses' })
         }
 
         const room = joinTokenRecord.room
 
-        // H3 ΓÇô 410 for ended rooms
+        // H3 - 410 for ended rooms
         if (room.status === 'ENDED') {
             return res.status(410).json({ error: 'This convoy has ended', code: 'ROOM_ENDED' })
         }
 
-        // G1 ΓÇô membership state machine: REMOVED blocks join; DECLINED/LEFT/null ΓåÆ ACCEPTED
+        // G1 - membership state machine: REMOVED blocks join; DECLINED/LEFT/null -> ACCEPTED
         const { alreadyMember, isNew } = await selfJoin({
             roomId: room.id,
             inviteeId: user.uid,
-            // G4 ΓÇô inviterId = link creator (not always owner)
+            // G4 - inviterId = link creator (not always owner)
             inviterId: joinTokenRecord.createdById || room.ownerId,
             source: 'SHARE_LINK',
             room
@@ -533,7 +533,7 @@ router.post('/join-via-token', async (req, res, next) => {
             data: { useCount: { increment: 1 } }
         }).catch(() => {})
 
-        // G10 ΓÇô notify once if newly joined
+        // G10 - notify once if newly joined
         if (isNew && !alreadyMember) {
             const displayName = await prisma.user.findUnique({
                 where: { id: user.uid },
@@ -566,7 +566,7 @@ router.post('/join-via-token', async (req, res, next) => {
     }
 })
 
-// ΓöÇΓöÇΓöÇ POST /lobby/join-code ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- POST /lobby/join-code ----------------------------------------------------
 
 router.post('/join-code', async (req, res, next) => {
     const { joinCode } = req.body
@@ -601,7 +601,7 @@ router.post('/join-code', async (req, res, next) => {
             return res.status(404).json({ error: 'Invalid join code' })
         }
 
-        // G1 ΓÇô membership state machine via selfJoin
+        // G1 - membership state machine via selfJoin
         const { alreadyMember, isNew } = await selfJoin({
             roomId: room.id,
             inviteeId: user.uid,
@@ -610,7 +610,7 @@ router.post('/join-code', async (req, res, next) => {
             room
         })
 
-        // G10 ΓÇô notify once
+        // G10 - notify once
         if (isNew && !alreadyMember) {
             const displayName = await prisma.user.findUnique({
                 where: { id: user.uid },
@@ -640,7 +640,7 @@ router.post('/join-code', async (req, res, next) => {
     }
 })
 
-// ΓöÇΓöÇΓöÇ DELETE /lobby/:roomRef/riders/:userId ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- DELETE /lobby/:roomRef/riders/:userId ------------------------------------
 
 router.delete('/:roomRef/riders/:userId', async (req, res, next) => {
     const { roomRef, userId } = req.params
@@ -659,7 +659,7 @@ router.delete('/:roomRef/riders/:userId', async (req, res, next) => {
         // Kick from LiveKit
         await removeLiveKitParticipant(lkRoomName(room), userId)
 
-        // H6 ΓÇô revoke all share links created by the removed user
+        // H6 - revoke all share links created by the removed user
         await prisma.roomJoinToken.updateMany({
             where: { roomId: room.id, createdById: userId, revokedAt: null },
             data: { revokedAt: new Date() }
@@ -679,7 +679,7 @@ router.delete('/:roomRef/riders/:userId', async (req, res, next) => {
     }
 })
 
-// ΓöÇΓöÇΓöÇ POST /lobby/:roomRef/end ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- POST /lobby/:roomRef/end -------------------------------------------------
 
 router.post('/:roomRef/end', async (req, res, next) => {
     const { roomRef } = req.params
@@ -692,10 +692,10 @@ router.post('/:roomRef/end', async (req, res, next) => {
             return res.status(403).json({ error: 'Only the host can end the convoy ride' })
         }
 
-        // A3 ΓÇô mark DB ENDED BEFORE calling deleteRoom in LiveKit
+        // A3 - mark DB ENDED BEFORE calling deleteRoom in LiveKit
         const endedRoom = await markRoomEnded(room.id)
 
-        // H6 ΓÇô revoke all share links
+        // H6 - revoke all share links
         await prisma.roomJoinToken.updateMany({
             where: { roomId: room.id, revokedAt: null },
             data: { revokedAt: new Date() }
@@ -704,7 +704,7 @@ router.post('/:roomRef/end', async (req, res, next) => {
         // Delete the LiveKit room (best-effort; DB is already ENDED)
         await deleteLiveKitRoom(lkRoomName(room))
 
-        // B6 ΓÇô Diagnostics: close active run; persist closeAt on DB row (not just in-memory setTimeout)
+        // B6 - Diagnostics: close active run; persist closeAt on DB row (not just in-memory setTimeout)
         try {
             const activeRun = await prisma.diagnosticRun.findFirst({
                 where: { convoyId: room.id, status: 'ACTIVE' },
@@ -722,7 +722,7 @@ router.post('/:roomRef/end', async (req, res, next) => {
                     const graceSec = parseInt(process.env.DIAG_CLOSE_GRACE_SECONDS || '90', 10)
                     const closeAt = new Date(Date.now() + graceSec * 1000)
 
-                    // B6 ΓÇô persist closeAt so a server restart can still close the run
+                    // B6 - persist closeAt so a server restart can still close the run
                     await prisma.diagnosticRun.update({
                         where: { id: activeRun.id },
                         data: { closeAt }
@@ -759,7 +759,7 @@ router.post('/:roomRef/end', async (req, res, next) => {
     }
 })
 
-// ΓöÇΓöÇΓöÇ POST /lobby/:roomRef/transfer-host ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- POST /lobby/:roomRef/transfer-host ---------------------------------------
 
 router.post('/:roomRef/transfer-host', async (req, res, next) => {
     const { roomRef } = req.params
@@ -775,7 +775,7 @@ router.post('/:roomRef/transfer-host', async (req, res, next) => {
             return res.status(403).json({ error: 'Only the current host can transfer convoy ownership' })
         }
 
-        // H5 ΓÇô validate newHostId is an ACCEPTED member
+        // H5 - validate newHostId is an ACCEPTED member
         const newHostInvite = await prisma.rideInvite.findUnique({
             where: { roomId_inviteeId: { roomId: room.id, inviteeId: newHostId } },
             select: { status: true }
@@ -787,7 +787,7 @@ router.post('/:roomRef/transfer-host', async (req, res, next) => {
             })
         }
 
-        // H5 ΓÇô old host gets ACCEPTED invite so they remain a member
+        // H5 - old host gets ACCEPTED invite so they remain a member
         await prisma.rideInvite.upsert({
             where: { roomId_inviteeId: { roomId: room.id, inviteeId: hostId } },
             create: {
@@ -806,7 +806,7 @@ router.post('/:roomRef/transfer-host', async (req, res, next) => {
             select: { id: true }
         })
 
-        // H6 ΓÇô revoke share links created by old host
+        // H6 - revoke share links created by old host
         await prisma.roomJoinToken.updateMany({
             where: { roomId: room.id, createdById: hostId, revokedAt: null },
             data: { revokedAt: new Date() }
@@ -823,7 +823,7 @@ router.post('/:roomRef/transfer-host', async (req, res, next) => {
     }
 })
 
-// ΓöÇΓöÇΓöÇ PATCH /lobby/:roomRef/diagnostics ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- PATCH /lobby/:roomRef/diagnostics ----------------------------------------
 
 async function updateDiagnosticsHandler(req, res, next) {
     const { roomRef } = req.params

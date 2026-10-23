@@ -1,15 +1,12 @@
 package com.ridervoice.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -18,13 +15,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ridervoice.R
+import com.ridervoice.ui.components.*
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.HostSetupViewModel
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,20 +37,22 @@ fun HostSetupScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val createdConvoyName by viewModel.createdConvoyName.collectAsState()
-    val isDark = ThemeState.isDarkTheme
 
-    var convoyName      by remember { mutableStateOf("") }
-    var origin          by remember { mutableStateOf("") }
-    var destination     by remember { mutableStateOf("") }
-    var meetupPoint     by remember { mutableStateOf("") }
-    var durationHours   by remember { mutableStateOf("") }
+    var convoyName by remember { mutableStateOf("") }
+    var meetupPoint by remember { mutableStateOf("") }
+    var destination by remember { mutableStateOf("") }
+    var origin by remember { mutableStateOf("") }
+    var durationMinutes by remember { mutableIntStateOf(60) }
     var diagnosticsEnabled by remember { mutableStateOf(false) }
+    var moreOptionsExpanded by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
-    var showConsentDialog by remember { mutableStateOf(false) }
+    var showLearnMoreSheet by remember { mutableStateOf(false) }
 
-    val isDirty = convoyName.isNotBlank() || origin.isNotBlank() || destination.isNotBlank()
-    val isDurationError = durationHours.isNotBlank() && durationHours.toFloatOrNull() == null
-    val canCreate = convoyName.isNotBlank() && !isDurationError
+    val clientRequestId = remember { UUID.randomUUID().toString() }
+
+    val isDirty = convoyName.isNotBlank() || origin.isNotBlank() || destination.isNotBlank() || meetupPoint.isNotBlank()
+    val isNameValid = convoyName.trim().length in 3..40
+    val canCreate = isNameValid && !isLoading
 
     BackHandler {
         if (isDirty) {
@@ -60,422 +62,335 @@ fun HostSetupScreen(
         }
     }
 
-    if (showDiscardDialog) {
-        AlertDialog(
-            onDismissRequest = { showDiscardDialog = false },
-            title = {
-                Text(
-                    text = "DISCARD CONVOY SETUP?",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary
-                )
-            },
-            text = {
-                Text(
-                    text = "You have unsaved convoy details. Discarding will clear all trip fields.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showDiscardDialog = false
-                        onBackClick()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
-                ) {
-                    Text("DISCARD", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showDiscardDialog = false }) {
-                    Text("KEEP EDITING", color = TextPrimary)
-                }
-            },
-            containerColor = DarkSlate
-        )
-    }
-
     LaunchedEffect(createdConvoyName) {
         createdConvoyName?.let { onConvoyCreated(it) }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(GraphiteBase)
-    ) {
+    if (showDiscardDialog) {
+        ConfirmDialog(
+            title = "Discard ride setup?",
+            body = "You have unsaved ride details. Discarding will clear all fields.",
+            confirmLabel = "Discard",
+            dismissLabel = "Keep editing",
+            onConfirm = {
+                showDiscardDialog = false
+                onBackClick()
+            },
+            onDismiss = { showDiscardDialog = false },
+            destructive = true
+        )
+    }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 44.dp, start = 16.dp, end = 16.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = {
-                if (isDirty) showDiscardDialog = true else onBackClick()
-            }) {
-                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-            Column {
+    if (showLearnMoreSheet) {
+        AlertDialog(
+            onDismissRequest = { showLearnMoreSheet = false },
+            containerColor = DarkSlate,
+            title = {
                 Text(
-                    text = "CONVOY DISPATCH BENCH",
-                    color = NeonOrange,
-                    style = MaterialTheme.typography.labelSmall,
-                    letterSpacing = 1.5.sp
-                )
-                Text(
-                    text = "NAME YOUR CONVOY",
+                    text = "Network test (beta)",
+                    style = MaterialTheme.typography.titleLarge,
                     color = TextPrimary,
-                    style = MaterialTheme.typography.titleLarge
+                    fontWeight = FontWeight.Bold
                 )
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-        ) {
-            Spacer(modifier = Modifier.height(14.dp))
-
-            SectionLabel("CONVOY CALLSIGN / NAME *")
-            TacticalTextField(
-                value = convoyName,
-                onValueChange = { convoyName = it.take(40) },
-                placeholder = "e.g. Pune Sunday Ghats Run",
-                supportingText = "${convoyName.length}/40"
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SectionLabel("TRIP DETAILS (SHOWN TO INVITees)")
-
-                TextButton(
-                    onClick = {
-                        origin = "Pune University Circle"
-                        destination = "Tiger Point, Lonavala"
-                        meetupPoint = "Chandani Chowk Shell Fuel Station"
-                        durationHours = "2.5"
-                    },
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Icon(Icons.Default.Map, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "FILL FROM ROUTE PLANNER",
-                        color = ElectricCyan,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-
-            TacticalTextField(
-                value = origin,
-                onValueChange = { origin = it },
-                placeholder = "Starting point / departure landmark"
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            TacticalTextField(
-                value = destination,
-                onValueChange = { destination = it },
-                placeholder = "Final destination point"
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            TacticalTextField(
-                value = meetupPoint,
-                onValueChange = { meetupPoint = it },
-                placeholder = "Convoy staging / meetup point (optional)"
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            TacticalTextField(
-                value = durationHours,
-                onValueChange = { durationHours = it },
-                placeholder = "Estimated duration in hours (e.g. 2.5)",
-                keyboardType = KeyboardType.Decimal,
-                isError = isDurationError,
-                supportingText = if (isDurationError) "Enter numeric hours (e.g. 2.5)" else null
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            error?.let { err ->
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    color = HazardContainer,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Unable to Create Convoy",
-                                color = AlertRed,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = err,
-                                color = TextPrimary,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontSize = 12.sp
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Button(
-                            onClick = {
-                                viewModel.createConvoy(
-                                    convoyName = convoyName.trim(),
-                                    origin = origin.trim().ifBlank { null },
-                                    destination = destination.trim().ifBlank { null },
-                                    meetupPoint = meetupPoint.trim().ifBlank { null },
-                                    estimatedDurationMin = durationHours.trim().toFloatOrNull()?.let { (it * 60).toInt() },
-                                    diagnosticsEnabled = diagnosticsEnabled
-                                )
-                            },
-                            enabled = canCreate && !isLoading,
-                            colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Retry", color = Color.White, style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val onToggleDiagnostics: (Boolean) -> Unit = { target ->
-                if (target && !viewModel.isDiagnosticsConsentShown()) {
-                    showConsentDialog = true
-                } else {
-                    diagnosticsEnabled = target
-                }
-            }
-
-            Surface(
-                color = DarkSlate,
-                shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    if (diagnosticsEnabled) NeonOrange else BorderColor
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onToggleDiagnostics(!diagnosticsEnabled) }
-            ) {
-                Row(
-                    modifier = Modifier.padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(if (diagnosticsEnabled) NeonOrange.copy(alpha = 0.2f) else Gunmetal),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Analytics,
-                            contentDescription = null,
-                            tint = if (diagnosticsEnabled) NeonOrange else TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "DIAGNOSTICS & TELEMETRY",
-                            color = TextPrimary,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Monitors audio & network health on all devices. Automatically emails Excel report to code4changeteam@gmail.com on ride completion.",
-                            color = TextSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Switch(
-                        checked = diagnosticsEnabled,
-                        onCheckedChange = { onToggleDiagnostics(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = NeonOrange,
-                            uncheckedThumbColor = TextSecondary,
-                            uncheckedTrackColor = Gunmetal
-                        )
-                    )
-                }
-            }
-
-            if (showConsentDialog) {
-                AlertDialog(
-                    onDismissRequest = { showConsentDialog = false },
-                    title = {
-                        Text(
-                            text = "CONVOY DIAGNOSTICS & TELEMETRY",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary
-                        )
-                    },
-                    text = {
-                        Text(
-                            text = "Enabling diagnostics collects network link metrics and device performance telemetry across participating convoy devices. Only network quality and audio routing telemetry are collected (zero audio content, zero GPS location). Data is automatically compiled and emailed to the project team upon ride conclusion to help fix connection and audio drops.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
-                        )
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                viewModel.setDiagnosticsConsentShown(true)
-                                showConsentDialog = false
-                                diagnosticsEnabled = true
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
-                        ) {
-                            Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    dismissButton = {
-                        OutlinedButton(
-                            onClick = {
-                                viewModel.setDiagnosticsConsentShown(true)
-                                showConsentDialog = false
-                                diagnosticsEnabled = false
-                            }
-                        ) {
-                            Text("Don't share my data", color = AlertRed)
-                        }
-                    },
-                    containerColor = DarkSlate
+            },
+            text = {
+                Text(
+                    text = "Enabling the network test helps the RiderVoice team improve audio reliability on motorcycles.\n\nOnly connection stats (bitrate, packet loss, jitter) and audio routing status are collected. We never record your audio content, and location tracking is separate and strictly optional.\n\nAt the end of your ride, an aggregated summary is sent to the engineering team.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary,
+                    lineHeight = 22.sp
                 )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showLearnMoreSheet = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                ) {
+                    Text("Got it", color = Color.White)
+                }
             }
+        )
+    }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedButton(
-                onClick = onImportRouteClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-            ) {
-                Icon(Icons.Default.Map, contentDescription = "Import Route", tint = ElectricCyan, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("IMPORT PLANNED ROUTE", color = TextPrimary, style = MaterialTheme.typography.labelMedium)
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
+    RvScreen(
+        title = stringResource(R.string.create_ride_title),
+        onBack = {
+            if (isDirty) showDiscardDialog = true else onBackClick()
+        },
+        bottomBar = {
+            PrimaryButton(
+                text = stringResource(R.string.action_create_ride),
                 onClick = {
                     viewModel.createConvoy(
                         convoyName = convoyName.trim(),
                         origin = origin.trim().ifBlank { null },
                         destination = destination.trim().ifBlank { null },
                         meetupPoint = meetupPoint.trim().ifBlank { null },
-                        estimatedDurationMin = durationHours.trim().toFloatOrNull()?.let { (it * 60).toInt() },
-                        diagnosticsEnabled = diagnosticsEnabled
+                        estimatedDurationMin = durationMinutes,
+                        diagnosticsEnabled = diagnosticsEnabled,
+                        clientRequestId = clientRequestId
                     )
                 },
-                enabled = canCreate && !isLoading,
+                enabled = canCreate,
+                loading = isLoading
+            )
+        }
+    ) {
+        Spacer(modifier = Modifier.height(RvSpacing.sm))
+
+        // 1. Ride Name (required, 3-40 chars)
+        OutlinedTextField(
+            value = convoyName,
+            onValueChange = { convoyName = it.take(40) },
+            label = { Text(stringResource(R.string.create_ride_name_label)) },
+            placeholder = { Text(stringResource(R.string.create_ride_name_placeholder)) },
+            supportingText = {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(stringResource(R.string.create_ride_name_helper), color = TextSecondary)
+                    Text("${convoyName.length}/40", color = TextSecondary)
+                }
+            },
+            isError = convoyName.isNotBlank() && !isNameValid,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(RvRadius.sm),
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                focusedBorderColor = NeonOrange,
+                unfocusedBorderColor = BorderColor,
+                containerColor = DarkSlate,
+                textColor = TextPrimary
+            )
+        )
+
+        Spacer(modifier = Modifier.height(RvSpacing.md))
+
+        // 2. Meet-up point (optional)
+        OutlinedTextField(
+            value = meetupPoint,
+            onValueChange = { meetupPoint = it },
+            label = { Text(stringResource(R.string.create_ride_meetup_label)) },
+            placeholder = { Text("e.g. Shell Petrol Pump, Hinjewadi") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(RvRadius.sm),
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                focusedBorderColor = NeonOrange,
+                unfocusedBorderColor = BorderColor,
+                containerColor = DarkSlate,
+                textColor = TextPrimary
+            )
+        )
+
+        Spacer(modifier = Modifier.height(RvSpacing.md))
+
+        // 3. Destination (optional)
+        OutlinedTextField(
+            value = destination,
+            onValueChange = { destination = it },
+            label = { Text(stringResource(R.string.create_ride_destination_label)) },
+            placeholder = { Text("e.g. Tiger Point, Lonavala") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(RvRadius.sm),
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                focusedBorderColor = NeonOrange,
+                unfocusedBorderColor = BorderColor,
+                containerColor = DarkSlate,
+                textColor = TextPrimary
+            )
+        )
+
+        Spacer(modifier = Modifier.height(RvSpacing.md))
+
+        // 4. Start (optional)
+        OutlinedTextField(
+            value = origin,
+            onValueChange = { origin = it },
+            label = { Text("Start point (optional)") },
+            placeholder = { Text("e.g. University Circle") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(RvRadius.sm),
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                focusedBorderColor = NeonOrange,
+                unfocusedBorderColor = BorderColor,
+                containerColor = DarkSlate,
+                textColor = TextPrimary
+            )
+        )
+
+        Spacer(modifier = Modifier.height(RvSpacing.lg))
+
+        // 5. Estimated Time Stepper (15 min steps)
+        Text(
+            text = stringResource(R.string.create_ride_duration_label),
+            style = MaterialTheme.typography.bodyLarge,
+            color = TextPrimary,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(RvSpacing.xs))
+
+        Surface(
+            color = DarkSlate,
+            shape = RoundedCornerShape(RvRadius.sm),
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonOrange,
-                    disabledContainerColor = Gunmetal
-                )
+                    .padding(horizontal = RvSpacing.md, vertical = RvSpacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        color = if (isDark) Color.Black else Color.White,
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp
+                IconButton(
+                    onClick = { if (durationMinutes > 15) durationMinutes -= 15 },
+                    enabled = durationMinutes > 15,
+                    modifier = Modifier.size(RvTouchTarget.min)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Remove,
+                        contentDescription = "Decrease duration",
+                        tint = if (durationMinutes > 15) TextPrimary else TextSecondary
                     )
-                } else {
-                    Text(
-                        text = "CREATE CONVOY & INVITE SQUAD →",
-                        color = if (canCreate) (if (isDark) Color.Black else Color.White) else TextSecondary,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
+                }
+
+                val hours = durationMinutes / 60
+                val mins = durationMinutes % 60
+                val durationText = buildString {
+                    if (hours > 0) append("$hours hr${if (hours > 1) "s" else ""} ")
+                    if (mins > 0 || hours == 0) append("$mins min")
+                }.trim()
+
+                Text(
+                    text = durationText,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = NeonOrange
+                )
+
+                IconButton(
+                    onClick = { if (durationMinutes < 720) durationMinutes += 15 },
+                    enabled = durationMinutes < 720,
+                    modifier = Modifier.size(RvTouchTarget.min)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Increase duration",
+                        tint = if (durationMinutes < 720) TextPrimary else TextSecondary
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
+
+        Spacer(modifier = Modifier.height(RvSpacing.lg))
+
+        // 6. Collapsed "More options"
+        Surface(
+            color = DarkSlate,
+            shape = RoundedCornerShape(RvRadius.md),
+            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(RvSpacing.md)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { moreOptionsExpanded = !moreOptionsExpanded },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = null,
+                            tint = NeonOrange,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(RvSpacing.sm))
+                        Text(
+                            text = stringResource(R.string.create_ride_more_options),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                    }
+                    Icon(
+                        imageVector = if (moreOptionsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = TextSecondary
+                    )
+                }
+
+                AnimatedVisibility(visible = moreOptionsExpanded) {
+                    Column(modifier = Modifier.padding(top = RvSpacing.md)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.create_ride_diagnostics_title),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.create_ride_diagnostics_help),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                                TextButton(
+                                    onClick = { showLearnMoreSheet = true },
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text("Learn more", color = NeonOrange, style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(RvSpacing.sm))
+                            Switch(
+                                checked = diagnosticsEnabled,
+                                onCheckedChange = { diagnosticsEnabled = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = NeonOrange,
+                                    uncheckedThumbColor = TextSecondary,
+                                    uncheckedTrackColor = Gunmetal
+                                )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(RvSpacing.md))
+
+                        SecondaryButton(
+                            text = "Import planned route",
+                            onClick = onImportRouteClick,
+                            leadingIcon = Icons.Default.Map
+                        )
+                    }
+                }
+            }
+        }
+
+        if (error != null) {
+            Spacer(modifier = Modifier.height(RvSpacing.md))
+            InlineError(
+                message = error ?: "Failed to create ride",
+                onRetry = {
+                    viewModel.createConvoy(
+                        convoyName = convoyName.trim(),
+                        origin = origin.trim().ifBlank { null },
+                        destination = destination.trim().ifBlank { null },
+                        meetupPoint = meetupPoint.trim().ifBlank { null },
+                        estimatedDurationMin = durationMinutes,
+                        diagnosticsEnabled = diagnosticsEnabled,
+                        clientRequestId = clientRequestId
+                    )
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(RvSpacing.xl))
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TacticalTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    supportingText: String? = null,
-    isError: Boolean = false,
-    keyboardType: KeyboardType = KeyboardType.Text
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
-        isError = isError,
-        placeholder = { Text(placeholder, color = TextSecondary, fontSize = 13.sp) },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        supportingText = supportingText?.let { { Text(it, color = if (isError) AlertRed else TextSecondary, fontSize = 11.sp) } },
-        shape = RoundedCornerShape(10.dp),
-        colors = TextFieldDefaults.outlinedTextFieldColors(
-            focusedBorderColor = NeonOrange,
-            unfocusedBorderColor = BorderColor,
-            containerColor = DarkSlate,
-            textColor = TextPrimary
-        )
-    )
-}
-
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text = text,
-        color = TextSecondary,
-        style = MaterialTheme.typography.labelSmall,
-        letterSpacing = 1.sp,
-        modifier = Modifier.padding(bottom = 6.dp)
-    )
 }

@@ -80,19 +80,19 @@ class LobbyViewModel @Inject constructor(
                         410 -> {
                             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.ENDED_BY_HOST)
                             _terminal.value = Terminal.ENDED
-                            _error.value = "This convoy has ended"
+                            _error.value = "This ride has ended"
                             break
                         }
                         403 -> {
                             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.REMOVED)
                             _terminal.value = Terminal.REMOVED
-                            _error.value = "You are no longer part of this convoy"
+                            _error.value = "You are no longer part of this ride"
                             break
                         }
                         404 -> {
                             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.NOT_FOUND)
                             _terminal.value = Terminal.NOT_FOUND
-                            _error.value = "Convoy not found"
+                            _error.value = "Ride not found"
                             break
                         }
                         else -> {
@@ -124,7 +124,7 @@ class LobbyViewModel @Inject constructor(
     val linkError: StateFlow<String?> = _linkError.asStateFlow()
 
     fun generateShareLink(roomName: String) {
-        val safeRoom = roomName.ifBlank { "Convoy" }
+        val safeRoom = roomName.ifBlank { "Ride" }
         viewModelScope.launch {
             _isGeneratingLink.value = true
             _linkError.value = null
@@ -179,7 +179,7 @@ class LobbyViewModel @Inject constructor(
                 if (res.isSuccessful) {
                     onSuccess()
                 } else {
-                    _error.value = "Failed to transfer convoy leadership"
+                    _error.value = "Failed to transfer ride host"
                 }
             } catch (e: Exception) {
                 _error.value = e.localizedMessage ?: "Failed to transfer leadership"

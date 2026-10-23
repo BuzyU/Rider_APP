@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- TODO: Translate to Marathi -->
+    <string name="app_name">RiderVoice</string>
+    <string name="app_tagline">Talk to your riding group, hands-free.</string>
+    <string name="mapbox_access_token" translatable="false">pk.eyJ1IjoicmlkZXJ2b2ljZSIsImEiOiJjbTByaWRlcnZvaWNlMDAwMDExIn0.dummy_public_key</string>
+
+    <string name="nav_home">Home</string>
+    <string name="nav_friends">Friends</string>
+    <string name="nav_invites">Invites</string>
+    <string name="nav_history">Ride history</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_account">Account</string>
+
+    <string name="action_start_ride">Start a ride</string>
+    <string name="action_join_ride">Join a ride</string>
+    <string name="action_create_ride">Create ride</string>
+    <string name="action_invite_friends">Invite friends</string>
+    <string name="action_send_invite">Send invite</string>
+    <string name="action_add_friend">Add a friend</string>
+    <string name="action_leave_ride">Leave this ride?</string>
+    <string name="action_end_ride">End ride for everyone</string>
+    <string name="action_log_out">Log out?</string>
+    <string name="action_copy_code">Copy code</string>
+    <string name="action_share_link">Share link</string>
+    <string name="action_try_again">Try again</string>
+    <string name="action_go_home">Go home</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_update_app">Update app</string>
+
+    <string name="create_ride_title">New ride</string>
+    <string name="create_ride_name_label">Ride name *</string>
+    <string name="create_ride_name_placeholder">e.g. Sunday Ghats Run</string>
+    <string name="create_ride_name_helper">Riders will see this name</string>
+    <string name="create_ride_meetup_label">Meet-up point (optional)</string>
+    <string name="create_ride_destination_label">Destination (optional)</string>
+    <string name="create_ride_duration_label">Estimated time</string>
+    <string name="create_ride_more_options">More options</string>
+    <string name="create_ride_diagnostics_title">Network test (beta)</string>
+    <string name="create_ride_diagnostics_help">Share network performance data with the team to help improve voice quality.</string>
+
+    <string name="lobby_title">Ride lobby</string>
+    <string name="lobby_loading">Loading ride...</string>
+    <string name="lobby_waiting_host">Waiting for the host to start</string>
+    <string name="lobby_section_joined">Joined</string>
+    <string name="lobby_section_invited">Invited</string>
+    <string name="lobby_section_declined">Declined</string>
+    <string name="lobby_empty_joined">Nobody has joined yet. Share the ride code.</string>
+    <string name="lobby_start_alone_prompt">Start alone?</string>
+    <string name="lobby_start_alone_desc">No riders have joined yet. You can still invite friends while riding.</string>
+
+    <string name="ride_screen_title">Ride screen</string>
+    <string name="ride_status_connected">Connected</string>
+    <string name="ride_status_reconnecting">Reconnecting...</string>
+    <string name="ride_status_offline">Offline</string>
+    <string name="ride_hands_free_on">Hands-free is on</string>
+    <string name="ride_hands_free_off">Muted</string>
+    <string name="ride_push_to_talk">Push to talk</string>
+    <string name="ride_show_map">Show map</string>
+    <string name="ride_hide_map">Hide map</string>
+
+    <string name="sos_title">Emergency SOS</string>
+    <string name="sos_button">Send SOS now</string>
+    <string name="sos_active">SOS is on</string>
+    <string name="sos_sent">SOS sent</string>
+    <string name="sos_sending">Sending SOS...</string>
+    <string name="sos_not_sent">SOS not sent. Call 112 now.</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_talking_title">Talking</string>
+    <string name="settings_vox_sensitivity">Hands-free sensitivity</string>
+    <string name="settings_noise_filter">Noise filter</string>
+    <string name="settings_headset_button">Headset button</string>
+    <string name="settings_audio_title">Audio</string>
+    <string name="settings_audio_device">Audio device</string>
+    <string name="settings_location_title">Location</string>
+    <string name="settings_share_location">Share location while riding</string>
+    <string name="settings_battery_title">Battery</string>
+    <string name="settings_battery_help">Allow running in background</string>
+    <string name="settings_about_title">About &amp; Updates</string>
+    <string name="settings_check_updates">Check for updates</string>
+
+    <string name="profile_title">My profile</string>
+    <string name="profile_edit">Edit profile</string>
+    <string name="profile_rider_name">Rider name</string>
+    <string name="profile_handle">Handle</string>
+    <string name="profile_bike">Motorcycle model</string>
+    <string name="profile_bio">About me</string>
+
+    <plurals name="riders_count">
+        <item quantity="one">%d rider</item>
+        <item quantity="other">%d riders</item>
+    </plurals>
+</resources>

@@ -80,7 +80,7 @@ class RoomViewModel @Inject constructor(
     ) { device, conn, micOn, voxOpen ->
         when {
             conn != ConnectionState.CONNECTED -> "Not connected"
-            voxOpen || micOn -> "Transmitting via ${device.displayName()}"
+            voxOpen || micOn -> "Speaking via ${device.displayName()}"
             else -> "Listening · ${device.displayName()}"
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "Initialising audio…")
@@ -92,6 +92,11 @@ class RoomViewModel @Inject constructor(
     val error: StateFlow<String?> = _error
 
     val convoyEnded: StateFlow<Boolean> = liveKitManager.convoyEnded
+    val inRideSosAlert: StateFlow<com.ridervoice.network.InRideSosAlert?> = liveKitManager.inRideSosAlert
+
+    fun dismissInRideSosAlert() {
+        liveKitManager.dismissInRideSos()
+    }
 
 
 

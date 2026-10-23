@@ -103,7 +103,8 @@ fun RoutePlannerScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 44.dp, start = 16.dp, end = 16.dp, bottom = 12.dp),
+                .statusBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -135,7 +136,7 @@ fun RoutePlannerScreen(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                if (useRadarMode) "Switch to Mapbox View" else "Switch to Tactical Radar",
+                                if (useRadarMode) "Switch to Mapbox View" else "Switch to Radar View",
                                 color = TextPrimary
                             )
                         },
@@ -351,7 +352,7 @@ fun RoutePlannerScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (useRadarMode) "TACTICAL RADAR" else "MAPBOX SAT",
+                        text = if (useRadarMode) "RADAR VIEW" else "MAPBOX SAT",
                         color = TextPrimary,
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 10.sp,
@@ -518,7 +519,7 @@ fun RoutePlannerScreen(
             text = {
                 Column {
                     Text(
-                        text = "To enable satellite and vector terrain tiles, enter your public Mapbox access token (pk.eyJ...). Alternatively, you can use the built-in Tactical Radar HUD which runs 100% offline without any API keys.",
+                        text = "To enable satellite and vector terrain tiles, enter your public Mapbox access token (pk.eyJ...). Alternatively, you can use the built-in Radar HUD which runs 100% offline without any API keys.",
                         color = TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -566,7 +567,7 @@ fun RoutePlannerScreen(
                         useRadarMode = true
                     }
                 ) {
-                    Text("USE TACTICAL RADAR", color = ElectricCyan)
+                    Text("USE OFFLINE RADAR", color = ElectricCyan)
                 }
             }
         )

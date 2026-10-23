@@ -4,7 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,24 +16,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.ridervoice.ui.theme.*
-
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.ui.viewmodels.JoinRoomViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JoinRoomScreen(
     initialToken: String? = null,
-    viewModel: JoinRoomViewModel = hiltViewModel(),
-    onJoin: (roomCode: String, userName: String) -> Unit,
-    onBackClick: () -> Unit = {}
+    initialRoomName: String = "",
+    onBackClick: () -> Unit = {},
+    onJoin: (roomName: String, userName: String) -> Unit,
+    viewModel: JoinRoomViewModel = hiltViewModel()
 ) {
     val isDark = ThemeState.isDarkTheme
 
     val currentUser = remember { FirebaseAuth.getInstance().currentUser }
-    var roomCode by remember { mutableStateOf("") }
+    var roomCode by remember { mutableStateOf(initialRoomName) }
     var userName by remember {
         mutableStateOf(currentUser?.displayName ?: currentUser?.email?.substringBefore("@") ?: "Rider")
     }
@@ -39,7 +42,6 @@ fun JoinRoomScreen(
     val tokenError by viewModel.error.collectAsState()
 
     var activeToken by remember { mutableStateOf(initialToken?.takeIf { it.isNotBlank() }) }
-
     LaunchedEffect(activeToken) {
         activeToken?.let { tok ->
             viewModel.joinViaToken(tok) { roomName ->
@@ -53,30 +55,30 @@ fun JoinRoomScreen(
             .fillMaxSize()
             .background(GraphiteBase)
     ) {
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 44.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
+                .statusBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
                 Icon(
                     imageVector = Icons.Default.ArrowBackIosNew,
-                    contentDescription = "Back to Dashboard",
+                    contentDescription = "Back",
                     tint = TextPrimary
                 )
             }
             Spacer(modifier = Modifier.width(6.dp))
             Column {
                 Text(
-                    text = "MANUAL FREQUENCY TUNE-IN",
+                    text = "ENTER RIDE CODE",
                     style = MaterialTheme.typography.labelSmall,
                     color = NeonOrange,
                     letterSpacing = 1.5.sp
                 )
                 Text(
-                    text = "JOIN CONVOY",
+                    text = "JOIN RIDE",
                     style = MaterialTheme.typography.titleLarge,
                     color = TextPrimary
                 )
@@ -89,7 +91,6 @@ fun JoinRoomScreen(
                 .padding(horizontal = 24.dp)
         ) {
             if (activeToken != null) {
-
                 Spacer(modifier = Modifier.height(32.dp))
                 Surface(
                     color = DarkSlate,
@@ -105,13 +106,13 @@ fun JoinRoomScreen(
                             CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "VERIFYING CONVOY LINK...",
+                                text = "CONNECTING TO RIDE...",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = TextPrimary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Tuning receiver to secure token frequency...",
+                                text = "Verifying ride invite...",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = TextSecondary
                             )
@@ -119,7 +120,7 @@ fun JoinRoomScreen(
                             Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(40.dp))
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "COULD NOT TUNE IN",
+                                text = "COULD NOT JOIN RIDE",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = AlertRed
                             )
@@ -159,7 +160,7 @@ fun JoinRoomScreen(
                 }
             } else {
                 Text(
-                    text = "Enter the convoy room code or frequency handle provided by your ride leader to tune in directly.",
+                    text = "Enter the ride code or invite link provided by your ride leader to join directly.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary
                 )
@@ -187,12 +188,12 @@ fun JoinRoomScreen(
                 OutlinedTextField(
                     value = roomCode,
                     onValueChange = { roomCode = it },
-                    label = { Text("Convoy Room Code or Invite Link") },
+                    label = { Text("Ride Code or Invite Link") },
                     placeholder = { Text("e.g. LONAVALA-01 or paste invite link", color = TextSecondary) },
                     leadingIcon = { Icon(Icons.Default.MeetingRoom, contentDescription = null, tint = NeonOrange) },
                     supportingText = {
                         if (roomCode.isBlank()) {
-                            Text("Enter room code, invite code, or paste invite link", color = TextSecondary, style = MaterialTheme.typography.bodyMedium, fontSize = 11.sp)
+                            Text("Enter ride code, invite code, or paste invite link", color = TextSecondary, style = MaterialTheme.typography.bodyMedium, fontSize = 11.sp)
                         }
                     },
                     singleLine = true,
@@ -221,7 +222,7 @@ fun JoinRoomScreen(
                             Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = tokenError ?: "Could not join convoy",
+                                text = tokenError ?: "Could not join ride",
                                 color = AlertRed,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -259,13 +260,13 @@ fun JoinRoomScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "TUNING FREQUENCY...",
+                            text = "CONNECTING...",
                             style = MaterialTheme.typography.labelLarge,
                             color = if (isDark) Color.Black else Color.White
                         )
                     } else {
                         Text(
-                            text = "TUNE INTO CONVOY",
+                            text = "JOIN RIDE",
                             style = MaterialTheme.typography.labelLarge,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Black,

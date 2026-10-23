@@ -231,7 +231,7 @@ fun SquadScreen(
 
         if (uiState.invites.isNotEmpty()) {
             Text(
-                text = "INCOMING CONVOY INVITES (${uiState.invites.size})",
+                text = "INCOMING RIDE INVITES (${uiState.invites.size})",
                 color = NeonOrange,
                 style = MaterialTheme.typography.labelSmall,
                 letterSpacing = 1.5.sp
@@ -312,7 +312,7 @@ fun SquadScreen(
                 SquadMemberCard(
                     handle = friend.handle,
                     bike = friend.bikeModel ?: "Motorcycle",
-                    status = "Tuned In",
+                    status = "Online",
                     onRemoveClick = { friendToRemove = friend }
                 )
             }

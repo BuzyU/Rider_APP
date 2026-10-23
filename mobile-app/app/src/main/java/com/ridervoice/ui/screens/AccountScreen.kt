@@ -59,7 +59,8 @@ fun AccountScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 44.dp, start = 16.dp, end = 16.dp, bottom = 12.dp),
+                    .statusBarsPadding()
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBackClick) {
@@ -72,7 +73,7 @@ fun AccountScreen(
                 Spacer(modifier = Modifier.width(6.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "OPERATOR DOSSIER",
+                        text = "RIDER PROFILE",
                         style = MaterialTheme.typography.labelSmall,
                         color = NeonOrange,
                         letterSpacing = 1.5.sp

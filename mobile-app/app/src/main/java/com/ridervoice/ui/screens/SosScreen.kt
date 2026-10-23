@@ -99,7 +99,7 @@ fun SosScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "EMERGENCY TRANSMIT",
+                text = "EMERGENCY ALERT",
                 color = AlertRed,
                 style = MaterialTheme.typography.displayLarge,
                 fontSize = 32.sp
@@ -122,20 +122,20 @@ fun SosScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Alert Dispatched",
+                                contentDescription = "Alert Sent",
                                 tint = TechGreen,
                                 modifier = Modifier.size(54.dp)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = if (state.recipientsCount > 0) "Alert sent to ${state.recipientsCount} riders" else "DISTRESS ALERT BROADCAST",
+                                text = if (state.recipientsCount > 0) "Alert sent to ${state.recipientsCount} riders" else "EMERGENCY ALERT SENT",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = TechGreen,
                                 letterSpacing = 1.sp
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Live GPS coordinates and distress notification dispatched to your convoy and emergency squad.",
+                                text = "Live GPS coordinates and emergency notification sent to your ride group.",
                                 color = TextSecondary,
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center
@@ -201,7 +201,7 @@ fun SosScreen(
                         CircularProgressIndicator(color = AlertRed, strokeWidth = 4.dp, modifier = Modifier.size(54.dp))
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "TRANSMITTING DISTRESS SIGNAL...",
+                            text = "SENDING EMERGENCY ALERT...",
                             style = MaterialTheme.typography.labelLarge,
                             color = AlertRed
                         )
@@ -222,7 +222,7 @@ fun SosScreen(
                             Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(36.dp))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "TRANSMISSION FAILED",
+                                text = "ALERT FAILED TO SEND",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = AlertRed
                             )

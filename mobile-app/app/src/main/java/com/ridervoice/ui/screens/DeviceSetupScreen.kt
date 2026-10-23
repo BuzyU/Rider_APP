@@ -72,7 +72,8 @@ fun DeviceSetupScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 44.dp, start = 16.dp, end = 16.dp, bottom = 8.dp),
+                .statusBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBackClick) {
@@ -81,13 +82,13 @@ fun DeviceSetupScreen(
             Spacer(modifier = Modifier.width(6.dp))
             Column {
                 Text(
-                    text = "HARDWARE TRANSCEIVER SETUP",
+                    text = "AUDIO DEVICE SETUP",
                     style = MaterialTheme.typography.labelSmall,
                     color = NeonOrange,
                     letterSpacing = 1.5.sp
                 )
                 Text(
-                    text = "HELMET AUDIO & SCO",
+                    text = "HELMET & BLUETOOTH AUDIO",
                     color = TextPrimary,
                     style = MaterialTheme.typography.titleLarge
                 )

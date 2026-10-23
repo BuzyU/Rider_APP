@@ -23,7 +23,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.ridervoice.ui.components.TacticalButton
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
 import com.ridervoice.ui.viewmodels.SettingsViewModel
@@ -54,7 +53,8 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 44.dp, start = 16.dp, end = 16.dp, bottom = 12.dp),
+                    .statusBarsPadding()
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBackClick) {
@@ -147,7 +147,7 @@ fun SettingsScreen(
                 item {
                     SettingsSectionHeader("COMMUNICATION")
                     SettingsItemToggle(
-                        label = "Open Mic (always transmit)",
+                        label = "Open Mic (always active)",
                         icon = Icons.Default.Podcasts,
                         checked = settingsState.openMic,
                         onCheckedChange = { settingsViewModel.toggleOpenMic() }
@@ -161,7 +161,7 @@ fun SettingsScreen(
                         label = "Share diagnostics when a host enables it",
                         icon = Icons.Default.NetworkCheck,
                         checked = settingsState.shareDiagnosticsWhenHostEnabled,
-                        subtitle = if (settingsState.shareDiagnosticsWhenHostEnabled) "Telemetry shared only during diagnostics-enabled rides" else "Opted out: no telemetry will be collected or shared",
+                        subtitle = if (settingsState.shareDiagnosticsWhenHostEnabled) "Diagnostics shared only during diagnostics-enabled rides" else "Opted out: no diagnostics will be collected or shared",
                         onCheckedChange = { settingsViewModel.toggleShareDiagnosticsWhenHostEnabled() }
                     )
                 }
@@ -184,18 +184,18 @@ fun SettingsScreen(
 
                 item {
                     Spacer(modifier = Modifier.height(28.dp))
-                    TacticalButton(
-                        text = "SIGN OUT",
-                        onClick = {
-                            showSignOutConfirmDialog = true
-                        },
-                        isOutlined = true,
-                        color = DarkSlate,
-                        textColor = AlertRed,
+                    OutlinedButton(
+                        onClick = { showSignOutConfirmDialog = true },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AlertRed),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(48.dp)
                             .padding(horizontal = 20.dp)
-                    )
+                    ) {
+                        Text("SIGN OUT", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -334,10 +334,10 @@ fun SettingsScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = "What is collected:\n" +
-                                    "• WebRTC telemetry: RTT latency, packet loss %, jitter, bitrates.\n" +
+                                    "• Network stats: RTT latency, packet loss %, jitter, bitrates.\n" +
                                     "• Connection events: reconnects, health changes, mute state.\n" +
-                                    "• Rider handles: handles in active convoy (no contacts or tokens).\n" +
-                                    "• Device telemetry: battery level, thermal state, network type.\n" +
+                                    "• Rider handles: handles in active ride (no contacts or tokens).\n" +
+                                    "• Device health: battery level, thermal state, network type.\n" +
                                     "• Location: optional (default OFF).\n\n" +
                                     "Where it goes:\n" +
                                     "Uploaded over HTTPS to the developer diagnostics backend and emailed as an encrypted archive to aid debugging call drops.\n\n" +

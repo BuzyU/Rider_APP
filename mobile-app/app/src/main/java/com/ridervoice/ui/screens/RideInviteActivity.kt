@@ -103,7 +103,7 @@ class RideInviteActivity : ComponentActivity() {
                     )
 
                     Text(
-                        text = "requests you to tune into frequency",
+                        text = "invited you to join a ride",
                         color = TextSecondary,
                         fontSize = 15.sp,
                         fontFamily = InterFamily,
@@ -220,7 +220,7 @@ class RideInviteActivity : ComponentActivity() {
                             )
                         } else {
                             Text(
-                                "LOCK FREQUENCY (JOIN)",
+                                "JOIN RIDE",
                                 color = if (ThemeState.isDarkTheme) GraphiteBase else Color.White,
                                 fontSize = 18.sp,
                                 fontFamily = BarlowCondensedFamily,
@@ -263,7 +263,7 @@ class RideInviteActivity : ComponentActivity() {
                             )
                         } else {
                             Text(
-                                "DECLINE FREQUENCY",
+                                "DECLINE INVITE",
                                 color = TextSecondary,
                                 fontSize = 16.sp,
                                 fontFamily = BarlowCondensedFamily,

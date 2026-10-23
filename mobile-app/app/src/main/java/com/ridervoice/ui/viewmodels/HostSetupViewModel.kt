@@ -32,14 +32,21 @@ class HostSetupViewModel @Inject constructor(
         destination: String?,
         meetupPoint: String?,
         estimatedDurationMin: Int?,
-        diagnosticsEnabled: Boolean = false
+        diagnosticsEnabled: Boolean = false,
+        clientRequestId: String? = null
     ) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
                 val req = ConvoyCreateRequest(
-                    convoyName, origin, destination, estimatedDurationMin, meetupPoint, diagnosticsEnabled
+                    convoyName = convoyName,
+                    origin = origin,
+                    destination = destination,
+                    estimatedDurationMin = estimatedDurationMin,
+                    meetupPoint = meetupPoint,
+                    diagnosticsEnabled = diagnosticsEnabled,
+                    clientRequestId = clientRequestId
                 )
                 val response = apiService.createConvoy(req)
                 if (response.isSuccessful && response.body() != null) {
@@ -70,22 +77,22 @@ class HostSetupViewModel @Inject constructor(
                 if (json.has("error")) {
                     val errorMsg = json.getString("error")
                     if (errorMsg.contains("Internal server error", ignoreCase = true)) {
-                        return "The server encountered a problem creating your convoy. Please try again."
+                        return "The server encountered a problem creating your ride. Please try again."
                     }
                     return errorMsg
                 }
             } catch (_: Exception) {
                 if (raw.contains("Internal server error", ignoreCase = true)) {
-                    return "The server encountered a problem creating your convoy. Please try again."
+                    return "The server encountered a problem creating your ride. Please try again."
                 }
             }
         }
         return when (code) {
-            400 -> "Invalid convoy details. Please check the convoy name and try again."
+            400 -> "Invalid ride details. Please check the ride name and try again."
             401 -> "Your session has expired. Please sign in again."
-            409 -> "A convoy with this name already exists. Please choose a different name."
+            409 -> "A ride with this name already exists. Please choose a different name."
             in 500..599 -> "Server trouble. Please try again shortly."
-            else -> "Failed to create convoy (code $code). Please retry."
+            else -> "Failed to create ride (code $code). Please retry."
         }
     }
 

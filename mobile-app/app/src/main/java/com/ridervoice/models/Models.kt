@@ -6,7 +6,8 @@ data class ConvoyCreateRequest(
     val destination: String? = null,
     val estimatedDurationMin: Int? = null,
     val meetupPoint: String? = null,
-    val diagnosticsEnabled: Boolean = false
+    val diagnosticsEnabled: Boolean = false,
+    val clientRequestId: String? = null
 )
 
 data class ConvoyCreateResponse(

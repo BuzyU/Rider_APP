@@ -338,7 +338,10 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
             try { await prisma.$disconnect() } catch (e) {}
             if (server) await new Promise(r => server.close(r))
             try {
-                await pg.stop()
+                await Promise.race([
+                    pg.stop(),
+                    new Promise(resolve => setTimeout(resolve, 2000))
+                ])
             } catch (e) {}
         }
     })

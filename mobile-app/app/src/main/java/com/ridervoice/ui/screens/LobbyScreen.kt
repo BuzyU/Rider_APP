@@ -1,13 +1,15 @@
 package com.ridervoice.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -15,17 +17,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.ridervoice.ui.components.TacticalButton
+import com.ridervoice.R
+import com.ridervoice.ui.components.*
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.LobbyViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LobbyScreen(
     convoyName: String,
@@ -41,6 +45,7 @@ fun LobbyScreen(
     val terminal by viewModel.terminal.collectAsState()
 
     var showExitDialog by remember { mutableStateOf(false) }
+    var showStartAloneDialog by remember { mutableStateOf(false) }
     var showAddRidersSheet by remember { mutableStateOf(false) }
     var riderToRemove by remember { mutableStateOf<com.ridervoice.models.LobbyRiderInfo?>(null) }
 
@@ -67,107 +72,80 @@ fun LobbyScreen(
         }
     }
 
+    // Register callsigns with ParticipantNameResolver whenever invites update
+    LaunchedEffect(lobbyStatus?.invites) {
+        lobbyStatus?.invites?.forEach { entry ->
+            val name = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider"
+            ParticipantNameResolver.register(entry.invitee.id, name)
+        }
+    }
+
+    // Terminal state dialogs
     terminal?.let { term ->
         val (termTitle, termBody) = when (term) {
-            LobbyViewModel.Terminal.ENDED -> "RIDE ENDED" to "The host ended this ride."
-            LobbyViewModel.Terminal.REMOVED -> "REMOVED FROM RIDE" to "You were removed from this ride."
-            LobbyViewModel.Terminal.NOT_FOUND -> "RIDE NOT FOUND" to "This ride no longer exists."
+            LobbyViewModel.Terminal.ENDED -> "Ride ended" to "The host ended this ride."
+            LobbyViewModel.Terminal.REMOVED -> "Removed from ride" to "You were removed from this ride."
+            LobbyViewModel.Terminal.NOT_FOUND -> "Ride not found" to "This ride no longer exists."
         }
-        AlertDialog(
-            onDismissRequest = onBackClick,
-            title = {
-                Text(text = termTitle, style = MaterialTheme.typography.titleMedium, color = AlertRed)
-            },
-            text = {
-                Text(text = termBody, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
-            },
-            confirmButton = {
-                Button(
-                    onClick = onBackClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
-                ) {
-                    Text("OK", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            },
-            containerColor = DarkSlate
+        ConfirmDialog(
+            title = termTitle,
+            body = termBody,
+            confirmLabel = "Go home",
+            dismissLabel = "Close",
+            onConfirm = onBackClick,
+            onDismiss = onBackClick
         )
     }
 
     if (showExitDialog) {
-        AlertDialog(
-            onDismissRequest = { showExitDialog = false },
-            title = {
-                Text(
-                    text = "LEAVE CONVOY LOBBY?",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary
-                )
-            },
-            text = {
-                Text(
-                    text = "Leaving the lobby will stop monitoring rider invitations. You can rejoin or start later.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showExitDialog = false
-                        val roomRef = lobbyStatus?.roomId ?: convoyName
-                        viewModel.leaveRoom(roomRef) {
-                            onBackClick()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
-                ) {
-                    Text("LEAVE LOBBY", color = Color.White, fontWeight = FontWeight.Bold)
+        val isHost = lobbyStatus?.isHost == true
+        ConfirmDialog(
+            title = if (isHost) "Leave ride lobby?" else "Leave this ride?",
+            body = if (isHost) "Leaving the lobby will stop monitoring rider invitations. You can rejoin or start later." else "You will leave this ride lobby.",
+            confirmLabel = "Leave",
+            dismissLabel = "Stay",
+            onConfirm = {
+                showExitDialog = false
+                val roomRef = lobbyStatus?.roomId ?: convoyName
+                viewModel.leaveRoom(roomRef) {
+                    onBackClick()
                 }
             },
-            dismissButton = {
-                OutlinedButton(onClick = { showExitDialog = false }) {
-                    Text("STAY", color = TextPrimary)
-                }
+            onDismiss = { showExitDialog = false },
+            destructive = true
+        )
+    }
+
+    if (showStartAloneDialog) {
+        ConfirmDialog(
+            title = stringResource(R.string.lobby_start_alone_prompt),
+            body = stringResource(R.string.lobby_start_alone_desc),
+            confirmLabel = "Start anyway",
+            dismissLabel = "Wait for riders",
+            onConfirm = {
+                showStartAloneDialog = false
+                viewModel.startRide(convoyName, onStartSuccess = {
+                    onStartRide(true)
+                })
             },
-            containerColor = DarkSlate
+            onDismiss = { showStartAloneDialog = false }
         )
     }
 
     riderToRemove?.let { rider ->
-        AlertDialog(
-            onDismissRequest = { riderToRemove = null },
-            title = {
-                Text(
-                    text = "REMOVE RIDER FROM CONVOY?",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary
-                )
+        val name = rider.displayName ?: rider.handle ?: "rider"
+        ConfirmDialog(
+            title = "Remove $name?",
+            body = "Are you sure you want to remove $name from this ride?",
+            confirmLabel = "Remove",
+            dismissLabel = "Cancel",
+            onConfirm = {
+                val uid = rider.id
+                riderToRemove = null
+                viewModel.removeRider(convoyName, uid)
             },
-            text = {
-                Text(
-                    text = "Are you sure you want to remove @${rider.handle ?: rider.displayName ?: "rider"} from this convoy? Their connection will be severed.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val uid = rider.id
-                        riderToRemove = null
-                        viewModel.removeRider(convoyName, uid)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
-                ) {
-                    Text("REMOVE RIDER", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { riderToRemove = null }) {
-                    Text("CANCEL", color = TextPrimary)
-                }
-            },
-            containerColor = DarkSlate
+            onDismiss = { riderToRemove = null },
+            destructive = true
         )
     }
 
@@ -179,337 +157,318 @@ fun LobbyScreen(
         )
     }
 
-    Column(
+    val status = lobbyStatus
+    val isHost = status?.isHost == true
+    val accepted = status?.invites?.filter { it.status == "ACCEPTED" } ?: emptyList()
+    val pending = status?.invites?.filter { it.status == "PENDING" } ?: emptyList()
+    val declined = status?.invites?.filter { it.status == "DECLINED" } ?: emptyList()
+
+    Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(GraphiteBase)
-    ) {
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 44.dp, start = 16.dp, end = 16.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = { showExitDialog = true }) {
-                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Leave Lobby", tint = TextPrimary)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Column {
-                Text(
-                    text = "CONVOY MANIFEST",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NeonOrange,
-                    letterSpacing = 1.5.sp
-                )
-                Text(
-                    text = convoyName.uppercase(),
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleLarge
-                )
-            }
-        }
-
-        if (terminal == null) {
-            error?.let { err ->
-                Surface(
-                    color = HazardContainer,
-                    shape = RoundedCornerShape(8.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
+            .imePadding(),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = convoyName,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Waiting to start",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = WarningAmber
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(
+                        onClick = { showExitDialog = true },
+                        modifier = Modifier.size(RvTouchTarget.min)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Leave Lobby",
+                            tint = TextPrimary
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { showExitDialog = true },
+                        modifier = Modifier.size(RvTouchTarget.min)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ExitToApp,
+                            contentDescription = "Leave",
+                            tint = AlertRed
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.smallTopAppBarColors(
+                    containerColor = GraphiteBase,
+                    titleContentColor = TextPrimary
+                ),
+                windowInsets = WindowInsets.statusBars
+            )
+        },
+        bottomBar = {
+            Surface(
+                color = GraphiteBase,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+            ) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .padding(horizontal = RvSpacing.lg, vertical = RvSpacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(RvSpacing.xs)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Warning, contentDescription = "Error", tint = AlertRed, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = err,
-                            color = TextPrimary,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.weight(1f)
+                    if (isHost) {
+                        PrimaryButton(
+                            text = if (accepted.isNotEmpty()) "Start ride (${accepted.size + 1} riders)" else "Start ride",
+                            onClick = {
+                                if (accepted.isEmpty()) {
+                                    showStartAloneDialog = true
+                                } else {
+                                    viewModel.startRide(convoyName, onStartSuccess = {
+                                        onStartRide(true)
+                                    })
+                                }
+                            }
+                        )
+                        SecondaryButton(
+                            text = stringResource(R.string.action_invite_friends),
+                            onClick = {
+                                showAddRidersSheet = true
+                                onInviteMoreClick()
+                            },
+                            leadingIcon = Icons.Default.PersonAdd
+                        )
+                    } else {
+                        Surface(
+                            color = DarkSlate,
+                            shape = RoundedCornerShape(RvRadius.md),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(RvSpacing.md),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    color = TechGreen,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(RvSpacing.md))
+                                Text(
+                                    text = stringResource(R.string.lobby_waiting_host),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TechGreen,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        SecondaryButton(
+                            text = "Leave ride",
+                            onClick = { showExitDialog = true },
+                            destructive = true
                         )
                     }
                 }
             }
-        }
-
-        if (lobbyStatus == null) {
+        },
+        containerColor = GraphiteBase
+    ) { innerPadding ->
+        if (status == null) {
             Box(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(RvSpacing.md))
                     Text(
-                        text = "SYNCHRONIZING MANIFEST...",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = stringResource(R.string.lobby_loading),
+                        style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
                 }
             }
         } else {
-            val status = lobbyStatus!!
-            val pending = status.invites.filter { it.status == "PENDING" }
-            val accepted = status.invites.filter { it.status == "ACCEPTED" }
-            val declined = status.invites.filter { it.status == "DECLINED" }
-
             LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = RvSpacing.lg),
+                verticalArrangement = Arrangement.spacedBy(RvSpacing.md),
+                contentPadding = PaddingValues(vertical = RvSpacing.md)
             ) {
-
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                showAddRidersSheet = true
-                                onInviteMoreClick()
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                // Polling / Reconnecting banner (small inline, never FAILED TO START)
+                if (error != null) {
+                    item {
+                        Surface(
+                            color = Gunmetal,
+                            shape = RoundedCornerShape(RvRadius.sm),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.PersonAdd, contentDescription = "Add Riders", tint = if (ThemeState.isDarkTheme) Color.Black else Color.White, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("+ ADD RIDERS", style = MaterialTheme.typography.labelSmall, color = if (ThemeState.isDarkTheme) Color.Black else Color.White, fontWeight = FontWeight.Bold)
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                val sendIntent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TEXT, "Join my RiderVoice convoy '$convoyName' on RiderVoice!")
-                                    type = "text/plain"
-                                }
-                                context.startActivity(Intent.createChooser(sendIntent, "Share Convoy Code"))
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-                        ) {
-                            Icon(Icons.Default.Share, contentDescription = "Share", tint = ElectricCyan, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("SHARE CODE", style = MaterialTheme.typography.labelSmall, color = TextPrimary)
+                            Row(
+                                modifier = Modifier.padding(horizontal = RvSpacing.md, vertical = RvSpacing.xs),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(12.dp),
+                                    color = WarningAmber,
+                                    strokeWidth = 1.5.dp
+                                )
+                                Spacer(modifier = Modifier.width(RvSpacing.sm))
+                                Text(
+                                    text = "Reconnecting...",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = WarningAmber
+                                )
+                            }
                         }
                     }
                 }
 
-                item {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(TechGreen))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "TUNED IN (${accepted.size})",
-                            color = TechGreen,
-                            style = MaterialTheme.typography.labelLarge,
-                            letterSpacing = 1.sp
+                // Ride Code Card (CodeCard)
+                val joinCode = status.joinCode ?: ""
+                if (joinCode.isNotBlank()) {
+                    item {
+                        CodeCard(
+                            code = joinCode,
+                            onCopy = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                val clip = ClipData.newPlainText("Ride Code", joinCode)
+                                clipboard?.setPrimaryClip(clip)
+                                Toast.makeText(context, "Ride code copied", Toast.LENGTH_SHORT).show()
+                            },
+                            onShare = {
+                                val sendIntent = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    putExtra(Intent.EXTRA_TEXT, "Join my ride '$convoyName' on RiderVoice using code: $joinCode\nhttps://ridervoice.app/j/$joinCode")
+                                    type = "text/plain"
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, "Share ride code"))
+                            }
                         )
                     }
                 }
 
-                if (accepted.isEmpty()) {
+                // Section 1: Joined (n)
+                item {
+                    Text(
+                        text = "Joined (${accepted.size + 1})",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TechGreen,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Host row
+                item {
+                    RiderRow(
+                        name = "You",
+                        subtitle = if (isHost) "Ride Host" else "Joined",
+                        status = if (isHost) "Host" else "Joined"
+                    )
+                }
+
+                if (accepted.isEmpty() && !isHost) {
                     item {
-                        Surface(
-                            color = DarkSlate,
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "No riders tuned in yet. You can roll out solo or wait for squad.",
-                                color = TextSecondary,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(14.dp)
-                            )
-                        }
+                        Text(
+                            text = stringResource(R.string.lobby_empty_joined),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary
+                        )
                     }
                 } else {
                     items(accepted) { entry ->
-                        RiderStatusCard(
-                            userName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider",
-                            status = "TUNED IN / READY",
-                            color = TechGreen,
-                            icon = Icons.Default.CheckCircle,
-                            onRemoveClick = { riderToRemove = entry.invitee }
+                        val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider"
+                        RiderRow(
+                            name = riderName,
+                            subtitle = entry.invitee.bikeModel,
+                            status = "Joined",
+                            trailing = if (isHost) {
+                                {
+                                    IconButton(onClick = { riderToRemove = entry.invitee }) {
+                                        Icon(
+                                            imageVector = Icons.Default.RemoveCircleOutline,
+                                            contentDescription = "Remove",
+                                            tint = AlertRed
+                                        )
+                                    }
+                                }
+                            } else null
+                        )
+                    }
+                }
+
+                // Section 2: Invited (n)
+                if (pending.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(RvSpacing.sm))
+                        Text(
+                            text = "Invited (${pending.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = WarningAmber,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    items(pending) { entry ->
+                        val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider"
+                        RiderRow(
+                            name = riderName,
+                            subtitle = entry.invitee.bikeModel,
+                            status = "Invited",
+                            trailing = if (isHost) {
+                                {
+                                    IconButton(onClick = { riderToRemove = entry.invitee }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Cancel invite",
+                                            tint = TextSecondary
+                                        )
+                                    }
+                                }
+                            } else null
+                        )
+                    }
+                }
+
+                // Section 3: Declined (n)
+                if (declined.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(RvSpacing.sm))
+                        Text(
+                            text = "Declined (${declined.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextSecondary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    items(declined) { entry ->
+                        val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider"
+                        RiderRow(
+                            name = riderName,
+                            status = "Declined"
                         )
                     }
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(WarningAmber))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "STANDBY / PENDING (${pending.size})",
-                            color = WarningAmber,
-                            style = MaterialTheme.typography.labelLarge,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                }
-
-                if (pending.isEmpty()) {
-                    item {
-                        Text(
-                            text = "No pending invitations awaiting response.",
-                            color = TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontSize = 12.sp
-                        )
-                    }
-                } else {
-                    items(pending) { entry ->
-                        RiderStatusCard(
-                            userName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider",
-                            status = "INVITE SENT — STANDBY",
-                            color = WarningAmber,
-                            icon = Icons.Default.Pending,
-                            onRemoveClick = { riderToRemove = entry.invitee }
-                        )
-                    }
-                }
-
-                if (declined.isNotEmpty()) {
-                    item {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(TextSecondary))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "DECLINED (${declined.size})",
-                                color = TextSecondary,
-                                style = MaterialTheme.typography.labelLarge,
-                                letterSpacing = 1.sp
-                            )
-                        }
-                    }
-                    items(declined) { entry ->
-                        RiderStatusCard(
-                            userName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider",
-                            status = "DECLINED CONVOY",
-                            color = TextSecondary,
-                            icon = Icons.Default.Cancel
-                        )
-                    }
-                }
-            }
-
-            if (status.isHost) {
-                val canStart = true
-                val startLabel = if (accepted.isNotEmpty()) {
-                    "START RIDE (${accepted.size + 1} RIDERS)"
-                } else {
-                    "START RIDE SOLO (CONVOY OPEN)"
-                }
-
-                TacticalButton(
-                    text = startLabel,
-                    onClick = {
-                        viewModel.startRide(convoyName, onStartSuccess = {
-                            onStartRide(true)
-                        })
-                    },
-                    enabled = canStart,
-                    color = NeonOrange,
-                    textColor = if (ThemeState.isDarkTheme) Color.Black else Color.White,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
-                )
-            } else {
-                Surface(
-                    color = DarkSlate,
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen.copy(alpha = 0.6f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = TechGreen,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "TUNED IN • WAITING FOR HOST TO START RIDE",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TechGreen,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun RiderStatusCard(
-    userName: String,
-    status: String,
-    color: Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onRemoveClick: (() -> Unit)? = null
-) {
-    Surface(
-        color = DarkSlate,
-        shape = RoundedCornerShape(10.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = userName,
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 16.sp
-                )
-                Text(
-                    text = status,
-                    color = color,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 11.sp
-                )
-            }
-            Icon(
-                imageVector = icon,
-                contentDescription = "Status: $status",
-                tint = color,
-                modifier = Modifier.size(22.dp)
-            )
-            if (onRemoveClick != null) {
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                    onClick = onRemoveClick,
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.RemoveCircleOutline,
-                        contentDescription = "Remove Rider",
-                        tint = AlertRed.copy(alpha = 0.8f),
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Spacer(modifier = Modifier.height(RvSpacing.xl))
                 }
             }
         }

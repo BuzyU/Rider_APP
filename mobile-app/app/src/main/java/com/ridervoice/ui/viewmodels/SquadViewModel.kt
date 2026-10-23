@@ -104,7 +104,7 @@ class SquadViewModel @Inject constructor(
                     onAcceptSuccess(invite.room.name)
                 } else {
                     _uiState.update {
-                        it.copy(errorMessage = tokenResult.exceptionOrNull()?.message ?: "Failed to acquire convoy audio token")
+                        it.copy(errorMessage = tokenResult.exceptionOrNull()?.message ?: "Failed to acquire ride audio token")
                     }
                 }
             } else {

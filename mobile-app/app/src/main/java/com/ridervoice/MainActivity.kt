@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.navigation.NavGraph
+import androidx.activity.enableEdgeToEdge
 import com.ridervoice.permissions.PermissionManager
 import com.ridervoice.ui.theme.*
 import com.ridervoice.update.AppVersion
@@ -32,6 +34,7 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var securePreferences: com.ridervoice.security.SecurePreferences
+    @Inject lateinit var appEvents: com.ridervoice.state.AppEvents
 
     private val showPermissionRationale = mutableStateOf(false)
 
@@ -45,6 +48,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         permissionLauncher.launch(PermissionManager.requiredPermissions)
@@ -203,6 +207,53 @@ class MainActivity : ComponentActivity() {
                                 colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
                             ) {
                                 Text("CONTINUE", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    )
+                }
+
+                val isUpdateRequired = remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    appEvents.updateRequired.collect {
+                        isUpdateRequired.value = true
+                    }
+                }
+                if (isUpdateRequired.value) {
+                    AlertDialog(
+                        onDismissRequest = {},
+                        containerColor = DarkSlate,
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = NeonOrange,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        },
+                        title = {
+                            Text(
+                                text = "Update required",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = "This version of RiderVoice is no longer supported. Please update to continue riding with your group.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/BuzyU/Rider_APP/releases/latest"))
+                                    startActivity(intent)
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                            ) {
+                                Text("Update app", color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     )

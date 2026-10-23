@@ -87,7 +87,7 @@ fun RideReplayScreen(
                 title = {
                     Column {
                         Text(
-                            text = "TELEMETRY REPLAY",
+                            text = "RIDE REPLAY",
                             style = MaterialTheme.typography.titleMedium,
                             color = TextPrimary
                         )
@@ -254,7 +254,7 @@ fun RideReplayScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "TACTICAL TIMELINE",
+                                text = "RIDE TIMELINE",
                                 color = NeonOrange,
                                 style = MaterialTheme.typography.labelSmall,
                                 letterSpacing = 1.sp

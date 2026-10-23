@@ -51,7 +51,8 @@ fun RideStatsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 44.dp, start = 16.dp, end = 16.dp, bottom = 12.dp),
+                .statusBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -60,7 +61,7 @@ fun RideStatsScreen(
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "TELEMETRY LOGBOOK",
+                    text = "RIDE STATS",
                     style = MaterialTheme.typography.labelSmall,
                     color = NeonOrange,
                     letterSpacing = 1.5.sp
@@ -77,13 +78,13 @@ fun RideStatsScreen(
                     action = Intent.ACTION_SEND
                     putExtra(
                         Intent.EXTRA_TEXT,
-                        "RiderVoice Telemetry Logbook:\nTotal Distance: ${uiState.totalDistance} km\nDuration: ${uiState.totalTime}\nTop Speed: ${uiState.topSpeed} km/h\nAvg Speed: ${uiState.avgSpeed} km/h"
+                        "RiderVoice Ride Summary:\nTotal Distance: ${uiState.totalDistance} km\nDuration: ${uiState.totalTime}\nTop Speed: ${uiState.topSpeed} km/h\nAvg Speed: ${uiState.avgSpeed} km/h"
                     )
                     type = "text/plain"
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Share Ride Telemetry"))
+                context.startActivity(Intent.createChooser(shareIntent, "Share Ride Summary"))
             }) {
-                Icon(Icons.Default.Share, contentDescription = "Share Telemetry", tint = NeonOrange)
+                Icon(Icons.Default.Share, contentDescription = "Share Ride Stats", tint = NeonOrange)
             }
         }
 

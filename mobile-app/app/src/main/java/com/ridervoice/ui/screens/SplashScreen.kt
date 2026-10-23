@@ -67,7 +67,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 modifier = Modifier.padding(bottom = 16.dp)
             ) {
                 Text(
-                    text = "VHF / CB TRANSCEIVER COMMUNICATOR",
+                    text = "HANDS-FREE GROUP VOICE FOR MOTORCYCLISTS",
                     color = ElectricCyan,
                     fontSize = 11.sp,
                     fontFamily = SpaceMonoFamily,

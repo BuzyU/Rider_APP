@@ -128,7 +128,12 @@ fun ParticipantCard(
                             modifier = Modifier.size(18.dp)
                         )
                     } else {
-                        val initial = (participant.displayName ?: participant.identity).take(1).uppercase()
+                        val resolvedName = ParticipantNameResolver.resolve(
+                            identity = participant.identity,
+                            livekitName = participant.displayName,
+                            isCurrentUser = isCurrentUser
+                        )
+                        val initial = resolvedName.take(1).uppercase()
                         Text(
                             text = initial,
                             color = if (isCurrentUser) TechGreen else TextPrimary,
@@ -142,11 +147,14 @@ fun ParticipantCard(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        val name = participant.displayName?.takeIf { it.isNotBlank() }
-                            ?: if (isCurrentUser) "YOU" else participant.identity.take(12)
+                        val name = ParticipantNameResolver.resolve(
+                            identity = participant.identity,
+                            livekitName = participant.displayName,
+                            isCurrentUser = isCurrentUser
+                        )
 
                         Text(
-                            text = name.uppercase(),
+                            text = name,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp

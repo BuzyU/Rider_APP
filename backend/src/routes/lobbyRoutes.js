@@ -82,6 +82,8 @@ async function removeLiveKitParticipant(lkRoomName, userId) {
     }
 }
 
+const recentCreateRequests = new Map()
+
 // --- POST /lobby/create -------------------------------------------------------
 
 router.post('/create', async (req, res, next) => {
@@ -93,8 +95,18 @@ router.post('/create', async (req, res, next) => {
         destination,
         meetupPoint,
         estimatedDurationMin,
-        allowSolo
+        allowSolo,
+        clientRequestId
     } = req.body
+
+    if (clientRequestId && recentCreateRequests.has(clientRequestId)) {
+        const cached = recentCreateRequests.get(clientRequestId)
+        if (Date.now() - cached.timestamp < 60000) {
+            return res.status(200).json(cached.response)
+        } else {
+            recentCreateRequests.delete(clientRequestId)
+        }
+    }
 
     if (!convoyName || typeof convoyName !== 'string') {
         return res.status(400).json({ error: 'convoyName is required' })
@@ -183,7 +195,7 @@ router.post('/create', async (req, res, next) => {
 
         cacheService.del('lobby_status:' + room.name);
         cacheService.del('lobby_status:' + room.id);
-        res.status(201).json({
+        const respPayload = {
             roomId: room.id,
             convoyName: room.name,
             hostId,
@@ -193,7 +205,11 @@ router.post('/create', async (req, res, next) => {
             destination: room.destination,
             meetupPoint: room.meetupPoint,
             estimatedDurationMin: room.estimatedDurationMin
-        })
+        }
+        if (clientRequestId) {
+            recentCreateRequests.set(clientRequestId, { response: respPayload, timestamp: Date.now() })
+        }
+        res.status(201).json(respPayload)
     } catch (error) {
         next(error)
     }

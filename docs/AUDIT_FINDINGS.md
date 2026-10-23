@@ -187,3 +187,19 @@ These items cannot be settled by static code reading and require testing on 2–
   - Partial Unique Index: `lower(name) WHERE status <> 'ENDED'`.
   - Tables: `RoomJoinToken`, `RoomDenylist`.
   - Constraints: `RideInvite @@unique([roomId, inviteeId])`, `Ride @@unique([riderId, clientRideId])`.
+
+---
+
+## 6. Part J: UX Overhaul, Jargon Purge & Component Modularization (Verified)
+
+| Component | Status | Implementation Details | Verification Reference |
+| :--- | :---: | :--- | :--- |
+| **Tactical/Military Jargon Purge** | **FIXED** | Completely removed military/RF jargon (transceiver, frequency, convoy, debrief, stand-down, dispatch, commission, dossier) across all backend emails (`emailService.js`), error responses, and 19 mobile app screens. Standardized on rider terminology ("ride", "group", "host", "rider"). | `docs/UX_COPY.md`, `email_service.test.js` |
+| **Edge-to-Edge Layout Overhaul** | **FIXED** | Purged legacy hardcoded `44.dp` status bar padding across all Compose screens. Implemented dynamic window insets (`statusBarsPadding()`, `navigationBarsPadding()`, `imePadding()`, and `RvScreen` scaffold wrapper) with `enableEdgeToEdge()` in `MainActivity`. | `mobile-app/.../RvScreen.kt`, all screen files |
+| **Glove-Friendly Touch Targets** | **FIXED** | Standardized touch target dimensions in `Dimens.kt` (`RvTouchTarget.glovedPtt = 72.dp`, `RvTouchTarget.primary = 56.dp`, `RvTouchTarget.toggle = 52.dp`, `RvTouchTarget.min = 48.dp`) with 1000ms debounce protection against accidental double-taps. | `mobile-app/.../RvComponents.kt`, `Dimens.kt` |
+| **Callsign/Name Resolution** | **FIXED** | Created `ParticipantNameResolver` ensuring riders are always displayed by callsign or display name ("You", "Ravi", "Alex") rather than raw Firebase UID prefixes (`UID: aB39...`). | `mobile-app/.../ParticipantNameResolver.kt`, `ParticipantCard.kt`, `RiderList.kt` |
+| **RoomScreen Subcomponent Modularization** | **FIXED** | Modularized monolithic 1,315-line `RoomScreen.kt` into 8 focused subcomponents (<300 lines each) under `ui/screens/room/`: `RideTopBar.kt`, `RiderList.kt`, `TalkControls.kt`, `SosAlertBanner.kt`, `AudioRouteSheet.kt`, `LeaveRideDialog.kt`, `DiagnosticsDialog.kt`, `AudioVuMeter.kt`. | `mobile-app/.../ui/screens/room/` |
+| **Error Handling & User Mapping** | **FIXED** | Implemented `UiMessageMapper` transforming HTTP and domain error codes (410 ROOM_ENDED, 410 LINK_EXPIRED, 403 REMOVED_BY_HOST, 403 NOT_A_MEMBER, 404 CODE_NOT_FOUND, 409 ALREADY_MEMBER, 426 UPGRADE_REQUIRED, 429 RATE_LIMITED, 5xx) into clear, actionable user messages. | `mobile-app/.../UiMessageMapper.kt`, `UiMessageMapperTest.kt` |
+| **Localization & Multilingual Strings** | **FIXED** | Complete string resources extracted and localized into English (`values/strings.xml`), Hindi (`values-hi/strings.xml`), and Marathi (`values-mr/strings.xml`). | `values/strings.xml`, `values-hi/strings.xml`, `values-mr/strings.xml` |
+| **Automated Test Validation** | **FIXED** | **112/112 Android unit tests passing** (`.\gradlew testDebugUnitTest`); **73/73 Backend tests passing** across 18 test suites (`npm test`). | Clean build & test execution |
+

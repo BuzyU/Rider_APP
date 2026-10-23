@@ -145,7 +145,10 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             )
         } finally {
             try {
-                await pg.stop()
+                await Promise.race([
+                    pg.stop(),
+                    new Promise(resolve => setTimeout(resolve, 2000))
+                ])
             } catch (e) {}
         }
     })

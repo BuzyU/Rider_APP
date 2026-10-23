@@ -51,7 +51,7 @@ fun PostRideSummaryScreen(
             },
             text = {
                 Text(
-                    text = "Are you sure you want to discard this ride? All GPS waypoints, telemetry curves, and flight data will be permanently erased.",
+                    text = "Are you sure you want to discard this ride? All recorded GPS waypoints and ride stats will be permanently erased.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary
                 )
@@ -97,7 +97,7 @@ fun PostRideSummaryScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "TRANSCEIVER FLIGHT LOG",
+                    text = "RIDE SUMMARY",
                     color = NeonOrange,
                     style = MaterialTheme.typography.labelSmall,
                     letterSpacing = 2.sp
@@ -145,7 +145,7 @@ fun PostRideSummaryScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "CONVOY TELEMETRY & DIAGNOSTICS",
+                                text = "RIDE DIAGNOSTICS",
                                 color = NeonOrange,
                                 style = MaterialTheme.typography.labelSmall,
                                 letterSpacing = 1.sp
@@ -266,7 +266,7 @@ fun PostRideSummaryScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "TELEMETRY PRIVACY LEVEL",
+                    text = "PRIVACY LEVEL",
                     color = TextSecondary,
                     style = MaterialTheme.typography.labelSmall,
                     letterSpacing = 1.sp
@@ -311,7 +311,7 @@ fun PostRideSummaryScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "SAVING TELEMETRY...",
+                            text = "SAVING RIDE...",
                             color = if (isDark) Color.Black else Color.White,
                             style = MaterialTheme.typography.labelLarge
                         )

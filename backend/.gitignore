@@ -5,6 +5,8 @@ node_modules
 /src/generated/prisma
 
 *.json
+!package.json
+!package-lock.json
 exports/
 exports/*.xlsx
 .pg_data*

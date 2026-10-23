@@ -36,6 +36,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,6 +53,14 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
+
+data class InRideSosAlert(
+    val alertId: String,
+    val callsign: String,
+    val lat: Double?,
+    val lng: Double?,
+    val timestamp: Long
+)
 
 @Singleton
 class LiveKitManager @Inject constructor(
@@ -88,6 +97,18 @@ class LiveKitManager @Inject constructor(
 
     private val _convoyEnded = MutableStateFlow(false)
     val convoyEnded: StateFlow<Boolean> = _convoyEnded.asStateFlow()
+
+    private val _inRideSosAlert = MutableStateFlow<InRideSosAlert?>(null)
+    val inRideSosAlert: StateFlow<InRideSosAlert?> = _inRideSosAlert.asStateFlow()
+
+    private val processedAlertIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    var onP2pPingResult: ((peer: String, rttMs: Long) -> Unit)? = null
+    private var pingJob: Job? = null
+
+    fun dismissInRideSos() {
+        _inRideSosAlert.value = null
+    }
 
     fun signalConvoyEnded() {
         _convoyEnded.value = true
@@ -283,7 +304,7 @@ class LiveKitManager @Inject constructor(
 
     private suspend fun applyMic() {
         val want = voiceGateOpen && !userMuted
-        val lp = room?.localParticipant ?: return
+        if (room?.localParticipant == null) return
         if (localAudioTrack == null) {
             if (_connectionState.value == ConnectionState.CONNECTED) {
                 publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
@@ -445,7 +466,12 @@ class LiveKitManager @Inject constructor(
                     restartVox()
                 }
             }
+            is RoomEvent.Connected -> {
+                startPingScheduler()
+            }
             is RoomEvent.Disconnected -> {
+                stopPingScheduler()
+                _inRideSosAlert.value = null
                 _connectionState.value = ConnectionState.DISCONNECTED
                 _participants.value = emptyList()
                 _remoteLocations.value = emptyMap()
@@ -470,6 +496,30 @@ class LiveKitManager @Inject constructor(
                         _convoyEnded.value = true
                         return
                     }
+                    if (json.contains("\"SOS\"") || json.contains("\"SOS_CANCELLED\"")) {
+                        val obj = JSONObject(json)
+                        val type = obj.optString("type")
+                        if (type == "SOS") {
+                            val alertId = obj.optString("alertId")
+                            if (alertId.isNotBlank() && processedAlertIds.add(alertId)) {
+                                val callsign = obj.optString("callsign", "A rider")
+                                val lat = if (obj.has("lat") && !obj.isNull("lat")) obj.optDouble("lat") else null
+                                val lng = if (obj.has("lng") && !obj.isNull("lng")) obj.optDouble("lng") else null
+                                _inRideSosAlert.value = InRideSosAlert(alertId, callsign, lat, lng, System.currentTimeMillis())
+                            }
+                            return
+                        } else if (type == "SOS_CANCELLED") {
+                            val alertId = obj.optString("alertId")
+                            if (_inRideSosAlert.value?.alertId == alertId) {
+                                _inRideSosAlert.value = null
+                            }
+                            return
+                        }
+                    }
+                    if (event.topic == "rv-ping" || json.contains("\"PING\"") || json.contains("\"PONG\"")) {
+                        handlePingPong(json, event.participant?.identity?.value)
+                        return
+                    }
                     val loc = gson.fromJson(json, RiderLocation::class.java)
                     val peerId = event.participant?.identity?.value?.takeIf { it.isNotBlank() }
                         ?: loc.riderId?.takeIf { it.isNotBlank() }
@@ -477,7 +527,7 @@ class LiveKitManager @Inject constructor(
                         _remoteLocations.update { it + (peerId to loc.copy(riderId = peerId)) }
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "Telemetry parse error: ${e.message}")
+                    Log.w(TAG, "Data parse error: ${e.message}")
                 }
             }
             is RoomEvent.ActiveSpeakersChanged -> {
@@ -604,6 +654,9 @@ class LiveKitManager @Inject constructor(
         localAudioTrack = null
         lastOptions = null
 
+        stopPingScheduler()
+        _inRideSosAlert.value = null
+
         runCatching { room?.release() }
         room = null
 
@@ -611,6 +664,107 @@ class LiveKitManager @Inject constructor(
         _participants.value = emptyList()
         _activeSpeaker.value = null
         _isMicEnabled.value = false
+    }
+
+    fun broadcastSos(alertId: String, lat: Double?, lng: Double?, callsign: String) {
+        scope.launch {
+            try {
+                val payload = JSONObject().apply {
+                    put("type", "SOS")
+                    put("alertId", alertId)
+                    put("lat", lat)
+                    put("lng", lng)
+                    put("callsign", callsign)
+                    put("ts", System.currentTimeMillis())
+                }.toString().toByteArray(Charsets.UTF_8)
+                room?.localParticipant?.publishData(payload)
+            } catch (e: Exception) {
+                Log.w(TAG, "broadcastSos error: ${e.message}")
+            }
+        }
+    }
+
+    fun broadcastSosCancelled(alertId: String) {
+        scope.launch {
+            try {
+                val payload = JSONObject().apply {
+                    put("type", "SOS_CANCELLED")
+                    put("alertId", alertId)
+                    put("ts", System.currentTimeMillis())
+                }.toString().toByteArray(Charsets.UTF_8)
+                room?.localParticipant?.publishData(payload)
+            } catch (e: Exception) {
+                Log.w(TAG, "broadcastSosCancelled error: ${e.message}")
+            }
+        }
+    }
+
+    private fun startPingScheduler() {
+        stopPingScheduler()
+        pingJob = scope.launch {
+            while (isActive) {
+                delay(10000L)
+                val currentRemotes = room?.remoteParticipants?.values ?: continue
+                val localId = room?.localParticipant?.identity?.value ?: continue
+                for (p in currentRemotes) {
+                    val peerId = p.identity?.value ?: continue
+                    val pingId = java.util.UUID.randomUUID().toString()
+                    val pingPayload = JSONObject().apply {
+                        put("type", "PING")
+                        put("id", pingId)
+                        put("t0", System.currentTimeMillis())
+                        put("from", localId)
+                        put("to", peerId)
+                    }.toString().toByteArray(Charsets.UTF_8)
+                    try {
+                        room?.localParticipant?.publishData(pingPayload)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Ping publish error: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun stopPingScheduler() {
+        pingJob?.cancel()
+        pingJob = null
+    }
+
+    private fun handlePingPong(json: String, senderId: String?) {
+        try {
+            val obj = JSONObject(json)
+            val type = obj.optString("type")
+            val id = obj.optString("id")
+            val from = obj.optString("from", senderId ?: "unknown")
+            val localId = room?.localParticipant?.identity?.value ?: return
+
+            if (type == "PING") {
+                val t0 = obj.optLong("t0")
+                val pongPayload = JSONObject().apply {
+                    put("type", "PONG")
+                    put("id", id)
+                    put("t0", t0)
+                    put("t1", System.currentTimeMillis())
+                    put("from", localId)
+                }.toString().toByteArray(Charsets.UTF_8)
+                scope.launch {
+                    try {
+                        room?.localParticipant?.publishData(pongPayload)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Pong publish error: ${e.message}")
+                    }
+                }
+            } else if (type == "PONG") {
+                val t0 = obj.optLong("t0")
+                if (t0 > 0L) {
+                    val rttMs = System.currentTimeMillis() - t0
+                    onP2pPingResult?.invoke(from, rttMs)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Ping pong error: ${e.message}")
+        }
     }
 
     suspend fun collectStatsSnapshot(): StatsSnapshot? {

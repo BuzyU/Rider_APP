@@ -105,6 +105,7 @@ interface ApiService {
     @GET("/api/app/config")
     suspend fun getAppConfig(): Response<com.ridervoice.models.AppConfigResponse>
 
+
     @DELETE("/api/users/fcm-token")
     suspend fun deleteFcmToken(@retrofit2.http.Query("token") token: String? = null): Response<Any>
 

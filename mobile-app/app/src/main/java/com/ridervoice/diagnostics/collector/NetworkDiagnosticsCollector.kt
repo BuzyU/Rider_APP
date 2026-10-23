@@ -119,6 +119,10 @@ class NetworkDiagnosticsCollector @Inject constructor(
             }
         }
 
+        liveKitManager.onP2pPingResult = { peer, rttMs ->
+            recordEvent("P2P_PING", "peer=$peer, rttMs=$rttMs")
+        }
+
         // 3. Observe event transitions
         startEventObservers()
     }
@@ -131,6 +135,7 @@ class NetworkDiagnosticsCollector @Inject constructor(
         val session = activeSession ?: return
         Log.i(TAG, "Stopping diagnostic session ${session.localSessionId}")
 
+        liveKitManager.onP2pPingResult = null
         _isCollecting.value = false
         sampleJob?.cancel()
         sampleJob = null
@@ -159,6 +164,11 @@ class NetworkDiagnosticsCollector @Inject constructor(
         }
     }
 
+    private var lastBytesSent = 0L
+    private var lastBytesRecv = 0L
+    private var lastBitrateTimeMs = 0L
+    private val lastEventTimestamps = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
     private suspend fun collectMetricsSample(session: DiagSessionEntity) {
         val snapshot = liveKitManager.collectStatsSnapshot()
         val nowMs = System.currentTimeMillis()
@@ -171,6 +181,17 @@ class NetworkDiagnosticsCollector @Inject constructor(
         val thermal = getThermalStatus()
         val isFg = isAppForeground()
 
+        val currSent = snapshot?.bytesSent ?: 0L
+        val currRecv = snapshot?.bytesReceived ?: 0L
+        val dtSec = if (lastBitrateTimeMs > 0L) (nowMs - lastBitrateTimeMs) / 1000.0 else 0.0
+        val computedBitrate = if (dtSec > 0.0 && lastBitrateTimeMs > 0L) {
+            val deltaBytes = (currSent - lastBytesSent).coerceAtLeast(0L) + (currRecv - lastBytesRecv).coerceAtLeast(0L)
+            (deltaBytes * 8.0) / (dtSec * 1000.0)
+        } else null
+        lastBitrateTimeMs = nowMs
+        lastBytesSent = currSent
+        lastBytesRecv = currRecv
+
         // 1. SELF Metric Sample
         val self = SelfMetricSample(
             timestamp = nowSec,
@@ -180,9 +201,9 @@ class NetworkDiagnosticsCollector @Inject constructor(
             packetsSent = snapshot?.packetsSent ?: 0L,
             packetsReceived = snapshot?.packetsReceived ?: 0L,
             packetsLost = snapshot?.packetsLost ?: 0L,
-            bytesSent = snapshot?.bytesSent ?: 0L,
-            bytesReceived = snapshot?.bytesReceived ?: 0L,
-            bitrateKbps = null,
+            bytesSent = currSent,
+            bytesReceived = currRecv,
+            bitrateKbps = computedBitrate,
             jitterMs = snapshot?.jitterMs,
             networkType = netType,
             batteryLevel = battery,
@@ -228,11 +249,11 @@ class NetworkDiagnosticsCollector @Inject constructor(
                     packetsLost = inbound.packetsLost,
                     intervalLossPct = intervalLoss,
                     jitterMs = inbound.jitterMs,
-                    jitterBufferDelay = null,
-                    concealedSamples = null,
+                    jitterBufferDelay = inbound.jitterBufferDelay,
+                    concealedSamples = inbound.concealedSamples,
                     concealmentEvents = null,
                     audioLevel = null,
-                    bytesReceived = 0L
+                    bytesReceived = inbound.bytesReceived
                 )
 
                 database.sampleDao().insert(
@@ -287,6 +308,12 @@ class NetworkDiagnosticsCollector @Inject constructor(
     fun recordEvent(eventType: String, details: String?) {
         val session = activeSession ?: return
         val nowMs = System.currentTimeMillis()
+        val lastMs = lastEventTimestamps[eventType] ?: 0L
+        if (nowMs - lastMs < 1000L) {
+            return
+        }
+        lastEventTimestamps[eventType] = nowMs
+
         val event = EventSample(
             timestamp = nowMs / 1000L,
             deviceEpochMs = nowMs,

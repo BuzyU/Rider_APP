@@ -142,7 +142,7 @@ data class RoomData(
     val testNumber: Int? = null
 )
 data class RoomTokenRequest(val roomName: String)
-data class FcmTokenRequest(val userId: String, val token: String, val platform: String = "android")
+data class FcmTokenRequest(val token: String, val platform: String = "android", val userId: String = "")
 
 data class PostRideSnapshot(
     val convoyName: String,

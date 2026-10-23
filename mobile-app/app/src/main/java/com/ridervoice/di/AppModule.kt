@@ -29,7 +29,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(
+        @dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context,
+        appEvents: com.ridervoice.state.AppEvents
+    ): OkHttpClient {
         val builder = OkHttpClient.Builder()
             .connectTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
@@ -70,7 +73,15 @@ object AppModule {
                 // Phase 0 – P0.6: X-App-Version header for server-side client identification
                 requestBuilder.addHeader("X-App-Version", BuildConfig.VERSION_NAME)
 
-                chain.proceed(requestBuilder.build())
+                // Part I3: X-Country header from EmergencyNumbers
+                val country = com.ridervoice.utils.EmergencyNumbers.resolve(context).countryIso ?: "IN"
+                requestBuilder.addHeader("X-Country", country)
+
+                val response = chain.proceed(requestBuilder.build())
+                if (response.code == 426) {
+                    appEvents.emitUpdateRequired()
+                }
+                response
             }
             .build()
     }

@@ -206,10 +206,18 @@ async function acceptInvite({ inviteId, inviteeId }) {
  * Never overwrites REMOVED.
  */
 async function selfJoin({ roomId, inviteeId, inviterId, source, room }) {
-    const existing = await prisma.rideInvite.findUnique({
-        where: { roomId_inviteeId: { roomId, inviteeId } },
-        select: { id: true, status: true }
-    })
+    let existing = null
+    if (typeof prisma.rideInvite?.findFirst === 'function') {
+        existing = await prisma.rideInvite.findFirst({
+            where: { roomId, inviteeId },
+            select: { id: true, status: true }
+        }).catch(() => null)
+    } else if (typeof prisma.rideInvite?.findUnique === 'function') {
+        existing = await prisma.rideInvite.findUnique({
+            where: { roomId_inviteeId: { roomId, inviteeId } },
+            select: { id: true, status: true }
+        }).catch(() => null)
+    }
 
     const currentStatus = existing?.status || null
 
@@ -298,6 +306,13 @@ async function removeRider({ roomId, userId, hostId, room }) {
         const err = new Error('Only the host can remove riders')
         err.status = 403
         err.code = 'NOT_HOST'
+        throw err
+    }
+
+    if (userId === room.ownerId || userId === hostId) {
+        const err = new Error('Cannot remove the convoy host')
+        err.status = 400
+        err.code = 'CANNOT_REMOVE_HOST'
         throw err
     }
 

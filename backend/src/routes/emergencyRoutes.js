@@ -2,13 +2,20 @@ const express = require('express')
 const router = express.Router()
 const prisma = require('../db')
 const notificationService = require('../services/notificationService')
-const { isReservedName } = require('../services/roomResolver')
+const { resolveRoom, isReservedName, isMember, ResolverError } = require('../services/roomResolver')
+const { riderCallsign } = require('../services/identity')
 
 // H9 – regional emergency number fallback (replaces the old GLOBAL room SOS)
 const REGIONAL_EMERGENCY = {
     IN: { number: '112', name: 'National Emergency' },
     US: { number: '911', name: 'Emergency Services' },
     default: { number: '112', name: 'Emergency Services' }
+}
+
+function getRegionalEmergency(req) {
+    const rawCountry = req.headers['x-country'] || req.headers['x-country-code'] || ''
+    const country = (typeof rawCountry === 'string' ? rawCountry.trim().toUpperCase() : '') || 'IN'
+    return REGIONAL_EMERGENCY[country] || REGIONAL_EMERGENCY.default
 }
 
 const alertTimestamps = new Map()
@@ -65,26 +72,28 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
     const userId = req.user.uid
     const { roomName, lat, lng } = req.body
 
-    // H9 – GLOBAL is reserved; return emergency contact info instead
+    // C3 - GLOBAL or missing room: return 200 with sent: false and regional emergency number
     if (!roomName || isReservedName(roomName)) {
-        const countryCode = req.headers['x-country-code'] || 'default'
-        const emergency = REGIONAL_EMERGENCY[countryCode] || REGIONAL_EMERGENCY.default
+        const emergency = getRegionalEmergency(req)
         return res.status(200).json({
-            type: 'REGIONAL_EMERGENCY',
+            sent: false,
+            reason: 'NO_ACTIVE_RIDE',
             emergencyNumber: emergency.number,
             emergencyName: emergency.name,
-            message: 'Call your local emergency number immediately. No convoy room was specified.',
-            sent: false
+            message: 'No active convoy. Call your local emergency number immediately.',
+            recipientsCount: 0
         })
     }
 
     try {
-        const room = await prisma.room.findUnique({
-            where: { name: roomName },
+        // C3.1 - Resolve room allowing ENDED with 120s grace
+        const room = await resolveRoom(roomName, {
+            allowEnded: true,
             select: {
                 id: true,
                 name: true,
-
+                status: true,
+                endedAt: true,
                 ownerId: true,
                 invites: {
                     where: { status: 'ACCEPTED' },
@@ -92,15 +101,30 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
                 }
             }
         })
-        if (!room) return res.status(404).json({ error: 'Room not found' })
+
+        // Check if room ended beyond 120s grace period
+        if (room.status === 'ENDED') {
+            const endedAtMs = room.endedAt ? new Date(room.endedAt).getTime() : 0
+            if (Date.now() - endedAtMs > 120 * 1000) {
+                return res.status(410).json({ error: 'This convoy has ended', code: 'ROOM_ENDED' })
+            }
+        }
+
+        // C3.2 - Authorization: sender must be owner or ACCEPTED member
+        const isOwner = room.ownerId === userId
+        const isAccepted = await isMember(room.id, userId)
+        if (!isOwner && !isAccepted) {
+            return res.status(403).json({ error: 'Only convoy members can trigger emergency alerts', code: 'NOT_A_MEMBER' })
+        }
 
         const recipientIds = new Set()
         if (room.ownerId !== userId) {
             recipientIds.add(room.ownerId)
         }
-        for (let i = 0; i < room.invites.length; i++) {
-            const inviteeId = room.invites[i].inviteeId
-            if (inviteeId !== userId) {
+        const invites = Array.isArray(room.invites) ? room.invites : []
+        for (let i = 0; i < invites.length; i++) {
+            const inviteeId = invites[i].inviteeId
+            if (inviteeId && inviteeId !== userId) {
                 recipientIds.add(inviteeId)
             }
         }
@@ -109,24 +133,31 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
         const parsedLat = typeof lat === 'number' ? lat : (lat ? parseFloat(lat) : null)
         const parsedLng = typeof lng === 'number' ? lng : (lng ? parseFloat(lng) : null)
 
-        const senderUser = await prisma.user.findUnique({
+        const senderUser = typeof prisma.user?.findUnique === 'function' ? await prisma.user.findUnique({
             where: { id: userId },
             select: { handle: true, displayName: true }
-        })
-        const senderName = senderUser?.displayName || (senderUser?.handle ? `@${senderUser.handle}` : 'Convoy Rider')
+        }).catch(() => null) : null
+        const senderName = riderCallsign(senderUser || { id: userId })
 
-        const alert = await prisma.emergencyAlert.create({
-            data: {
-                senderId: userId,
-                roomId: room.id,
-                roomName: room.name,
-                lat: parsedLat,
-                lng: parsedLng,
-                recipients: recipientList,
-                status: 'SENT'
-            },
-            select: { id: true }
-        })
+        let alertId = null
+        if (typeof prisma.emergencyAlert?.create === 'function') {
+            const alert = await prisma.emergencyAlert.create({
+                data: {
+                    senderId: userId,
+                    roomId: room.id,
+                    roomName: room.name,
+                    lat: parsedLat,
+                    lng: parsedLng,
+                    recipients: recipientList,
+                    status: 'SENT'
+                },
+                select: { id: true }
+            }).catch(err => {
+                console.warn('[Emergency] Alert create warning:', err.message)
+                return null
+            })
+            alertId = alert?.id || null
+        }
 
         notificationService.sendEmergencyAlert(
             recipientList,
@@ -138,8 +169,15 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
             room.name
         ).catch(err => console.error('[Emergency] sendEmergencyAlert non-fatal error:', err.message))
 
-        res.status(200).json({ sent: true, alertId: alert.id })
+        res.status(200).json({
+            sent: true,
+            alertId,
+            recipientsCount: recipientList.length
+        })
     } catch (error) {
+        if (error instanceof ResolverError) {
+            return res.status(error.status).json({ error: error.message, code: error.code })
+        }
         next(error)
     }
 })

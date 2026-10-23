@@ -16,15 +16,32 @@ import javax.inject.Inject
 sealed class SosState {
     object Idle : SosState()
     object Sending : SosState()
-    data class Sent(val alertId: String? = null) : SosState()
-    data class Failed(val message: String) : SosState()
+    data class Sent(val alertId: String? = null, val recipientsCount: Int = 0) : SosState()
+    data class NotSent(
+        val reason: String = "NO_ACTIVE_RIDE",
+        val emergencyNumber: String = "112",
+        val message: String = "SOS NOT SENT. Call $emergencyNumber now."
+    ) : SosState()
+    data class Failed(val message: String, val emergencyNumber: String = "112") : SosState()
 }
 
 @HiltViewModel
-class SosViewModel @Inject constructor(
+class SosViewModel(
     private val apiService: ApiService,
-    private val locationService: LocationService
+    private val locationService: LocationService?,
+    private val locationProvider: (() -> Pair<Double?, Double?>)? = null
 ) : ViewModel() {
+
+    @Inject
+    constructor(
+        apiService: ApiService,
+        locationService: LocationService
+    ) : this(apiService, locationService, null)
+
+    constructor(
+        apiService: ApiService,
+        locationProvider: () -> Pair<Double?, Double?>
+    ) : this(apiService, null, locationProvider)
 
     private val _state = MutableStateFlow<SosState>(SosState.Idle)
     val state: StateFlow<SosState> = _state.asStateFlow()
@@ -35,23 +52,44 @@ class SosViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = SosState.Sending
             try {
-                val loc = locationService.currentLocation.value
+                val (lat, lng) = locationProvider?.invoke() ?: run {
+                    val loc = locationService?.currentLocation?.value
+                    Pair(loc?.latitude, loc?.longitude)
+                }
                 val response = apiService.sendSosAlert(
                     SosAlertRequest(
                         roomName = roomName,
-                        lat = loc?.latitude,
-                        lng = loc?.longitude
+                        lat = lat,
+                        lng = lng
                     )
                 )
                 if (response.isSuccessful && response.body() != null) {
-                    val alertId = response.body()?.alertId
-                    activeAlertId = alertId
-                    _state.value = SosState.Sent(alertId)
+                    val body = response.body()!!
+                    if (body.sent) {
+                        val alertId = body.alertId
+                        activeAlertId = alertId
+                        _state.value = SosState.Sent(alertId = alertId, recipientsCount = body.recipientsCount ?: 0)
+                    } else {
+                        val num = body.emergencyNumber ?: "112"
+                        _state.value = SosState.NotSent(
+                            reason = body.reason ?: "NO_ACTIVE_RIDE",
+                            emergencyNumber = num,
+                            message = "SOS NOT SENT. Call $num now."
+                        )
+                    }
                 } else {
-                    _state.value = SosState.Failed("Server error: ${response.code()}")
+                    _state.value = SosState.NotSent(
+                        reason = "SERVER_ERROR",
+                        emergencyNumber = "112",
+                        message = "SOS NOT SENT. Call 112 now."
+                    )
                 }
             } catch (e: Exception) {
-                _state.value = SosState.Failed(e.message ?: "Network error")
+                _state.value = SosState.NotSent(
+                    reason = e.message ?: "NETWORK_ERROR",
+                    emergencyNumber = "112",
+                    message = "SOS NOT SENT. Call 112 now."
+                )
             }
         }
     }

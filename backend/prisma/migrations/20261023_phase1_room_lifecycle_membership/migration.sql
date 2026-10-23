@@ -82,28 +82,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS "Room_name_active_unique"
     ON "Room"(lower("name"))
     WHERE "status" != 'ENDED';
 
--- Also index joinCode (unique among non-null rows, normal unique is fine)
-CREATE UNIQUE INDEX IF NOT EXISTS "Room_joinCode_key"
-    ON "Room"("joinCode");
+-- Drop the old unconditional unique index if it exists
+DROP INDEX IF EXISTS "Room_joinCode_key";
+
+-- Also index joinCode (unique among non-ENDED non-null rows)
+CREATE UNIQUE INDEX IF NOT EXISTS "Room_joinCode_active_unique"
+    ON "Room"("joinCode")
+    WHERE "status" != 'ENDED' AND "joinCode" IS NOT NULL;
 
 -- Additional useful indexes
+CREATE INDEX IF NOT EXISTS "Room_joinCode_idx" ON "Room"("joinCode");
 CREATE INDEX IF NOT EXISTS "Room_status_idx" ON "Room"("status");
 CREATE INDEX IF NOT EXISTS "Room_name_status_idx" ON "Room"("name", "status");
 
 -- ============================================================
--- 4. InviteStatus: add LEFT value
+-- 4. InviteStatus: LEFT enum value is added in migration 20261023000000_a_enum_values
 -- ============================================================
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_enum
-        WHERE enumlabel = 'LEFT'
-          AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'InviteStatus')
-    ) THEN
-        ALTER TYPE "InviteStatus" ADD VALUE 'LEFT';
-    END IF;
-END $$;
 
 -- ============================================================
 -- 5. InviteSource enum and column on RideInvite

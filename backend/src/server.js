@@ -21,7 +21,7 @@ const cors = require('cors')
 
 const healthRoute = require('./routes/healthRoute')
 const authMiddleware = require('./middleware/authMiddleware')
-const rateLimiter = require('./middleware/rateLimiter')
+const { ipLimiter, userLimiter } = require('./middleware/rateLimiter')
 const errorMiddleware = require('./middleware/errorMiddleware')
 const requestLogger = require('./middleware/requestLogger')
 const profileRoutes = require('./routes/userRoutes')
@@ -45,29 +45,46 @@ app.use((req, res, next) => {
 
 app.use(cors())
 app.use(requestLogger)
-// Note: rateLimiter is now placed AFTER authMiddleware on protected routes
-// so that per-user limits can be applied. Global IP limit still applied here.
-app.use(rateLimiter)
 
-app.use('/api/diagnostics', diagnosticRoutes)
+// Global IP rate limiter (skips /health, /api/health, /j/, /api/app/config)
+app.use(ipLimiter)
 
-app.use(express.json({ limit: '10mb' }))
+// Larger 5mb JSON parser mounted specifically for diagnostic batches and ride telemetry sync
+app.use('/api/diagnostics/batches', express.json({ limit: '5mb' }))
+app.use('/api/rides/sync', express.json({ limit: '5mb' }))
 
+// Standard 100kb JSON body parser for all other endpoints
+app.use(express.json({ limit: '100kb' }))
+
+// Public health and app config routes
 app.use('/api/health', healthRoute)
 app.use('/health', healthRoute)
 app.use('/', healthRoute)
 
+// Public app configuration endpoint (C5)
+app.get('/api/app/config', (req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=60')
+    res.json({
+        roomIdMode: process.env.ROOM_ID_MODE === 'true',
+        minAppVersion: process.env.MIN_APP_VERSION || '0.0.3.14',
+        latestVersion: process.env.LATEST_APP_VERSION || process.env.MIN_APP_VERSION || '0.0.3.15',
+        apkUrl: process.env.APK_DOWNLOAD_URL || (process.env.APP_BASE_URL ? `${process.env.APP_BASE_URL}/download` : '/download'),
+        maintenance: process.env.MAINTENANCE_MODE === 'true'
+    })
+})
+
 app.use('/api/tester-application', testerRoutes)
 app.use('/api/testers', testerRoutes)
+app.use('/api/diagnostics', diagnosticRoutes)
 
-// Protected routes – auth first, then per-user rate limit (applied in rateLimiter by checking req.user)
-app.use('/api/rooms', authMiddleware, roomRoutes)
-app.use('/api/users', authMiddleware, profileRoutes)
-app.use('/api/friends', authMiddleware, friendRoutes)
-app.use('/api/rides', authMiddleware, rideRoutes)
-app.use('/api/invites', authMiddleware, inviteRoutes)
-app.use('/api/lobby', authMiddleware, lobbyRoutes)
-app.use('/api/emergency', authMiddleware, emergencyRoutes)
+// Protected routes: authMiddleware authenticates caller, then userLimiter enforces per-user quotas
+app.use('/api/rooms', authMiddleware, userLimiter, roomRoutes)
+app.use('/api/users', authMiddleware, userLimiter, profileRoutes)
+app.use('/api/friends', authMiddleware, userLimiter, friendRoutes)
+app.use('/api/rides', authMiddleware, userLimiter, rideRoutes)
+app.use('/api/invites', authMiddleware, userLimiter, inviteRoutes)
+app.use('/api/lobby', authMiddleware, userLimiter, lobbyRoutes)
+app.use('/api/emergency', authMiddleware, userLimiter, emergencyRoutes)
 
 app.use(errorMiddleware)
 

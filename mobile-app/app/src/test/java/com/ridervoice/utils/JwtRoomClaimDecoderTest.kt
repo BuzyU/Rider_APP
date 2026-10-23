@@ -93,4 +93,46 @@ class JwtRoomClaimDecoderTest {
         assertEquals(JwtRoomClaimDecoder.TokenCheck.VALID, JwtRoomClaimDecoder.validate(tokenWith("room-1", null), "room-1"))
         assertEquals(JwtRoomClaimDecoder.TokenCheck.MALFORMED, JwtRoomClaimDecoder.validate("garbage", "room-1"))
     }
+
+    @Test
+    fun `validate accepts token matching expectedRoomId in UUID mode`() {
+        val t = tokenWith("d3b07384-d113-40f4-a0ff-4e943c7b398a", 10_000)
+        assertEquals(
+            JwtRoomClaimDecoder.TokenCheck.VALID,
+            JwtRoomClaimDecoder.validate(
+                token = t,
+                expectedRoomId = "d3b07384-d113-40f4-a0ff-4e943c7b398a",
+                expectedRoomName = "Sunday-Ride",
+                nowEpochSeconds = 1_000
+            )
+        )
+    }
+
+    @Test
+    fun `validate accepts token matching expectedRoomName in legacy mode`() {
+        val t = tokenWith("Sunday-Ride", 10_000)
+        assertEquals(
+            JwtRoomClaimDecoder.TokenCheck.VALID,
+            JwtRoomClaimDecoder.validate(
+                token = t,
+                expectedRoomId = "d3b07384-d113-40f4-a0ff-4e943c7b398a",
+                expectedRoomName = "Sunday-Ride",
+                nowEpochSeconds = 1_000
+            )
+        )
+    }
+
+    @Test
+    fun `validate rejects token when both expectedRoomId and expectedRoomName mismatch`() {
+        val t = tokenWith("Other-Ride-UUID", 10_000)
+        assertEquals(
+            JwtRoomClaimDecoder.TokenCheck.WRONG_ROOM,
+            JwtRoomClaimDecoder.validate(
+                token = t,
+                expectedRoomId = "d3b07384-d113-40f4-a0ff-4e943c7b398a",
+                expectedRoomName = "Sunday-Ride",
+                nowEpochSeconds = 1_000
+            )
+        )
+    }
 }

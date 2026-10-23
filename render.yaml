@@ -1,11 +1,16 @@
+# Render.com Service Blueprint for RiderVoice Backend
+# Note: On Render free tier the instance sleeps after inactivity.
+# Migrations are idempotent and run automatically at every cold start via startCommand.
+
 services:
   - type: web
     name: rider-app-backend
     env: node
     plan: free
     rootDir: backend
-    buildCommand: npm install && npx prisma generate
-    startCommand: npm start
+    buildCommand: npm ci && npx prisma generate
+    startCommand: npx prisma migrate deploy && node scripts/preflight.js && node src/server.js
+    healthCheckPath: /api/health
     autoDeploy: true
     envVars:
       - key: NODE_ENV
@@ -24,6 +29,33 @@ services:
         sync: false
 
       - key: LIVEKIT_API_SECRET
+        sync: false
+
+      - key: ROOM_ID_MODE
+        sync: false
+
+      - key: LEGACY_CLIENTS_ALLOWED
+        sync: false
+
+      - key: MIN_APP_VERSION
+        sync: false
+
+      - key: LIVEKIT_WEBHOOK_ENABLED
+        sync: false
+
+      - key: APP_BASE_URL
+        sync: false
+
+      - key: APK_DOWNLOAD_URL
+        sync: false
+
+      - key: RATE_LIMIT_IP_PER_MIN
+        sync: false
+
+      - key: RATE_LIMIT_USER_PER_MIN
+        sync: false
+
+      - key: SINGLE_INSTANCE
         sync: false
 
       - key: SMTP_HOST

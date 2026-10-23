@@ -93,10 +93,36 @@ object JwtRoomClaimDecoder {
     }
 
     /**
-     * Full validation: room claim must equal [expectedRoom]; token must not be expired
-     * (allowing [skewSeconds] of clock skew) and must have more than [refreshWindowSeconds]
-     * left, otherwise the caller should refresh before connecting.
+     * Full validation: room claim must equal [expectedRoomId] OR [expectedRoomName];
+     * token must not be expired (allowing [skewSeconds] of clock skew) and must have more than
+     * [refreshWindowSeconds] left, otherwise the caller should refresh before connecting.
      * Tokens without an `exp` claim are treated as VALID for backward compatibility.
+     */
+    fun validate(
+        token: String?,
+        expectedRoomId: String?,
+        expectedRoomName: String?,
+        nowEpochSeconds: Long = System.currentTimeMillis() / 1000,
+        skewSeconds: Long = 60,
+        refreshWindowSeconds: Long = 300
+    ): TokenCheck {
+        if (token.isNullOrBlank() || (expectedRoomId.isNullOrBlank() && expectedRoomName.isNullOrBlank())) {
+            return TokenCheck.MALFORMED
+        }
+        val claim = extractRoomName(token) ?: return TokenCheck.MALFORMED
+        val matchesId = !expectedRoomId.isNullOrBlank() && claim == expectedRoomId
+        val matchesName = !expectedRoomName.isNullOrBlank() && claim == expectedRoomName
+        if (!matchesId && !matchesName) {
+            return TokenCheck.WRONG_ROOM
+        }
+        val exp = extractExpiry(token) ?: return TokenCheck.VALID
+        if (nowEpochSeconds >= exp + skewSeconds) return TokenCheck.EXPIRED
+        if (exp - nowEpochSeconds <= refreshWindowSeconds) return TokenCheck.NEEDS_REFRESH
+        return TokenCheck.VALID
+    }
+
+    /**
+     * Single expectedRoom compatibility overload.
      */
     fun validate(
         token: String?,
@@ -104,13 +130,12 @@ object JwtRoomClaimDecoder {
         nowEpochSeconds: Long = System.currentTimeMillis() / 1000,
         skewSeconds: Long = 60,
         refreshWindowSeconds: Long = 300
-    ): TokenCheck {
-        if (token.isNullOrBlank() || expectedRoom.isNullOrBlank()) return TokenCheck.MALFORMED
-        val claim = extractRoomName(token) ?: return TokenCheck.MALFORMED
-        if (claim != expectedRoom) return TokenCheck.WRONG_ROOM
-        val exp = extractExpiry(token) ?: return TokenCheck.VALID
-        if (nowEpochSeconds >= exp + skewSeconds) return TokenCheck.EXPIRED
-        if (exp - nowEpochSeconds <= refreshWindowSeconds) return TokenCheck.NEEDS_REFRESH
-        return TokenCheck.VALID
-    }
+    ): TokenCheck = validate(
+        token = token,
+        expectedRoomId = expectedRoom,
+        expectedRoomName = expectedRoom,
+        nowEpochSeconds = nowEpochSeconds,
+        skewSeconds = skewSeconds,
+        refreshWindowSeconds = refreshWindowSeconds
+    )
 }

@@ -76,7 +76,7 @@ model Room {
   diagnosticsEnabled Boolean      @default(false)
   startedAt          DateTime?
   endedAt            DateTime?
-  joinCode           String?      @unique
+  joinCode           String?
   // Phase 1.5: optional ride metadata
   origin             String?
   destination        String?
@@ -91,10 +91,11 @@ model Room {
   diagnosticRuns DiagnosticRun[]
 
   // Partial unique: name unique among non-ENDED rooms enforced by DB index (see migration)
-  // Cannot use @@unique here because it is conditional; enforced via raw SQL unique index.
+  // Partial unique: joinCode unique among non-ENDED rooms enforced by DB index (see migration)
   @@index([ownerId])
   @@index([status])
   @@index([name, status])
+  @@index([joinCode])
 }
 
 enum InviteStatus {

@@ -128,7 +128,7 @@ fun SosScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "DISTRESS ALERT BROADCAST",
+                                text = if (state.recipientsCount > 0) "Alert sent to ${state.recipientsCount} riders" else "DISTRESS ALERT BROADCAST",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = TechGreen,
                                 letterSpacing = 1.sp
@@ -140,6 +140,55 @@ fun SosScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center
                             )
+                        }
+                    }
+                }
+
+                is SosState.NotSent -> {
+                    Surface(
+                        color = if (isDark) Color(0xFF330808) else Color(0xFFFFEBEE),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(2.dp, AlertRed),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(48.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "SOS NOT SENT",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Black,
+                                color = AlertRed
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Call ${state.emergencyNumber} immediately.",
+                                color = if (isDark) Color.White else Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = {
+                                    val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${state.emergencyNumber}"))
+                                    context.startActivity(dialIntent)
+                                },
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.Phone, contentDescription = null, tint = Color.White)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "CALL ${state.emergencyNumber} NOW",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }

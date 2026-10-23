@@ -19,26 +19,46 @@ data class ConvoyCreateResponse(
 data class LobbyStatus(
     val roomId: String,
     val convoyName: String,
-    val invites: List<LobbyInviteEntry>,
-    val acceptedCount: Int,
-    val pendingCount: Int,
-    val declinedCount: Int,
-    val canStart: Boolean,
+    val invites: List<LobbyInviteEntry> = emptyList(),
+    val acceptedCount: Int = 0,
+    val pendingCount: Int = 0,
+    val declinedCount: Int = 0,
+    val canStart: Boolean = false,
     val isRideStarted: Boolean = false,
-    val isHost: Boolean = false
+    val isHost: Boolean = false,
+    val status: String? = null,
+    val isOwner: Boolean? = null,
+    val startedAt: String? = null,
+    val diagnosticsEnabled: Boolean = false,
+    val host: LobbyHost? = null,
+    val joinCode: String? = null,
+    val origin: String? = null,
+    val destination: String? = null,
+    val meetupPoint: String? = null,
+    val estimatedDurationMin: Int? = null
+)
+
+data class LobbyHost(
+    val id: String,
+    val callsign: String? = null,
+    val handle: String? = null,
+    val displayName: String? = null,
+    val bikeModel: String? = null
 )
 
 data class LobbyInviteEntry(
     val inviteId: String,
     val status: String,
-    val invitee: LobbyRiderInfo
+    val invitee: LobbyRiderInfo,
+    val source: String? = null
 )
 
 data class LobbyRiderInfo(
     val id: String,
     val handle: String?,
     val displayName: String?,
-    val bikeModel: String?
+    val bikeModel: String?,
+    val callsign: String? = null
 )
 
 data class StartRideResponse(
@@ -207,7 +227,12 @@ data class RideHistoryResponse(
 
 data class SosAlertResponse(
     val sent: Boolean,
-    val alertId: String? = null
+    val alertId: String? = null,
+    val recipientsCount: Int? = null,
+    val reason: String? = null,
+    val emergencyNumber: String? = null,
+    val emergencyName: String? = null,
+    val message: String? = null
 )
 
 data class CancelAlertResponse(

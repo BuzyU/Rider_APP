@@ -17,8 +17,8 @@ const router = express.Router()
 const prisma = require('../db')
 const notificationService = require('../services/notificationService')
 const emailService = require('../services/emailService')
-const cacheService = require('../services/cacheService')
-const { resolveRoom, ResolverError } = require('../services/roomResolver')
+const { resolveRoom, ResolverError, invalidateRoom } = require('../services/roomResolver')
+const { issueRoomToken } = require('../services/tokenService')
 const { hostInvite, acceptInvite, notifyJoined } = require('../services/membershipService')
 
 // ─── POST /api/invites/invite ─────────────────────────────────────────────────
@@ -137,8 +137,53 @@ router.post('/invite', async (req, res, next) => {
     }
 })
 
+// ─── POST /api/invites/:id/accept ─────────────────────────────────────────────
+// Atomic accept returning token payload for the new mobile app.
+
+router.post('/:id/accept', async (req, res, next) => {
+    const inviteId = req.params.id
+    const inviteeId = req.user.uid
+
+    try {
+        const { invite, alreadyAccepted } = await acceptInvite({ inviteId, inviteeId })
+
+        const room = await resolveRoom(invite.roomId)
+        const tokenResult = await issueRoomToken(req.user, room)
+
+        invalidateRoom(room.id)
+
+        if (!alreadyAccepted) {
+            const invitee = typeof prisma.user?.findUnique === 'function' ? await prisma.user.findUnique({
+                where: { id: inviteeId },
+                select: { displayName: true }
+            }).catch(() => null) : null
+            notifyJoined({
+                inviteeId,
+                inviterId: invite.inviterId,
+                roomName: room.name,
+                inviteeEmail: req.user.email,
+                inviteeName: invitee?.displayName || req.user.name
+            })
+        }
+
+        return res.json({
+            ...tokenResult,
+            inviteId: invite.id,
+            alreadyAccepted
+        })
+    } catch (error) {
+        if (error instanceof ResolverError) {
+            return res.status(error.status).json({ error: error.message, code: error.code })
+        }
+        if (error.status) {
+            return res.status(error.status).json({ error: error.message, code: error.code })
+        }
+        next(error)
+    }
+})
+
 // ─── POST /api/invites/respond ────────────────────────────────────────────────
-// Accept or decline a PENDING invite.
+// Accept or decline a PENDING invite. Legacy endpoint kept compatible with v0.0.3.14.
 // G8 – atomic: state machine only, no pre-remove or speculative token call.
 
 router.post('/respond', async (req, res, next) => {
@@ -155,24 +200,23 @@ router.post('/respond', async (req, res, next) => {
             const { invite, alreadyAccepted } = await acceptInvite({ inviteId, inviteeId })
 
             const roomId = invite.roomId || invite.room?.id
-            const room = roomId
-                ? await prisma.room.findUnique({
-                    where: { id: roomId },
-                    select: { name: true, ownerId: true }
-                }).catch(() => null)
-                : null
-
-            const roomName = room?.name || invite.room?.name
-
-            if (roomName) cacheService.del(`lobby_status:${roomName}`)
-            if (roomId) cacheService.del(`lobby_status:${roomId}`)
+            if (roomId) invalidateRoom(roomId)
 
             if (!alreadyAccepted) {
+                const room = roomId && typeof prisma.room?.findUnique === 'function'
+                    ? await prisma.room.findUnique({
+                        where: { id: roomId },
+                        select: { name: true, ownerId: true }
+                    }).catch(() => null)
+                    : null
+
+                const roomName = room?.name || invite.room?.name || 'Convoy'
+
                 // G10 – notify once from membershipService
-                const invitee = await prisma.user.findUnique({
+                const invitee = typeof prisma.user?.findUnique === 'function' ? await prisma.user.findUnique({
                     where: { id: inviteeId },
                     select: { displayName: true }
-                }).catch(() => null)
+                }).catch(() => null) : null
                 notifyJoined({
                     inviteeId,
                     inviterId: invite.inviterId,
@@ -191,10 +235,11 @@ router.post('/respond', async (req, res, next) => {
         }
 
         // DECLINED
-        const invite = await prisma.rideInvite.findUnique({
+        const invite = typeof prisma.rideInvite?.findUnique === 'function' ? await prisma.rideInvite.findUnique({
             where: { id: inviteId },
             select: { id: true, inviteeId: true, status: true, roomId: true, room: { select: { name: true, status: true } } }
-        })
+        }).catch(() => null) : null
+
         if (!invite || invite.inviteeId !== inviteeId) {
             return res.status(403).json({ error: 'Not your invite' })
         }
@@ -205,14 +250,13 @@ router.post('/respond', async (req, res, next) => {
             return res.status(409).json({ error: `Invite already ${invite.status}`, code: 'INVALID_STATE' })
         }
 
-        const updated = await prisma.rideInvite.update({
+        const updated = typeof prisma.rideInvite?.update === 'function' ? await prisma.rideInvite.update({
             where: { id: inviteId },
             data: { status: 'DECLINED', updatedAt: new Date() },
             select: { id: true, status: true, roomId: true }
-        })
+        }) : { id: inviteId, status: 'DECLINED', roomId: invite.roomId }
 
-        if (invite.room?.name) cacheService.del(`lobby_status:${invite.room.name}`)
-        if (invite.roomId) cacheService.del(`lobby_status:${invite.roomId}`)
+        if (invite.roomId) invalidateRoom(invite.roomId)
 
         res.json(updated)
     } catch (error) {

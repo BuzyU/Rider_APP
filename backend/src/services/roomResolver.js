@@ -14,6 +14,7 @@
 
 const prisma = require('../db')
 const crypto = require('crypto')
+const cacheService = require('./cacheService')
 
 // ─── Unambiguous join-code alphabet (no 0/O, 1/I/l) ─────────────────────────
 const JOIN_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -30,10 +31,10 @@ function isReservedName(name) {
 
 /**
  * Generate a unique join code for a room.
- * Retries up to 5 times on collision.
+ * Retries up to 10 times on collision. Throws 503 CODE_GENERATION_FAILED if exhausted.
  */
 async function generateUniqueJoinCode() {
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < 10; attempt++) {
         let code = ''
         const bytes = crypto.randomBytes(JOIN_CODE_LENGTH)
         for (let i = 0; i < JOIN_CODE_LENGTH; i++) {
@@ -52,7 +53,10 @@ async function generateUniqueJoinCode() {
         }
         if (!existing) return code
     }
-    return 'RIDERV88'
+    const err = new Error('Could not generate unique join code')
+    err.status = 503
+    err.code = 'CODE_GENERATION_FAILED'
+    throw err
 }
 
 /**
@@ -128,8 +132,11 @@ async function resolveRoom(ref, opts = {}) {
         throw resolverError(404, 'Room not found', 'ROOM_NOT_FOUND')
     }
 
-    // 3. If found but ENDED, return 410
+    // 3. If found but ENDED, return 410 unless allowEnded is explicitly set
     if (room.status === 'ENDED') {
+        if (opts.allowEnded) {
+            return room
+        }
         throw resolverError(410, 'This convoy has ended', 'ROOM_ENDED')
     }
 
@@ -143,14 +150,14 @@ async function resolveRoom(ref, opts = {}) {
 }
 
 /**
- * Mark a room as ENDED in the DB.
+ * Mark a room as ENDED in the DB and clear joinCode.
  * Must be called BEFORE deleteRoom in LiveKit so no new token can be issued.
  */
 async function markRoomEnded(roomId) {
     return prisma.room.update({
         where: { id: roomId },
-        data: { status: 'ENDED', endedAt: new Date() },
-        select: { id: true, name: true, status: true, endedAt: true }
+        data: { status: 'ENDED', endedAt: new Date(), joinCode: null },
+        select: { id: true, name: true, status: true, endedAt: true, joinCode: true }
     })
 }
 
@@ -176,18 +183,16 @@ async function isMember(roomId, userId) {
 
 /**
  * Invalidate all cache keys for a room (lobby status cache).
- * Cache is keyed by room.id only.
- * @param {object} room – must have id and name
- * @param {Map} lobbyStatusCache – the in-memory cache map
+ * Deletes keys matching lobby_status:<roomId>: prefix.
+ * @param {string|object} roomOrId – room id string or room object
  */
-function invalidateRoom(room, lobbyStatusCache) {
-    if (!lobbyStatusCache) return
-    lobbyStatusCache.delete(`lobby_status:${room.id}`)
-    // Also evict any legacy name-keyed entries
-    for (const key of lobbyStatusCache.keys()) {
-        if (key.includes(room.name) || key.includes(room.id)) {
-            lobbyStatusCache.delete(key)
-        }
+function invalidateRoom(roomOrId) {
+    const roomId = typeof roomOrId === 'string' ? roomOrId : roomOrId?.id
+    if (!roomId) return
+    cacheService.delPrefix(`lobby_status:${roomId}:`)
+    cacheService.del(`lobby_status:${roomId}`)
+    if (typeof roomOrId === 'object' && roomOrId.name) {
+        cacheService.del(`lobby_status:${roomOrId.name}`)
     }
 }
 

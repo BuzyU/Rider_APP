@@ -1,46 +1,23 @@
 /**
- * rateLimiter.js – Phase 8 rewrite (H11)
- *
- * Bug H11: 60/min per-IP before auth. Lobby poll = ~20 req/min/rider → 429s.
- *
- * Fix:
- *   - Unauthenticated (pre-auth): 600/min per IP (generous for health/tester endpoints)
- *   - Authenticated (post-auth, uid available as req.user.uid): 120/min per user
- *   - Rate limit is checked per-layer:
- *       • Global IP rate limit applies to all routes (hard limit for DDoS)
- *       • Per-user rate limit applies only to authenticated routes
- *   - Separate limits for emergency alerts (handled in emergencyRoutes.js already)
- *   - Test mode (NODE_ENV=test): limits bypassed entirely
- *
- * Implementation: two maps — ipRequests (per-IP) and userRequests (per-uid).
- * Sliding window (1-min bucket).
+ * rateLimiter.js – Unified IP and User Rate Limiting (Phase 8 / C6)
  */
 
 'use strict'
 
-const IP_LIMIT_PER_MIN = parseInt(process.env.RATE_LIMIT_IP_PER_MIN || '600', 10)
-const USER_LIMIT_PER_MIN = parseInt(process.env.RATE_LIMIT_USER_PER_MIN || '120', 10)
 const WINDOW_MS = 60_000
 
 // In-memory sliding window buckets
 const ipRequests = new Map()
 const userRequests = new Map()
+const failedCodeAttempts = new Map()
 
-function countInWindow(timestamps, now) {
-    const cutoff = now - WINDOW_MS
-    let i = 0
-    while (i < timestamps.length && timestamps[i] <= cutoff) i++
-    return i > 0 ? timestamps.splice(0, i) && timestamps : timestamps
-}
-
-function addAndCheck(map, key, limit, now) {
+function addAndCheck(map, key, limit, windowMs = WINDOW_MS, now = Date.now()) {
     let ts = map.get(key)
     if (!ts) {
         ts = []
         map.set(key, ts)
     }
-    // Slide window
-    const cutoff = now - WINDOW_MS
+    const cutoff = now - windowMs
     let firstValid = 0
     while (firstValid < ts.length && ts[firstValid] <= cutoff) firstValid++
     if (firstValid > 0) ts.splice(0, firstValid)
@@ -49,8 +26,8 @@ function addAndCheck(map, key, limit, now) {
     return ts.length > limit
 }
 
-function sweepMap(map, now) {
-    const cutoff = now - WINDOW_MS
+function sweepMap(map, windowMs = WINDOW_MS, now = Date.now()) {
+    const cutoff = now - windowMs
     for (const [key, ts] of map.entries()) {
         let firstValid = 0
         while (firstValid < ts.length && ts[firstValid] <= cutoff) firstValid++
@@ -64,20 +41,33 @@ function sweepMap(map, now) {
 
 const sweepInterval = setInterval(() => {
     const now = Date.now()
-    sweepMap(ipRequests, now)
-    sweepMap(userRequests, now)
+    sweepMap(ipRequests, WINDOW_MS, now)
+    sweepMap(userRequests, WINDOW_MS, now)
+    sweepMap(failedCodeAttempts, 15 * 60_000, now)
 }, 2 * 60_000)
 if (sweepInterval.unref) sweepInterval.unref()
 
-const rateLimiter = (req, res, next) => {
-    // Bypass entirely in test mode
-    if (process.env.NODE_ENV === 'test') return next()
+/**
+ * Global IP limiter: checks IP request count.
+ * Skips /health, /api/health, /j/, /api/app/config.
+ */
+function ipLimiter(req, res, next) {
+    const path = req.path || req.url || ''
+    if (
+        path === '/health' ||
+        path === '/api/health' ||
+        path.startsWith('/j/') ||
+        path === '/api/app/config' ||
+        path === '/'
+    ) {
+        return next()
+    }
 
-    const now = Date.now()
+    const ipLimit = parseInt(process.env.RATE_LIMIT_IP_PER_MIN || '600', 10)
     const ip = req.ip || req.socket?.remoteAddress || 'unknown'
+    const now = Date.now()
 
-    // 1. IP-level limit (applies to everyone including unauthenticated)
-    if (addAndCheck(ipRequests, ip, IP_LIMIT_PER_MIN, now)) {
+    if (addAndCheck(ipRequests, ip, ipLimit, WINDOW_MS, now)) {
         res.setHeader('Retry-After', '60')
         return res.status(429).json({
             error: 'Too many requests from this IP. Retry in 60 seconds.',
@@ -85,24 +75,59 @@ const rateLimiter = (req, res, next) => {
         })
     }
 
-    // 2. Per-user limit (only if authenticated; uid attached by authMiddleware)
+    next()
+}
+
+/**
+ * Per-user rate limiter: applied AFTER authMiddleware where req.user.uid is populated.
+ */
+function userLimiter(req, res, next) {
     const uid = req.user?.uid
-    if (uid) {
-        if (addAndCheck(userRequests, uid, USER_LIMIT_PER_MIN, now)) {
-            res.setHeader('Retry-After', '60')
-            return res.status(429).json({
-                error: 'Too many requests. Slow down and retry in 60 seconds.',
-                code: 'USER_RATE_LIMIT'
-            })
-        }
+    if (!uid) return next()
+
+    const userLimit = parseInt(process.env.RATE_LIMIT_USER_PER_MIN || '120', 10)
+    const now = Date.now()
+
+    if (addAndCheck(userRequests, uid, userLimit, WINDOW_MS, now)) {
+        res.setHeader('Retry-After', '60')
+        return res.status(429).json({
+            error: 'Too many requests. Slow down and retry in 60 seconds.',
+            code: 'USER_RATE_LIMIT'
+        })
     }
 
     next()
 }
 
-// Export internals for testing
-rateLimiter._ipRequests = ipRequests
-rateLimiter._userRequests = userRequests
-rateLimiter._sweep = () => sweepMap(ipRequests, Date.now())
+/**
+ * Record a failed join code attempt from an IP.
+ */
+function recordFailedJoinCode(ip) {
+    if (!ip) return
+    const now = Date.now()
+    addAndCheck(failedCodeAttempts, ip, 1000, 15 * 60_000, now)
+}
 
-module.exports = rateLimiter
+function isJoinCodeBlocked(ip) {
+    if (!ip) return false
+    const ts = failedCodeAttempts.get(ip)
+    if (!ts) return false
+    const cutoff = Date.now() - 10 * 60_000
+    const recent = ts.filter(t => t > cutoff)
+    return recent.length >= 10
+}
+
+module.exports = {
+    ipLimiter,
+    userLimiter,
+    recordFailedJoinCode,
+    isJoinCodeBlocked,
+    rateLimiter: ipLimiter,
+    _ipRequests: ipRequests,
+    _userRequests: userRequests,
+    _reset: () => {
+        ipRequests.clear()
+        userRequests.clear()
+        failedCodeAttempts.clear()
+    }
+}

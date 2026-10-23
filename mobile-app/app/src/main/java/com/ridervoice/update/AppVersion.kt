@@ -17,8 +17,12 @@ data class AppVersion(
                 .substringBefore("-")
                 .substringBefore("+")
 
-            val components = clean.split(".")
+            var components = clean.split(".")
                 .mapNotNull { it.trim().toIntOrNull() }
+
+            if (components.size >= 5 && components[0] == 0 && components[1] == 0 && components[2] == 0) {
+                components = components.drop(1)
+            }
 
             val effectiveParts = if (components.isEmpty()) listOf(0) else components
             return AppVersion(raw = versionStr.trim(), parts = effectiveParts)

@@ -1,3 +1,29 @@
+## RiderVoice v0.0.3.15 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.15** delivers enterprise audio hardening and completes the comprehensive master audit resolution. It features strict LiveKit room name normalization and webhook signature idempotency, Android 14+ foreground service types (`microphone`, `location`, `connectedDevice`), resilient Bluetooth SCO hardware state machine recovery, enhanced packet loss tracking, and full automated test suite coverage.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.15` |
+| **Version Code** | `3015` |
+| **Release Tag** | [`v0.0.3.15`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.15) |
+| **Download APK** | [`Rider_APP-v0.0.3.15.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.15/Rider_APP-v0.0.3.15.apk) |
+
+---
+
+### 🛡️ LiveKit Audio Pipeline & Webhook Hardening
+- **Signature & Idempotency**: Cryptographic verification of LiveKit webhook headers (`webhookReceiver.receive(body, authHeader)`) with Redis/in-memory deduplication caching on `event.id`, preventing repeated participant disconnect processing.
+- **Room Identity Normalization**: Strict room name canonicalization across token generation, active room checks, and lobby routing.
+
+---
+
+### 📱 Android 14+ Foreground Service & Audio HAL
+- **Service Types Compliance**: Full manifest and runtime declaration of `microphone`, `location`, and `connectedDevice` foreground service types on Android 14 (API 34).
+- **Bluetooth SCO State Machine**: Resilient hardware connection listeners with automatic fallback and physical recovery handling when headsets disconnect mid-ride.
+
+---
+
 ## RiderVoice v0.0.3.14 Release Notes
 
 ### 🚀 Overview

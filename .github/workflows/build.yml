@@ -42,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/ridervoice_test' }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/ridervoice_test' }}
 
     steps:
       - name: Checkout Repository

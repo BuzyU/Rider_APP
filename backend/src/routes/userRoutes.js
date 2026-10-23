@@ -147,4 +147,24 @@ router.post('/fcm-token', async (req, res, next) => {
     }
 })
 
+router.delete('/fcm-token', async (req, res, next) => {
+    const userId = req.user.uid
+    const { token } = req.body || {}
+
+    try {
+        if (token) {
+            await prisma.deviceToken.deleteMany({
+                where: { userId, token }
+            })
+        } else {
+            await prisma.deviceToken.deleteMany({
+                where: { userId }
+            })
+        }
+        res.json({ success: true })
+    } catch (error) {
+        next(error)
+    }
+})
+
 module.exports = router

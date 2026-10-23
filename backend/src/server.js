@@ -49,12 +49,24 @@ app.use(requestLogger)
 // Global IP rate limiter (skips /health, /api/health, /j/, /api/app/config)
 app.use(ipLimiter)
 
+// LiveKit webhook receiver mounted BEFORE express.json with raw body parser (D1)
+const { createWebhookHandler } = require('./routes/livekitWebhook')
+app.post(
+    '/api/livekit/webhook',
+    express.raw({ type: ['application/webhook+json', 'application/json'], limit: '256kb' }),
+    createWebhookHandler()
+)
+
 // Larger 5mb JSON parser mounted specifically for diagnostic batches and ride telemetry sync
 app.use('/api/diagnostics/batches', express.json({ limit: '5mb' }))
 app.use('/api/rides/sync', express.json({ limit: '5mb' }))
 
 // Standard 100kb JSON body parser for all other endpoints
 app.use(express.json({ limit: '100kb' }))
+
+// Public share landing page (D2)
+const landingRoutes = require('./routes/landingRoutes')
+app.use('/j', landingRoutes)
 
 // Public health and app config routes
 app.use('/api/health', healthRoute)
@@ -142,6 +154,10 @@ app.listen(PORT, () => {
 
         // B6 – Recover pending diagnostic closes from before restart
         recoverPendingDiagnosticCloses()
+
+        // 1.6 / D3 – Stale-room sweeper (sweeps expired lobbies and abandoned active rooms)
+        const { startRoomSweeper } = require('./services/roomSweeper')
+        startRoomSweeper()
 
         // Diagnostic idle checker: 60s interval (unchanged, lightweight)
         const idleInterval = setInterval(() => {

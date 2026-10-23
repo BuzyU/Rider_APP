@@ -816,10 +816,14 @@ async function closeAndExportRun(runId, options = {}) {
         }
     }
 
+    const statusCondition = runState.status === 'CLOSED_PENDING_EMAIL'
+        ? 'CLOSED_PENDING_EMAIL'
+        : 'ACTIVE'
+
     const updateCount = await prisma.diagnosticRun.updateMany({
         where: {
             id: runId,
-            status: 'ACTIVE'
+            status: statusCondition
         },
         data: {
             status: 'CLOSED',
@@ -827,8 +831,7 @@ async function closeAndExportRun(runId, options = {}) {
         }
     })
 
-    if (updateCount.count === 0 && runState.status !== 'ACTIVE') {
-        
+    if (updateCount.count === 0) {
         return false
     }
 
@@ -855,6 +858,10 @@ async function closeAndExportRun(runId, options = {}) {
 
     if (run.batches.length === 0) {
         console.log(`[Diagnostic] Run ${run.id} has 0 batches. Skipping email dispatch.`)
+        await prisma.diagnosticRun.update({
+            where: { id: run.id },
+            data: { status: 'CLOSED' }
+        }).catch(() => {})
         return true
     }
 
@@ -863,6 +870,10 @@ async function closeAndExportRun(runId, options = {}) {
 
     if (!isSmtpConfigured) {
         console.warn('[Diagnostic Email] WARNING: SMTP is not configured (SMTP_HOST/SMTP_USER missing). Leaving run exportable without email.')
+        await prisma.diagnosticRun.update({
+            where: { id: run.id },
+            data: { status: 'CLOSED' }
+        }).catch(() => {})
         return true
     }
 
@@ -907,12 +918,18 @@ async function closeAndExportRun(runId, options = {}) {
             try {
                 await mailer.sendMail(mailOptions)
                 console.log(`[Diagnostic] Emailed Excel report to ${emailTo} (size: ${(excelBuffer.length / 1024).toFixed(1)} KB)`)
-            } catch (emailErr) {
-                
                 await prisma.diagnosticRun.update({
                     where: { id: run.id },
-                    data: { emailedAt: null }
-                })
+                    data: { status: 'CLOSED' }
+                }).catch(() => {})
+            } catch (emailErr) {
+                await prisma.diagnosticRun.update({
+                    where: { id: run.id },
+                    data: {
+                        status: 'CLOSED_PENDING_EMAIL',
+                        emailedAt: null
+                    }
+                }).catch(() => {})
                 console.error('[Diagnostic] SMTP dispatch failed, released email claim:', emailErr.message)
             }
         }
@@ -948,8 +965,53 @@ async function checkIdleDiagnosticRuns() {
                 await closeAndExportRun(run.id)
             }
         }
+
+        // Also retry any runs in CLOSED_PENDING_EMAIL status
+        await retryPendingDiagnosticEmails()
     } catch (e) {
         console.error('[Diagnostic] Error during checkIdleDiagnosticRuns:', e.message)
+    }
+}
+
+async function scheduleIdleRunClose(roomName, roomId) {
+    try {
+        if (!roomName && !roomId) return
+        const run = await prisma.diagnosticRun.findFirst({
+            where: {
+                status: 'ACTIVE',
+                OR: [
+                    ...(roomId ? [{ roomId }] : []),
+                    ...(roomName ? [{ convoyName: roomName }] : [])
+                ]
+            }
+        })
+        if (run) {
+            // Close with grace period (90 seconds)
+            setTimeout(() => {
+                closeAndExportRun(run.id, { checkGrace: true }).catch(e => console.warn(`[Diagnostic] scheduled close error: ${e.message}`))
+            }, 90 * 1000).unref()
+        }
+    } catch (err) {
+        console.warn('[Diagnostic] scheduleIdleRunClose error:', err.message)
+    }
+}
+
+async function retryPendingDiagnosticEmails(options = {}) {
+    try {
+        const pendingRuns = await prisma.diagnosticRun.findMany({
+            where: {
+                status: 'CLOSED_PENDING_EMAIL',
+                emailedAt: null
+            },
+            take: 10
+        })
+
+        for (const run of pendingRuns) {
+            console.log(`[Diagnostic] Retrying email dispatch for run ${run.id}`)
+            await closeAndExportRun(run.id, options)
+        }
+    } catch (err) {
+        console.warn('[Diagnostic] retryPendingDiagnosticEmails error:', err.message)
     }
 }
 
@@ -982,6 +1044,8 @@ module.exports = {
     finalizeAndExportRun: closeAndExportRun,
     buildExcelBuffer,
     checkIdleDiagnosticRuns,
+    scheduleIdleRunClose,
+    retryPendingDiagnosticEmails,
     cleanOldDiagnosticRuns,
     buildRunExportData,
     buildZipBuffer

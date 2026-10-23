@@ -449,10 +449,13 @@ router.post('/:roomRef/share-link', async (req, res, next) => {
             }).catch(err => console.warn('[share-link] create token warning:', err.message))
         }
 
-        const baseUrl = process.env.APP_BASE_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000'
+        const baseUrl = process.env.APP_BASE_URL || process.env.RENDER_EXTERNAL_URL
+        if (!baseUrl) {
+            console.warn('[share-link] APP_BASE_URL and RENDER_EXTERNAL_URL are unset. shareUrl omitted.')
+        }
         res.json({
             token: tokenValue,
-            shareUrl: `${baseUrl}/j/${tokenValue}`,
+            ...(baseUrl ? { shareUrl: `${baseUrl.replace(/\/+$/, '')}/j/${tokenValue}` } : {}),
             deepLink: `ridervoice://join/${tokenValue}`,
             expiresAt: expiresAt.toISOString()
         })

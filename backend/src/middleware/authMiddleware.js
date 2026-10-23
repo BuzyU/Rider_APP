@@ -120,7 +120,7 @@ module.exports = async (req, res, next) => {
 
         // Phase 8.9 – legacy client gate (426 Upgrade Required)
         if (isLegacyBlocked(req.appVersion)) {
-            const apkUrl = process.env.APK_DOWNLOAD_URL || 'https://ridervoice.app/download'
+            const apkUrl = process.env.APK_DOWNLOAD_URL || (process.env.APP_BASE_URL ? `${process.env.APP_BASE_URL}/download` : '/download')
             return res.status(426).json({
                 error: 'Upgrade required',
                 code: 'UPGRADE_REQUIRED',

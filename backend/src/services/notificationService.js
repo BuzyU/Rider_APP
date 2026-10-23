@@ -15,7 +15,19 @@ class NotificationService {
                 messages[i] = {
                     token: tokens[i].token,
                     data: payload.data,
-                    android: { priority: 'high' }
+                    ...(payload.notification ? { notification: payload.notification } : {}),
+                    android: {
+                        priority: payload.android?.priority || 'high',
+                        ...(payload.android?.ttl !== undefined ? { ttl: payload.android.ttl } : {}),
+                        ...(payload.android?.collapseKey ? { collapseKey: payload.android.collapseKey } : {}),
+                        ...(payload.notification ? {
+                            notification: {
+                                channelId: payload.data?.channelId || 'CHANNEL_CONVOY',
+                                priority: 'high',
+                                defaultSound: true
+                            }
+                        } : {})
+                    }
                 }
             }
 
@@ -46,39 +58,69 @@ class NotificationService {
         }
     }
 
-    async sendRideInvite(inviterHandle, inviteeId, roomName) {
+    async sendRideInvite(inviterHandle, inviteeId, roomName, senderCallsign = null) {
+        const displayName = senderCallsign || inviterHandle
         await this.sendToUser(inviteeId, {
+            notification: {
+                title: 'Ride invite',
+                body: `${displayName} invited you to join ${roomName}`
+            },
             data: {
                 type: 'RIDE_INVITE',
                 inviterHandle: String(inviterHandle),
+                senderName: String(displayName),
+                callsign: String(displayName),
                 roomName: String(roomName),
                 channelId: 'CHANNEL_CONVOY'
+            },
+            android: {
+                priority: 'high'
             }
         })
     }
 
-    async sendInviteAccepted(riderName, inviterId, roomName) {
+    async sendInviteAccepted(riderName, inviterId, roomName, riderCallsign = null) {
+        const displayName = riderCallsign || riderName
         await this.sendToUser(inviterId, {
+            notification: {
+                title: 'Invite accepted',
+                body: `${displayName} joined ${roomName}`
+            },
             data: {
                 type: 'INVITE_ACCEPTED',
-                riderName: String(riderName),
+                riderName: String(displayName),
+                callsign: String(displayName),
                 roomName: String(roomName),
                 channelId: 'CHANNEL_CONVOY'
+            },
+            android: {
+                priority: 'high'
             }
         })
     }
 
-    async sendEmergencyAlert(userIds, alertType, lat, lng, senderId = '', senderName = '', roomName = '') {
+    async sendEmergencyAlert(userIds, alertType, lat, lng, senderId = '', senderName = '', roomName = '', alertId = '') {
         const payload = {
+            notification: {
+                title: 'EMERGENCY SOS',
+                body: `${senderName || 'A rider'} sent an emergency SOS alert!`
+            },
             data: {
                 type: 'EMERGENCY',
+                alertId: String(alertId || ''),
                 alertType: String(alertType),
                 lat: String(lat ?? ''),
                 lng: String(lng ?? ''),
                 senderId: String(senderId ?? ''),
                 senderName: String(senderName ?? ''),
+                callsign: String(senderName ?? ''),
                 roomName: String(roomName ?? ''),
                 channelId: 'CHANNEL_EMERGENCY'
+            },
+            android: {
+                priority: 'high',
+                ttl: 60 * 1000,
+                collapseKey: alertId ? `emergency_${alertId}` : `emergency_${senderId}`
             }
         }
         await Promise.allSettled(

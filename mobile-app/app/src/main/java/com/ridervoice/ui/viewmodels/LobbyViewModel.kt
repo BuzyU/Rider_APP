@@ -18,7 +18,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LobbyViewModel @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository
 ) : ViewModel() {
 
     private val _lobbyStatus = MutableStateFlow<LobbyStatus?>(null)
@@ -38,51 +39,72 @@ class LobbyViewModel @Inject constructor(
     fun startPolling(roomName: String) {
         pollingJob?.cancel()
         pollingJob = viewModelScope.launch {
+            var consecutiveErrors = 0
             while (isActive) {
                 try {
                     val response = apiService.getLobbyStatus(roomName)
                     if (response.isSuccessful && response.body() != null) {
+                        consecutiveErrors = 0
                         val body = response.body()!!
                         _lobbyStatus.value = body
-                        RideSession.isHost = body.isHost
-                        RideSession.activeRoomName = body.convoyName
-                        RideSession.activeRoomId = body.roomId
-                        if (!body.isHost && RideSession.livekitToken.isNullOrBlank()) {
-                            try {
-                                val tokenRes = apiService.getJoinToken(com.ridervoice.models.JoinTokenRequest(roomName = body.convoyName, roomId = body.roomId))
-                                if (tokenRes.isSuccessful && tokenRes.body() != null) {
-                                    val tb = tokenRes.body()!!
-                                    RideSession.livekitToken = tb.token
-                                    RideSession.livekitUrl = tb.livekitUrl.ifBlank { com.ridervoice.utils.Constants.LIVEKIT_URL }
-                                    RideSession.diagnosticsEnabled = tb.diagnosticsEnabled
-                                    RideSession.testNumber = tb.testNumber
-                                    RideSession.activeRoomId = tb.roomId ?: body.roomId
-                                    RideSession.activeRoomName = tb.roomName
-                                }
-                            } catch (_: Exception) {}
+
+                        activeRideRepository.enterLobby(
+                            roomId = body.roomId ?: roomName,
+                            name = body.convoyName ?: roomName,
+                            isHost = body.isHost ?: false,
+                            joinCode = body.joinCode
+                        )
+
+                        if (body.isRideStarted == true) {
+                            activeRideRepository.goLive()
+                            if (activeRideRepository.state.value?.token.isNullOrBlank()) {
+                                try {
+                                    val tokenRes = apiService.getJoinToken(com.ridervoice.models.JoinTokenRequest(roomName = body.convoyName, roomId = body.roomId))
+                                    if (tokenRes.isSuccessful && tokenRes.body() != null) {
+                                        val tb = tokenRes.body()!!
+                                        activeRideRepository.applyTokenPayload(
+                                            com.ridervoice.models.TokenPayload(
+                                                token = tb.token,
+                                                livekitUrl = tb.livekitUrl,
+                                                roomId = tb.roomId ?: body.roomId,
+                                                roomName = tb.roomName ?: body.convoyName,
+                                                diagnosticsEnabled = tb.diagnosticsEnabled,
+                                                testNumber = tb.testNumber
+                                            )
+                                        )
+                                    }
+                                } catch (_: Exception) {}
+                            }
                         }
                     } else when (response.code()) {
                         410 -> {
+                            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.ENDED_BY_HOST)
                             _terminal.value = Terminal.ENDED
                             _error.value = "This convoy has ended"
                             break
                         }
                         403 -> {
+                            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.REMOVED)
                             _terminal.value = Terminal.REMOVED
                             _error.value = "You are no longer part of this convoy"
                             break
                         }
                         404 -> {
+                            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.NOT_FOUND)
                             _terminal.value = Terminal.NOT_FOUND
                             _error.value = "Convoy not found"
                             break
                         }
-                        else -> { /* transient (5xx etc.): keep polling */ }
+                        else -> {
+                            consecutiveErrors++
+                        }
                     }
                 } catch (e: Exception) {
+                    consecutiveErrors++
                     _error.value = e.localizedMessage ?: "Network connection issue"
                 }
-                delay(3000)
+                val delayMs = if (consecutiveErrors >= 3) 10000L else 3000L
+                delay(delayMs)
             }
         }
     }
@@ -175,11 +197,17 @@ class LobbyViewModel @Inject constructor(
                 val res = apiService.startRide(roomName)
                 if (res.isSuccessful && res.body() != null) {
                     val body = res.body()!!
-                    RideSession.livekitToken = body.token
-                    RideSession.livekitUrl = body.livekitUrl
-                    RideSession.activeRoomName = body.roomName
-                    RideSession.activeRoomId = body.roomId
-                    RideSession.isHost = true
+                    activeRideRepository.applyTokenPayload(
+                        com.ridervoice.models.TokenPayload(
+                            token = body.token,
+                            livekitUrl = body.livekitUrl,
+                            roomId = body.roomId,
+                            roomName = body.roomName,
+                            diagnosticsEnabled = body.diagnosticsEnabled,
+                            testNumber = body.testNumber
+                        )
+                    )
+                    activeRideRepository.goLive()
                     onStartSuccess()
                 } else {
                     _error.value = "Failed to start ride: ${res.errorBody()?.string() ?: "Unknown error"}"
@@ -187,6 +215,16 @@ class LobbyViewModel @Inject constructor(
             } catch (e: Exception) {
                 _error.value = e.message
             }
+        }
+    }
+
+    fun leaveRoom(roomRef: String, onLeaveSuccess: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                apiService.leaveLobby(roomRef)
+            } catch (_: Exception) {}
+            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.LEFT)
+            onLeaveSuccess()
         }
     }
 

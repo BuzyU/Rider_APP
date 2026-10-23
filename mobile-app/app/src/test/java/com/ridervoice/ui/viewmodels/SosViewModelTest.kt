@@ -64,6 +64,12 @@ class SosViewModelTest {
         override suspend fun getRideHistory(): Response<List<RideHistoryResponse>> = throw NotImplementedError()
         override suspend fun finalizeDiagnosticRun(roomName: String): Response<Any> = throw NotImplementedError()
         override suspend fun getLatestDiagnosticRun(roomName: String): Response<Any> = throw NotImplementedError()
+        override suspend fun refreshToken(body: RefreshTokenRequest): Response<StartRideResponse> = throw NotImplementedError()
+        override suspend fun joinLobbyUnified(body: LobbyJoinRequest): Response<StartRideResponse> = throw NotImplementedError()
+        override suspend fun leaveLobby(roomName: String): Response<Any> = throw NotImplementedError()
+        override suspend fun acceptRideInvite(id: String): Response<StartRideResponse> = throw NotImplementedError()
+        override suspend fun getAppConfig(): Response<AppConfigResponse> = throw NotImplementedError()
+        override suspend fun deleteFcmToken(token: String?): Response<Any> = throw NotImplementedError()
     }
 
     @Test

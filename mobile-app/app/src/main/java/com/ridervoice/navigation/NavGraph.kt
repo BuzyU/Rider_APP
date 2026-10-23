@@ -30,6 +30,20 @@ fun NavGraph(
         }
     }
 
+    val pendingDeepLink by DeepLinkHolder.pendingToken.collectAsState()
+    LaunchedEffect(pendingDeepLink) {
+        val token = pendingDeepLink
+        if (!token.isNullOrBlank()) {
+            val hasUser = try {
+                FirebaseAuth.getInstance().currentUser != null
+            } catch (_: Exception) { false }
+            if (hasUser) {
+                DeepLinkHolder.consume()
+                navController.navigate(Routes.joinViaTokenPath(token))
+            }
+        }
+    }
+
     NavHost(navController = navController, startDestination = Routes.SPLASH) {
 
         composable(Routes.SPLASH) {
@@ -58,7 +72,13 @@ fun NavGraph(
                 onGoogleSignInClick = {},
                 onPhoneOtpClick = {},
                 onLoginSuccess = {
-                    navController.navigate(Routes.HOME) {
+                    val pendingToken = DeepLinkHolder.consume()
+                    val dest = if (!pendingToken.isNullOrBlank()) {
+                        Routes.joinViaTokenPath(pendingToken)
+                    } else {
+                        Routes.HOME
+                    }
+                    navController.navigate(dest) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
@@ -72,7 +92,13 @@ fun NavGraph(
             RegisterScreen(
                 onBackClick = { navController.popBackStack() },
                 onRegisterSuccess = {
-                    navController.navigate(Routes.HOME) {
+                    val pendingToken = DeepLinkHolder.consume()
+                    val dest = if (!pendingToken.isNullOrBlank()) {
+                        Routes.joinViaTokenPath(pendingToken)
+                    } else {
+                        Routes.HOME
+                    }
+                    navController.navigate(dest) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
@@ -130,14 +156,18 @@ fun NavGraph(
 
         composable(
             route = Routes.LOBBY,
-            arguments = listOf(navArgument("convoyName") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("convoyName") { type = NavType.StringType },
+                navArgument("name") { type = NavType.StringType; defaultValue = ""; nullable = true }
+            )
         ) { back ->
             val convoyName = back.arguments?.getString("convoyName") ?: ""
             LobbyScreen(
                 convoyName   = convoyName,
-                onStartRide  = {
-                    val isHost = com.ridervoice.models.RideSession.isHost
-                    navController.navigate(Routes.deviceSetupPath(convoyName, isHost = isHost))
+                onStartRide  = { isHost ->
+                    navController.navigate(Routes.deviceSetupPath(convoyName, isHost = isHost)) {
+                        popUpTo(Routes.lobbyPath(convoyName)) { inclusive = true }
+                    }
                 },
                 onBackClick  = { navController.popBackStack() }
             )
@@ -172,14 +202,8 @@ fun NavGraph(
                         val rawName = FirebaseAuth.getInstance().currentUser?.displayName
                         val userName = if (!rawName.isNullOrBlank()) rawName else "Rider"
                         val safeConvoy = if (convoyName.isNotBlank()) convoyName else "Convoy"
-                        navController.navigate(Routes.activeRideHudPath(safeConvoy, userName)) {
-
-                            try {
-                                popUpTo(Routes.HOME) { inclusive = false }
-                            } catch (e: Exception) {
-
-                            }
-                        }
+                        navController.popBackStack(Routes.HOME, inclusive = false)
+                        navController.navigate(Routes.activeRideHudPath(safeConvoy, userName))
                     }
                 },
                 onBackClick = { navController.popBackStack() }
@@ -202,7 +226,7 @@ fun NavGraph(
                 userName = userName,
                 onLeave  = {
                     navController.navigate(Routes.POST_RIDE_SUMMARY) {
-                        popUpTo(0) { inclusive = false }
+                        popUpTo(Routes.HOME) { inclusive = false }
                     }
                 },
                 onSosClick = {

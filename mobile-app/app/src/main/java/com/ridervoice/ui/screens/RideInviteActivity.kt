@@ -35,6 +35,7 @@ import javax.inject.Inject
 class RideInviteActivity : ComponentActivity() {
 
     @Inject lateinit var apiService: ApiService
+    @Inject lateinit var activeRideRepository: com.ridervoice.state.ActiveRideRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -164,16 +165,28 @@ class RideInviteActivity : ComponentActivity() {
                             scope.launch {
                                 try {
 
-                                    if (inviteId.isNotBlank()) {
-                                        apiService.respondToInvite(InviteRespondRequest(inviteId, "ACCEPTED"))
+                                    val tokenRes = if (inviteId.isNotBlank()) {
+                                        apiService.acceptRideInvite(inviteId)
+                                    } else {
+                                        apiService.getJoinToken(JoinTokenRequest(roomName))
                                     }
-
-                                    val tokenRes = apiService.getJoinToken(JoinTokenRequest(roomName))
                                     if (tokenRes.isSuccessful && tokenRes.body() != null) {
-                                        RideSession.livekitToken = tokenRes.body()!!.token
-                                        RideSession.livekitUrl = tokenRes.body()!!.livekitUrl
-                                        RideSession.activeRoomName = roomName
-                                        RideSession.isHost = false
+                                        val body = tokenRes.body()!!
+                                        activeRideRepository.enterLobby(
+                                            roomId = body.roomId ?: roomName,
+                                            name = body.roomName ?: roomName,
+                                            isHost = false
+                                        )
+                                        activeRideRepository.applyTokenPayload(
+                                            com.ridervoice.models.TokenPayload(
+                                                token = body.token,
+                                                livekitUrl = body.livekitUrl,
+                                                roomId = body.roomId ?: roomName,
+                                                roomName = body.roomName ?: roomName,
+                                                diagnosticsEnabled = body.diagnosticsEnabled,
+                                                testNumber = body.testNumber
+                                            )
+                                        )
                                     }
 
                                     val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {

@@ -13,14 +13,16 @@ import javax.inject.Inject
 @HiltViewModel
 class PostRideSummaryViewModel @Inject constructor(
     private val rideRecorder: RideRecorder,
-    private val networkDiagnosticsCollector: NetworkDiagnosticsCollector
+    private val networkDiagnosticsCollector: NetworkDiagnosticsCollector,
+    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository
 ) : ViewModel() {
 
     val summary: StateFlow<RideSummary?> = rideRecorder.lastSummary
     val latestMetric: SelfMetricSample? = networkDiagnosticsCollector.latestSelfMetric.value
     val sampleCount: Int = networkDiagnosticsCollector.sampleCount.value
-    val convoyName: String = RideSession.activeRoomName ?: "Convoy"
-    val testNumber: Int = RideSession.testNumber ?: 1
+    private val lastEnded = activeRideRepository.lastEnded.value
+    val convoyName: String = lastEnded?.convoyName ?: activeRideRepository.state.value?.displayName ?: "Ride"
+    val testNumber: Int = lastEnded?.testNumber ?: activeRideRepository.state.value?.testNumber ?: 1
 
     fun save() {
         rideRecorder.clearSummary()

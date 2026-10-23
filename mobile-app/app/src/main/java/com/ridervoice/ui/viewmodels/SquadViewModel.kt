@@ -22,7 +22,8 @@ data class SquadUiState(
 
 @HiltViewModel
 class SquadViewModel @Inject constructor(
-    private val squadRepository: SquadRepository
+    private val squadRepository: SquadRepository,
+    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SquadUiState())
@@ -81,13 +82,21 @@ class SquadViewModel @Inject constructor(
                 val tokenResult = squadRepository.getJoinToken(invite.room.name)
                 if (tokenResult.isSuccess && tokenResult.getOrNull() != null) {
                     val tokenData = tokenResult.getOrNull()!!
-                    // Set all four RideSession fields BEFORE callback
-                    com.ridervoice.models.RideSession.livekitUrl = tokenData.livekitUrl.ifBlank { com.ridervoice.utils.Constants.LIVEKIT_URL }
-                    com.ridervoice.models.RideSession.livekitToken = tokenData.token
-                    com.ridervoice.models.RideSession.activeRoomName = tokenData.roomName
-                    com.ridervoice.models.RideSession.isHost = false
-                    com.ridervoice.models.RideSession.diagnosticsEnabled = tokenData.diagnosticsEnabled
-                    com.ridervoice.models.RideSession.testNumber = tokenData.testNumber
+                    activeRideRepository.enterLobby(
+                        roomId = tokenData.roomId ?: invite.roomId,
+                        name = tokenData.roomName ?: invite.room.name,
+                        isHost = false
+                    )
+                    activeRideRepository.applyTokenPayload(
+                        com.ridervoice.models.TokenPayload(
+                            token = tokenData.token,
+                            livekitUrl = tokenData.livekitUrl,
+                            roomId = tokenData.roomId ?: invite.roomId,
+                            roomName = tokenData.roomName ?: invite.room.name,
+                            diagnosticsEnabled = tokenData.diagnosticsEnabled,
+                            testNumber = tokenData.testNumber
+                        )
+                    )
 
                     _uiState.update { state ->
                         state.copy(invites = state.invites.filter { it.id != invite.id })

@@ -46,9 +46,11 @@ class RoomViewModel @Inject constructor(
     private val serviceWatchdog: ServiceWatchdog,
     private val securePrefs: SecurePreferences,
     private val hardwarePTTManager: HardwarePTTManager,
-    private val networkDiagnosticsCollector: com.ridervoice.diagnostics.collector.NetworkDiagnosticsCollector
+    private val networkDiagnosticsCollector: com.ridervoice.diagnostics.collector.NetworkDiagnosticsCollector,
+    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository
 ) : ViewModel() {
 
+    val activeRide: StateFlow<com.ridervoice.state.ActiveRideRepository.ActiveRide?> = activeRideRepository.state
     val isCollectingDiagnostics: StateFlow<Boolean> = networkDiagnosticsCollector.isCollecting
     val latestSelfMetric: StateFlow<com.ridervoice.diagnostics.models.SelfMetricSample?> = networkDiagnosticsCollector.latestSelfMetric
     val diagSampleCount: StateFlow<Int> = networkDiagnosticsCollector.sampleCount
@@ -163,16 +165,20 @@ class RoomViewModel @Inject constructor(
 
         viewModelScope.launch {
             while (true) {
-                kotlinx.coroutines.delay(10_000)
-                val active = com.ridervoice.models.RideSession.activeRoomName
-                if (!com.ridervoice.models.RideSession.isHost && !active.isNullOrBlank() && !liveKitManager.convoyEnded.value) {
+                kotlinx.coroutines.delay(30_000)
+                val ride = activeRideRepository.state.value
+                val active = ride?.roomId ?: ride?.displayName
+                if (ride != null && !ride.isHost && !active.isNullOrBlank() && !liveKitManager.convoyEnded.value) {
                     try {
                         val res = apiService.getLobbyStatus(active)
-                        if (res.code() == 404) {
+                        if (res.code() == 404 || res.code() == 410) {
                             liveKitManager.signalConvoyEnded()
+                            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.ENDED_BY_HOST)
+                        } else if (res.code() == 403) {
+                            liveKitManager.signalConvoyEnded()
+                            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.REMOVED)
                         }
-                    } catch (e: Exception) {
-                    }
+                    } catch (_: Exception) {}
                 }
             }
         }
@@ -192,44 +198,26 @@ class RoomViewModel @Inject constructor(
 
         applyAudioSettings()
 
-        val existingToken = com.ridervoice.models.RideSession.livekitToken
-        val isTokenForThisRoom = existingToken.isNotBlank() &&
-            com.ridervoice.utils.JwtRoomClaimDecoder.validateRoom(existingToken, roomName)
-
         viewModelScope.launch {
             _error.value = null
             try {
-                val cachedOk = existingToken.isNotBlank() &&
-                    com.ridervoice.utils.JwtRoomClaimDecoder.validate(existingToken, roomName) ==
-                    com.ridervoice.utils.JwtRoomClaimDecoder.TokenCheck.VALID
-                val effectiveToken = if (cachedOk) {
-                    existingToken
-                } else {
-                    val res = apiService.getRoomToken(com.ridervoice.models.RoomTokenRequest(roomName))
-                    if (res.isSuccessful && res.body() != null) {
-                        val body = res.body()!!
-                        com.ridervoice.models.RideSession.livekitToken = body.token
-                        com.ridervoice.models.RideSession.activeRoomName = body.roomName
-                        body.roomId?.let { com.ridervoice.models.RideSession.activeRoomId = it }
-                        body.livekitUrl?.takeIf { it.isNotBlank() }?.let {
-                            com.ridervoice.models.RideSession.livekitUrl = it
-                        }
-                        com.ridervoice.models.RideSession.diagnosticsEnabled = body.diagnosticsEnabled
-                        com.ridervoice.models.RideSession.testNumber = body.testNumber
-                        if (body.diagnosticsEnabled) {
-                            securePrefs.setNetworkDiagnosticsEnabled(true)
-                        }
-                        body.token
-                    } else {
-                        throw Exception("Could not fetch credentials for convoy $roomName (code ${res.code()})")
-                    }
+                val tokenResult = activeRideRepository.ensureFreshToken()
+                val token = tokenResult.getOrThrow()
+                val ride = activeRideRepository.state.value
+                val effectiveUrl = ride?.livekitUrl?.takeIf { it.isNotBlank() } ?: Constants.LIVEKIT_URL
+                val effectiveRoomId = ride?.roomId?.takeIf { it.isNotBlank() } ?: roomName
+
+                if (ride?.diagnosticsEnabled == true) {
+                    securePrefs.setNetworkDiagnosticsEnabled(true)
                 }
 
-                val canonicalRoom = com.ridervoice.utils.JwtRoomClaimDecoder.extractRoomName(effectiveToken) ?: roomName
-                com.ridervoice.models.RideSession.activeRoomName = canonicalRoom
-
-                val effectiveUrl = com.ridervoice.models.RideSession.livekitUrl.ifBlank { Constants.LIVEKIT_URL }
-                liveKitManager.connect(effectiveUrl, effectiveToken)
+                liveKitManager.connect(
+                    url = effectiveUrl,
+                    roomId = effectiveRoomId,
+                    tokenProvider = {
+                        activeRideRepository.ensureFreshToken().getOrThrow()
+                    }
+                )
             } catch (e: Exception) {
                 _error.value = "Connection error: ${e.message}"
             }

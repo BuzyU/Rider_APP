@@ -17,7 +17,8 @@ import javax.inject.Singleton
 class ServiceWatchdog @Inject constructor(
     private val liveKitManager: LiveKitManager,
     private val hardwarePTTManager: HardwarePTTManager,
-    private val locationService: LocationService
+    private val locationService: LocationService,
+    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository
 ) {
     companion object {
         private const val TAG = "ServiceWatchdog"
@@ -43,7 +44,7 @@ class ServiceWatchdog @Inject constructor(
 
                 if (isTracking && connectionState == ConnectionState.DISCONNECTED) {
                     val elapsed = System.currentTimeMillis() - startTimeMs
-                    if (elapsed > STARTUP_GRACE_MS && com.ridervoice.models.RideSession.activeRoomName == null) {
+                    if (elapsed > STARTUP_GRACE_MS && activeRideRepository.state.value == null) {
                         Log.e(TAG, "Zombie detected: location active with no ride session. Cleaning up.")
                         locationService.stopTracking()
                         hardwarePTTManager.deactivateSession()

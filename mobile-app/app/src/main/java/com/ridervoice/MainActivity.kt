@@ -51,16 +51,12 @@ class MainActivity : ComponentActivity() {
 
         com.ridervoice.ui.theme.ThemeState.set(securePreferences.getBoolean("dark_theme_enabled", false))
 
-        val uriData = intent?.data
-        val initialRoute = if (uriData != null && uriData.scheme == "ridervoice" && uriData.host == "join") {
-            val token = uriData.pathSegments.firstOrNull()
-                ?: uriData.getQueryParameter("token")
-                ?: uriData.lastPathSegment
-            if (!token.isNullOrBlank()) {
-                com.ridervoice.navigation.Routes.joinViaTokenPath(token)
-            } else {
-                intent?.getStringExtra("NAV_ROUTE")
-            }
+        val deepLinkToken = com.ridervoice.navigation.DeepLinkHolder.parseDeepLinkToken(intent?.data)
+        if (!deepLinkToken.isNullOrBlank()) {
+            com.ridervoice.navigation.DeepLinkHolder.set(deepLinkToken)
+        }
+        val initialRoute = if (!deepLinkToken.isNullOrBlank()) {
+            com.ridervoice.navigation.Routes.joinViaTokenPath(deepLinkToken)
         } else {
             intent?.getStringExtra("NAV_ROUTE")
         }
@@ -238,6 +234,15 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val token = com.ridervoice.navigation.DeepLinkHolder.parseDeepLinkToken(intent.data)
+        if (!token.isNullOrBlank()) {
+            com.ridervoice.navigation.DeepLinkHolder.set(token)
         }
     }
 

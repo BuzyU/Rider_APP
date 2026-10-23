@@ -42,6 +42,9 @@ class VoiceForegroundService : Service() {
     @Inject
     lateinit var networkDiagnosticsCollector: com.ridervoice.diagnostics.collector.NetworkDiagnosticsCollector
 
+    @Inject
+    lateinit var activeRideRepository: com.ridervoice.state.ActiveRideRepository
+
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val channelId = "tactical_voice_channel"
     private val notificationId = 1
@@ -125,20 +128,21 @@ class VoiceForegroundService : Service() {
         serviceScope.launch {
             combine(
                 securePreferences.shareDiagnosticsWhenHostEnabled,
-                liveKitManager.connectionState
-            ) { riderShareWhenHostEnabled, connState ->
+                liveKitManager.connectionState,
+                activeRideRepository.state
+            ) { riderShareWhenHostEnabled, connState, rideState ->
                 val isConnected = connState == ConnectionState.CONNECTED
-                val rideEnabled = com.ridervoice.models.RideSession.diagnosticsEnabled
-                val isHost = com.ridervoice.models.RideSession.isHost
+                val rideEnabled = rideState?.diagnosticsEnabled ?: false
+                val isHost = rideState?.isHost ?: false
                 val isOptedOut = if (isHost) false else !riderShareWhenHostEnabled
-                com.ridervoice.diagnostics.DiagnosticsGating.shouldStartCollector(
+                val shouldRun = com.ridervoice.diagnostics.DiagnosticsGating.shouldStartCollector(
                     isConnected = isConnected,
                     diagnosticsEnabled = rideEnabled,
                     isRiderOptedOut = isOptedOut
                 )
-            }.collectLatest { shouldRun ->
+                Pair(shouldRun, rideState?.displayName ?: "Ride")
+            }.collectLatest { (shouldRun, convoyId) ->
                 if (shouldRun) {
-                    val convoyId = com.ridervoice.models.RideSession.activeRoomName ?: "Convoy"
                     networkDiagnosticsCollector.startSession(convoyId)
                 } else {
                     networkDiagnosticsCollector.stopSession()

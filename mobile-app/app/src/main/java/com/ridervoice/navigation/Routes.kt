@@ -12,7 +12,7 @@ object Routes {
 
     const val HOST_SETUP     = "host_setup"
     const val INVITE_FRIENDS = "invite_friends/{convoyName}"
-    const val LOBBY          = "lobby/{convoyName}"
+    const val LOBBY          = "lobby/{convoyName}?name={name}"
 
     const val INVITES_INBOX  = "invites_inbox"
     const val REGISTER       = "register"
@@ -30,9 +30,13 @@ object Routes {
         return "invite_friends/${android.net.Uri.encode(safe)}"
     }
 
-    fun lobbyPath(convoyName: String): String {
+    fun lobbyPath(convoyName: String, name: String? = null): String {
         val safe = convoyName.ifBlank { "Convoy" }
-        return "lobby/${android.net.Uri.encode(safe)}"
+        return if (!name.isNullOrBlank()) {
+            "lobby/${android.net.Uri.encode(safe)}?name=${android.net.Uri.encode(name)}"
+        } else {
+            "lobby/${android.net.Uri.encode(safe)}"
+        }
     }
 
     fun deviceSetupPath(convoyName: String, isHost: Boolean): String {

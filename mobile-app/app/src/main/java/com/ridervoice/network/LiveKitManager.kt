@@ -126,11 +126,29 @@ class LiveKitManager @Inject constructor(
     private val MAX_RECONNECT_ATTEMPTS = 10
     private var lastUrl = ""
     private var lastToken = ""
+    @Volatile private var currentRoomId: String? = null
+    private var tokenProvider: (suspend () -> String)? = null
 
     private var lastBroadcastLoc: RiderLocation? = null
     private var lastBroadcastTime: Long = 0L
 
     private val gson = Gson()
+
+    suspend fun connect(url: String, roomId: String, tokenProvider: suspend () -> String) {
+        when {
+            _connectionState.value in setOf(ConnectionState.CONNECTED, ConnectionState.CONNECTING) && currentRoomId == roomId -> return
+            _connectionState.value in setOf(ConnectionState.CONNECTED, ConnectionState.CONNECTING, ConnectionState.RECONNECTING) -> disconnect()
+        }
+        currentRoomId = roomId
+        this.tokenProvider = tokenProvider
+        lastUrl = url
+        reconnectAttempts = 0
+        _convoyEnded.value = false
+
+        val token = tokenProvider()
+        lastToken = token
+        connectInternal(url, token)
+    }
 
     fun connect(url: String, token: String) {
         if (_connectionState.value == ConnectionState.CONNECTED ||
@@ -222,7 +240,10 @@ class LiveKitManager @Inject constructor(
 
             startVoxSafely()
 
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (e: Exception) {
+            com.ridervoice.utils.RvLog.w("LK", "state=FAILED reason=${e.message} attempt=$reconnectAttempts room=$currentRoomId")
             _connectionState.value = ConnectionState.FAILED
             scheduleReconnect()
         }
@@ -401,8 +422,14 @@ class LiveKitManager @Inject constructor(
             is RoomEvent.TrackPublished -> {
                 ensureRemoteAudioTracksEnabled()
             }
-            is RoomEvent.Reconnecting -> {}
+            is RoomEvent.Reconnecting -> {
+                _connectionState.value = ConnectionState.RECONNECTING
+                com.ridervoice.utils.RvLog.lk("state=RECONNECTING attempt=$reconnectAttempts room=$currentRoomId")
+            }
             is RoomEvent.Reconnected -> {
+                _connectionState.value = ConnectionState.CONNECTED
+                reconnectAttempts = 0
+                com.ridervoice.utils.RvLog.lk("state=CONNECTED room=$currentRoomId")
                 scope.launch {
                     applyMic()
                     ensureRemoteAudioTracksEnabled()
@@ -415,11 +442,15 @@ class LiveKitManager @Inject constructor(
                 _remoteLocations.value = emptyMap()
                 _activeSpeaker.value = null
                 val reasonName = event.reason.name
-                if (reasonName.contains("ROOM_DELETED", ignoreCase = true) ||
-                    reasonName.contains("USER_REJECTED", ignoreCase = true)) {
+                com.ridervoice.utils.RvLog.lk("state=DISCONNECTED reason=$reasonName room=$currentRoomId")
+                val isTerminal = reasonName.contains("ROOM_DELETED", ignoreCase = true) ||
+                    reasonName.contains("PARTICIPANT_REMOVED", ignoreCase = true) ||
+                    reasonName.contains("DUPLICATE_IDENTITY", ignoreCase = true) ||
+                    reasonName.contains("USER_REJECTED", ignoreCase = true) ||
+                    reasonName.contains("USER_LEAVE", ignoreCase = true)
+                if (isTerminal) {
                     _convoyEnded.value = true
-                }
-                if (!_convoyEnded.value) {
+                } else if (!_convoyEnded.value) {
                     scheduleReconnect()
                 }
             }
@@ -479,12 +510,24 @@ class LiveKitManager @Inject constructor(
         reconnectJob?.cancel()
         reconnectJob = scope.launch {
             reconnectAttempts++
-            val delayMs = minOf(1000L * reconnectAttempts, 30_000L)
+            val backoffs = listOf(1000L, 2000L, 4000L, 8000L, 10000L)
+            val delayMs = backoffs.getOrElse(reconnectAttempts - 1) { 10000L }
             _connectionState.value = ConnectionState.RECONNECTING
             delay(delayMs)
 
             if (_connectionState.value == ConnectionState.RECONNECTING && !_convoyEnded.value) {
-                connectInternal(lastUrl, lastToken)
+                val freshToken = try {
+                    tokenProvider?.invoke() ?: lastToken
+                } catch (e: Exception) {
+                    val msg = e.message ?: ""
+                    if (msg.contains("REMOVED", ignoreCase = true) || msg.contains("ENDED", ignoreCase = true)) {
+                        _convoyEnded.value = true
+                        _connectionState.value = ConnectionState.DISCONNECTED
+                        return@launch
+                    }
+                    lastToken
+                }
+                connectInternal(lastUrl, freshToken)
             }
         }
     }

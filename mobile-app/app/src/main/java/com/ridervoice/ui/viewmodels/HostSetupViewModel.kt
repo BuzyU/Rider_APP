@@ -14,7 +14,8 @@ import javax.inject.Inject
 @HiltViewModel
 class HostSetupViewModel @Inject constructor(
     private val apiService: ApiService,
-    private val securePreferences: SecurePreferences
+    private val securePreferences: SecurePreferences,
+    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository
 ) : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
@@ -33,7 +34,6 @@ class HostSetupViewModel @Inject constructor(
         estimatedDurationMin: Int?,
         diagnosticsEnabled: Boolean = false
     ) {
-        com.ridervoice.models.RideSession.diagnosticsEnabled = diagnosticsEnabled
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
@@ -43,8 +43,14 @@ class HostSetupViewModel @Inject constructor(
                 )
                 val response = apiService.createConvoy(req)
                 if (response.isSuccessful && response.body() != null) {
-
-                    _createdConvoyName.value = response.body()!!.convoyName
+                    val body = response.body()!!
+                    activeRideRepository.enterLobby(
+                        roomId = body.roomId,
+                        name = body.convoyName,
+                        isHost = true,
+                        joinCode = body.joinCode
+                    )
+                    _createdConvoyName.value = body.convoyName
                 } else {
                     val raw = response.errorBody()?.string()
                     _error.value = parseConvoyError(raw, response.code())

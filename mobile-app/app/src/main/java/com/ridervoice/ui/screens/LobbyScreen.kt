@@ -31,13 +31,14 @@ fun LobbyScreen(
     convoyName: String,
     viewModel: LobbyViewModel = hiltViewModel(),
     homeViewModel: com.ridervoice.ui.viewmodels.HomeViewModel = hiltViewModel(),
-    onStartRide: () -> Unit,
+    onStartRide: (isHost: Boolean) -> Unit,
     onBackClick: () -> Unit,
     onInviteMoreClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val lobbyStatus by viewModel.lobbyStatus.collectAsState()
     val error by viewModel.error.collectAsState()
+    val terminal by viewModel.terminal.collectAsState()
 
     var showExitDialog by remember { mutableStateOf(false) }
     var showAddRidersSheet by remember { mutableStateOf(false) }
@@ -54,12 +55,42 @@ fun LobbyScreen(
         }
     }
 
-    LaunchedEffect(lobbyStatus?.isRideStarted) {
-        if (lobbyStatus?.isRideStarted == true) {
+    val navigatedToRide = androidx.compose.runtime.saveable.rememberSaveable(lobbyStatus?.roomId ?: convoyName) {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(lobbyStatus?.roomId, lobbyStatus?.isRideStarted) {
+        if (lobbyStatus?.isRideStarted == true && !navigatedToRide.value) {
+            navigatedToRide.value = true
             val isHost = lobbyStatus?.isHost == true
-            homeViewModel.setActiveRide(convoyName, isHost = isHost)
-            onStartRide()
+            onStartRide(isHost)
         }
+    }
+
+    terminal?.let { term ->
+        val (termTitle, termBody) = when (term) {
+            LobbyViewModel.Terminal.ENDED -> "RIDE ENDED" to "The host ended this ride."
+            LobbyViewModel.Terminal.REMOVED -> "REMOVED FROM RIDE" to "You were removed from this ride."
+            LobbyViewModel.Terminal.NOT_FOUND -> "RIDE NOT FOUND" to "This ride no longer exists."
+        }
+        AlertDialog(
+            onDismissRequest = onBackClick,
+            title = {
+                Text(text = termTitle, style = MaterialTheme.typography.titleMedium, color = AlertRed)
+            },
+            text = {
+                Text(text = termBody, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
+            },
+            confirmButton = {
+                Button(
+                    onClick = onBackClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                ) {
+                    Text("OK", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = DarkSlate
+        )
     }
 
     if (showExitDialog) {
@@ -83,7 +114,10 @@ fun LobbyScreen(
                 Button(
                     onClick = {
                         showExitDialog = false
-                        onBackClick()
+                        val roomRef = lobbyStatus?.roomId ?: convoyName
+                        viewModel.leaveRoom(roomRef) {
+                            onBackClick()
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
                 ) {
@@ -176,27 +210,29 @@ fun LobbyScreen(
             }
         }
 
-        error?.let { err ->
-            Surface(
-                color = HazardContainer,
-                shape = RoundedCornerShape(8.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+        if (terminal == null) {
+            error?.let { err ->
+                Surface(
+                    color = HazardContainer,
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
                 ) {
-                    Icon(Icons.Default.Warning, contentDescription = "Error", tint = AlertRed, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "FAILED TO START: $err",
-                        color = TextPrimary,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = "Error", tint = AlertRed, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = err,
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         }
@@ -380,8 +416,7 @@ fun LobbyScreen(
                     text = startLabel,
                     onClick = {
                         viewModel.startRide(convoyName, onStartSuccess = {
-                            homeViewModel.setActiveRide(convoyName, isHost = true)
-                            onStartRide()
+                            onStartRide(true)
                         })
                     },
                     enabled = canStart,

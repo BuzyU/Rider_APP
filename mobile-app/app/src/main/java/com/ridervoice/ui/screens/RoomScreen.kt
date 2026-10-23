@@ -89,13 +89,15 @@ fun RoomScreen(
     val latestSelfMetric by viewModel.latestSelfMetric.collectAsState()
     val diagSampleCount by viewModel.diagSampleCount.collectAsState()
 
+    val activeRide by viewModel.activeRide.collectAsState()
+
     LaunchedEffect(Unit) {
-        if (com.ridervoice.models.RideSession.diagnosticsEnabled && !viewModel.isDiagnosticsConsentShown()) {
+        if (activeRide?.diagnosticsEnabled == true && !viewModel.isDiagnosticsConsentShown()) {
             showConsentDialog = true
         }
     }
 
-    val isHost = com.ridervoice.models.RideSession.isHost
+    val isHost = activeRide?.isHost ?: false
     val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val otherRiders = remember(participants, currentUid) {
         participants.filter { !it.isGhost && it.identity != currentUid }
@@ -104,7 +106,6 @@ fun RoomScreen(
     fun exitRideCleanup() {
         showLeaveConfirmDialog = false
         homeViewModel.clearActiveRide()
-        com.ridervoice.models.RideSession.clear()
         context.stopService(Intent(context, VoiceForegroundService::class.java))
         onLeave()
     }

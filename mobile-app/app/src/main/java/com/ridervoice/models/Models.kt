@@ -13,7 +13,9 @@ data class ConvoyCreateResponse(
     val roomId: String,
     val convoyName: String,
     val hostId: String,
-    val diagnosticsEnabled: Boolean = false
+    val diagnosticsEnabled: Boolean = false,
+    val joinCode: String? = null,
+    val status: String? = null
 )
 
 data class LobbyStatus(
@@ -67,7 +69,8 @@ data class StartRideResponse(
     val roomId: String? = null,
     val livekitUrl: String,
     val diagnosticsEnabled: Boolean = false,
-    val testNumber: Int? = null
+    val testNumber: Int? = null,
+    val expiresAt: String? = null
 )
 
 data class JoinTokenRequest(
@@ -141,6 +144,42 @@ data class RoomData(
 data class RoomTokenRequest(val roomName: String)
 data class FcmTokenRequest(val userId: String, val token: String, val platform: String = "android")
 
+data class PostRideSnapshot(
+    val convoyName: String,
+    val testNumber: Int = 1,
+    val diagnosticsEnabled: Boolean = false,
+    val endedBy: String = "USER"
+)
+
+data class TokenPayload(
+    val token: String,
+    val livekitUrl: String? = null,
+    val roomId: String? = null,
+    val roomName: String? = null,
+    val expiresAtEpochSec: Long? = null,
+    val diagnosticsEnabled: Boolean = false,
+    val testNumber: Int? = null
+)
+
+data class RefreshTokenRequest(
+    val roomId: String? = null,
+    val roomName: String? = null
+)
+
+data class LobbyJoinRequest(
+    val kind: String, // "TOKEN", "CODE", "MEMBER"
+    val value: String
+)
+
+data class AppConfigResponse(
+    val roomIdMode: Boolean? = null,
+    val minAppVersion: String? = null,
+    val latestVersion: String? = null,
+    val apkUrl: String? = null,
+    val maintenance: Boolean? = null
+)
+
+@Deprecated("Use ActiveRideRepository instead")
 object RideSession {
     var livekitUrl: String = ""
     var livekitToken: String = ""

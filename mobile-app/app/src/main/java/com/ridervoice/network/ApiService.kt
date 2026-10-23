@@ -90,6 +90,24 @@ interface ApiService {
     @GET("/api/rides/history")
     suspend fun getRideHistory(): Response<List<com.ridervoice.models.RideHistoryResponse>>
 
+    @POST("/api/rooms/token/refresh")
+    suspend fun refreshToken(@Body body: com.ridervoice.models.RefreshTokenRequest): Response<StartRideResponse>
+
+    @POST("/api/lobby/join")
+    suspend fun joinLobbyUnified(@Body body: com.ridervoice.models.LobbyJoinRequest): Response<StartRideResponse>
+
+    @POST("/api/lobby/{roomName}/leave")
+    suspend fun leaveLobby(@Path("roomName") roomName: String): Response<Any>
+
+    @POST("/api/invites/{id}/accept")
+    suspend fun acceptRideInvite(@Path("id") id: String): Response<StartRideResponse>
+
+    @GET("/api/app/config")
+    suspend fun getAppConfig(): Response<com.ridervoice.models.AppConfigResponse>
+
+    @DELETE("/api/users/fcm-token")
+    suspend fun deleteFcmToken(@retrofit2.http.Query("token") token: String? = null): Response<Any>
+
     @POST("/api/diagnostics/runs/room/{roomName}/finalize")
     suspend fun finalizeDiagnosticRun(@Path("roomName") roomName: String): Response<Any>
 

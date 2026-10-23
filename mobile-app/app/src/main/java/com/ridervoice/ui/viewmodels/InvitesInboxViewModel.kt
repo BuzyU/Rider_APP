@@ -17,7 +17,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class InvitesInboxViewModel @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository
 ) : ViewModel() {
 
     private val _invites = MutableStateFlow<List<RideInvite>>(emptyList())
@@ -52,34 +53,44 @@ class InvitesInboxViewModel @Inject constructor(
     fun respondToInvite(invite: RideInvite, accept: Boolean, onAcceptSuccess: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                val req = InviteRespondRequest(
-                    inviteId = invite.id,
-                    response = if (accept) "ACCEPTED" else "DECLINED"
-                )
-                val response = apiService.respondToInvite(req)
-                if (response.isSuccessful) {
-                    _invites.value = _invites.value.filter { it.id != invite.id }
-                    if (accept) {
-                        val tokenReq = JoinTokenRequest(invite.room.name)
-                        val tokenRes = apiService.getJoinToken(tokenReq)
-                        if (tokenRes.isSuccessful && tokenRes.body() != null) {
-                            val body = tokenRes.body()!!
-                            RideSession.livekitToken = body.token
-                            RideSession.livekitUrl = body.livekitUrl.ifBlank { com.ridervoice.utils.Constants.LIVEKIT_URL }
-                            RideSession.activeRoomName = invite.room.name
-                            RideSession.diagnosticsEnabled = body.diagnosticsEnabled
-                            RideSession.testNumber = body.testNumber
-                            RideSession.isHost = false
-                            onAcceptSuccess(invite.room.name)
-                        } else {
-                            _error.value = "Invite accepted but failed to connect. Please retry joining from the Home screen."
-                        }
+                if (accept) {
+                    val response = apiService.acceptRideInvite(invite.id)
+                    if (response.isSuccessful && response.body() != null) {
+                        val body = response.body()!!
+                        activeRideRepository.enterLobby(
+                            roomId = body.roomId ?: invite.roomId,
+                            name = body.roomName ?: invite.room.name,
+                            isHost = false
+                        )
+                        activeRideRepository.applyTokenPayload(
+                            com.ridervoice.models.TokenPayload(
+                                token = body.token,
+                                livekitUrl = body.livekitUrl,
+                                roomId = body.roomId ?: invite.roomId,
+                                roomName = body.roomName ?: invite.room.name,
+                                diagnosticsEnabled = body.diagnosticsEnabled,
+                                testNumber = body.testNumber
+                            )
+                        )
+                        _invites.value = _invites.value.filter { it.id != invite.id }
+                        onAcceptSuccess(body.roomName ?: invite.room.name)
+                    } else {
+                        _error.value = "Failed to accept invite (code ${response.code()}). Please try again."
                     }
                 } else {
-                    _error.value = "Failed to respond to invite (${response.code()})"
+                    val req = InviteRespondRequest(
+                        inviteId = invite.id,
+                        response = "DECLINED"
+                    )
+                    val response = apiService.respondToInvite(req)
+                    if (response.isSuccessful) {
+                        _invites.value = _invites.value.filter { it.id != invite.id }
+                    } else {
+                        _error.value = "Failed to decline invite (${response.code()})"
+                    }
                 }
             } catch (e: Exception) {
-                _error.value = e.localizedMessage ?: "Failed to respond to invite"
+                _error.value = e.localizedMessage ?: "Network error while responding to invite"
             }
         }
     }

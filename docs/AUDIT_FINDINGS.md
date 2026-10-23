@@ -2,7 +2,7 @@
 
 **Repository Target**: `github.com/BuzyU/Rider_APP`  
 **Base Target Commit**: `65e718c` (app v0.0.3.14)  
-**Current Branch**: `main` (synchronized with `origin/main` at commit `50ac0f8`)  
+**Current Branch**: `main` (synchronized with `origin/main` at commit `ac4df7c`)  
 **Status Legend**:  
 - `FIXED`: Verified and passing automated tests / CI workflows.  
 - `PARTIAL`: Component partially implemented (e.g., backend complete, mobile UI wiring pending).  
@@ -19,7 +19,7 @@
 | **Backend CI** | 37 passing unit tests | **73 passing tests across 18 test suites** (0 failures) | Passed (`npx prisma validate && npm test`) |
 | **Mobile App CI** | Pre-audit build state | **112 passing unit tests, 0 compile errors** | Passed (`./gradlew :app:testDebugUnitTest :app:assembleDebug`) |
 | **Web App CI** | Baseline Next.js build | **Webpack production build prerendered** | Passed (`next build --webpack`) |
-| **GitHub Actions** | Previous run `65e718c` | **Run #39897916950 (commit `50ac0f8`)** | **100% SUCCESS** across all 3 verification jobs |
+| **GitHub Actions** | Previous run `65e718c` | **Run #39899513004 (commit `ac4df7c`)** | **100% SUCCESS** across all 3 verification jobs |
 
 ### Findings Resolution Summary
 
@@ -149,7 +149,7 @@ pie title Master Fix Resolution Progress
 | **Phase 8** | Backend Hardening | Backend | **COMPLETE** | Per-user rate limiting (H11), Prisma migration, `clientRideId` idempotency (H10), legacy client gate (HTTP 426), 100KB body limit. |
 | **Phase 9** | Security & Release Pipeline | Mobile & CI | **PENDING** | Signing fallback hardening (H14), OTA cert verification, `release.yml` gate. |
 | **Phase 10** | Cleanup, Docs & Honesty | Docs & Codebase | **COMPLETE** | Audit tracker updated, `docs/UX_COPY.md` created, tactical jargon purged, RoomScreen modularized into 8 subcomponents, dead code identified for next milestone (F4). |
-| **Phase 11** | Verification | Test Suites & CI | **AUTOMATED CI COMPLETE (100% SUCCESS)** | Automated CI completely green: 73 Backend tests passing, 112 Mobile unit tests passing, Next.js build succeeding. GitHub Actions Run #39897916950 100% SUCCESS across all 3 jobs. Physical device field test script documented in Section 4. |
+| **Phase 11** | Verification | Test Suites & CI | **AUTOMATED CI COMPLETE (100% SUCCESS)** | Automated CI completely green: 73 Backend tests passing, 112 Mobile unit tests passing, Next.js build succeeding. GitHub Actions Runs #39897916950 and #39899513004 100% SUCCESS across all 3 jobs. Physical device field test script documented in Section 4. |
 | **Phase 12** | Ship | Release | **PENDING** | Version bump to `v0.0.3.15` and staggered deployment plan. |
 
 ---

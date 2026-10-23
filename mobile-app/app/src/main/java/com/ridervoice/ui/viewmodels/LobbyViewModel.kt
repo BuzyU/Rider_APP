@@ -28,6 +28,9 @@ class LobbyViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _uiMessage = MutableStateFlow<com.ridervoice.ui.components.UiMessage?>(null)
+    val uiMessage: StateFlow<com.ridervoice.ui.components.UiMessage?> = _uiMessage.asStateFlow()
+
     /** Why polling stopped for good, or null while the room is still live/pollable (H3). */
     enum class Terminal { ENDED, REMOVED, NOT_FOUND }
 
@@ -80,19 +83,25 @@ class LobbyViewModel @Inject constructor(
                         410 -> {
                             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.ENDED_BY_HOST)
                             _terminal.value = Terminal.ENDED
-                            _error.value = "This ride has ended"
+                            val msg = com.ridervoice.ui.components.UiMessageMapper.map(410)
+                            _uiMessage.value = msg
+                            _error.value = msg.message
                             break
                         }
                         403 -> {
                             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.REMOVED)
                             _terminal.value = Terminal.REMOVED
-                            _error.value = "You are no longer part of this ride"
+                            val msg = com.ridervoice.ui.components.UiMessageMapper.map(403, "REMOVED_BY_HOST")
+                            _uiMessage.value = msg
+                            _error.value = msg.message
                             break
                         }
                         404 -> {
                             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.NOT_FOUND)
                             _terminal.value = Terminal.NOT_FOUND
-                            _error.value = "Ride not found"
+                            val msg = com.ridervoice.ui.components.UiMessageMapper.map(404)
+                            _uiMessage.value = msg
+                            _error.value = msg.message
                             break
                         }
                         else -> {
@@ -101,7 +110,9 @@ class LobbyViewModel @Inject constructor(
                     }
                 } catch (e: Exception) {
                     consecutiveErrors++
-                    _error.value = e.localizedMessage ?: "Network connection issue"
+                    val msg = com.ridervoice.ui.components.UiMessageMapper.map(500, fallback = e.localizedMessage ?: "Network connection issue")
+                    _uiMessage.value = msg
+                    _error.value = msg.message
                 }
                 val delayMs = if (consecutiveErrors >= 3) 10000L else 3000L
                 delay(delayMs)

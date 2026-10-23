@@ -156,6 +156,8 @@ class VoxDetector(
         floorTracker.setFloor(value)
     }
 
+    private var wasBelowClose = false
+
     @Synchronized
     fun evaluate(rms: Float, now: Long, isOpen: Boolean, frameDurationMs: Long = cfg.analysisMs.toLong()): Decision {
         if (!isOpen) {
@@ -164,6 +166,7 @@ class VoxDetector(
                 if (attackAccumMs >= cfg.attackMs) {
                     lastSpeechTime = now
                     openStartTime = now
+                    wasBelowClose = false
                     highestRmsDuringOpen = rms
                     attackAccumMs = 0L
                     com.ridervoice.utils.RvLog.vox("open floor=$floor thr=$openThreshold speed=$speedExtra")
@@ -178,18 +181,23 @@ class VoxDetector(
             }
 
             if (rms >= closeThreshold) {
+                if (wasBelowClose) {
+                    openStartTime = now
+                    wasBelowClose = false
+                }
                 lastSpeechTime = now
-            } else if (now - lastSpeechTime >= cfg.holdMs) {
-                com.ridervoice.utils.RvLog.vox("close floor=$floor thr=$closeThreshold hold=${now - lastSpeechTime}")
-                return Decision.CLOSE
-            }
-
-            // Max open guard: if OPEN for maxOpenWithoutSpeechMs and no window exceeded floor * openRatio * 1.2
-            if (now - openStartTime >= cfg.maxOpenWithoutSpeechMs) {
-                if (highestRmsDuringOpen < floor * openRatio * 1.2f) {
-                    com.ridervoice.utils.RvLog.vox("close max_open_guard=true floor=$floor")
+            } else {
+                wasBelowClose = true
+                if (now - lastSpeechTime >= cfg.holdMs) {
+                    com.ridervoice.utils.RvLog.vox("close floor=$floor thr=$closeThreshold hold=${now - lastSpeechTime}")
                     return Decision.CLOSE
                 }
+            }
+
+            // Max open guard: if OPEN for maxOpenWithoutSpeechMs continuously, force close
+            if (now - openStartTime >= cfg.maxOpenWithoutSpeechMs) {
+                com.ridervoice.utils.RvLog.vox("close max_open_guard=true floor=$floor")
+                return Decision.CLOSE
             }
         }
         return Decision.NONE

@@ -128,6 +128,17 @@ async function resolveRoom(ref, opts = {}) {
         })
     }
 
+    // R10: If not found among active rooms and allowEnded is true, check for ended rooms by name
+    if (!room && opts.allowEnded) {
+        room = await prisma.room.findFirst({
+            where: {
+                name: { equals: ref, mode: 'insensitive' }
+            },
+            orderBy: { createdAt: 'desc' },
+            select: baseSelect
+        })
+    }
+
     if (!room) {
         throw resolverError(404, 'Room not found', 'ROOM_NOT_FOUND')
     }
@@ -164,7 +175,8 @@ async function markRoomEnded(roomId) {
 /**
  * Check if a user is a member (owner or ACCEPTED invite) of a non-ENDED room.
  */
-async function isMember(roomId, userId) {
+async function isMember(roomId, userId, options = {}) {
+    const { allowEnded = false } = options
     const room = await prisma.room.findUnique({
         where: { id: roomId },
         select: {
@@ -177,8 +189,9 @@ async function isMember(roomId, userId) {
             }
         }
     })
-    if (!room || room.status === 'ENDED') return false
-    return room.ownerId === userId || room.invites.length > 0
+    if (!room) return false
+    if (!allowEnded && room.status === 'ENDED') return false
+    return room.ownerId === userId || (room.invites && room.invites.length > 0)
 }
 
 /**

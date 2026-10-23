@@ -47,6 +47,28 @@ async function sweepStaleRooms(deps = {}) {
                 }
             }
 
+            // 1b. R15: LOBBY older than 24h regardless of accepted riders -> ENDED
+            const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+            const ancientLobbies = await prisma.room.findMany({
+                where: {
+                    status: 'LOBBY',
+                    createdAt: { lte: twentyFourHoursAgo }
+                },
+                select: { id: true, name: true }
+            })
+
+            for (const lobby of ancientLobbies) {
+                if (swept.some(s => s.id === lobby.id)) continue
+                const updated = await prisma.room.updateMany({
+                    where: { id: lobby.id, status: 'LOBBY' },
+                    data: { status: 'ENDED', endedAt: now, joinCode: null }
+                })
+                if (updated.count > 0) {
+                    await finalizeSweptRoom(lobby, 'EXPIRED_LOBBY', livekitClient)
+                    swept.push({ id: lobby.id, reason: 'EXPIRED_LOBBY' })
+                }
+            }
+
             // 2. ACTIVE older than 12h -> ENDED (reason ABANDONED)
             const ancientActive = await prisma.room.findMany({
                 where: {
@@ -70,10 +92,10 @@ async function sweepStaleRooms(deps = {}) {
                 }
             }
 
-            // 3. ACTIVE with listParticipants empty for > 15 min
+            // 3. ACTIVE with listParticipants empty or lastEmptyAt older than 15 min (R1 + R15)
             const activeRooms = await prisma.room.findMany({
                 where: { status: 'ACTIVE' },
-                select: { id: true, name: true }
+                select: { id: true, name: true, lastEmptyAt: true }
             })
 
             for (const room of activeRooms) {
@@ -90,10 +112,19 @@ async function sweepStaleRooms(deps = {}) {
 
                 if (Array.isArray(participants)) {
                     if (participants.length === 0) {
-                        const firstEmpty = activeRoomEmptySince.get(room.id) || Date.now()
-                        activeRoomEmptySince.set(room.id, firstEmpty)
+                        const emptySince = room.lastEmptyAt
+                            ? new Date(room.lastEmptyAt).getTime()
+                            : (activeRoomEmptySince.get(room.id) || Date.now())
+                        activeRoomEmptySince.set(room.id, emptySince)
 
-                        if (Date.now() - firstEmpty >= fifteenMinMs) {
+                        if (!room.lastEmptyAt && typeof prisma.room?.update === 'function') {
+                            await prisma.room.update({
+                                where: { id: room.id },
+                                data: { lastEmptyAt: new Date(emptySince) }
+                            }).catch(() => null)
+                        }
+
+                        if (Date.now() - emptySince >= fifteenMinMs) {
                             const updated = await prisma.room.updateMany({
                                 where: { id: room.id, status: 'ACTIVE' },
                                 data: { status: 'ENDED', endedAt: now, joinCode: null }
@@ -106,6 +137,12 @@ async function sweepStaleRooms(deps = {}) {
                         }
                     } else {
                         activeRoomEmptySince.delete(room.id)
+                        if (room.lastEmptyAt && typeof prisma.room?.update === 'function') {
+                            await prisma.room.update({
+                                where: { id: room.id },
+                                data: { lastEmptyAt: null }
+                            }).catch(() => null)
+                        }
                     }
                 }
             }

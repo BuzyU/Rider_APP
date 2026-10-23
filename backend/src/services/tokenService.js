@@ -15,6 +15,7 @@
 
 const { AccessToken, RoomServiceClient } = require('livekit-server-sdk')
 const prisma = require('../db')
+const { riderCallsign, disambiguateCallsigns } = require('./identity')
 
 const LIVEKIT_TOKEN_TTL = '2h'
 const TOKEN_TTL_MS = 2 * 60 * 60 * 1000
@@ -28,17 +29,40 @@ function getLiveKitHttpUrl() {
 }
 
 /**
- * Resolve the display name for a user.
+ * Resolve the display name for a user using riderCallsign and disambiguate across room members (R11).
  */
-async function resolveDisplayName(uid, fallback = 'Rider') {
+async function resolveDisplayName(uid, fallback = 'Rider', roomId = null) {
     try {
         const u = await prisma.user.findUnique({
             where: { id: uid },
             select: { displayName: true, handle: true }
         })
-        return u?.displayName || (u?.handle ? `@${u.handle}` : null) || fallback
+        const baseCallsign = riderCallsign({
+            id: uid,
+            displayName: u?.displayName || (fallback !== 'Rider' ? fallback : null),
+            handle: u?.handle
+        })
+
+        if (roomId && typeof prisma.rideInvite?.findMany === 'function') {
+            const accepted = await prisma.rideInvite.findMany({
+                where: { roomId, status: 'ACCEPTED', inviteeId: { not: uid } },
+                include: { invitee: { select: { id: true, displayName: true, handle: true } } }
+            }).catch(() => [])
+
+            const others = accepted.map(a => ({
+                id: a.inviteeId,
+                callsign: riderCallsign(a.invitee || { id: a.inviteeId })
+            }))
+
+            const all = [...others, { id: uid, callsign: baseCallsign }]
+            const disambiguated = disambiguateCallsigns(all)
+            const selfEntry = disambiguated.find(e => e.id === uid)
+            return selfEntry?.callsign || baseCallsign
+        }
+
+        return baseCallsign
     } catch {
-        return fallback
+        return riderCallsign({ id: uid, displayName: fallback })
     }
 }
 
@@ -113,8 +137,8 @@ async function issueRoomToken(user, room) {
         }
     }
 
-    // 3. Resolve display name
-    const displayName = await resolveDisplayName(user.uid, user.name || 'Rider')
+    // 3. Resolve display name using riderCallsign & disambiguateCallsigns (R11)
+    const displayName = await resolveDisplayName(user.uid, user.name || 'Rider', room.id)
 
     // 4. Compute LiveKit room name
     const roomName = lkRoomName(room)

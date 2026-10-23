@@ -16,7 +16,10 @@ import javax.inject.Inject
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val apiService: ApiService,
-    private val securePrefs: com.ridervoice.security.SecurePreferences
+    private val securePrefs: com.ridervoice.security.SecurePreferences,
+    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository,
+    private val liveKitManager: com.ridervoice.network.LiveKitManager,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -42,6 +45,7 @@ class AuthViewModel @Inject constructor(
     private suspend fun ensureProfile(customHandle: String? = null) {
         val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser ?: return
         try {
+            com.ridervoice.services.FcmTokenManager.registerCurrentToken(apiService)
             val existing = apiService.getMyProfile()
             if (existing.isSuccessful && existing.body()?.handle != null && customHandle == null) return
 
@@ -95,6 +99,9 @@ class AuthViewModel @Inject constructor(
         authRepository.signOut()
         com.ridervoice.models.RideSession.clear()
         securePrefs.clearActiveRide()
+        activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.SIGNED_OUT)
+        liveKitManager.disconnect()
+        com.ridervoice.services.VoiceForegroundService.stop(context)
         _loginSuccess.value = false
         _otpSent.value = false
         _verificationId = null

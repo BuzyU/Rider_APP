@@ -27,6 +27,8 @@ import androidx.activity.enableEdgeToEdge
 import com.ridervoice.permissions.PermissionManager
 import com.ridervoice.ui.theme.*
 import com.ridervoice.update.AppVersion
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -35,6 +37,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var securePreferences: com.ridervoice.security.SecurePreferences
     @Inject lateinit var appEvents: com.ridervoice.state.AppEvents
+    @Inject lateinit var apiService: com.ridervoice.network.ApiService
 
     private val showPermissionRationale = mutableStateOf(false)
 
@@ -54,6 +57,12 @@ class MainActivity : ComponentActivity() {
         permissionLauncher.launch(PermissionManager.requiredPermissions)
 
         com.ridervoice.ui.theme.ThemeState.set(securePreferences.getBoolean("dark_theme_enabled", false))
+
+        if (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
+            lifecycleScope.launch {
+                com.ridervoice.services.FcmTokenManager.registerCurrentToken(apiService)
+            }
+        }
 
         val deepLinkToken = com.ridervoice.navigation.DeepLinkHolder.parseDeepLinkToken(intent?.data)
         if (!deepLinkToken.isNullOrBlank()) {

@@ -117,9 +117,29 @@ function isJoinCodeBlocked(ip) {
     return recent.length >= 10
 }
 
+/**
+ * Dedicated limiter for join endpoints (POST /lobby/join and /lobby/join-code).
+ * Blocks client after 10 failed attempts within 10 minutes (R14).
+ */
+function joinLimiter(req, res, next) {
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown'
+    const uid = req.user?.uid || 'anon'
+    const key = `${ip}:${uid}`
+
+    if (isJoinCodeBlocked(key) || isJoinCodeBlocked(ip)) {
+        res.setHeader('Retry-After', '600')
+        return res.status(429).json({
+            error: 'Too many failed join attempts from this client. Please wait 10 minutes before retrying.',
+            code: 'JOIN_RATE_LIMIT'
+        })
+    }
+    next()
+}
+
 module.exports = {
     ipLimiter,
     userLimiter,
+    joinLimiter,
     recordFailedJoinCode,
     isJoinCodeBlocked,
     rateLimiter: ipLimiter,

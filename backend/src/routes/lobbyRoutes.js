@@ -38,8 +38,9 @@ const cacheService = require('../services/cacheService')
 const { resolveRoom, markRoomEnded, generateUniqueJoinCode, isReservedName, ResolverError, invalidateRoom, lkRoomName: _lkRoomName } = require('../services/roomResolver')
 const { issueRoomToken, lkRoomName } = require('../services/tokenService')
 const { selfJoin, removeRider, leaveRoom, notifyJoined } = require('../services/membershipService')
-const { joinWithLinkToken, joinWithCode, joinAsMember, extractCleanToken } = require('../services/joinService')
+const { joinLimiter, recordFailedJoinCode } = require('../middleware/rateLimiter')
 const { riderCallsign } = require('../services/identity')
+const { joinWithLinkToken, joinWithCode, joinAsMember, extractCleanToken } = require('../services/joinService')
 
 // --- Helpers -----------------------------------------------------------------
 
@@ -84,6 +85,20 @@ async function removeLiveKitParticipant(lkRoomName, userId) {
 
 const recentCreateRequests = new Map()
 
+function sweepRecentCreateRequests() {
+    const now = Date.now()
+    for (const [id, entry] of recentCreateRequests.entries()) {
+        if (now - entry.timestamp > 60000) {
+            recentCreateRequests.delete(id)
+        }
+    }
+    while (recentCreateRequests.size > 5000) {
+        const oldestKey = recentCreateRequests.keys().next().value
+        if (oldestKey) recentCreateRequests.delete(oldestKey)
+        else break
+    }
+}
+
 // --- POST /lobby/create -------------------------------------------------------
 
 router.post('/create', async (req, res, next) => {
@@ -99,6 +114,7 @@ router.post('/create', async (req, res, next) => {
         clientRequestId
     } = req.body
 
+    sweepRecentCreateRequests()
     if (clientRequestId && recentCreateRequests.has(clientRequestId)) {
         const cached = recentCreateRequests.get(clientRequestId)
         if (Date.now() - cached.timestamp < 60000) {
@@ -123,25 +139,29 @@ router.post('/create', async (req, res, next) => {
     }
 
     try {
-        // A4 - never revive stale rows. Check for an active (non-ENDED) room with this name.
-        // Check for an active (non-ENDED) room with this name or collision
-        const existing = await prisma.room.findFirst({
-            where: {
-                name: { equals: trimmedName, mode: 'insensitive' },
-                status: { not: 'ENDED' }
-            },
-            select: { id: true, ownerId: true }
-        }).catch(() => null) || (typeof prisma.room.findUnique === 'function' ? await prisma.room.findUnique({
-            where: { name: trimmedName },
-            select: { id: true, ownerId: true }
-        }).catch(() => null) : null)
+        const findRoomByName = async (name) => {
+            let found = null
+            if (typeof prisma.room.findFirst === 'function') {
+                found = await prisma.room.findFirst({
+                    where: {
+                        name: { equals: name, mode: 'insensitive' },
+                        status: { not: 'ENDED' }
+                    },
+                    select: { id: true, ownerId: true, name: true }
+                }).catch(() => null)
+            }
+            if (!found && typeof prisma.room.findUnique === 'function') {
+                found = await prisma.room.findUnique({ where: { name } }).catch(() => null)
+            }
+            return found
+        }
 
         let finalConvoyName = trimmedName
+        const existing = await findRoomByName(trimmedName)
         if (existing) {
             let suffix = 2
             let candidate = `${trimmedName}-${suffix}`
-            while ((typeof prisma.room.findUnique === 'function' && await prisma.room.findUnique({ where: { name: candidate }, select: { id: true } }).catch(() => null)) ||
-                   (typeof prisma.room.findFirst === 'function' && await prisma.room.findFirst({ where: { name: candidate, status: { not: 'ENDED' } }, select: { id: true } }).catch(() => null))) {
+            while (await findRoomByName(candidate)) {
                 suffix++
                 candidate = `${trimmedName}-${suffix}`
             }
@@ -280,23 +300,42 @@ router.get('/:roomRef/status', async (req, res, next) => {
             ? allInvites.filter(inv => inv.status !== 'REMOVED')
             : allInvites.filter(inv => inv.status === 'ACCEPTED' || inv.invitee?.id === requesterId)
 
-        const formattedInvites = visibleInvites.map(inv => ({
-            inviteId: inv.id,
-            status: inv.status,
-            source: inv.source,
-            invitee: {
-                id: inv.invitee?.id,
-                handle: inv.invitee?.handle || null,
-                displayName: inv.invitee?.displayName || null,
-                callsign: riderCallsign(inv.invitee),
-                bikeModel: inv.invitee?.bikeModel || null
-            }
-        }))
-
         // Counts
         const acceptedCount = allInvites.filter(inv => inv.status === 'ACCEPTED').length
         const pendingCount = allInvites.filter(inv => inv.status === 'PENDING').length
         const declinedCount = allInvites.filter(inv => inv.status === 'DECLINED').length
+        const leftCount = allInvites.filter(inv => inv.status === 'LEFT').length
+
+        // R16: Separate left riders from active formatted invites
+        const leftRiders = visibleInvites
+            .filter(inv => inv.status === 'LEFT')
+            .map(inv => ({
+                inviteId: inv.id,
+                status: inv.status,
+                source: inv.source,
+                invitee: {
+                    id: inv.invitee?.id,
+                    handle: inv.invitee?.handle || null,
+                    displayName: inv.invitee?.displayName || null,
+                    callsign: riderCallsign(inv.invitee),
+                    bikeModel: inv.invitee?.bikeModel || null
+                }
+            }))
+
+        const formattedInvites = visibleInvites
+            .filter(inv => inv.status !== 'LEFT')
+            .map(inv => ({
+                inviteId: inv.id,
+                status: inv.status,
+                source: inv.source,
+                invitee: {
+                    id: inv.invitee?.id,
+                    handle: inv.invitee?.handle || null,
+                    displayName: inv.invitee?.displayName || null,
+                    callsign: riderCallsign(inv.invitee),
+                    bikeModel: inv.invitee?.bikeModel || null
+                }
+            }))
 
         const allowSolo = req.query.allowSolo === 'true' || req.query.allowSolo === true
         const canStart = isOwner && (acceptedCount >= 1 || allowSolo)
@@ -326,6 +365,8 @@ router.get('/:roomRef/status', async (req, res, next) => {
             estimatedDurationMin: room.estimatedDurationMin || null,
             host,
             invites: formattedInvites,
+            leftRiders,
+            leftCount,
             acceptedCount,
             pendingCount,
             declinedCount,
@@ -350,10 +391,17 @@ router.post('/:roomRef/start', async (req, res, next) => {
     const user = req.user
 
     try {
-        const room = await resolveRoom(roomRef, { requireStatus: ['LOBBY'] })
+        // R3: allow ['LOBBY', 'ACTIVE'] so start is idempotent and token failure does not lock host out
+        const room = await resolveRoom(roomRef, { requireStatus: ['LOBBY', 'ACTIVE'] })
 
         if (room.ownerId !== user.uid) {
             return res.status(403).json({ error: 'Only the host can start the ride' })
+        }
+
+        if (room.status === 'ACTIVE') {
+            // Already ACTIVE: issue fresh token and return
+            const tokenResult = await issueRoomToken(user, room)
+            return res.json(tokenResult)
         }
 
         // H4 - verify canStart: need at least one ACCEPTED member (unless allowSolo)
@@ -368,11 +416,20 @@ router.post('/:roomRef/start', async (req, res, next) => {
             })
         }
 
-        // Transition room to ACTIVE
-        await prisma.room.update({
-            where: { id: room.id },
-            data: { startedAt: new Date(), status: 'ACTIVE' }
-        })
+        // Transition room to ACTIVE conditionally
+        if (typeof prisma.room.updateMany === 'function') {
+            await prisma.room.updateMany({
+                where: { id: room.id, status: 'LOBBY' },
+                data: { startedAt: new Date(), status: 'ACTIVE' }
+            }).catch(() => null)
+        } else if (typeof prisma.room.update === 'function') {
+            await prisma.room.update({
+                where: { id: room.id },
+                data: { startedAt: new Date(), status: 'ACTIVE' }
+            }).catch(() => null)
+        }
+
+        invalidateRoom(room.id)
 
         // Issue token via tokenService (A1 + A2 + F3)
         const tokenResult = await issueRoomToken(user, { ...room, status: 'ACTIVE' })
@@ -452,7 +509,8 @@ router.post('/:roomRef/share-link', async (req, res, next) => {
         const tokenValue = crypto.randomBytes(8).toString('hex')
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
-        if (typeof prisma.roomJoinToken?.create === 'function') {
+        // R4: create join token without swallowing database error
+        try {
             await prisma.roomJoinToken.create({
                 data: {
                     roomId: room.id,
@@ -462,7 +520,10 @@ router.post('/:roomRef/share-link', async (req, res, next) => {
                     maxUses
                 },
                 select: { id: true }
-            }).catch(err => console.warn('[share-link] create token warning:', err.message))
+            })
+        } catch (dbErr) {
+            console.error('[share-link] create token error:', dbErr.message)
+            return res.status(503).json({ error: 'Failed to create share link in database', code: 'DATABASE_ERROR' })
         }
 
         const baseUrl = process.env.APP_BASE_URL || process.env.RENDER_EXTERNAL_URL
@@ -505,14 +566,19 @@ router.post('/join-via-token', async (req, res, next) => {
 
 // --- POST /lobby/join-code ----------------------------------------------------
 
-router.post('/join-code', async (req, res, next) => {
+router.post('/join-code', joinLimiter, async (req, res, next) => {
     const { joinCode } = req.body
     if (!joinCode) return res.status(400).json({ error: 'joinCode is required' })
+
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown'
+    const uid = req.user?.uid || 'anon'
 
     try {
         const tokenResult = await joinWithCode(joinCode, req.user)
         res.json(tokenResult)
     } catch (error) {
+        recordFailedJoinCode(ip)
+        recordFailedJoinCode(`${ip}:${uid}`)
         if (error instanceof ResolverError) {
             return res.status(error.status).json({ error: error.message, code: error.code })
         }
@@ -525,11 +591,14 @@ router.post('/join-code', async (req, res, next) => {
 
 // --- POST /lobby/join ---------------------------------------------------------
 // Unified join endpoint: kind = "TOKEN" | "CODE" | "MEMBER"
-router.post('/join', async (req, res, next) => {
+router.post('/join', joinLimiter, async (req, res, next) => {
     const { kind, value } = req.body || {}
     if (!kind || !value) {
         return res.status(400).json({ error: 'kind (TOKEN|CODE|MEMBER) and value are required', code: 'MISSING_FIELDS' })
     }
+
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown'
+    const uid = req.user?.uid || 'anon'
 
     try {
         let result
@@ -548,6 +617,8 @@ router.post('/join', async (req, res, next) => {
         }
         res.json(result)
     } catch (error) {
+        recordFailedJoinCode(ip)
+        recordFailedJoinCode(`${ip}:${uid}`)
         if (error instanceof ResolverError) {
             return res.status(error.status).json({ error: error.message, code: error.code })
         }
@@ -565,7 +636,11 @@ router.post('/:roomRef/leave', async (req, res, next) => {
     const user = req.user
 
     try {
-        const room = await resolveRoom(roomRef)
+        // R10: allowEnded: true so leaving an already ended room is idempotent
+        const room = await resolveRoom(roomRef, { allowEnded: true })
+        if (room.status === 'ENDED') {
+            return res.json({ success: true, alreadyEnded: true, message: 'Convoy already ended' })
+        }
         if (room.ownerId === user.uid) {
             return res.status(400).json({ error: 'The host cannot leave the convoy; transfer ownership or end the convoy', code: 'HOST_CANNOT_LEAVE' })
         }
@@ -768,9 +843,23 @@ router.post('/:roomRef/transfer-host', async (req, res, next) => {
             data: { revokedAt: new Date() }
         })
 
+        // R12: Send HOST_TRANSFERRED event to LiveKit room data channel
+        const newHostUser = await prisma.user.findUnique({
+            where: { id: newHostId },
+            select: { displayName: true, handle: true }
+        }).catch(() => null)
+        const newHostCallsign = riderCallsign(newHostUser || { id: newHostId })
+
+        await sendLiveKitData(lkRoomName(room), {
+            type: 'HOST_TRANSFERRED',
+            roomId: room.id,
+            newHostId,
+            newHostCallsign
+        }).catch(err => console.warn('[transfer-host] LiveKit broadcast warning:', err.message))
+
         cacheService.del('lobby_status:' + room.name);
         cacheService.del('lobby_status:' + room.id);
-        res.json({ success: true, newHostId, previousHostId: hostId })
+        res.json({ success: true, newHostId, newHostCallsign, previousHostId: hostId })
     } catch (error) {
         if (error instanceof ResolverError) {
             return res.status(error.status).json({ error: error.message, code: error.code })

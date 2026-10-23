@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { WebhookReceiver, RoomServiceClient } = require('livekit-server-sdk')
 const prisma = require('../db')
-const { resolveRoom, markRoomEnded, invalidateRoom } = require('../services/roomResolver')
+const { resolveRoom, markRoomEnded, invalidateRoom, ResolverError } = require('../services/roomResolver')
 const diagnosticService = require('../services/diagnosticService')
 
 function getRoomServiceClient() {
@@ -74,24 +74,38 @@ async function handleLiveKitEvent(event, deps = {}) {
                 await client.removeParticipant(lkRoomName, identity).catch(err => console.warn(`[webhook] removeParticipant warning: ${err.message}`))
                 return
             }
+
+            // R1: If participant rejoins an active room that had lastEmptyAt set, clear it
+            if (room.lastEmptyAt && typeof prisma.room?.update === 'function') {
+                await prisma.room.update({
+                    where: { id: room.id },
+                    data: { lastEmptyAt: null }
+                }).catch(() => null)
+            }
         } catch (err) {
-            console.warn(`[webhook] Kicking ${identity}: room resolution failed: ${err.message}`)
-            await client.removeParticipant(lkRoomName, identity).catch(e => console.warn(`[webhook] removeParticipant warning: ${e.message}`))
+            // R2 fix: Only kick on ResolverError 404/410. On DB errors/timeouts, log and DO NOT kick.
+            if (err instanceof ResolverError && (err.status === 404 || err.status === 410 || err.code === 'ROOM_NOT_FOUND' || err.code === 'ROOM_ENDED')) {
+                console.warn(`[webhook] Kicking ${identity}: room resolution confirmed invalid/ended (${err.code})`)
+                await client.removeParticipant(lkRoomName, identity).catch(e => console.warn(`[webhook] removeParticipant warning: ${e.message}`))
+            } else {
+                console.warn(`[webhook] Transient error during room resolution for ${identity}: ${err.message}. Retaining participant.`)
+            }
         }
     } else if (eventType === 'room_finished') {
         try {
             const room = await resolveRoom(lkRoomName, { allowEnded: true })
-            if (room && room.status !== 'ENDED') {
-                console.log(`[webhook] Room finished: marking room ${room.id} ENDED`)
-                await markRoomEnded(room.id)
-                await prisma.roomJoinToken.updateMany({
-                    where: { roomId: room.id, revokedAt: null },
-                    data: { revokedAt: new Date() }
-                })
-                invalidateRoom(room.id)
-
-                if (diagnosticService && typeof diagnosticService.scheduleIdleRunClose === 'function') {
-                    await diagnosticService.scheduleIdleRunClose(room.name, room.id).catch(() => null)
+            if (!room || room.status === 'ENDED') {
+                return
+            }
+            if (room.status === 'ACTIVE' || room.status === 'LOBBY') {
+                // R1 fix: Tunnel / temporary loss protection: DO NOT end room immediately.
+                // Record lastEmptyAt in DB. The background room sweeper will end after 15 min empty.
+                console.log(`[webhook] Room finished: recording lastEmptyAt for ${room.status} room ${room.id}`)
+                if (typeof prisma.room?.update === 'function') {
+                    await prisma.room.update({
+                        where: { id: room.id },
+                        data: { lastEmptyAt: new Date() }
+                    }).catch(err => console.warn(`[webhook] failed to set lastEmptyAt: ${err.message}`))
                 }
             }
         } catch (err) {

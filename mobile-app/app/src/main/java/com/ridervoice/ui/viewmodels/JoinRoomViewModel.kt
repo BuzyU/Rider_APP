@@ -25,12 +25,17 @@ class JoinRoomViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _uiMessage = MutableStateFlow<com.ridervoice.ui.components.UiMessage?>(null)
+    val uiMessage: StateFlow<com.ridervoice.ui.components.UiMessage?> = _uiMessage.asStateFlow()
+
     fun extractTokenOrCode(input: String): String = JoinRoomResponseHandler.extractTokenOrCode(input)
 
     fun smartJoin(input: String, userName: String, onSuccess: (roomName: String) -> Unit) {
         val trimmed = input.trim()
         if (trimmed.isBlank()) {
-            _error.value = "Please enter a ride code or paste an invite link"
+            val msg = "Please enter a ride code or paste an invite link"
+            _error.value = msg
+            _uiMessage.value = com.ridervoice.ui.components.UiMessageMapper.map(400, fallback = msg)
             return
         }
 
@@ -41,7 +46,9 @@ class JoinRoomViewModel @Inject constructor(
             isLink || clean.matches(Regex("^[a-fA-F0-9]{16}$")) -> "TOKEN"
             clean.matches(Regex("^[A-Za-z0-9]{8}$")) -> "CODE"
             else -> {
-                _error.value = "That doesn't look like a ride code. Codes are 8 characters."
+                val msg = "That doesn't look like a ride code. Codes are 8 characters."
+                _error.value = msg
+                _uiMessage.value = com.ridervoice.ui.components.UiMessageMapper.map(400, fallback = msg)
                 return
             }
         }
@@ -49,6 +56,7 @@ class JoinRoomViewModel @Inject constructor(
         viewModelScope.launch {
             _isConnecting.value = true
             _error.value = null
+            _uiMessage.value = null
             try {
                 val res = apiService.joinLobbyUnified(LobbyJoinRequest(kind = kind, value = clean))
                 if (res.isSuccessful && res.body() != null) {
@@ -70,17 +78,15 @@ class JoinRoomViewModel @Inject constructor(
                     )
                     onSuccess(body.roomName)
                 } else {
-                    val msg = when (res.code()) {
-                        404 -> if (kind == "CODE") "Ride code not found. Check the code and try again." else "Invalid or expired invite link."
-                        410 -> "This ride has already ended."
-                        403 -> "You were removed from this ride and cannot rejoin."
-                        409 -> "You are already a member of this ride."
-                        else -> "Failed to join ride (code ${res.code()})."
-                    }
-                    _error.value = msg
+                    val bodyStr = res.errorBody()?.string()
+                    val mapped = com.ridervoice.ui.components.UiMessageMapper.map(res.code(), bodyStr)
+                    _uiMessage.value = mapped
+                    _error.value = mapped.message
                 }
             } catch (e: Exception) {
-                _error.value = "Connection error: ${e.localizedMessage ?: "Please check your network and retry."}"
+                val mapped = com.ridervoice.ui.components.UiMessageMapper.map(500, fallback = "Connection error: ${e.localizedMessage ?: "Please check your network and retry."}")
+                _uiMessage.value = mapped
+                _error.value = mapped.message
             } finally {
                 _isConnecting.value = false
             }
@@ -97,6 +103,7 @@ class JoinRoomViewModel @Inject constructor(
 
     fun clearError() {
         _error.value = null
+        _uiMessage.value = null
     }
 }
 

@@ -147,7 +147,7 @@ data class FcmTokenRequest(val token: String, val platform: String = "android", 
 
 data class PostRideSnapshot(
     val convoyName: String,
-    val testNumber: Int = 1,
+    val testNumber: Int? = null,
     val diagnosticsEnabled: Boolean = false,
     val endedBy: String = "USER"
 )

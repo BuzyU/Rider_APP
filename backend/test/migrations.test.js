@@ -30,7 +30,8 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
     it('npx prisma validate passes without errors', () => {
         const output = execSync('npx prisma validate', {
             cwd: path.join(__dirname, '..'),
-            encoding: 'utf8'
+            encoding: 'utf8',
+            env: { ...process.env, DIRECT_URL: process.env.DIRECT_URL || process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/ridervoice_test' }
         })
         assert.match(output, /is valid/i, 'Prisma schema must be valid')
     })
@@ -75,6 +76,7 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             const diagMigrationPath = path.join(__dirname, '../prisma/migrations/20261014_add_network_diagnostics/migration.sql')
             const enumValuesMigrationPath = path.join(__dirname, '../prisma/migrations/20261023000000_a_enum_values/migration.sql')
             const phase1MigrationPath = path.join(__dirname, '../prisma/migrations/20261023_phase1_room_lifecycle_membership/migration.sql')
+            const postPhase1MigrationPath = path.join(__dirname, '../prisma/migrations/20261024_post_phase1_fixups/migration.sql')
 
             async function setupDb(dbName) {
                 await runSqlFile(dbName, baseSchemaPath)
@@ -116,6 +118,7 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             await runSqlFile('ridervoice_prev', migrationSqlPath)
             await runSqlFile('ridervoice_prev', enumValuesMigrationPath)
             await runSqlFile('ridervoice_prev', phase1MigrationPath)
+            await runSqlFile('ridervoice_prev', postPhase1MigrationPath)
 
             // Verify columns now exist in ridervoice_prev
             const upgradedClient = new Client({ host: 'localhost', port: testPort, user: 'postgres', password: 'password', database: 'ridervoice_prev' })
@@ -132,12 +135,14 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             await runSqlFile('ridervoice_fresh', migrationSqlPath)
             await runSqlFile('ridervoice_fresh', enumValuesMigrationPath)
             await runSqlFile('ridervoice_fresh', phase1MigrationPath)
+            await runSqlFile('ridervoice_fresh', postPhase1MigrationPath)
 
             // 3. Diff fresh DB against schema.prisma and assert no drift
             const dbUrl = `postgresql://postgres:password@localhost:${testPort}/ridervoice_fresh`
             const diffOutput = execSync(`npx prisma migrate diff --from-url "${dbUrl}" --to-schema-datamodel prisma/schema.prisma --exit-code`, {
                 cwd: path.join(__dirname, '..'),
-                encoding: 'utf8'
+                encoding: 'utf8',
+                env: { ...process.env, DIRECT_URL: dbUrl }
             })
             assert.ok(
                 diffOutput.includes('No difference detected') || diffOutput.trim() === '',

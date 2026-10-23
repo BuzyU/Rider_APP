@@ -11,6 +11,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -50,35 +51,48 @@ class ActiveRideRepository @Inject constructor(
             phase = Phase.LOBBY,
             joinCode = joinCode
         )
-        _state.value = ride
+        _state.update { ride }
         persist(ride)
     }
 
     fun applyTokenPayload(p: TokenPayload) {
-        val current = _state.value
-        val updated = (current ?: ActiveRide(
-            roomId = p.roomId ?: "",
-            displayName = p.roomName ?: "",
-            isHost = false,
-            phase = Phase.LOBBY
-        )).copy(
-            roomId = p.roomId ?: current?.roomId ?: "",
-            displayName = p.roomName ?: current?.displayName ?: "",
-            livekitUrl = p.livekitUrl ?: current?.livekitUrl,
-            token = p.token,
-            tokenExpEpochSec = p.expiresAtEpochSec ?: current?.tokenExpEpochSec,
-            diagnosticsEnabled = p.diagnosticsEnabled,
-            testNumber = p.testNumber ?: current?.testNumber
-        )
-        _state.value = updated
-        persist(updated)
+        // M8a: If cleared or rideId does not match incoming payload, do not resurrect ghost ride
+        _state.update { current ->
+            if (current == null) return@update null
+            val payloadRoomId = p.roomId
+            if (!payloadRoomId.isNullOrBlank() && current.roomId.isNotBlank() && current.roomId != payloadRoomId) {
+                return@update current
+            }
+            val updated = current.copy(
+                roomId = p.roomId ?: current.roomId,
+                displayName = p.roomName ?: current.displayName,
+                livekitUrl = p.livekitUrl ?: current.livekitUrl,
+                token = p.token,
+                tokenExpEpochSec = p.expiresAtEpochSec ?: current.tokenExpEpochSec,
+                diagnosticsEnabled = p.diagnosticsEnabled,
+                testNumber = p.testNumber ?: current.testNumber
+            )
+            persist(updated)
+            updated
+        }
+    }
+
+    fun updateHost(isHost: Boolean) {
+        _state.update { current ->
+            if (current == null) return@update null
+            val updated = current.copy(isHost = isHost)
+            persist(updated)
+            updated
+        }
     }
 
     fun goLive() {
-        val current = _state.value ?: return
-        val updated = current.copy(phase = Phase.LIVE)
-        _state.value = updated
-        persist(updated)
+        _state.update { current ->
+            if (current == null) return@update null
+            val updated = current.copy(phase = Phase.LIVE)
+            persist(updated)
+            updated
+        }
     }
 
     suspend fun ensureFreshToken(): Result<String> {
@@ -146,12 +160,12 @@ class ActiveRideRepository @Inject constructor(
         if (current != null) {
             _lastEnded.value = PostRideSnapshot(
                 convoyName = current.displayName,
-                testNumber = current.testNumber ?: 1,
+                testNumber = current.testNumber,
                 diagnosticsEnabled = current.diagnosticsEnabled,
                 endedBy = reason.name
             )
         }
-        _state.value = null
+        _state.update { null }
         prefs?.clearActiveRide()
     }
 
@@ -178,10 +192,18 @@ class ActiveRideRepository @Inject constructor(
                     diagnosticsEnabled = status.diagnosticsEnabled ?: false,
                     joinCode = status.joinCode
                 )
-                _state.value = activeRide
+                _state.update { activeRide }
             }
         } catch (e: Exception) {
-            // Keep current local state on network error at boot
+            // M8c: Offline relaunch: restore optimistically from saved preferences if state is null
+            _state.update { current ->
+                current ?: ActiveRide(
+                    roomId = savedRoomId,
+                    displayName = savedRoomId,
+                    isHost = isHost,
+                    phase = phase
+                )
+            }
         }
     }
 

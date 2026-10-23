@@ -166,7 +166,7 @@ fun NavGraph(
                 convoyName   = convoyName,
                 onStartRide  = { isHost ->
                     navController.navigate(Routes.deviceSetupPath(convoyName, isHost = isHost)) {
-                        popUpTo(Routes.lobbyPath(convoyName)) { inclusive = true }
+                        popUpTo(Routes.LOBBY) { inclusive = true }
                     }
                 },
                 onBackClick  = { navController.popBackStack() }

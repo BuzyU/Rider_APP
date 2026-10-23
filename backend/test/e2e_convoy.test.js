@@ -73,6 +73,7 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
             await runSqlFile(path.join(__dirname, '../prisma/migrations/20261014_add_network_diagnostics/migration.sql'))
             await runSqlFile(path.join(__dirname, '../prisma/migrations/20261015_add_room_diagnostics_and_started_at/migration.sql'))
             await runSqlFile(path.join(__dirname, '../prisma/migrations/20261023_phase1_room_lifecycle_membership/migration.sql'))
+            await runSqlFile(path.join(__dirname, '../prisma/migrations/20261024_post_phase1_fixups/migration.sql'))
 
             // Instantiate prisma connection to the e2e test database (process.env.DATABASE_URL set above)
             const prisma = require('../src/db')

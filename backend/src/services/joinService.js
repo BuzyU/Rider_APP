@@ -15,7 +15,7 @@
 
 const prisma = require('../db')
 const { resolveRoom, resolverError, invalidateRoom } = require('./roomResolver')
-const { selfJoin, isMember } = require('./membershipService')
+const { selfJoin, isMember, notifyJoined } = require('./membershipService')
 const { issueRoomToken } = require('./tokenService')
 
 function extractCleanToken(input) {
@@ -25,6 +25,8 @@ function extractCleanToken(input) {
         cleaned = cleaned.slice('ridervoice://join/'.length)
     } else if (cleaned.includes('/join/')) {
         cleaned = cleaned.slice(cleaned.indexOf('/join/') + '/join/'.length)
+    } else if (cleaned.includes('/j/')) {
+        cleaned = cleaned.slice(cleaned.indexOf('/j/') + '/j/'.length)
     }
     if (cleaned.includes('token=')) {
         cleaned = cleaned.slice(cleaned.indexOf('token=') + 'token='.length)
@@ -85,7 +87,7 @@ async function joinWithLinkToken(rawToken, user) {
     }
 
     // Self-join transition
-    const { invite, isNew } = await selfJoin({
+    const { invite, isNew, alreadyMember } = await selfJoin({
         roomId: room.id,
         inviteeId: user.uid,
         inviterId: joinToken.createdById,
@@ -93,12 +95,33 @@ async function joinWithLinkToken(rawToken, user) {
         room
     })
 
-    // Increment useCount only when isNew (N15 fix)
-    if (isNew && typeof prisma.roomJoinToken?.update === 'function') {
-        await prisma.roomJoinToken.update({
-            where: { id: joinToken.id },
+    // R7: Atomic increment only when consuming a new seat (not already accepted)
+    if (!alreadyMember && typeof prisma.roomJoinToken?.updateMany === 'function') {
+        const updateResult = await prisma.roomJoinToken.updateMany({
+            where: {
+                id: joinToken.id,
+                ...(joinToken.maxUses ? { useCount: { lt: joinToken.maxUses } } : {})
+            },
             data: { useCount: { increment: 1 } }
-        }).catch(err => console.warn('[joinService] useCount increment error:', err.message))
+        }).catch(err => {
+            console.warn('[joinService] useCount increment error:', err.message)
+            return { count: 0 }
+        })
+
+        if (joinToken.maxUses && updateResult.count === 0) {
+            throw resolverError(410, 'This invite link has reached its maximum uses', 'LINK_EXHAUSTED')
+        }
+    }
+
+    // R5: notify host when rider joins via link
+    if (!alreadyMember) {
+        notifyJoined({
+            inviteeId: user.uid,
+            inviterId: room.ownerId,
+            roomName: room.name,
+            inviteeEmail: user.email,
+            inviteeName: user.name || user.displayName || user.handle
+        }).catch(err => console.warn('[joinService] notifyJoined warning:', err.message))
     }
 
     invalidateRoom(room.id)
@@ -138,13 +161,24 @@ async function joinWithCode(rawCode, user) {
     }
 
     // Self-join transition
-    await selfJoin({
+    const { isNew, alreadyMember } = await selfJoin({
         roomId: room.id,
         inviteeId: user.uid,
         inviterId: room.ownerId,
         source: 'JOIN_CODE',
         room
     })
+
+    // R5: notify host when rider joins via code
+    if (!alreadyMember) {
+        notifyJoined({
+            inviteeId: user.uid,
+            inviterId: room.ownerId,
+            roomName: room.name,
+            inviteeEmail: user.email,
+            inviteeName: user.name || user.displayName || user.handle
+        }).catch(err => console.warn('[joinService] notifyJoined warning:', err.message))
+    }
 
     invalidateRoom(room.id)
 

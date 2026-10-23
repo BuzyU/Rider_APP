@@ -8,7 +8,7 @@ class NotificationService {
                 where: { userId },
                 select: { token: true }
             })
-            if (tokens.length === 0) return
+            if (tokens.length === 0) return { sentCount: 0, failureCount: 0, tokenCount: 0 }
 
             const messages = new Array(tokens.length)
             for (let i = 0; i < tokens.length; i++) {
@@ -53,8 +53,14 @@ class NotificationService {
                 })
             }
 
+            return {
+                sentCount: response.successCount || 0,
+                failureCount: response.failureCount || 0,
+                tokenCount: tokens.length
+            }
         } catch (error) {
             console.error('FCM sendToUser error:', error.message)
+            return { sentCount: 0, failureCount: 1, tokenCount: 0, error: error.message }
         }
     }
 
@@ -100,6 +106,9 @@ class NotificationService {
     }
 
     async sendEmergencyAlert(userIds, alertType, lat, lng, senderId = '', senderName = '', roomName = '', alertId = '') {
+        if (!Array.isArray(userIds) || userIds.length === 0) {
+            return { sent: false, recipientsCount: 0, delivered: 0, undeliverable: 0, reason: 'NO_RECIPIENTS' }
+        }
         const payload = {
             notification: {
                 title: 'EMERGENCY SOS',
@@ -123,9 +132,27 @@ class NotificationService {
                 collapseKey: alertId ? `emergency_${alertId}` : `emergency_${senderId}`
             }
         }
-        await Promise.allSettled(
+        const results = await Promise.allSettled(
             userIds.map(uid => this.sendToUser(uid, payload))
         )
+
+        let delivered = 0
+        let undeliverable = 0
+        for (const res of results) {
+            if (res.status === 'fulfilled' && res.value) {
+                delivered += (res.value.sentCount || 0)
+                undeliverable += (res.value.failureCount || (res.value.tokenCount === 0 ? 1 : 0))
+            } else {
+                undeliverable += 1
+            }
+        }
+
+        return {
+            sent: delivered > 0 || userIds.length > 0,
+            recipientsCount: userIds.length,
+            delivered,
+            undeliverable
+        }
     }
 }
 

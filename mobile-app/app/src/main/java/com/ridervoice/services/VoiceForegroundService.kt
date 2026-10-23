@@ -336,4 +336,12 @@ class VoiceForegroundService : Service() {
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
+
+    companion object {
+        fun stop(context: Context) {
+            try {
+                context.stopService(Intent(context, VoiceForegroundService::class.java))
+            } catch (_: Exception) {}
+        }
+    }
 }

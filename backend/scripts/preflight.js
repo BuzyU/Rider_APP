@@ -32,6 +32,12 @@ async function runPreflight() {
         }
     }
 
+    // Check pooler vs DIRECT_URL
+    const dbUrl = process.env.DATABASE_URL || ''
+    if ((dbUrl.includes(':6543') || dbUrl.includes('pgbouncer=true')) && !process.env.DIRECT_URL) {
+        console.warn('[Preflight] WARNING: DATABASE_URL appears to use a connection pooler (:6543 or pgbouncer=true), but DIRECT_URL is not set. Prisma migrate requires DIRECT_URL for non-pooled connection.')
+    }
+
     // 2. Database connectivity and Room.status column check
     try {
         const dbCheck = await prisma.$queryRaw`SELECT 1 AS ok`

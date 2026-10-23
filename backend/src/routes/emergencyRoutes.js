@@ -110,9 +110,11 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
             }
         }
 
-        // C3.2 - Authorization: sender must be owner or ACCEPTED member
+        // C3.2 - Authorization: sender must be owner or ACCEPTED member (including during 120s grace window)
         const isOwner = room.ownerId === userId
-        const isAccepted = await isMember(room.id, userId)
+        const isAccepted = (Array.isArray(room.invites) && room.invites.some(inv => inv.inviteeId === userId))
+            ? true
+            : await isMember(room.id, userId, { allowEnded: true })
         if (!isOwner && !isAccepted) {
             return res.status(403).json({ error: 'Only convoy members can trigger emergency alerts', code: 'NOT_A_MEMBER' })
         }
@@ -159,20 +161,37 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
             alertId = alert?.id || null
         }
 
-        notificationService.sendEmergencyAlert(
+        if (recipientList.length === 0) {
+            return res.status(200).json({
+                sent: false,
+                reason: 'NO_RECIPIENTS',
+                alertId,
+                recipientsCount: 0,
+                delivered: 0,
+                undeliverable: 0
+            })
+        }
+
+        const alertDelivery = await notificationService.sendEmergencyAlert(
             recipientList,
             'SOS',
             parsedLat,
             parsedLng,
             userId,
             senderName,
-            room.name
-        ).catch(err => console.error('[Emergency] sendEmergencyAlert non-fatal error:', err.message))
+            room.name,
+            alertId
+        ).catch(err => {
+            console.error('[Emergency] sendEmergencyAlert error:', err.message)
+            return { sent: false, recipientsCount: recipientList.length, delivered: 0, undeliverable: recipientList.length }
+        })
 
         res.status(200).json({
-            sent: true,
+            sent: alertDelivery?.sent ?? true,
             alertId,
-            recipientsCount: recipientList.length
+            recipientsCount: recipientList.length,
+            delivered: alertDelivery?.delivered ?? 0,
+            undeliverable: alertDelivery?.undeliverable ?? 0
         })
     } catch (error) {
         if (error instanceof ResolverError) {

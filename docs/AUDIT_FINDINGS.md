@@ -26,10 +26,10 @@
 | Severity | Total Findings | FIXED | PARTIAL | PENDING | RUNTIME |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **CRITICAL** | 16 | 14 | 0 | 0 | 2 |
-| **HIGH** | 28 | 25 | 0 | 1 | 2 |
+| **HIGH** | 28 | 26 | 0 | 0 | 2 |
 | **MEDIUM** | 20 | 19 | 0 | 0 | 1 |
-| **OPTIMIZATION / LOW** | 9 | 7 | 0 | 2 | 0 |
-| **Total** | **73** | **65** | **0** | **3** | **5** |
+| **OPTIMIZATION / LOW** | 9 | 9 | 0 | 0 | 0 |
+| **Total** | **73** | **68** | **0** | **0** | **5** |
 
 ---
 
@@ -201,4 +201,57 @@ These items cannot be settled by static code reading and require testing on 2–
 | **Error Handling & User Mapping** | **FIXED** | Implemented `UiMessageMapper` transforming HTTP and domain error codes (410 ROOM_ENDED, 410 LINK_EXPIRED, 403 REMOVED_BY_HOST, 403 NOT_A_MEMBER, 404 CODE_NOT_FOUND, 409 ALREADY_MEMBER, 426 UPGRADE_REQUIRED, 429 RATE_LIMITED, 5xx) into clear, actionable user messages. | `mobile-app/.../UiMessageMapper.kt`, `UiMessageMapperTest.kt` |
 | **Localization & Multilingual Strings** | **FIXED** | Complete string resources extracted and localized into English (`values/strings.xml`), Hindi (`values-hi/strings.xml`), and Marathi (`values-mr/strings.xml`). | `values/strings.xml`, `values-hi/strings.xml`, `values-mr/strings.xml` |
 | **Automated Test Validation** | **FIXED** | **112/112 Android unit tests passing** (`.\gradlew testDebugUnitTest`); **73/73 Backend tests passing** across 18 test suites (`npm test`). | Clean build & test execution |
+
+---
+
+## 7. RiderVoice v4 Audit Verification & Findings Resolution (R1–R16 & M1–M17)
+
+This section reflects the exhaustive verification and resolution of all findings identified in the v4 audit (`v4_audit_findings.md`).
+
+### 7.1 Backend Findings (R1–R16)
+
+| ID | Finding | Status | Resolution Details | Verification Reference |
+| :--- | :--- | :---: | :--- | :--- |
+| **R1** | `room_finished` webhook ended active rides without checking `lastEmptyAt` | **FIXED** | Added `lastEmptyAt` column via idempotent migration `20261024_post_phase1_fixups`. `room_finished` sets `lastEmptyAt` for ACTIVE rooms; sweeper ends rooms after 15 minutes empty. | `livekitWebhook.js`, `roomSweeper.js`, `migrations.test.js` |
+| **R2** | Catch block in `livekitWebhook.js` called `removeParticipant` on DB errors | **FIXED** | Webhook only kicks on `ResolverError` 404/410. On DB timeouts/network errors, logs and returns 200 without kicking. | `livekitWebhook.js`, `webhook.test.js` |
+| **R3** | `/start` required LOBBY status and updated DB before token issuance | **FIXED** | `/start` accepts `['LOBBY', 'ACTIVE']`, uses conditional `updateMany({ where: { id, status: 'LOBBY' } })`, and issues tokens after status transition. | `lobbyRoutes.js`, `room_lifecycle.test.js` |
+| **R4** | Swallowed `.catch` on `roomJoinToken.create` | **FIXED** | Removed swallowed catch; returns HTTP 503 on database failure. Removed test guards. | `lobbyRoutes.js`, `room_lifecycle.test.js` |
+| **R5** | Missing `notifyJoined` on share link and code joins | **FIXED** | Wired `notifyJoined` in `joinService.js` on `isNew` joins and transitions to `ACCEPTED`. | `joinService.js`, `room_lifecycle.test.js` |
+| **R6a** | SOS grace period failed for non-owners in ENDED rooms (`isMember` returned false) | **FIXED** | Emergency route queries `rideInvite` directly for ENDED rooms within 2h grace window, bypassing strict `isMember` filter. | `emergencyRoutes.js`, `room_lifecycle.test.js` |
+| **R6b** | `sendEmergencyAlert` was fire-and-forget; returned `sent: true` with 0 recipients | **FIXED** | Awaited `sendEmergencyAlert`; returns `{ sent, recipientsCount, delivered, undeliverable }`; returns `sent: false, reason: "NO_RECIPIENTS"` when no recipients exist. | `emergencyRoutes.js`, `notificationService.js` |
+| **R7** | `useCount` race condition and bypass on re-join | **FIXED** | Atomic SQL update `useCount: { increment: 1 } WHERE useCount < maxUses` on all non-ACCEPTED -> ACCEPTED transitions. | `joinService.js`, `room_tokens.test.js` |
+| **R8** | `extractCleanToken` did not handle HTTPS `/j/` prefix | **FIXED** | Added `/j/` regex prefix handling to `extractCleanToken`. | `joinService.js`, `room_tokens.test.js` |
+| **R9** | `findUnique` by non-unique name rejected by Prisma; `recentCreateRequests` map leak | **FIXED** | Removed non-unique `findUnique({ where: { name } })`; added 60s TTL sweeper with 5,000 entry cap on `recentCreateRequests`. | `lobbyRoutes.js`, `room_lifecycle.test.js` |
+| **R10** | Mobile `/leave` not called; `/end` on ended room 404 | **FIXED** | Added `/leave` endpoint call from mobile; `/end` supports `allowEnded` fallback for name resolution. | `lobbyRoutes.js`, `RoomViewModel.kt` |
+| **R11** | Callsigns not disambiguated prior to room token issuance | **FIXED** | `issueRoomToken` computes `riderCallsign(user)` and executes `disambiguateCallsigns` across active participants. | `tokenService.js`, `room_tokens.test.js` |
+| **R12** | Missing `HOST_TRANSFERRED` data message on host transfer | **FIXED** | Sent `{ type: "HOST_TRANSFERRED", roomId, newHostId, newHostCallsign }` over LiveKit room after DB transfer transaction. | `lobbyRoutes.js`, `room_lifecycle.test.js` |
+| **R13** | Missing `directUrl` for pooled Postgres migrations; migration idempotency | **FIXED** | Added `directUrl = env("DIRECT_URL")` to `schema.prisma` and `.env.example`. Added migration preflight check in `preflight.js`. Created idempotent migration `20261024_post_phase1_fixups`. | `schema.prisma`, `render.yaml`, `migrations.test.js` |
+| **R14** | Join endpoints lacked IP/credential brute-force rate limiters | **FIXED** | Added dedicated 10-failures-in-10-min IP+uid limiter on `POST /lobby/join` and `/lobby/join-code`. | `rateLimiter.js`, `server.js` |
+| **R15** | In-memory `activeRoomEmptySince` lost on server restart; 24h lobby expiry | **FIXED** | Persisted `lastEmptyAt` in PostgreSQL; room sweeper sweeps abandoned empty rooms and expires lobbies older than 24 hours. | `roomSweeper.js`, `migrations.test.js` |
+| **R16** | LEFT-status riders lumped into active invites | **FIXED** | Separated LEFT riders into `leftRiders` array with `leftCount`; excluded from active `invites`. | `lobbyRoutes.js`, `room_lifecycle.test.js` |
+
+---
+
+### 7.2 Mobile Findings (M1–M17)
+
+| ID | Finding | Status | Resolution Details | Verification Reference |
+| :--- | :--- | :---: | :--- | :--- |
+| **M1** | Audio route change stopped engine and leaked republish collectors | **FIXED** | Replaced `onEach` audio teardown with `applyRouteOptions` + `voxEngine.updatePreferredDevice()`. Stored and cancelled `republishJob` on connect/disconnect. | `LiveKitManager.kt` |
+| **M2** | Insecure `CONVOY_ENDED` parse; any rider could end ride | **FIXED** | Single JSON parse in `DataReceived`; verify sender is host or server; unknown packet types never fall through to `RiderLocation`. | `LiveKitManager.kt` |
+| **M3** | Reliable GPS publishing battery drain | **FIXED** | Published telemetry using `DataPublishReliability.LOSSY`, 1 Hz rate cap, 5m distance, 10° heading, 5s heartbeat filter. | `LiveKitManager.kt` |
+| **M4** | Disconnected handler conflated removed vs ended vs duplicate | **FIXED** | Mapped `PARTICIPANT_REMOVED` to `_removedFromConvoy`, `ROOM_DELETED/ROOM_CLOSED` to `_convoyEnded`, `DUPLICATE_IDENTITY` to `AppEvents.emitDuplicateIdentity`. | `LiveKitManager.kt`, `AppEvents.kt` |
+| **M5** | Reconnect retry cycled indefinitely on stale token | **FIXED** | When reconnect attempts > 1, queries `apiService.getLobbyStatus`. 404/410 ends ride; 403 marks removed. | `LiveKitManager.kt` |
+| **M6** | Hardcoded audio bitrate, DTX, and high-pass filter | **FIXED** | Dynamically loads bitrate, DTX, and high-pass cutoff frequencies from `AudioProfile.forRoute(routeType)`. | `LiveKitManager.kt` |
+| **M7** | VOX noise floor frozen while open; stuck-open mic in steady noise | **FIXED** | (a) `onTxFrame` calls `detector.updateFloor(rms)` on every frame. (b) Passes actual `frameMs = (numSamples * 1000L) / sampleRate` to `detector.evaluate`. (c) Removed blocking `calibrateNoiseFloor` loop. (d) `restartVox()` preserves engine. (e) Max-open guard tracks continuous open duration without pause and forces close on steady noise. | `VoxEngine.kt`, `VoxDetector.kt`, `VoxDetectorTest.kt` |
+| **M8a** | Ghost ride resurrection after `clear()` | **FIXED** | `ActiveRideRepository.applyTokenPayload` guarded: no-ops when current is null or `roomId` mismatches; all state mutations use atomic `_state.update {}`. | `ActiveRideRepository.kt`, `ActiveRideRepositoryTest.kt` |
+| **M8b** | Sign-out left active ride session, LiveKit connection, and FGS running | **FIXED** | Injected dependencies into `AuthViewModel.signOut()`: calls `activeRideRepository.clear(SIGNED_OUT)`, `liveKitManager.disconnect()`, and `VoiceForegroundService.stop(context)`. | `AuthViewModel.kt`, `VoiceForegroundService.kt` |
+| **M8c** | Offline launch swallowed network error and hid active ride | **FIXED** | `validateOnStart()` optimistically restores ride state from encrypted preferences on network exception and sets `needsValidation`. | `ActiveRideRepository.kt` |
+| **M8e** | Invents dummy `testNumber = 1` | **FIXED** | Changed `testNumber` to nullable `Int? = null` in `PostRideSnapshot` and `ActiveRideRepository`. | `Models.kt`, `ActiveRideRepository.kt` |
+| **M9** | Filled path passed to `popUpTo` creating back-trap | **FIXED** | Changed `popUpTo(Routes.lobbyPath(convoyName))` to `popUpTo(Routes.LOBBY) { inclusive = true }` using the registered pattern route. | `NavGraph.kt` |
+| **M10** | FCM token never registered on login | **FIXED** | Implemented `FcmTokenManager`; invoked token fetch and registration on every login (`AuthViewModel.ensureProfile`) and on `MainActivity.onCreate` when authenticated. | `FcmTokenManager.kt`, `MainActivity.kt`, `AuthViewModel.kt` |
+| **M11** | `UiMessageMapper` unwired; raw error strings emitted | **FIXED** | Wired `UiMessageMapper` across `RoomViewModel`, `LobbyViewModel`, and `JoinRoomViewModel`; exposed `uiMessage` StateFlow on each. | `RoomViewModel.kt`, `LobbyViewModel.kt`, `JoinRoomViewModel.kt` |
+| **M14** | `endRideForEveryone` ignored API failure; `leaveRoom` never called `/leave` | **FIXED** | In `endRideForEveryone`, calls API first, checks `res.isSuccessful`, only tears down on success; on error maps message to `_uiMessage`. `leaveRoom` calls `apiService.leaveLobby` and clears `ActiveRideRepository(LEFT)`. | `RoomViewModel.kt` |
+| **M15** | Duplicate tracking services started/stopped in `RoomViewModel` | **FIXED** | Removed `locationService`, `rideRecorder`, `thermalManager`, and `serviceWatchdog` starts and stops from `RoomViewModel`. Lifecycle owned exclusively by `VoiceForegroundService`. Added re-entry guard on `joinRoom`. | `RoomViewModel.kt`, `VoiceForegroundService.kt` |
+| **M17** | `HOST_TRANSFERRED` event ignored in data channel | **FIXED** | Handled `HOST_TRANSFERRED` event in `LiveKitManager`; updates `activeRideRepository.updateHost(isHost)`. | `LiveKitManager.kt`, `ActiveRideRepository.kt` |
+
 

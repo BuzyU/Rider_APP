@@ -14,4 +14,11 @@ class AppEvents @Inject constructor() {
     fun emitUpdateRequired() {
         _updateRequired.tryEmit(Unit)
     }
+
+    private val _duplicateIdentity = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val duplicateIdentity: SharedFlow<String> = _duplicateIdentity.asSharedFlow()
+
+    fun emitDuplicateIdentity(reason: String) {
+        _duplicateIdentity.tryEmit(reason)
+    }
 }

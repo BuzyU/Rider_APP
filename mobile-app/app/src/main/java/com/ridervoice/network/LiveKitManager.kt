@@ -20,12 +20,16 @@ import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.room.track.RemoteAudioTrack
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.participant.AudioTrackPublishOptions
+import io.livekit.android.room.track.DataPublishReliability
+import io.livekit.android.events.DisconnectReason
 import io.livekit.android.AudioOptions
 import com.google.gson.Gson
 import com.ridervoice.models.RiderLocation
 import com.ridervoice.diagnostics.models.StatsSnapshot
 import com.ridervoice.diagnostics.models.OutboundAudioStats
 import com.ridervoice.diagnostics.models.InboundRiderStats
+import com.ridervoice.state.ActiveRideRepository
+import com.ridervoice.state.AppEvents
 import livekit.org.webrtc.RTCStatsReport
 import livekit.org.webrtc.RTCStats
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -67,12 +71,16 @@ class LiveKitManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val audioDeviceRouter: AudioDeviceRouter,
     private val voxEngine: VoxEngine,
+    private val apiService: ApiService,
+    private val activeRideRepository: ActiveRideRepository,
+    private val appEvents: AppEvents
 ) {
     private val TAG = "LiveKitManager"
 
     private var room: Room? = null
     private var localAudioTrack: LocalAudioTrack? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var republishJob: Job? = null
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState
@@ -98,6 +106,9 @@ class LiveKitManager @Inject constructor(
     private val _convoyEnded = MutableStateFlow(false)
     val convoyEnded: StateFlow<Boolean> = _convoyEnded.asStateFlow()
 
+    private val _removedFromConvoy = MutableStateFlow(false)
+    val removedFromConvoy: StateFlow<Boolean> = _removedFromConvoy.asStateFlow()
+
     private val _inRideSosAlert = MutableStateFlow<InRideSosAlert?>(null)
     val inRideSosAlert: StateFlow<InRideSosAlert?> = _inRideSosAlert.asStateFlow()
 
@@ -116,6 +127,11 @@ class LiveKitManager @Inject constructor(
 
     fun resetConvoyEnded() {
         _convoyEnded.value = false
+        _removedFromConvoy.value = false
+    }
+
+    fun resetRemovedFromConvoy() {
+        _removedFromConvoy.value = false
     }
 
     fun broadcastConvoyEnded(roomName: String) {
@@ -208,14 +224,14 @@ class LiveKitManager @Inject constructor(
             .debounce(400)
             .onEach { device ->
                 scope.launch {
-                    publishAudioTrack(device, force = true)
+                    applyRouteOptions(device)
                     voxEngine.updatePreferredDevice()
-                    restartVox()
                 }
             }
             .launchIn(scope)
 
-        scope.launch {
+        republishJob?.cancel()
+        republishJob = scope.launch {
             audioDeviceRouter.republishRequests.collect {
                 applyRouteOptions(audioDeviceRouter.activeDevice.value)
                 voxEngine.updatePreferredDevice()
@@ -286,8 +302,7 @@ class LiveKitManager @Inject constructor(
     private fun restartVox() {
         if (_connectionState.value != ConnectionState.CONNECTED) return
         scope.launch {
-            try { voxEngine.stop() } catch (e: Exception) { Log.w(TAG, "VOX stop: ${e.message}") }
-            startVoxSafely()
+            voxEngine.updatePreferredDevice()
         }
     }
 
@@ -339,13 +354,19 @@ class LiveKitManager @Inject constructor(
                 null
             } ?: return@withLock false
 
+            val routeType = when (device) {
+                is AudioDevice.BluetoothSco -> RouteType.BT_SCO
+                is AudioDevice.WiredHeadset, is AudioDevice.UsbAudio -> RouteType.WIRED
+                else -> RouteType.PHONE
+            }
+            val profile = AudioProfile.forRoute(routeType)
             val ok = try {
                 lp.publishAudioTrack(
                     track,
                     AudioTrackPublishOptions(
-                        dtx = false,
+                        dtx = profile.dtx,
                         red = false,
-                        audioBitrate = 32000
+                        audioBitrate = profile.bitrate
                     )
                 )
             } catch (e: Exception) {
@@ -376,7 +397,7 @@ class LiveKitManager @Inject constructor(
             noiseSuppression = profile.noiseSuppression && noiseSuppressionEnabled,
             echoCancellation = profile.echoCancellation,
             autoGainControl = profile.autoGain,
-            highPassFilter = true,
+            highPassFilter = profile.highPassHz > 0f,
             typingNoiseDetection = false
         )
     }
@@ -476,30 +497,61 @@ class LiveKitManager @Inject constructor(
                 _participants.value = emptyList()
                 _remoteLocations.value = emptyMap()
                 _activeSpeaker.value = null
-                val reasonName = event.reason.name
+                val reason = event.reason
+                val reasonName = reason.name
                 com.ridervoice.utils.RvLog.lk("state=DISCONNECTED reason=$reasonName room=$currentRoomId")
-                val isTerminal = reasonName.contains("ROOM_DELETED", ignoreCase = true) ||
-                    reasonName.contains("PARTICIPANT_REMOVED", ignoreCase = true) ||
-                    reasonName.contains("DUPLICATE_IDENTITY", ignoreCase = true) ||
-                    reasonName.contains("USER_REJECTED", ignoreCase = true) ||
-                    reasonName.contains("USER_LEAVE", ignoreCase = true)
-                if (isTerminal) {
-                    _convoyEnded.value = true
-                } else if (!_convoyEnded.value) {
-                    scheduleReconnect()
+                when (reason) {
+                    DisconnectReason.PARTICIPANT_REMOVED -> {
+                        _removedFromConvoy.value = true
+                    }
+                    DisconnectReason.ROOM_DELETED,
+                    DisconnectReason.ROOM_CLOSED -> {
+                        _convoyEnded.value = true
+                    }
+                    DisconnectReason.DUPLICATE_IDENTITY -> {
+                        appEvents.emitDuplicateIdentity(reasonName)
+                    }
+                    DisconnectReason.CLIENT_INITIATED -> {
+                        // User initiated disconnect
+                    }
+                    else -> {
+                        if (!_convoyEnded.value && !_removedFromConvoy.value) {
+                            scheduleReconnect()
+                        }
+                    }
                 }
             }
             is RoomEvent.DataReceived -> {
                 try {
-                    val json = String(event.data, Charsets.UTF_8)
-                    if (json.contains("\"CONVOY_ENDED\"")) {
-                        _convoyEnded.value = true
-                        return
-                    }
-                    if (json.contains("\"SOS\"") || json.contains("\"SOS_CANCELLED\"")) {
-                        val obj = JSONObject(json)
-                        val type = obj.optString("type")
-                        if (type == "SOS") {
+                    val json = String(event.data, Charsets.UTF_8).trim()
+                    if (!json.startsWith("{")) return
+                    val obj = JSONObject(json)
+                    val type = obj.optString("type")
+
+                    when (type) {
+                        "CONVOY_ENDED" -> {
+                            val sender = event.participant
+                            val senderIdentity = sender?.identity?.value
+                            // Verify CONVOY_ENDED sender: server (sender == null) or room host
+                            val isServer = sender == null
+                            val currentRide = activeRideRepository.state.value
+                            val isHostSender = senderIdentity != null && (
+                                (room?.metadata?.contains(senderIdentity) == true) ||
+                                (currentRide?.isHost == true)
+                            )
+                            if (isServer || isHostSender) {
+                                _convoyEnded.value = true
+                            } else {
+                                Log.w(TAG, "Dropping unauthorized CONVOY_ENDED from $senderIdentity")
+                            }
+                        }
+                        "HOST_TRANSFERRED" -> {
+                            val newHostId = obj.optString("newHostId")
+                            val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                            val isHostNow = !newHostId.isNullOrBlank() && newHostId == currentUserId
+                            activeRideRepository.updateHost(isHostNow)
+                        }
+                        "SOS" -> {
                             val alertId = obj.optString("alertId")
                             if (alertId.isNotBlank() && processedAlertIds.add(alertId)) {
                                 val callsign = obj.optString("callsign", "A rider")
@@ -507,24 +559,38 @@ class LiveKitManager @Inject constructor(
                                 val lng = if (obj.has("lng") && !obj.isNull("lng")) obj.optDouble("lng") else null
                                 _inRideSosAlert.value = InRideSosAlert(alertId, callsign, lat, lng, System.currentTimeMillis())
                             }
-                            return
-                        } else if (type == "SOS_CANCELLED") {
+                        }
+                        "SOS_CANCELLED" -> {
                             val alertId = obj.optString("alertId")
                             if (_inRideSosAlert.value?.alertId == alertId) {
                                 _inRideSosAlert.value = null
                             }
-                            return
                         }
-                    }
-                    if (event.topic == "rv-ping" || json.contains("\"PING\"") || json.contains("\"PONG\"")) {
-                        handlePingPong(json, event.participant?.identity?.value)
-                        return
-                    }
-                    val loc = gson.fromJson(json, RiderLocation::class.java)
-                    val peerId = event.participant?.identity?.value?.takeIf { it.isNotBlank() }
-                        ?: loc.riderId?.takeIf { it.isNotBlank() }
-                    if (peerId != null) {
-                        _remoteLocations.update { it + (peerId to loc.copy(riderId = peerId)) }
+                        "PING", "PONG" -> {
+                            handlePingPong(json, event.participant?.identity?.value)
+                        }
+                        "LOCATION", "RIDER_LOCATION" -> {
+                            val loc = gson.fromJson(json, RiderLocation::class.java)
+                            val peerId = event.participant?.identity?.value?.takeIf { it.isNotBlank() }
+                                ?: loc.riderId?.takeIf { it.isNotBlank() }
+                            if (peerId != null) {
+                                _remoteLocations.update { it + (peerId to loc.copy(riderId = peerId)) }
+                            }
+                        }
+                        else -> {
+                            if (event.topic == "rv-ping") {
+                                handlePingPong(json, event.participant?.identity?.value)
+                            } else if (event.topic == "location" || (obj.has("lat") && obj.has("lng")) || (obj.has("latitude") && obj.has("longitude"))) {
+                                val loc = gson.fromJson(json, RiderLocation::class.java)
+                                val peerId = event.participant?.identity?.value?.takeIf { it.isNotBlank() }
+                                    ?: loc.riderId?.takeIf { it.isNotBlank() }
+                                if (peerId != null) {
+                                    _remoteLocations.update { it + (peerId to loc.copy(riderId = peerId)) }
+                                }
+                            } else {
+                                Log.d(TAG, "Unhandled data message type: $type")
+                            }
+                        }
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Data parse error: ${e.message}")
@@ -560,7 +626,7 @@ class LiveKitManager @Inject constructor(
     }
 
     private fun scheduleReconnect() {
-        if (_convoyEnded.value) return
+        if (_convoyEnded.value || _removedFromConvoy.value) return
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
             _connectionState.value = ConnectionState.FAILED
             return
@@ -574,12 +640,35 @@ class LiveKitManager @Inject constructor(
             _connectionState.value = ConnectionState.RECONNECTING
             delay(delayMs)
 
-            if (_connectionState.value == ConnectionState.RECONNECTING && !_convoyEnded.value) {
+            // M5: Check lobby status after first reconnect attempt fails
+            if (reconnectAttempts > 1 && !currentRoomId.isNullOrBlank()) {
+                try {
+                    val statusRes = apiService.getLobbyStatus(currentRoomId!!)
+                    when (statusRes.code()) {
+                        404, 410 -> {
+                            _convoyEnded.value = true
+                            _connectionState.value = ConnectionState.DISCONNECTED
+                            return@launch
+                        }
+                        403 -> {
+                            _removedFromConvoy.value = true
+                            _connectionState.value = ConnectionState.DISCONNECTED
+                            return@launch
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            if (_connectionState.value == ConnectionState.RECONNECTING && !_convoyEnded.value && !_removedFromConvoy.value) {
                 val freshToken = try {
                     tokenProvider?.invoke() ?: lastToken
                 } catch (e: Exception) {
                     val msg = e.message ?: ""
-                    if (msg.contains("REMOVED", ignoreCase = true) || msg.contains("ENDED", ignoreCase = true)) {
+                    if (msg.contains("REMOVED", ignoreCase = true)) {
+                        _removedFromConvoy.value = true
+                        _connectionState.value = ConnectionState.DISCONNECTED
+                        return@launch
+                    } else if (msg.contains("ENDED", ignoreCase = true)) {
                         _convoyEnded.value = true
                         _connectionState.value = ConnectionState.DISCONNECTED
                         return@launch
@@ -592,7 +681,7 @@ class LiveKitManager @Inject constructor(
     }
 
     fun onNetworkRestored() {
-        if (_convoyEnded.value) return
+        if (_convoyEnded.value || _removedFromConvoy.value) return
         if ((_connectionState.value == ConnectionState.FAILED ||
              _connectionState.value == ConnectionState.DISCONNECTED ||
              _connectionState.value == ConnectionState.RECONNECTING) &&
@@ -605,16 +694,26 @@ class LiveKitManager @Inject constructor(
 
     fun publishLocation(location: RiderLocation) {
         val now = System.currentTimeMillis()
+        // 1 Hz rate cap
+        if (now - lastBroadcastTime < 1000L) {
+            return
+        }
+
         val prev = lastBroadcastLoc
         val dist = if (prev != null) {
             val results = FloatArray(1)
             android.location.Location.distanceBetween(prev.lat, prev.lng, location.lat, location.lng, results)
             results[0]
         } else Float.MAX_VALUE
-        val speedKmh = (location.speed ?: 0f) * 3.6f
-        val isStationary = speedKmh < 1.5f
 
-        if (prev != null && isStationary && dist < 3.0f && (now - lastBroadcastTime) < 30_000L) {
+        val bearingDelta = if (prev != null && prev.heading != null && location.heading != null) {
+            Math.abs(prev.heading - location.heading)
+        } else 360f
+
+        val timeDelta = now - lastBroadcastTime
+
+        // Filter: only skip if moved < 5m, turned < 10 deg, and < 5s elapsed
+        if (prev != null && timeDelta < 5000L && dist < 5.0f && bearingDelta < 10.0f) {
             return
         }
 
@@ -624,7 +723,11 @@ class LiveKitManager @Inject constructor(
         scope.launch {
             try {
                 val bytes = gson.toJson(location).toByteArray(Charsets.UTF_8)
-                room?.localParticipant?.publishData(bytes)
+                room?.localParticipant?.publishData(
+                    data = bytes,
+                    reliability = DataPublishReliability.LOSSY,
+                    topic = "location"
+                )
             } catch (e: Exception) {
                 Log.w(TAG, "Location publish: ${e.message}")
             }
@@ -638,6 +741,8 @@ class LiveKitManager @Inject constructor(
         lastBroadcastTime = 0L
         deviceJob?.cancel()
         deviceJob = null
+        republishJob?.cancel()
+        republishJob = null
         eventsJob?.cancel()
         eventsJob = null
         voiceGateOpen = false

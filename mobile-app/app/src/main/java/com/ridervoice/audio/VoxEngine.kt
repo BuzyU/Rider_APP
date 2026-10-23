@@ -170,7 +170,6 @@ class VoxEngine @Inject constructor(
 
             pollJob = scope.launch {
                 val frame = ShortArray(FRAME)
-                calibrateNoiseFloor(rec, frame)
 
                 while (isActive) {
                     val now = System.currentTimeMillis()
@@ -261,17 +260,19 @@ class VoxEngine @Inject constructor(
         _currentAmplitude.value = rms
 
         if (!pttOverride && voxEnabled) {
+            detector.updateFloor(rms)
+            _noiseFloor.value = detector.floor
+
+            val frameMs = (numSamples * 1000L) / sampleRate
             if (!_isMicOpen.value) {
                 if (evaluator.activePath == "adm") {
-                    detector.updateFloor(rms)
-                    _noiseFloor.value = detector.floor
-                    when (detector.evaluate(rms, now, isOpen = false)) {
+                    when (detector.evaluate(rms, now, isOpen = false, frameDurationMs = frameMs)) {
                         VoxDetector.Decision.OPEN -> openMic(isFromVox = true)
                         else -> {}
                     }
                 }
             } else {
-                when (detector.evaluate(rms, now, isOpen = true)) {
+                when (detector.evaluate(rms, now, isOpen = true, frameDurationMs = frameMs)) {
                     VoxDetector.Decision.CLOSE -> closeMic()
                     else -> {}
                 }
@@ -378,22 +379,8 @@ class VoxEngine @Inject constructor(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun calibrateNoiseFloor(record: AudioRecord, frame: ShortArray) {
-        val samples = ArrayList<Float>(50)
-        var attempts = 0
-        while (samples.size < 50 && attempts < 200) {
-            val read = record.read(frame, 0, FRAME)
-            attempts++
-            if (read > 0) {
-                val rms = detector.rms(frame, read, SAMPLE_RATE)
-                if (rms > 0f) samples.add(rms)
-            }
-        }
-        if (samples.isNotEmpty()) {
-            val sorted = samples.sorted()
-            val idx = (sorted.size * 0.25).toInt().coerceIn(0, sorted.size - 1)
-            detector.setFloor(sorted[idx])
-            _noiseFloor.value = detector.floor
-        }
+        // No-op: NoiseFloorTracker adapts continuously without blocking record reads
     }
 }

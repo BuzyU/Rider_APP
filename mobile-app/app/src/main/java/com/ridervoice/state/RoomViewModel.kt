@@ -19,6 +19,8 @@ import com.ridervoice.services.LocationService
 import com.ridervoice.services.RideRecorder
 import com.ridervoice.services.ServiceWatchdog
 import com.ridervoice.services.ThermalManager
+import com.ridervoice.ui.components.UiMessage
+import com.ridervoice.ui.components.UiMessageMapper
 import com.ridervoice.utils.Constants
 import com.ridervoice.security.SecurePreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -90,6 +92,9 @@ class RoomViewModel @Inject constructor(
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
+
+    private val _uiMessage = MutableStateFlow<UiMessage?>(null)
+    val uiMessage: StateFlow<UiMessage?> = _uiMessage
 
     val convoyEnded: StateFlow<Boolean> = liveKitManager.convoyEnded
     val inRideSosAlert: StateFlow<com.ridervoice.network.InRideSosAlert?> = liveKitManager.inRideSosAlert
@@ -189,12 +194,14 @@ class RoomViewModel @Inject constructor(
         }
     }
 
+    private var isJoining = false
+
     fun joinRoom(roomName: String, userName: String) {
+        if (isJoining || liveKitManager.connectionState.value == ConnectionState.CONNECTED) {
+            return
+        }
+        isJoining = true
         _participants.value = emptyList()
-        locationService.startTracking()
-        rideRecorder.startRecording(roomName)
-        thermalManager.startMonitoring(viewModelScope)
-        serviceWatchdog.startMonitoring(viewModelScope)
 
         hardwarePTTManager.onMicToggleRequest = { open ->
             liveKitManager.onPttPressed(open)
@@ -205,6 +212,7 @@ class RoomViewModel @Inject constructor(
 
         viewModelScope.launch {
             _error.value = null
+            _uiMessage.value = null
             try {
                 val tokenResult = activeRideRepository.ensureFreshToken()
                 val token = tokenResult.getOrThrow()
@@ -224,7 +232,11 @@ class RoomViewModel @Inject constructor(
                     }
                 )
             } catch (e: Exception) {
-                _error.value = "Connection error: ${e.message}"
+                val msg = UiMessageMapper.map(500, fallback = "Connection error: ${e.message}")
+                _uiMessage.value = msg
+                _error.value = msg.message
+            } finally {
+                isJoining = false
             }
         }
     }
@@ -274,10 +286,12 @@ class RoomViewModel @Inject constructor(
 
     fun clearError() {
         _error.value = null
+        _uiMessage.value = null
     }
 
     fun setError(msg: String) {
         _error.value = msg
+        _uiMessage.value = UiMessageMapper.map(400, fallback = msg)
     }
 
     fun isDiagnosticsConsentShown(): Boolean = securePrefs.isDiagnosticsConsentShown()
@@ -290,14 +304,34 @@ class RoomViewModel @Inject constructor(
     fun endRideForEveryone(roomName: String, onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
-                liveKitManager.broadcastConvoyEnded(roomName)
-                networkDiagnosticsCollector.stopSession()
-                apiService.endRideForEveryone(roomName)
+                val res = apiService.endRideForEveryone(roomName)
+                if (res.isSuccessful) {
+                    try {
+                        liveKitManager.broadcastConvoyEnded(roomName)
+                    } catch (e: Exception) {
+                        android.util.Log.w("RoomViewModel", "Failed to broadcast convoy ended: ${e.message}")
+                    }
+                    networkDiagnosticsCollector.stopSession()
+                    leaveRoom(roomName)
+                    onComplete()
+                } else {
+                    val errorBody = res.errorBody()?.string()
+                    val uiMsg = UiMessageMapper.map(
+                        httpCode = res.code(),
+                        errorCode = errorBody,
+                        fallback = "Failed to end ride: ${res.message()}"
+                    )
+                    _uiMessage.value = uiMsg
+                    _error.value = uiMsg.message
+                }
             } catch (e: Exception) {
                 android.util.Log.e("RoomViewModel", "Failed to end ride on server: ${e.message}")
-            } finally {
-                leaveRoom(roomName)
-                onComplete()
+                val uiMsg = UiMessageMapper.map(
+                    httpCode = 500,
+                    fallback = "Failed to end ride: ${e.message}"
+                )
+                _uiMessage.value = uiMsg
+                _error.value = uiMsg.message
             }
         }
     }
@@ -305,23 +339,40 @@ class RoomViewModel @Inject constructor(
     fun transferHostAndLeave(roomName: String, newHostId: String, onComplete: () -> Unit) {
         viewModelScope.launch {
             try {
-                apiService.transferHost(roomName, com.ridervoice.models.TransferHostRequest(newHostId))
+                val res = apiService.transferHost(roomName, com.ridervoice.models.TransferHostRequest(newHostId))
+                if (res.isSuccessful) {
+                    leaveRoom(roomName)
+                    onComplete()
+                } else {
+                    val msg = UiMessageMapper.map(res.code(), res.errorBody()?.string(), fallback = "Failed to transfer host")
+                    _uiMessage.value = msg
+                    _error.value = msg.message
+                }
             } catch (e: Exception) {
                 android.util.Log.e("RoomViewModel", "Failed to transfer host on server: ${e.message}")
-            } finally {
-                leaveRoom(roomName)
-                onComplete()
+                val msg = UiMessageMapper.map(500, fallback = "Failed to transfer host: ${e.message}")
+                _uiMessage.value = msg
+                _error.value = msg.message
             }
         }
     }
 
     fun leaveRoom(roomName: String? = null) {
+        val targetRoom = roomName ?: activeRideRepository.state.value?.roomId ?: activeRideRepository.state.value?.displayName
         viewModelScope.launch {
             try {
                 networkDiagnosticsCollector.stopSession()
             } catch (e: Exception) {
                 android.util.Log.w("RoomViewModel", "Failed to stop diagnostic collector: ${e.message}")
             }
+            if (!targetRoom.isNullOrBlank()) {
+                try {
+                    apiService.leaveLobby(targetRoom)
+                } catch (e: Exception) {
+                    android.util.Log.w("RoomViewModel", "Failed to call leaveLobby: ${e.message}")
+                }
+            }
+            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.LEFT)
         }
         cleanup()
         liveKitManager.disconnect()
@@ -333,10 +384,6 @@ class RoomViewModel @Inject constructor(
     }
 
     private fun cleanup() {
-        locationService.stopTracking()
-        rideRecorder.stopRecording()
-        thermalManager.stopMonitoring()
-        serviceWatchdog.stopMonitoring()
         hardwarePTTManager.deactivateSession()
     }
 }

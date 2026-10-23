@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.ridervoice.utils.RvLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,20 +19,57 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+
+enum class VoxCaptureMode { AUTO, ADM, OWN }
+
+class VoxCaptureEvaluator(
+    var mode: VoxCaptureMode = VoxCaptureMode.AUTO
+) {
+    private var consecutiveValidSeconds = 0
+    var activePath: String = "own"
+        private set
+
+    fun onSecondTick(admFramesInLastSecWhileClosed: Int): String {
+        activePath = when (mode) {
+            VoxCaptureMode.ADM -> "adm"
+            VoxCaptureMode.OWN -> "own"
+            VoxCaptureMode.AUTO -> {
+                if (admFramesInLastSecWhileClosed >= 40) {
+                    consecutiveValidSeconds++
+                    if (consecutiveValidSeconds >= 3) {
+                        "adm"
+                    } else {
+                        activePath
+                    }
+                } else {
+                    consecutiveValidSeconds = 0
+                    "own"
+                }
+            }
+        }
+        return activePath
+    }
+
+    fun reset() {
+        consecutiveValidSeconds = 0
+        activePath = if (mode == VoxCaptureMode.ADM) "adm" else "own"
+    }
+}
 
 @Singleton
 class VoxEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val audioDeviceRouter: AudioDeviceRouter
 ) {
-
     private val TAG = "VoxEngine"
 
     private val detector = VoxDetector()
+    val evaluator = VoxCaptureEvaluator(VoxCaptureMode.AUTO)
 
     private val SAMPLE_RATE = 16000
     private val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
@@ -43,16 +81,17 @@ class VoxEngine @Inject constructor(
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     private val _isMicOpen = MutableStateFlow(false)
-    val isMicOpen: StateFlow<Boolean> = _isMicOpen
+    val isMicOpen: StateFlow<Boolean> = _isMicOpen.asStateFlow()
 
     private val _noiseFloor = MutableStateFlow(0f)
-    val noiseFloor: StateFlow<Float> = _noiseFloor
+    val noiseFloor: StateFlow<Float> = _noiseFloor.asStateFlow()
 
     private val _currentAmplitude = MutableStateFlow(0f)
-    val currentAmplitude: StateFlow<Float> = _currentAmplitude
+    val currentAmplitude: StateFlow<Float> = _currentAmplitude.asStateFlow()
 
     @Volatile private var pttOverride = false
     @Volatile private var voxEnabled = true
+    @Volatile private var isRunning = false
 
     private var pollJob: Job? = null
     private var pttReleaseJob: Job? = null
@@ -61,48 +100,60 @@ class VoxEngine @Inject constructor(
 
     var onMicStateChange: ((Boolean) -> Unit)? = null
 
-    @Suppress("MissingPermission")
+    @Volatile private var lastTxFrameTime = 0L
+    @Volatile private var lastRestartTime = 0L
+    private var admFramesThisSec = 0
+    private var lastEvalTime = System.currentTimeMillis()
+
+    fun setCaptureMode(mode: VoxCaptureMode) {
+        evaluator.mode = mode
+        if (mode == VoxCaptureMode.ADM) {
+            stopOwnAudioRecord()
+        } else if (mode == VoxCaptureMode.OWN && isRunning && audioRecord == null) {
+            startOwnAudioRecord()
+        }
+    }
+
+    @Synchronized
     fun start() {
-        if (audioRecord != null || pollJob?.isActive == true) return
+        if (isRunning) return
+        isRunning = true
         Log.d(TAG, "VOX engine starting")
 
-        val record: AudioRecord
+        if (evaluator.activePath == "own") {
+            startOwnAudioRecord()
+        }
+    }
+
+    @Synchronized
+    fun stop() {
+        isRunning = false
+        stopOwnAudioRecord()
+        pttReleaseJob?.cancel()
+        pttReleaseJob = null
+        if (!pttOverride) closeMic()
+        Log.d(TAG, "VOX engine stopped")
+    }
+
+    private fun startOwnAudioRecord() {
+        if (audioRecord != null || pollJob?.isActive == true) return
         try {
             val audioSource = MediaRecorder.AudioSource.VOICE_RECOGNITION
-            var rec = AudioRecord(
-                audioSource,
-                SAMPLE_RATE,
-                CHANNEL_CONFIG,
-                AUDIO_FORMAT,
-                bufferSize
-            )
+            var rec = AudioRecord(audioSource, SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT, bufferSize)
             if (rec.state != AudioRecord.STATE_INITIALIZED) {
                 rec.release()
-                rec = AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    SAMPLE_RATE,
-                    CHANNEL_CONFIG,
-                    AUDIO_FORMAT,
-                    bufferSize
-                )
+                rec = AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT, bufferSize)
             }
             if (rec.state != AudioRecord.STATE_INITIALIZED) {
                 rec.release()
-                rec = AudioRecord(
-                    MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-                    SAMPLE_RATE,
-                    CHANNEL_CONFIG,
-                    AUDIO_FORMAT,
-                    bufferSize
-                )
+                rec = AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION, SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT, bufferSize)
             }
             if (rec.state != AudioRecord.STATE_INITIALIZED) {
                 rec.release()
                 return
             }
-            record = rec
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                record.addOnRoutingChangedListener(
+                rec.addOnRoutingChangedListener(
                     AudioRecord.OnRoutingChangedListener { r ->
                         val dev = (r as? AudioRecord)?.routedDevice
                         audioDeviceRouter.onInputRoutingChanged(dev)
@@ -110,68 +161,56 @@ class VoxEngine @Inject constructor(
                     Handler(Looper.getMainLooper())
                 )
             }
-            preferCommunicationInput(record)
-            record.startRecording()
+            preferCommunicationInput(rec)
+            rec.startRecording()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                audioDeviceRouter.onInputRoutingChanged(record.routedDevice)
+                audioDeviceRouter.onInputRoutingChanged(rec.routedDevice)
+            }
+            audioRecord = rec
+
+            pollJob = scope.launch {
+                val frame = ShortArray(FRAME)
+                calibrateNoiseFloor(rec, frame)
+
+                while (isActive) {
+                    val now = System.currentTimeMillis()
+                    if (_isMicOpen.value) {
+                        delay(20)
+                        continue
+                    }
+                    if (audioRecord?.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
+                        delay(50)
+                        continue
+                    }
+                    val read = rec.read(frame, 0, FRAME)
+                    if (read <= 0) { delay(20); continue }
+
+                    val rms = detector.rms(frame, read, SAMPLE_RATE)
+                    _currentAmplitude.value = rms
+
+                    if (!pttOverride && !_isMicOpen.value) {
+                        detector.updateFloor(rms)
+                        _noiseFloor.value = detector.floor
+                    }
+
+                    if (voxEnabled && !pttOverride) {
+                        when (detector.evaluate(rms, now, false)) {
+                            VoxDetector.Decision.OPEN -> openMic(isFromVox = true)
+                            else -> {}
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "VOX AudioRecord start failed: ${e.message}", e)
+            Log.e(TAG, "startOwnAudioRecord failed: ${e.message}", e)
             audioRecord?.release()
             audioRecord = null
-            return
-        }
-        audioRecord = record
-
-        pollJob = scope.launch {
-            val frame = ShortArray(FRAME)
-
-            calibrateNoiseFloor(record, frame)
-            evaluateHardwareRecordingState()
-
-            while (isActive) {
-                val now = System.currentTimeMillis()
-                if (_isMicOpen.value) {
-                    if (!pttOverride && lastTxFrameTime > 0L && (now - lastTxFrameTime > 2500L)) {
-                        closeMic()
-                    }
-                    delay(20)
-                    continue
-                }
-                if (lastTxFrameTime > 0L && (now - lastTxFrameTime < 500L)) {
-                    delay(20)
-                    continue
-                }
-                if (audioRecord?.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-                    delay(50)
-                    continue
-                }
-                val read = record.read(frame, 0, FRAME)
-                if (read <= 0) { delay(20); continue }
-
-                val rms = detector.rms(frame, read)
-                _currentAmplitude.value = rms
-
-                if (!pttOverride && !_isMicOpen.value) {
-                    detector.updateFloor(rms)
-                    _noiseFloor.value = detector.floor
-                }
-
-                if (voxEnabled && !pttOverride) {
-                    when (detector.evaluate(rms, now, false)) {
-                        VoxDetector.Decision.OPEN -> openMic(isFromVox = true)
-                        else -> {}
-                    }
-                }
-            }
         }
     }
 
-    fun stop() {
+    private fun stopOwnAudioRecord() {
         pollJob?.cancel()
         pollJob = null
-        pttReleaseJob?.cancel()
-        pttReleaseJob = null
         try {
             audioRecord?.stop()
         } catch (e: Exception) {
@@ -179,8 +218,65 @@ class VoxEngine @Inject constructor(
         }
         audioRecord?.release()
         audioRecord = null
-        if (!pttOverride) closeMic()
-        Log.d(TAG, "VOX engine stopped")
+    }
+
+    fun onTxFrame(pcmBytes: ByteArray, sampleRate: Int = 16000) {
+        val now = System.currentTimeMillis()
+        lastTxFrameTime = now
+
+        if (!_isMicOpen.value) {
+            admFramesThisSec++
+        }
+
+        if (now - lastEvalTime >= 1000L) {
+            val previousPath = evaluator.activePath
+            val newPath = evaluator.onSecondTick(admFramesThisSec)
+            RvLog.vox("path=$newPath frames_per_s=$admFramesThisSec rate=$sampleRate")
+            admFramesThisSec = 0
+            lastEvalTime = now
+
+            if (previousPath != newPath) {
+                if (newPath == "adm") {
+                    stopOwnAudioRecord()
+                } else if (isRunning) {
+                    startOwnAudioRecord()
+                }
+            }
+        }
+
+        val numSamples = pcmBytes.size / 2
+        if (numSamples <= 0) return
+        val frame = ShortArray(numSamples)
+        var i = 0
+        var j = 0
+        while (i < pcmBytes.size - 1 && j < numSamples) {
+            val b0 = pcmBytes[i].toInt() and 0xFF
+            val b1 = pcmBytes[i + 1].toInt()
+            frame[j] = ((b1 shl 8) or b0).toShort()
+            i += 2
+            j++
+        }
+
+        val rms = detector.rms(frame, j, sampleRate)
+        _currentAmplitude.value = rms
+
+        if (!pttOverride && voxEnabled) {
+            if (!_isMicOpen.value) {
+                if (evaluator.activePath == "adm") {
+                    detector.updateFloor(rms)
+                    _noiseFloor.value = detector.floor
+                    when (detector.evaluate(rms, now, isOpen = false)) {
+                        VoxDetector.Decision.OPEN -> openMic(isFromVox = true)
+                        else -> {}
+                    }
+                }
+            } else {
+                when (detector.evaluate(rms, now, isOpen = true)) {
+                    VoxDetector.Decision.CLOSE -> closeMic()
+                    else -> {}
+                }
+            }
+        }
     }
 
     fun setPttOverride(open: Boolean) {
@@ -196,39 +292,17 @@ class VoxEngine @Inject constructor(
         }
     }
 
-    @Volatile private var hardwarePttEnabled = true
-    @Volatile private var hybridVoxMode = true
-
     fun setHardwarePttEnabled(enabled: Boolean) {
-        hardwarePttEnabled = enabled
+        // preserved for compatibility
     }
 
     fun setHybridVoxMode(enabled: Boolean) {
-        hybridVoxMode = enabled
+        // preserved for compatibility
     }
 
     fun setVoxEnabled(enabled: Boolean) {
         voxEnabled = enabled
-        evaluateHardwareRecordingState()
         if (!enabled && !pttOverride) closeMic()
-    }
-
-    private fun evaluateHardwareRecordingState() {
-        val record = audioRecord ?: return
-        val shouldRecord = voxEnabled && !_isMicOpen.value && !pttOverride
-        if (shouldRecord && record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
-            try {
-                record.startRecording()
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to start AudioRecord: ${e.message}")
-            }
-        } else if (!shouldRecord && record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
-            try {
-                record.stop()
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to stop AudioRecord: ${e.message}")
-            }
-        }
     }
 
     fun setSensitivity(sensitivity: Float) {
@@ -243,7 +317,6 @@ class VoxEngine @Inject constructor(
         if (_isMicOpen.value) return
         _isMicOpen.value = true
         lastTxFrameTime = System.currentTimeMillis()
-        evaluateHardwareRecordingState()
         onMicStateChange?.invoke(true)
     }
 
@@ -251,66 +324,25 @@ class VoxEngine @Inject constructor(
         if (!_isMicOpen.value) return
         _isMicOpen.value = false
         detector.resetAttack()
-        evaluateHardwareRecordingState()
         onMicStateChange?.invoke(false)
     }
 
-    @Volatile private var lastTxFrameTime = 0L
-
-    fun onTxFrame(pcmBytes: ByteArray, sampleRate: Int = 16000) {
+    fun restartVox() {
         val now = System.currentTimeMillis()
-        lastTxFrameTime = now
-
-        val numSamples = pcmBytes.size / 2
-        if (numSamples <= 0) return
-        val frame = ShortArray(numSamples)
-        var i = 0
-        var j = 0
-        while (i < pcmBytes.size - 1 && j < numSamples) {
-            val b0 = pcmBytes[i].toInt() and 0xFF
-            val b1 = pcmBytes[i + 1].toInt()
-            frame[j] = ((b1 shl 8) or b0).toShort()
-            i += 2
-            j++
+        if (now - lastRestartTime < 10000L) {
+            updatePreferredDevice()
+            return
         }
-
-        val rms = detector.rms(frame, j)
-        _currentAmplitude.value = rms
-
-        if (!pttOverride && voxEnabled) {
-            if (!_isMicOpen.value) {
-                detector.updateFloor(rms)
-                _noiseFloor.value = detector.floor
-                when (detector.evaluate(rms, now, isOpen = false)) {
-                    VoxDetector.Decision.OPEN -> openMic(isFromVox = true)
-                    else -> {}
-                }
-            } else {
-                when (detector.evaluate(rms, now, isOpen = true)) {
-                    VoxDetector.Decision.CLOSE -> closeMic()
-                    else -> {}
-                }
-            }
+        lastRestartTime = now
+        updatePreferredDevice()
+        if (evaluator.activePath == "own" && (audioRecord == null || audioRecord?.state != AudioRecord.STATE_INITIALIZED)) {
+            startOwnAudioRecord()
         }
     }
 
-    private fun calibrateNoiseFloor(record: AudioRecord, frame: ShortArray) {
-        val samples = ArrayList<Float>(50)
-        var attempts = 0
-        while (samples.size < 50 && attempts < 200) {
-            val read = record.read(frame, 0, FRAME)
-            attempts++
-            if (read > 0) {
-                val rms = detector.rms(frame, read)
-                if (rms > 0f) samples.add(rms)
-            }
-        }
-        if (samples.isNotEmpty()) {
-            val sorted = samples.sorted()
-            val idx = (sorted.size * 0.25).toInt().coerceIn(0, sorted.size - 1)
-            detector.setFloor(sorted[idx])
-            _noiseFloor.value = detector.floor
-        }
+    fun updatePreferredDevice() {
+        val record = audioRecord ?: return
+        preferCommunicationInput(record)
     }
 
     private fun preferCommunicationInput(record: AudioRecord) {
@@ -346,8 +378,22 @@ class VoxEngine @Inject constructor(
         }
     }
 
-    fun updatePreferredDevice() {
-        val record = audioRecord ?: return
-        preferCommunicationInput(record)
+    private fun calibrateNoiseFloor(record: AudioRecord, frame: ShortArray) {
+        val samples = ArrayList<Float>(50)
+        var attempts = 0
+        while (samples.size < 50 && attempts < 200) {
+            val read = record.read(frame, 0, FRAME)
+            attempts++
+            if (read > 0) {
+                val rms = detector.rms(frame, read, SAMPLE_RATE)
+                if (rms > 0f) samples.add(rms)
+            }
+        }
+        if (samples.isNotEmpty()) {
+            val sorted = samples.sorted()
+            val idx = (sorted.size * 0.25).toInt().coerceIn(0, sorted.size - 1)
+            detector.setFloor(sorted[idx])
+            _noiseFloor.value = detector.floor
+        }
     }
 }

@@ -28,8 +28,7 @@ enum class ThermalState {
 
 @Singleton
 class ThermalManager @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val locationService: LocationService
+    @ApplicationContext private val context: Context
 ) {
     companion object {
         private const val TAG = "ThermalManager"
@@ -38,6 +37,9 @@ class ThermalManager @Inject constructor(
 
     private val _thermalState = MutableStateFlow(ThermalState.NORMAL)
     val thermalState: StateFlow<ThermalState> = _thermalState.asStateFlow()
+
+    private val _thermalLevel = MutableStateFlow(ThermalLevel.NORMAL)
+    val thermalLevel: StateFlow<ThermalLevel> = _thermalLevel.asStateFlow()
 
     private var monitorJob: Job? = null
 
@@ -54,10 +56,18 @@ class ThermalManager @Inject constructor(
                     else               -> ThermalState.NORMAL
                 }
 
+                val newLevel = when (newState) {
+                    ThermalState.NORMAL -> ThermalLevel.NORMAL
+                    ThermalState.LEVEL_1_WARM -> ThermalLevel.WARM
+                    ThermalState.LEVEL_2_HOT -> ThermalLevel.HOT
+                    ThermalState.LEVEL_3_CRITICAL -> ThermalLevel.CRITICAL
+                }
+
                 if (_thermalState.value != newState) {
-                    Log.w(TAG, "Thermal state: ${_thermalState.value} → $newState (${tempCelsius}°C)")
+                    Log.w(TAG, "Thermal state: ${_thermalState.value} -> $newState (${tempCelsius}°C)")
                     _thermalState.value = newState
-                    applyDegradation(newState)
+                    _thermalLevel.value = newLevel
+                    com.ridervoice.utils.RvLog.loc("thermal=$newLevel temp=${tempCelsius}C")
                 }
 
                 delay(CHECK_INTERVAL_MS)
@@ -70,7 +80,7 @@ class ThermalManager @Inject constructor(
         monitorJob = null
     }
 
-    private fun readBatteryTemperature(): Float {
+    fun readBatteryTemperature(): Float {
         return try {
             val intent: Intent? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 context.registerReceiver(
@@ -89,15 +99,6 @@ class ThermalManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to read battery temperature: ${e.message}")
             25f
-        }
-    }
-
-    private fun applyDegradation(state: ThermalState) {
-        when (state) {
-            ThermalState.NORMAL         -> locationService.updatePollingInterval(2_000L)
-            ThermalState.LEVEL_1_WARM   -> locationService.updatePollingInterval(5_000L)
-            ThermalState.LEVEL_2_HOT    -> locationService.updatePollingInterval(10_000L)
-            ThermalState.LEVEL_3_CRITICAL -> locationService.updatePollingInterval(15_000L)
         }
     }
 }

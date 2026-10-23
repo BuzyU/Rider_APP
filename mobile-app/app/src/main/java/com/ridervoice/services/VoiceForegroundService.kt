@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -16,17 +17,17 @@ import com.ridervoice.MainActivity
 import com.ridervoice.R
 import com.ridervoice.network.ConnectionState
 import com.ridervoice.network.LiveKitManager
+import com.ridervoice.security.SecurePreferences
+import com.ridervoice.state.ActiveRideRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import com.ridervoice.security.SecurePreferences
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -43,7 +44,19 @@ class VoiceForegroundService : Service() {
     lateinit var networkDiagnosticsCollector: com.ridervoice.diagnostics.collector.NetworkDiagnosticsCollector
 
     @Inject
-    lateinit var activeRideRepository: com.ridervoice.state.ActiveRideRepository
+    lateinit var activeRideRepository: ActiveRideRepository
+
+    @Inject
+    lateinit var locationService: LocationService
+
+    @Inject
+    lateinit var rideRecorder: RideRecorder
+
+    @Inject
+    lateinit var thermalManager: ThermalManager
+
+    @Inject
+    lateinit var serviceWatchdog: ServiceWatchdog
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val channelId = "tactical_voice_channel"
@@ -57,45 +70,27 @@ class VoiceForegroundService : Service() {
 
     private var updateJob: Job? = null
 
-    @SuppressLint("WakelockTimeout")
     override fun onCreate() {
         super.onCreate()
 
         try {
-            val powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-            wakeLock = powerManager.newWakeLock(
-                android.os.PowerManager.PARTIAL_WAKE_LOCK,
-                "RiderVoice:VoiceAudioLock"
-            ).apply {
-                setReferenceCounted(false)
-                acquire(4 * 3600 * 1000L) // 4 hours maximum safety timeout (BAT-3)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("VoiceForegroundService", "WakeLock acquisition failed", e)
-        }
-
-        try {
             createNotificationChannel()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                var fgsType = android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    fgsType = fgsType or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    fgsType = fgsType or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-                }
-                startForeground(
-                    notificationId,
-                    buildTacticalNotification(),
-                    fgsType
-                )
+            val mask = getForegroundServiceTypeMask()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && mask != 0) {
+                startForeground(notificationId, buildTacticalNotification(), mask)
             } else {
                 startForeground(notificationId, buildTacticalNotification())
             }
+        } catch (se: SecurityException) {
+            android.util.Log.e("VoiceForegroundService", "startForeground SecurityException: ${se.message}")
+            try {
+                startForeground(notificationId, buildTacticalNotification())
+            } catch (_: Exception) {}
         } catch (e: Exception) {
             android.util.Log.e("VoiceForegroundService", "startForeground failed", e)
         }
 
+        // Manage connection state updates and wake lock
         serviceScope.launch {
             liveKitManager.connectionState.collectLatest { state ->
                 currentConvoyState = when (state) {
@@ -105,6 +100,7 @@ class VoiceForegroundService : Service() {
                     ConnectionState.FAILED -> "Connection Failed"
                     ConnectionState.DISCONNECTED -> "Disconnected"
                 }
+                updateWakeLock(state)
                 debouncedUpdateNotification()
             }
         }
@@ -124,7 +120,24 @@ class VoiceForegroundService : Service() {
             }
         }
 
-        // Network Diagnostics Collector: Observe toggle + connection state with pure DiagnosticsGating policy
+        // Location & Sensor Lifecycle: ServiceScope owns tracking while ride is LIVE
+        serviceScope.launch {
+            activeRideRepository.state.collectLatest { ride ->
+                if (ride != null && ride.phase == ActiveRideRepository.Phase.LIVE) {
+                    locationService.startTracking()
+                    rideRecorder.startRecording(ride.roomId)
+                    thermalManager.startMonitoring(serviceScope)
+                    serviceWatchdog.startMonitoring(serviceScope)
+                } else {
+                    locationService.stopTracking()
+                    rideRecorder.stopRecording()
+                    thermalManager.stopMonitoring()
+                    serviceWatchdog.stopMonitoring()
+                }
+            }
+        }
+
+        // Network Diagnostics Collector gating
         serviceScope.launch {
             combine(
                 securePreferences.shareDiagnosticsWhenHostEnabled,
@@ -163,15 +176,72 @@ class VoiceForegroundService : Service() {
                 liveKitManager.setUserMuted(isMuted)
                 updateNotificationImmediate()
             }
-            "ACTION_PING" -> {
+        }
 
-            }
-            "ACTION_HAZARD" -> {
-
+        // Process death recovery: check if a LIVE ride exists
+        if (intent == null) {
+            val active = activeRideRepository.state.value
+            if (active == null || active.phase != ActiveRideRepository.Phase.LIVE) {
+                serviceScope.launch {
+                    delay(5000L)
+                    stopSelf()
+                }
+            } else {
+                serviceScope.launch {
+                    activeRideRepository.ensureFreshToken()
+                }
             }
         }
 
         return START_REDELIVER_INTENT
+    }
+
+    private fun updateWakeLock(state: ConnectionState) {
+        val shouldHold = state == ConnectionState.CONNECTED || state == ConnectionState.RECONNECTING
+        if (shouldHold) {
+            if (wakeLock == null) {
+                try {
+                    val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RiderVoice:VoiceAudioLock").apply {
+                        setReferenceCounted(false)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("VoiceForegroundService", "WakeLock creation failed", e)
+                }
+            }
+            wakeLock?.let {
+                if (!it.isHeld) {
+                    it.acquire(3 * 3600 * 1000L) // 3h renewal window
+                    com.ridervoice.utils.RvLog.d("BAT", "WakeLock acquired for 3h")
+                }
+            }
+        } else {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                    com.ridervoice.utils.RvLog.d("BAT", "WakeLock released")
+                }
+            }
+        }
+    }
+
+    private fun getForegroundServiceTypeMask(): Int {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return 0
+        var mask = 0
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            mask = mask or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+             checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)) {
+            mask = mask or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                mask = mask or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            }
+        }
+        return if (mask == 0) android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else mask
     }
 
     private fun createNotificationChannel() {
@@ -255,6 +325,10 @@ class VoiceForegroundService : Service() {
 
     override fun onDestroy() {
         serviceScope.cancel()
+        locationService.stopTracking()
+        rideRecorder.stopRecording()
+        thermalManager.stopMonitoring()
+        serviceWatchdog.stopMonitoring()
         networkDiagnosticsCollector.stopSession()
         liveKitManager.disconnect()
         wakeLock?.let {

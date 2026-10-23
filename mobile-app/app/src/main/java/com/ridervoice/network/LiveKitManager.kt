@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import com.ridervoice.audio.AudioDevice
 import com.ridervoice.audio.AudioDeviceRouter
+import com.ridervoice.audio.AudioProfile
+import com.ridervoice.audio.RouteType
 import com.ridervoice.audio.RouterState
 import com.ridervoice.audio.VoxEngine
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -194,9 +196,8 @@ class LiveKitManager @Inject constructor(
 
         scope.launch {
             audioDeviceRouter.republishRequests.collect {
-                publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
+                applyRouteOptions(audioDeviceRouter.activeDevice.value)
                 voxEngine.updatePreferredDevice()
-                restartVox()
             }
         }
 
@@ -344,40 +345,48 @@ class LiveKitManager @Inject constructor(
     }
 
     private fun buildAudioTrackOptions(device: AudioDevice): LocalAudioTrackOptions {
-        val ns = noiseSuppressionEnabled
-        return when (device) {
-            is AudioDevice.BluetoothSco -> LocalAudioTrackOptions(
-                noiseSuppression = ns,
-                echoCancellation = false,
-                autoGainControl = false,
-                highPassFilter = true,
-                typingNoiseDetection = false
-            )
-            is AudioDevice.WiredHeadset -> LocalAudioTrackOptions(
-                noiseSuppression = ns,
-                echoCancellation = true,
-                autoGainControl = false,
-                highPassFilter = true,
-                typingNoiseDetection = false
-            )
-            is AudioDevice.UsbAudio -> LocalAudioTrackOptions(
-                noiseSuppression = ns,
-                echoCancellation = true,
-                autoGainControl = false,
-                highPassFilter = true,
-                typingNoiseDetection = false
-            )
-            is AudioDevice.Earpiece, is AudioDevice.Speakerphone -> LocalAudioTrackOptions(
-                noiseSuppression = ns,
-                echoCancellation = true,
-                autoGainControl = true,
-                highPassFilter = true,
-                typingNoiseDetection = false
-            )
+        val routeType = when (device) {
+            is AudioDevice.BluetoothSco -> RouteType.BT_SCO
+            is AudioDevice.WiredHeadset, is AudioDevice.UsbAudio -> RouteType.WIRED
+            else -> RouteType.PHONE
+        }
+        val profile = AudioProfile.forRoute(routeType)
+        return LocalAudioTrackOptions(
+            noiseSuppression = profile.noiseSuppression && noiseSuppressionEnabled,
+            echoCancellation = profile.echoCancellation,
+            autoGainControl = profile.autoGain,
+            highPassFilter = true,
+            typingNoiseDetection = false
+        )
+    }
+
+    @Volatile private var isPttPressed = false
+    @Volatile private var lastPublishTime = 0L
+
+    fun applyRouteOptions(device: AudioDevice) {
+        val newOptions = buildAudioTrackOptions(device)
+        val currentTrack = localAudioTrack
+        val now = System.currentTimeMillis()
+
+        if (currentTrack == null) {
+            scope.launch { publishAudioTrack(device, force = false) }
+            return
+        }
+
+        if (newOptions == lastOptions) {
+            currentTrack.enabled = voiceGateOpen && !userMuted
+            _isMicEnabled.value = currentTrack.enabled
+            return
+        }
+
+        if (!isPttPressed && (now - lastPublishTime >= 3000L)) {
+            lastPublishTime = now
+            scope.launch { publishAudioTrack(device, force = true) }
         }
     }
 
     fun onPttPressed(pressed: Boolean) {
+        isPttPressed = pressed
         voxEngine.setPttOverride(pressed)
     }
 

@@ -324,7 +324,7 @@ class RoomViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        cleanup()
+        hardwarePTTManager.deactivateSession()
     }
 
     private fun cleanup() {

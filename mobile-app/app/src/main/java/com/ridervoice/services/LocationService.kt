@@ -3,8 +3,13 @@ package com.ridervoice.services
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.Location
+import android.os.BatteryManager
+import android.os.Build
+import android.os.HandlerThread
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.ActivityCompat
@@ -23,7 +28,8 @@ import javax.inject.Singleton
 
 @Singleton
 class LocationService @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val thermalManager: ThermalManager
 ) {
     companion object {
         private const val TAG = "LocationService"
@@ -40,103 +46,96 @@ class LocationService @Inject constructor(
     val isTracking: StateFlow<Boolean> = _isTracking.asStateFlow()
 
     @Volatile private var currentIntervalMs = 5_000L
+    @Volatile private var currentPriority = Priority.PRIORITY_HIGH_ACCURACY
     @Volatile private var isNetworkDegraded = false
+
+    private var handlerThread: HandlerThread? = null
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val loc = result.lastLocation ?: return
             _currentLocation.value = loc
-            maybeUpdateInterval(loc.speed)
+            maybeUpdateInterval(loc)
         }
     }
 
     @SuppressLint("MissingPermission")
     fun startTracking() {
         if (!hasPermission()) {
-            Log.e(TAG, "ACCESS_FINE_LOCATION permission not granted — cannot start tracking")
+            Log.e(TAG, "ACCESS_FINE_LOCATION permission not granted - cannot start tracking")
             return
         }
         if (_isTracking.value) return
 
         _isTracking.value = true
+        stationaryStartTime = 0L
+
+        if (handlerThread == null) {
+            handlerThread = HandlerThread("LocationHandlerThread").apply { start() }
+        }
+
         currentIntervalMs = 5_000L
-        updateLocationRequest(Priority.PRIORITY_HIGH_ACCURACY, currentIntervalMs)
-        Log.i(TAG, "✅ Location tracking started")
+        currentPriority = Priority.PRIORITY_HIGH_ACCURACY
+        updateLocationRequest(currentPriority, currentIntervalMs)
+        Log.i(TAG, "Location tracking started on dedicated HandlerThread")
     }
 
     private var stationaryStartTime: Long = 0L
-    private var isDeepStationarySleep = false
 
     fun stopTracking() {
         _isTracking.value = false
         stationaryStartTime = 0L
-        isDeepStationarySleep = false
         fusedClient.removeLocationUpdates(locationCallback)
+        handlerThread?.quitSafely()
+        handlerThread = null
         Log.i(TAG, "Location tracking stopped")
     }
 
     fun setNetworkDegraded(degraded: Boolean) {
         if (isNetworkDegraded == degraded) return
         isNetworkDegraded = degraded
-
-        _currentLocation.value?.let { maybeUpdateInterval(it.speed) }
+        _currentLocation.value?.let { maybeUpdateInterval(it) }
     }
 
     @SuppressLint("MissingPermission")
     fun updatePollingInterval(intervalMs: Long) {
         if (!_isTracking.value || !hasPermission()) return
-        if (intervalMs == currentIntervalMs && !isDeepStationarySleep) return
+        if (intervalMs == currentIntervalMs) return
 
         currentIntervalMs = intervalMs
-        updateLocationRequest(Priority.PRIORITY_HIGH_ACCURACY, currentIntervalMs)
+        updateLocationRequest(currentPriority, currentIntervalMs)
         Log.d(TAG, "Polling interval changed to ${intervalMs}ms")
     }
 
     @SuppressLint("MissingPermission")
-    private fun maybeUpdateInterval(speedMps: Float) {
+    private fun maybeUpdateInterval(loc: Location) {
         if (!_isTracking.value || !hasPermission()) return
         val now = System.currentTimeMillis()
+        val speedMps = loc.speed
+        val speedKmh = speedMps * 3.6f
 
         if (speedMps < 1.0f) {
             if (stationaryStartTime == 0L) stationaryStartTime = now
-            val elapsedStationary = now - stationaryStartTime
-
-            if (elapsedStationary > 120_000L && !isDeepStationarySleep) {
-                // Transition to deep stationary sleep
-                isDeepStationarySleep = true
-                currentIntervalMs = 60_000L
-                updateLocationRequest(
-                    priority = Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                    intervalMs = 60_000L
-                )
-                Log.i(TAG, "Entering stationary GPS power sleep (60s, balanced power)")
-                return
-            }
         } else {
-            // Movement detected — immediately wake up
             stationaryStartTime = 0L
-            if (isDeepStationarySleep) {
-                isDeepStationarySleep = false
-                Log.i(TAG, "Movement detected — waking GNSS to high accuracy")
-            }
         }
 
-        val (desiredInterval, priority) = when {
-            isDeepStationarySleep -> 60_000L to Priority.PRIORITY_BALANCED_POWER_ACCURACY
-            speedMps < 4.2f       -> 10_000L to Priority.PRIORITY_BALANCED_POWER_ACCURACY // < 15 km/h
-            speedMps <= 16.7f     ->  5_000L to Priority.PRIORITY_HIGH_ACCURACY            // 15–60 km/h
-            else                  ->  3_000L to Priority.PRIORITY_HIGH_ACCURACY            // > 60 km/h
+        val stationarySec = if (stationaryStartTime > 0L) ((now - stationaryStartTime) / 1000L).toInt() else 0
+        val (batteryPct, charging) = readBatteryState()
+        val thermal = thermalManager.thermalLevel.value
+
+        var desiredInterval = LocationPolicy.intervalMs(speedKmh, stationarySec, thermal, batteryPct, charging)
+        if (isNetworkDegraded && desiredInterval < 10_000L) {
+            desiredInterval = 10_000L
         }
+        val desiredPriority = LocationPolicy.priority(speedKmh, thermal)
 
-        var finalInterval = desiredInterval
-        if (isNetworkDegraded && finalInterval < 10_000L) {
-            finalInterval = 10_000L
+        if (desiredInterval != currentIntervalMs || desiredPriority != currentPriority) {
+            currentIntervalMs = desiredInterval
+            currentPriority = desiredPriority
+            updateLocationRequest(currentPriority, currentIntervalMs)
+            com.ridervoice.utils.RvLog.loc("interval=$currentIntervalMs priority=$currentPriority thermal=$thermal speedKmh=$speedKmh")
         }
-
-        if (finalInterval == currentIntervalMs && !isDeepStationarySleep) return
-
-        currentIntervalMs = finalInterval
-        updateLocationRequest(priority, finalInterval)
     }
 
     @SuppressLint("MissingPermission")
@@ -145,7 +144,28 @@ class LocationService @Inject constructor(
         val request = LocationRequest.Builder(priority, intervalMs)
             .setMinUpdateDistanceMeters(MIN_DISTANCE_METERS)
             .build()
-        fusedClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
+        val looper = handlerThread?.looper ?: Looper.getMainLooper()
+        fusedClient.requestLocationUpdates(request, locationCallback, looper)
+    }
+
+    private fun readBatteryState(): Pair<Int, Boolean> {
+        return try {
+            val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            val intent: Intent? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(null, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                context.registerReceiver(null, filter)
+            }
+            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: 50
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: 100
+            val pct = if (scale > 0) (level * 100) / scale else 50
+            val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+            pct to isCharging
+        } catch (_: Exception) {
+            50 to false
+        }
     }
 
     private fun hasPermission(): Boolean =

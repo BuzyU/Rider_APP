@@ -4,13 +4,14 @@
 
 RiderVoice is a Jetpack Compose Android application designed for motorcycle convoys. It enables hands-free push-to-talk (PTT) communication over WebRTC, squad coordination, active ride telemetry, and over-the-air (OTA) application updates. It is backed by a Node.js Express REST API, Prisma PostgreSQL (Supabase), and LiveKit for real-time audio.
 
-> **Latest Release:** [**v0.0.3.16 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.16)  
+> **Latest Release:** [**v0.0.3.17 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.17)  
 > For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md).
 
 ---
 
 ## 🚀 Key Features
 
+- **Google Play Protect Heuristic Clean-up & Production Keystore (v0.0.3.17)** – Replaced telephony carrier inspection with non-intrusive locale region detection in emergency SOS routing, eliminating false-positive toll-fraud heuristic flags from Google Play Protect on sideloaded updates. Added dedicated production release keystore infrastructure.
 - **Database Self-Healing & Ride Setup Streamlining (v0.0.3.16)** – Production self-healing schema synchronization (`schemaMigration.js`) on startup, duplicate room name deduplication, and a streamlined ride creation screen removing the estimated time duration stepper.
 - **Enterprise Audio Hardening & Master Audit Resolution (v0.0.3.15)** – Strict LiveKit room name normalization, webhook signature validation with idempotency handling, Android 14+ foreground service types (`microphone`, `location`, `connectedDevice`), and resilient Bluetooth SCO state machine with physical audio route recovery.
 - **Android 9 OEM Crash Protection & Synchronized Convoy Lobby (v0.0.3.14)** – Intercepts OEM synthetic accessibility gesture crashes (`ACTION_HOVER_EXIT`) on Android 9 devices, prevents convoy room fragmentation by reusing host room instances, authorizes all accepted riders to access the lobby status with live squad tune-in, automatically transitions lobby riders into active ride HUD upon host start, and routes dispatch callsign invites into the lobby.

@@ -1,16 +1,13 @@
 package com.ridervoice.utils
 
 import android.content.Context
-import android.telephony.TelephonyManager
 import java.util.Locale
 
 /**
  * Resolves the local emergency phone number for the rider's current country.
  *
- * Country detection order (most to least reliable while travelling):
- *  1. Network country (the country the phone is physically registered in, handles roaming)
- *  2. SIM country
- *  3. Device locale region
+ * Country detection:
+ *  Uses the device's configured locale region.
  *
  * If the country is unknown or not listed, [DEFAULT_NUMBER] (112) is used. 112 is the GSM
  * standard and is redirected to the local emergency service by mobile networks in most countries.
@@ -67,22 +64,12 @@ object EmergencyNumbers {
         return NUMBERS[iso] ?: DEFAULT_NUMBER
     }
 
-    fun resolve(context: Context): Info {
-        val iso = detectCountryIso(context)
+    fun resolve(context: Context? = null): Info {
+        val iso = detectCountryIso()
         return Info(iso, numberForCountry(iso))
     }
 
-    private fun detectCountryIso(context: Context): String? {
-        val tm = runCatching {
-            context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
-        }.getOrNull()
-
-        val network = runCatching { tm?.networkCountryIso }.getOrNull()
-        if (!network.isNullOrBlank()) return network.uppercase(Locale.ROOT)
-
-        val sim = runCatching { tm?.simCountryIso }.getOrNull()
-        if (!sim.isNullOrBlank()) return sim.uppercase(Locale.ROOT)
-
+    private fun detectCountryIso(): String? {
         val locale = Locale.getDefault().country
         return locale.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)
     }

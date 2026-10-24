@@ -24,6 +24,12 @@ Thumbs.db
 
 *firebase-adminsdk*.json
 
+# Keystores (preserve fallback for CI, ignore production keys)
+*.jks
+*.keystore
+keystore_base64.txt
+!mobile-app/app/signing/debug-fallback.keystore
+
 # Decompiled SDK / temp sources
 io/
 

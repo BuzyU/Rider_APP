@@ -31,7 +31,7 @@ class HostSetupViewModel @Inject constructor(
         origin: String?,
         destination: String?,
         meetupPoint: String?,
-        estimatedDurationMin: Int?,
+        estimatedDurationMin: Int? = null,
         diagnosticsEnabled: Boolean = false,
         clientRequestId: String? = null
     ) {

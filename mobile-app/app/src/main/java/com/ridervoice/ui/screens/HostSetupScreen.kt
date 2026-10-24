@@ -42,7 +42,6 @@ fun HostSetupScreen(
     var meetupPoint by remember { mutableStateOf("") }
     var destination by remember { mutableStateOf("") }
     var origin by remember { mutableStateOf("") }
-    var durationMinutes by remember { mutableIntStateOf(60) }
     var diagnosticsEnabled by remember { mutableStateOf(false) }
     var moreOptionsExpanded by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
@@ -126,7 +125,6 @@ fun HostSetupScreen(
                         origin = origin.trim().ifBlank { null },
                         destination = destination.trim().ifBlank { null },
                         meetupPoint = meetupPoint.trim().ifBlank { null },
-                        estimatedDurationMin = durationMinutes,
                         diagnosticsEnabled = diagnosticsEnabled,
                         clientRequestId = clientRequestId
                     )
@@ -219,73 +217,9 @@ fun HostSetupScreen(
             )
         )
 
-        Spacer(modifier = Modifier.height(RvSpacing.lg))
+        Spacer(modifier = Modifier.height(RvSpacing.md))
 
-        // 5. Estimated Time Stepper (15 min steps)
-        Text(
-            text = stringResource(R.string.create_ride_duration_label),
-            style = MaterialTheme.typography.bodyLarge,
-            color = TextPrimary,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(RvSpacing.xs))
-
-        Surface(
-            color = DarkSlate,
-            shape = RoundedCornerShape(RvRadius.sm),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = RvSpacing.md, vertical = RvSpacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                IconButton(
-                    onClick = { if (durationMinutes > 15) durationMinutes -= 15 },
-                    enabled = durationMinutes > 15,
-                    modifier = Modifier.size(RvTouchTarget.min)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Remove,
-                        contentDescription = "Decrease duration",
-                        tint = if (durationMinutes > 15) TextPrimary else TextSecondary
-                    )
-                }
-
-                val hours = durationMinutes / 60
-                val mins = durationMinutes % 60
-                val durationText = buildString {
-                    if (hours > 0) append("$hours hr${if (hours > 1) "s" else ""} ")
-                    if (mins > 0 || hours == 0) append("$mins min")
-                }.trim()
-
-                Text(
-                    text = durationText,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = NeonOrange
-                )
-
-                IconButton(
-                    onClick = { if (durationMinutes < 720) durationMinutes += 15 },
-                    enabled = durationMinutes < 720,
-                    modifier = Modifier.size(RvTouchTarget.min)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Increase duration",
-                        tint = if (durationMinutes < 720) TextPrimary else TextSecondary
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(RvSpacing.lg))
-
-        // 6. Collapsed "More options"
+        // 5. Collapsed "More options"
         Surface(
             color = DarkSlate,
             shape = RoundedCornerShape(RvRadius.md),
@@ -383,7 +317,6 @@ fun HostSetupScreen(
                         origin = origin.trim().ifBlank { null },
                         destination = destination.trim().ifBlank { null },
                         meetupPoint = meetupPoint.trim().ifBlank { null },
-                        estimatedDurationMin = durationMinutes,
                         diagnosticsEnabled = diagnosticsEnabled,
                         clientRequestId = clientRequestId
                     )

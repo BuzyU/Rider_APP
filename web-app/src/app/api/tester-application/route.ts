@@ -4,15 +4,15 @@ import { sendSmtpMail } from '@/lib/email/smtpClient';
 import { buildTesterWelcomeEmail } from '@/lib/email/templates';
 
 const DEFAULT_RELEASE = {
-  version: 'v0.0.3.15',
-  releaseName: 'RiderVoice v0.0.3.15',
-  fileName: 'Rider_APP-v0.0.3.15.apk',
-  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.15/Rider_APP-v0.0.3.15.apk',
-  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.15',
+  version: 'v0.0.3.16',
+  releaseName: 'RiderVoice v0.0.3.16',
+  fileName: 'Rider_APP-v0.0.3.16.apk',
+  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.16/Rider_APP-v0.0.3.16.apk',
+  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.16',
   sha256: 'Pending release verification',
   fileSize: '~50 MB',
   targetArch: 'Universal ARM (arm64-v8a, armeabi-v7a)',
-  highlights: 'LiveKit room name normalization, webhook signature idempotency, Android 14 foreground services & Bluetooth SCO state machine'
+  highlights: 'Database self-healing schema synchronization, simplified ride creation flow, resilient Bluetooth SCO & LiveKit audio routing'
 };
 
 async function getLatestRelease() {

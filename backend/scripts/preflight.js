@@ -45,6 +45,10 @@ async function runPreflight() {
             errors.push('Database connectivity check failed (SELECT 1 returned unexpected result)')
         }
 
+        // 2. Ensure schema columns exist (self-healing if migrate deploy was skipped)
+        const { ensureDbSchema } = require('../src/services/schemaMigration')
+        await ensureDbSchema(prisma)
+
         // Verify Room.status column exists
         const colCheck = await prisma.$queryRaw`
             SELECT column_name
@@ -52,7 +56,7 @@ async function runPreflight() {
             WHERE table_name = 'Room' AND column_name = 'status'
         `
         if (!colCheck || colCheck.length === 0) {
-            errors.push('Database schema verification failed: Room.status column does not exist. Did prisma migrate deploy run?')
+            errors.push('Database schema verification failed: Room.status column does not exist.')
         }
     } catch (dbErr) {
         errors.push(`Database connection/query error during preflight: ${dbErr.message}`)

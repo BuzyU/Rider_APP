@@ -1,3 +1,30 @@
+## RiderVoice v0.0.3.16 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.16** resolves database schema synchronization errors during production cold starts, introduces automatic self-healing schema migration detection on backend startup, implements duplicate active room name resolution, and streamlines the ride setup experience by removing the redundant "Estimated time" stepper from the ride creation screen.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.16` |
+| **Version Code** | `3016` |
+| **Release Tag** | [`v0.0.3.16`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.16) |
+| **Download APK** | [`Rider_APP-v0.0.3.16.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.16/Rider_APP-v0.0.3.16.apk) |
+
+---
+
+### 🛡️ Database Self-Healing & Migration Resilience
+- **Automated Schema Healing**: On server boot, `ensureDbExtensions` checks for core columns (`Room.status`, `DiagnosticRun.closeAt`, etc.) and automatically applies idempotent DDL statements (`schemaMigration.js`) if migrations were skipped by transaction poolers.
+- **Active Room Name Deduplication**: Handles existing duplicate room names before building partial unique indexes (`Room_name_active_unique`), preserving the newest instance and marking stale duplicates as `ENDED`.
+- **Preflight Self-Healing**: Deploy preflight verification proactively reconciles missing columns and enums before launching HTTP services.
+
+---
+
+### 📱 Mobile App UI Streamlining
+- **Ride Creation Flow**: Removed the unused "Estimated time" duration stepper from `HostSetupScreen`, providing a cleaner and faster flow from waypoint entry into options and ride launch.
+- **API Payload Resiliency**: Made `estimatedDurationMin` fully optional and nullable across the network and ViewModel layers.
+
+---
+
 ## RiderVoice v0.0.3.15 Release Notes
 
 ### 🚀 Overview

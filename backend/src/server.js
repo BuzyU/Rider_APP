@@ -79,7 +79,7 @@ app.get('/api/app/config', (req, res) => {
     res.json({
         roomIdMode: process.env.ROOM_ID_MODE === 'true',
         minAppVersion: process.env.MIN_APP_VERSION || '0.0.3.14',
-        latestVersion: process.env.LATEST_APP_VERSION || process.env.MIN_APP_VERSION || '0.0.3.15',
+        latestVersion: process.env.LATEST_APP_VERSION || process.env.MIN_APP_VERSION || '0.0.3.16',
         apkUrl: process.env.APK_DOWNLOAD_URL || (process.env.APP_BASE_URL ? `${process.env.APP_BASE_URL}/download` : '/download'),
         maintenance: process.env.MAINTENANCE_MODE === 'true'
     })
@@ -104,17 +104,20 @@ const prisma = require('./db')
 const diagnosticService = require('./services/diagnosticService')
 
 /**
- * H12 – ensureDbExtensions reduced to a connectivity check only.
- * All DDL is now in Prisma migrations (20261023_phase1_room_lifecycle_membership).
- * This function is kept for backward compatibility but does not run raw DDL.
+ * ensureDbExtensions: verifies database connectivity and applies self-healing
+ * schema synchronizations if migrations were skipped (e.g. on Render with pooled connections).
  */
 async function ensureDbExtensions() {
-    // Simple connectivity check – fail fast on misconfigured DATABASE_URL
+    // 1. Simple connectivity check – fail fast on misconfigured DATABASE_URL
     const result = await prisma.$queryRaw`SELECT 1 AS ok`
     if (!result || result[0]?.ok !== 1) {
         throw new Error('Database connectivity check returned unexpected result')
     }
     console.log('[DB] Connectivity check passed.')
+
+    // 2. Self-healing schema synchronization
+    const { ensureDbSchema } = require('./services/schemaMigration')
+    await ensureDbSchema(prisma)
 }
 
 /**

@@ -92,6 +92,7 @@ async function resolveRoom(ref, opts = {}) {
     const baseSelect = {
         id: true,
         name: true,
+        lkRoomName: true,
         status: true,
         ownerId: true,
         diagnosticsEnabled: true,
@@ -106,7 +107,7 @@ async function resolveRoom(ref, opts = {}) {
         ...(opts.select || {})
     }
 
-    // 1. Try exact UUID match
+    // 1. Try exact UUID match on id
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     let room = null
 
@@ -117,7 +118,18 @@ async function resolveRoom(ref, opts = {}) {
         })
     }
 
-    // 2. Fall back to case-insensitive name among non-ENDED rooms
+    // 2. Try matching by persisted LiveKit room identity among non-ENDED rooms
+    if (!room) {
+        room = await prisma.room.findFirst({
+            where: {
+                lkRoomName: ref,
+                status: { not: 'ENDED' }
+            },
+            select: baseSelect
+        })
+    }
+
+    // 3. Fall back to case-insensitive name among non-ENDED rooms
     if (!room) {
         room = await prisma.room.findFirst({
             where: {
@@ -128,11 +140,14 @@ async function resolveRoom(ref, opts = {}) {
         })
     }
 
-    // R10: If not found among active rooms and allowEnded is true, check for ended rooms by name
+    // R10: If not found among active rooms and allowEnded is true, check for ended rooms by lkRoomName or name
     if (!room && opts.allowEnded) {
         room = await prisma.room.findFirst({
             where: {
-                name: { equals: ref, mode: 'insensitive' }
+                OR: [
+                    { lkRoomName: ref },
+                    { name: { equals: ref, mode: 'insensitive' } }
+                ]
             },
             orderBy: { createdAt: 'desc' },
             select: baseSelect
@@ -163,13 +178,28 @@ async function resolveRoom(ref, opts = {}) {
 /**
  * Mark a room as ENDED in the DB and clear joinCode.
  * Must be called BEFORE deleteRoom in LiveKit so no new token can be issued.
+ * Uses conditional update to ensure only one concurrent caller transitions the room to ENDED.
  */
 async function markRoomEnded(roomId) {
-    return prisma.room.update({
-        where: { id: roomId },
-        data: { status: 'ENDED', endedAt: new Date(), joinCode: null },
-        select: { id: true, name: true, status: true, endedAt: true, joinCode: true }
+    const now = new Date()
+    const updateResult = await prisma.room.updateMany({
+        where: { id: roomId, status: { not: 'ENDED' } },
+        data: { status: 'ENDED', endedAt: now, joinCode: null }
     })
+
+    const room = await prisma.room.findUnique({
+        where: { id: roomId },
+        select: { id: true, name: true, lkRoomName: true, status: true, endedAt: true, joinCode: true }
+    })
+
+    if (!room) {
+        throw resolverError(404, 'Room not found', 'ROOM_NOT_FOUND')
+    }
+
+    return {
+        ...room,
+        alreadyEnded: updateResult.count === 0
+    }
 }
 
 /**
@@ -209,8 +239,27 @@ function invalidateRoom(roomOrId) {
     }
 }
 
+/**
+ * Resolves the external LiveKit room name for a given room record.
+ * Follows the staged room identity rollout:
+ * 1. If room.lkRoomName is persisted and non-empty, use it directly (immutable per-ride identity).
+ * 2. If room.lkRoomName is null/empty (legacy room), fallback to legacy configuration:
+ *    process.env.ROOM_ID_MODE === 'true' ? room.id : room.name.
+ *
+ * @param {object} room – room record containing { id, name, lkRoomName? }
+ * @returns {string} LiveKit room name
+ */
+function resolveLkRoomName(room) {
+    if (!room) return null
+    if (room.lkRoomName && typeof room.lkRoomName === 'string' && room.lkRoomName.trim()) {
+        return room.lkRoomName.trim()
+    }
+    return process.env.ROOM_ID_MODE === 'true' ? room.id : room.name
+}
+
 module.exports = {
     resolveRoom,
+    resolveLkRoomName,
     markRoomEnded,
     isMember,
     generateUniqueJoinCode,
@@ -219,3 +268,4 @@ module.exports = {
     resolverError,
     invalidateRoom
 }
+

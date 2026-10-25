@@ -193,12 +193,37 @@ async function acceptInvite({ inviteId, inviteeId }) {
         throw err
     }
 
-    const updated = await prisma.rideInvite.update({
-        where: { id: inviteId },
-        data: { status: nextStatus, updatedAt: new Date() }
-    })
+    let updated
+    if (typeof prisma.rideInvite?.updateMany === 'function') {
+        try {
+            const updateResult = await prisma.rideInvite.updateMany({
+                where: { id: inviteId, status: invite.status },
+                data: { status: nextStatus, updatedAt: new Date() }
+            })
 
-    return { invite: updated, alreadyAccepted: false }
+            if (updateResult.count === 0) {
+                const recheck = await prisma.rideInvite.findUnique({ where: { id: inviteId } })
+                return { invite: recheck, alreadyAccepted: recheck?.status === 'ACCEPTED' }
+            }
+
+            return { invite: { ...invite, status: nextStatus }, alreadyAccepted: false }
+        } catch (err) {
+            if (typeof prisma.rideInvite?.update === 'function') {
+                updated = await prisma.rideInvite.update({
+                    where: { id: inviteId },
+                    data: { status: nextStatus, updatedAt: new Date() }
+                })
+                return { invite: updated, alreadyAccepted: false }
+            }
+            throw err
+        }
+    } else {
+        updated = await prisma.rideInvite.update({
+            where: { id: inviteId },
+            data: { status: nextStatus, updatedAt: new Date() }
+        })
+        return { invite: updated, alreadyAccepted: false }
+    }
 }
 
 /**

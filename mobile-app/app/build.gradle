@@ -52,7 +52,7 @@ def calculateVersionCode(String vName) {
     }
 }
 
-def appVersionName = project.hasProperty('versionName') ? project.property('versionName').toString() : (System.getenv("VERSION_NAME") ?: "V0.0.3.17")
+def appVersionName = project.hasProperty('versionName') ? project.property('versionName').toString() : (System.getenv("VERSION_NAME") ?: "V0.0.3.18")
 def appVersionCode = calculateVersionCode(appVersionName)
 
 android {
@@ -78,14 +78,16 @@ android {
                 keyAlias System.getenv("KEY_ALIAS") ?: ""
                 keyPassword System.getenv("KEY_PASSWORD") ?: ""
             } else {
+                def allowInsecure = Boolean.parseBoolean(System.getenv("ALLOW_INSECURE_RELEASE_BUILD") ?: "false")
                 def fallbackKeystore = file("$projectDir/signing/debug-fallback.keystore")
-                if (fallbackKeystore.exists()) {
-                    logger.warn("WARNING: Building release APK with committed debug-fallback keystore. This build cannot be updated over builds signed with a production keystore.")
+                if (allowInsecure && fallbackKeystore.exists()) {
+                    logger.warn("WARNING: Building release APK with committed debug-fallback keystore because ALLOW_INSECURE_RELEASE_BUILD=true.")
                     storeFile fallbackKeystore
                     storePassword "android"
                     keyAlias "androiddebugkey"
                     keyPassword "android"
                 } else {
+                    logger.warn("Release keystore not found. Release signing requires KEYSTORE_FILE or explicit ALLOW_INSECURE_RELEASE_BUILD=true (SEC-1).")
                     initWith(signingConfigs.debug)
                 }
             }

@@ -77,6 +77,8 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             const enumValuesMigrationPath = path.join(__dirname, '../prisma/migrations/20261023000000_a_enum_values/migration.sql')
             const phase1MigrationPath = path.join(__dirname, '../prisma/migrations/20261023_phase1_room_lifecycle_membership/migration.sql')
             const postPhase1MigrationPath = path.join(__dirname, '../prisma/migrations/20261024_post_phase1_fixups/migration.sql')
+            const rideCreateRequestMigrationPath = path.join(__dirname, '../prisma/migrations/20261025_add_ride_create_request/migration.sql')
+            const lkRoomNameMigrationPath = path.join(__dirname, '../prisma/migrations/20261025_add_lk_room_name/migration.sql')
 
             async function setupDb(dbName) {
                 await runSqlFile(dbName, baseSchemaPath)
@@ -119,15 +121,17 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             await runSqlFile('ridervoice_prev', enumValuesMigrationPath)
             await runSqlFile('ridervoice_prev', phase1MigrationPath)
             await runSqlFile('ridervoice_prev', postPhase1MigrationPath)
+            await runSqlFile('ridervoice_prev', rideCreateRequestMigrationPath)
+            await runSqlFile('ridervoice_prev', lkRoomNameMigrationPath)
 
             // Verify columns now exist in ridervoice_prev
             const upgradedClient = new Client({ host: 'localhost', port: testPort, user: 'postgres', password: 'password', database: 'ridervoice_prev' })
             await upgradedClient.connect()
             const upgradedCols = await upgradedClient.query(`
                 SELECT column_name FROM information_schema.columns 
-                WHERE table_name = 'Room' AND column_name IN ('diagnosticsEnabled', 'startedAt');
+                WHERE table_name = 'Room' AND column_name IN ('diagnosticsEnabled', 'startedAt', 'lkRoomName');
             `)
-            assert.strictEqual(upgradedCols.rows.length, 2, 'Upgraded DB state must have both new columns')
+            assert.strictEqual(upgradedCols.rows.length, 3, 'Upgraded DB state must have all new columns')
             await upgradedClient.end()
 
             // 2. Fresh DB (base schema + past migration + new migration)
@@ -136,6 +140,8 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             await runSqlFile('ridervoice_fresh', enumValuesMigrationPath)
             await runSqlFile('ridervoice_fresh', phase1MigrationPath)
             await runSqlFile('ridervoice_fresh', postPhase1MigrationPath)
+            await runSqlFile('ridervoice_fresh', rideCreateRequestMigrationPath)
+            await runSqlFile('ridervoice_fresh', lkRoomNameMigrationPath)
 
             // 3. Diff fresh DB against schema.prisma and assert no drift
             const dbUrl = `postgresql://postgres:password@localhost:${testPort}/ridervoice_fresh`
@@ -155,6 +161,11 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
                     new Promise(resolve => setTimeout(resolve, 2000))
                 ])
             } catch (e) {}
+            if (process.platform === 'win32') {
+                try {
+                    require('child_process').execSync('taskkill /F /IM postgres.exe /T', { stdio: 'ignore' })
+                } catch (_) {}
+            }
         }
     })
 })

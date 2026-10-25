@@ -36,7 +36,7 @@ fun HostSetupScreen(
 ) {
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    val createdConvoyName by viewModel.createdConvoyName.collectAsState()
+    val createState by viewModel.createState.collectAsState()
 
     var convoyName by remember { mutableStateOf("") }
     var meetupPoint by remember { mutableStateOf("") }
@@ -47,22 +47,28 @@ fun HostSetupScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showLearnMoreSheet by remember { mutableStateOf(false) }
 
-    val clientRequestId = remember { UUID.randomUUID().toString() }
+    val clientRequestId = remember { viewModel.getOrCreateClientRequestId() }
 
     val isDirty = convoyName.isNotBlank() || origin.isNotBlank() || destination.isNotBlank() || meetupPoint.isNotBlank()
     val isNameValid = convoyName.trim().length in 3..40
-    val canCreate = isNameValid && !isLoading
+    val isSubmitting = createState is HostSetupViewModel.CreateRideState.Submitting || isLoading
+    val canCreate = isNameValid && !isSubmitting
 
     BackHandler {
         if (isDirty) {
             showDiscardDialog = true
         } else {
+            viewModel.clearPendingAttempt()
             onBackClick()
         }
     }
 
-    LaunchedEffect(createdConvoyName) {
-        createdConvoyName?.let { onConvoyCreated(it) }
+    LaunchedEffect(createState) {
+        if (createState is HostSetupViewModel.CreateRideState.Succeeded) {
+            val name = (createState as HostSetupViewModel.CreateRideState.Succeeded).convoyName
+            viewModel.onNavigationHandled()
+            onConvoyCreated(name)
+        }
     }
 
     if (showDiscardDialog) {
@@ -73,6 +79,7 @@ fun HostSetupScreen(
             dismissLabel = "Keep editing",
             onConfirm = {
                 showDiscardDialog = false
+                viewModel.clearPendingAttempt()
                 onBackClick()
             },
             onDismiss = { showDiscardDialog = false },
@@ -114,7 +121,12 @@ fun HostSetupScreen(
     RvScreen(
         title = stringResource(R.string.create_ride_title),
         onBack = {
-            if (isDirty) showDiscardDialog = true else onBackClick()
+            if (isDirty) {
+                showDiscardDialog = true
+            } else {
+                viewModel.clearPendingAttempt()
+                onBackClick()
+            }
         },
         bottomBar = {
             PrimaryButton(
@@ -130,7 +142,7 @@ fun HostSetupScreen(
                     )
                 },
                 enabled = canCreate,
-                loading = isLoading
+                loading = isSubmitting
             )
         }
     ) {

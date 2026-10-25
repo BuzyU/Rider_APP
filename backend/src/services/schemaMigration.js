@@ -42,29 +42,8 @@ const MIGRATION_STATEMENTS = [
     `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "estimatedDurationMin" INTEGER`,
     `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "lastEmptyAt" TIMESTAMP(3)`,
 
-    // 4. Backfill Room.status from existing data & deduplicate active room names
-    `UPDATE "Room"
-     SET "status" = 'ENDED', "endedAt" = COALESCE("endedAt", NOW())
-     WHERE ("startedAt" IS NOT NULL AND "startedAt" < NOW() - INTERVAL '12 hours')
-        OR ("createdAt" < NOW() - INTERVAL '12 hours' AND "status" != 'ENDED')`,
-    `UPDATE "Room"
-     SET "status" = 'ACTIVE'
-     WHERE "startedAt" IS NOT NULL
-       AND "startedAt" >= NOW() - INTERVAL '12 hours'
-       AND "status" = 'LOBBY'`,
-    `WITH duplicate_rooms AS (
-        SELECT id, ROW_NUMBER() OVER (
-            PARTITION BY lower("name")
-            ORDER BY "createdAt" DESC
-        ) AS rn
-        FROM "Room"
-        WHERE "status" != 'ENDED'
-    )
-    UPDATE "Room"
-    SET "status" = 'ENDED', "endedAt" = COALESCE("endedAt", NOW())
-    WHERE id IN (
-        SELECT id FROM duplicate_rooms WHERE rn > 1
-    )`,
+    // 4. Room column extensions
+    `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "lkRoomName" TEXT`,
 
     // 5. Room unique indexes
     `DROP INDEX IF EXISTS "Room_name_key"`,
@@ -86,23 +65,6 @@ const MIGRATION_STATEMENTS = [
     // 6. RideInvite columns & constraint
     `ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "source" "InviteSource" NOT NULL DEFAULT 'HOST_INVITE'`,
     `ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
-    `WITH ranked AS (
-        SELECT id, ROW_NUMBER() OVER (
-            PARTITION BY "roomId", "inviteeId"
-            ORDER BY
-                CASE status::text
-                    WHEN 'REMOVED'  THEN 0
-                    WHEN 'ACCEPTED' THEN 1
-                    WHEN 'LEFT'     THEN 2
-                    WHEN 'PENDING'  THEN 3
-                    WHEN 'DECLINED' THEN 4
-                    ELSE 5
-                END,
-                "createdAt" DESC
-        ) AS rn
-        FROM "RideInvite"
-    )
-    DELETE FROM "RideInvite" WHERE id IN (SELECT id FROM ranked WHERE rn > 1)`,
     `DO $$
     BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RideInvite_roomId_inviteeId_key') THEN
@@ -274,30 +236,88 @@ const MIGRATION_STATEMENTS = [
     END $$;`
 ]
 
-async function ensureDbSchema(prisma) {
+/**
+ * Read-only schema assertion that validates essential tables and columns.
+ * Never mutates or deletes data.
+ * @param {object} prisma
+ * @returns {Promise<{ valid: boolean, missing: string[] }>}
+ */
+async function assertSchema(prisma) {
+    const missing = []
     try {
-        const colCheck = await prisma.$queryRaw`
+        const required = [
+            { table: 'Room', columns: ['id', 'name', 'lkRoomName', 'status', 'ownerId', 'lastEmptyAt'] },
+            { table: 'RideCreateRequest', columns: ['id', 'ownerId', 'clientRequestId', 'roomId', 'payloadHash'] },
+            { table: 'RideInvite', columns: ['id', 'roomId', 'inviteeId', 'status', 'source'] },
+            { table: 'RoomJoinToken', columns: ['id', 'roomId', 'token', 'maxUses', 'useCount'] },
+            { table: 'EmergencyAlert', columns: ['id', 'roomId', 'senderId', 'status'] },
+            { table: 'DiagnosticRun', columns: ['id', 'convoyId', 'testNumber', 'status', 'closeAt'] }
+        ]
+
+        const rows = await prisma.$queryRaw`
             SELECT table_name, column_name
             FROM information_schema.columns
-            WHERE (table_name = 'Room' AND column_name IN ('status', 'lastEmptyAt'))
-               OR (table_name = 'DiagnosticRun' AND column_name = 'closeAt')
+            WHERE table_schema = 'public'
         `
-        if (colCheck && colCheck.length >= 3) {
-            return
+
+        const existingMap = new Map()
+        for (const row of rows) {
+            if (!existingMap.has(row.table_name)) {
+                existingMap.set(row.table_name, new Set())
+            }
+            existingMap.get(row.table_name).add(row.column_name)
         }
-    } catch {
-        // Query failed, proceed with self-healing
+
+        for (const req of required) {
+            if (!existingMap.has(req.table)) {
+                missing.push(`Table: ${req.table}`)
+                continue
+            }
+            const tableCols = existingMap.get(req.table)
+            for (const col of req.columns) {
+                if (!tableCols.has(col)) {
+                    missing.push(`${req.table}.${col}`)
+                }
+            }
+        }
+    } catch (err) {
+        missing.push(`Query failed: ${err.message}`)
     }
 
-    console.log('[DB] Missing schema columns/enums detected. Applying self-healing migrations...')
-    for (const sql of MIGRATION_STATEMENTS) {
-        try {
-            await prisma.$executeRawUnsafe(sql)
-        } catch (err) {
-            console.warn('[DB] Migration statement notice:', err.message)
-        }
+    return {
+        valid: missing.length === 0,
+        missing
     }
-    console.log('[DB] Self-healing schema migrations completed.')
 }
 
-module.exports = { ensureDbSchema, MIGRATION_STATEMENTS }
+async function ensureDbSchema(prisma) {
+    const { valid, missing } = await assertSchema(prisma)
+    if (valid) {
+        return { valid: true, repaired: false }
+    }
+
+    console.warn(`[DB Schema] Missing schema elements: ${missing.join(', ')}`)
+
+    // Only apply additive self-healing DDL if explicitly opted in via AUTO_SCHEMA_REPAIR
+    if (process.env.AUTO_SCHEMA_REPAIR === 'true') {
+        console.log('[DB] AUTO_SCHEMA_REPAIR=true: Applying additive non-destructive DDL...')
+        let applied = 0
+        let failed = 0
+        for (const sql of MIGRATION_STATEMENTS) {
+            try {
+                await prisma.$executeRawUnsafe(sql)
+                applied++
+            } catch (err) {
+                failed++
+                console.warn('[DB] Migration statement notice:', err.message)
+            }
+        }
+        console.log(`[DB] Additive schema migrations finished: ${applied} applied, ${failed} failed.`)
+        return { valid: false, repaired: true, applied, failed }
+    } else {
+        console.warn('[DB] Destructive runtime repair is disabled. Use Prisma migrations (prisma migrate deploy) to align schema.')
+        return { valid: false, repaired: false, missing }
+    }
+}
+
+module.exports = { ensureDbSchema, assertSchema, MIGRATION_STATEMENTS }

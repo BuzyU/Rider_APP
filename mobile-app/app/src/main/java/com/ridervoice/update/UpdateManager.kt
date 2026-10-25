@@ -592,6 +592,44 @@ class UpdateManager @Inject constructor(
                 return
             }
 
+            // SEC-2: Verify signing certificate matches currently installed app
+            try {
+                val currentSignatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    context.packageManager.getPackageInfo(
+                        context.packageName,
+                        PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
+                    ).signingInfo?.apkContentsSigners
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES).signatures
+                }
+
+                val archiveSignatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    context.packageManager.getPackageArchiveInfo(
+                        tempFile.absolutePath,
+                        PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
+                    )?.signingInfo?.apkContentsSigners
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageArchiveInfo(tempFile.absolutePath, PackageManager.GET_SIGNATURES)?.signatures
+                }
+
+                if (currentSignatures != null && archiveSignatures != null && currentSignatures.isNotEmpty() && archiveSignatures.isNotEmpty()) {
+                    val signatureMatches = currentSignatures.any { cur ->
+                        archiveSignatures.any { arc -> cur == arc }
+                    }
+                    if (!signatureMatches) {
+                        tempFile.delete()
+                        _uiState.value = UpdateUiState.Error(
+                            "Security violation: APK signing certificate mismatch. Update rejected to protect against tampering."
+                        )
+                        return
+                    }
+                }
+            } catch (certEx: Exception) {
+                Log.w(TAG, "Signing certificate verification warning: ${certEx.message}")
+            }
+
             val archiveVersion = AppVersion.parse(packageInfo.versionName)
             val installedVersion = AppVersion.parse(currentVersionName)
 

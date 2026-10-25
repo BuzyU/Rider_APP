@@ -1,3 +1,27 @@
+## RiderVoice v0.0.3.18 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.18** introduces a staged LiveKit room identity migration layer, transactional ride creation idempotency, race-condition mitigation on ride termination, robust sweeper retry queue for failed room cleanup, readiness health probing with production webhook enforcement, and APK signing certificate validation for OTA updates.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.18` |
+| **Version Code** | `3018` |
+| **Release Tag** | [`v0.0.3.18`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.18) |
+| **Download APK** | [`Rider_APP-v0.0.3.18.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.18/Rider_APP-v0.0.3.18.apk) |
+
+---
+
+### 🛡️ Key Improvements & Fixes
+- **Durable Create Idempotency (RM-2, RM-3, SEC-3)**: Implemented atomic `RideCreateRequest` model with transactional deduplication, SHA-256 payload hash verification, 409 conflict detection on key reuse with different parameters, and mobile client single-flight state machine with offline-durable keys.
+- **Staged LiveKit Room Identity (RM-1)**: Introduced persisted `Room.lkRoomName` column with staged migration resolver. Existing legacy rooms seamlessly retain their identity while new rides acquire dedicated immutable LiveKit identities.
+- **End/Token/Create Race Mitigation (RM-4, RM-6, RM-8)**: Atomic conditional `markRoomEnded` prevents duplicate broadcasts and cleanups; `issueRoomToken` re-verifies room state after LiveKit room creation and triggers compensating deletion if ended concurrently; 404 deletion is treated as success and transient errors enter an exponential backoff sweeper retry queue.
+- **Webhook Defense & Readiness Probe (RM-5, WEB-1)**: Differentiated 401 signature errors from 500 downstream processing errors; added `/api/health/ready` endpoint verifying LiveKit webhook configuration.
+- **Runtime Schema Assertion (DB-1, DB-2, DB-3)**: Replaced risky startup table mutations and record deletions with read-only `assertSchema` checks; extracted data reconciliation into a standalone dry-run script.
+- **OTA Package Signing Verification (SEC-2)**: `UpdateManager.kt` validates the downloaded APK's signing certificate against the currently running app before triggering package installation.
+
+---
+
 ## RiderVoice v0.0.3.17 Release Notes
 
 ### 🚀 Overview

@@ -19,6 +19,7 @@ describe('Invites Response and Convoy Name Disambiguation', () => {
     before(async () => {
         originals.rideInviteFindUnique = prisma.rideInvite.findUnique
         originals.rideInviteUpdate = prisma.rideInvite.update
+        originals.rideInviteUpdateMany = prisma.rideInvite.updateMany
         originals.userFindUnique = prisma.user.findUnique
         originals.roomFindUnique = prisma.room.findUnique
         originals.roomCreate = prisma.room.create
@@ -45,6 +46,7 @@ describe('Invites Response and Convoy Name Disambiguation', () => {
     after(async () => {
         prisma.rideInvite.findUnique = originals.rideInviteFindUnique
         prisma.rideInvite.update = originals.rideInviteUpdate
+        prisma.rideInvite.updateMany = originals.rideInviteUpdateMany
         prisma.user.findUnique = originals.userFindUnique
         prisma.room.findUnique = originals.roomFindUnique
         prisma.room.create = originals.roomCreate
@@ -76,6 +78,9 @@ describe('Invites Response and Convoy Name Disambiguation', () => {
             id: where.id,
             status: data.status,
             roomId: 'room_100'
+        })
+        prisma.rideInvite.updateMany = async ({ where, data }) => ({
+            count: 1
         })
         prisma.user.findUnique = async ({ where }) => {
             if (where.id === 'host_001') {

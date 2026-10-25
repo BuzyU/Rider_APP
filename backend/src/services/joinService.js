@@ -86,16 +86,19 @@ async function joinWithLinkToken(rawToken, user) {
         throw resolverError(403, 'You have been removed from this convoy by the host', 'REMOVED_BY_HOST')
     }
 
-    // Self-join transition
-    const { invite, isNew, alreadyMember } = await selfJoin({
-        roomId: room.id,
-        inviteeId: user.uid,
-        inviterId: joinToken.createdById,
-        source: 'SHARE_LINK',
-        room
-    })
+    // Check if user is already an accepted member
+    let existingInvite = null
+    if (typeof prisma.rideInvite?.findFirst === 'function') {
+        existingInvite = await prisma.rideInvite.findFirst({
+            where: { roomId: room.id, inviteeId: user.uid },
+            select: { id: true, status: true }
+        }).catch(() => null)
+    }
 
-    // R7: Atomic increment only when consuming a new seat (not already accepted)
+    const alreadyMember = existingInvite?.status === 'ACCEPTED'
+
+    // R7 / INV-2: Atomic increment BEFORE creating/mutating membership row
+    let seatReserved = false
     if (!alreadyMember && typeof prisma.roomJoinToken?.updateMany === 'function') {
         const updateResult = await prisma.roomJoinToken.updateMany({
             where: {
@@ -111,6 +114,27 @@ async function joinWithLinkToken(rawToken, user) {
         if (joinToken.maxUses && updateResult.count === 0) {
             throw resolverError(410, 'This invite link has reached its maximum uses', 'LINK_EXHAUSTED')
         }
+        seatReserved = true
+    }
+
+    // Self-join transition
+    let joinResult
+    try {
+        joinResult = await selfJoin({
+            roomId: room.id,
+            inviteeId: user.uid,
+            inviterId: joinToken.createdById,
+            source: 'SHARE_LINK',
+            room
+        })
+    } catch (joinErr) {
+        if (seatReserved && typeof prisma.roomJoinToken?.updateMany === 'function') {
+            await prisma.roomJoinToken.updateMany({
+                where: { id: joinToken.id, useCount: { gt: 0 } },
+                data: { useCount: { decrement: 1 } }
+            }).catch(() => null)
+        }
+        throw joinErr
     }
 
     // R5: notify host when rider joins via link

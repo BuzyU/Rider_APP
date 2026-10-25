@@ -114,11 +114,22 @@ async function handleLiveKitEvent(event, deps = {}) {
     }
 }
 
+const webhookStatus = {
+    lastSuccessfulEvent: null,
+    lastProcessingError: null
+}
+
+function getWebhookStatus() {
+    return { ...webhookStatus }
+}
+
 function createWebhookHandler(deps = {}) {
     return async (req, res) => {
         if (process.env.LIVEKIT_WEBHOOK_ENABLED !== 'true') {
             return res.sendStatus(204)
         }
+
+        let event
         try {
             const receiver = deps.receiver || new WebhookReceiver(
                 process.env.LIVEKIT_API_KEY || '',
@@ -128,12 +139,23 @@ function createWebhookHandler(deps = {}) {
                 ? req.body.toString('utf8')
                 : (typeof req.body === 'string' ? req.body : JSON.stringify(req.body))
             const authHeader = req.get('Authorization')
-            const event = await receiver.receive(rawBody, authHeader)
-            await handleLiveKitEvent(event, deps)
-            res.sendStatus(200)
+            event = await receiver.receive(rawBody, authHeader)
         } catch (e) {
-            console.warn('[webhook] rejected:', e.message)
-            res.sendStatus(401)
+            console.warn('[webhook] rejected - invalid signature:', e.message)
+            return res.status(401).json({ error: 'Invalid webhook signature' })
+        }
+
+        try {
+            await handleLiveKitEvent(event, deps)
+            webhookStatus.lastSuccessfulEvent = new Date().toISOString()
+            res.sendStatus(200)
+        } catch (err) {
+            console.error('[webhook] processing error:', err.message)
+            webhookStatus.lastProcessingError = {
+                timestamp: new Date().toISOString(),
+                error: err.message
+            }
+            res.status(500).json({ error: 'Webhook processing error', retryable: true })
         }
     }
 }
@@ -143,5 +165,6 @@ router.post('/webhook', createWebhookHandler())
 module.exports = {
     router,
     createWebhookHandler,
-    handleLiveKitEvent
+    handleLiveKitEvent,
+    getWebhookStatus
 }

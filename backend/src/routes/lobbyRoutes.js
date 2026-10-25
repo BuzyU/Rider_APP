@@ -41,6 +41,7 @@ const { selfJoin, removeRider, leaveRoom, notifyJoined } = require('../services/
 const { joinLimiter, recordFailedJoinCode } = require('../middleware/rateLimiter')
 const { riderCallsign } = require('../services/identity')
 const { joinWithLinkToken, joinWithCode, joinAsMember, extractCleanToken } = require('../services/joinService')
+const { deleteLiveKitRoom } = require('../services/roomSweeper')
 
 // --- Helpers -----------------------------------------------------------------
 
@@ -61,17 +62,6 @@ async function sendLiveKitData(lkName, payload, topic = 'rv') {
     }
 }
 
-async function deleteLiveKitRoom(lkName) {
-    try {
-        const httpUrl = getLiveKitHttpUrl()
-        if (!httpUrl || !process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET) return
-        const svc = new RoomServiceClient(httpUrl, process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET)
-        await svc.deleteRoom(lkName)
-    } catch (err) {
-        console.warn(`[LiveKit] deleteRoom notice for ${lkName}:`, err.message)
-    }
-}
-
 async function removeLiveKitParticipant(lkRoomName, userId) {
     try {
         const httpUrl = getLiveKitHttpUrl()
@@ -83,21 +73,23 @@ async function removeLiveKitParticipant(lkRoomName, userId) {
     }
 }
 
-const recentCreateRequests = new Map()
+const crypto = require('crypto')
 
-function sweepRecentCreateRequests() {
-    const now = Date.now()
-    for (const [id, entry] of recentCreateRequests.entries()) {
-        if (now - entry.timestamp > 60000) {
-            recentCreateRequests.delete(id)
-        }
+function computeCreatePayloadHash(payload) {
+    const normalized = {
+        allowSolo: payload.allowSolo === true,
+        convoyName: (payload.convoyName || '').trim().toLowerCase(),
+        destination: payload.destination ? payload.destination.trim() : null,
+        diagnosticsEnabled: payload.diagnosticsEnabled === true,
+        estimatedDurationMin: payload.estimatedDurationMin ? parseInt(payload.estimatedDurationMin, 10) : null,
+        meetupPoint: payload.meetupPoint ? payload.meetupPoint.trim() : null,
+        origin: payload.origin ? payload.origin.trim() : null
     }
-    while (recentCreateRequests.size > 5000) {
-        const oldestKey = recentCreateRequests.keys().next().value
-        if (oldestKey) recentCreateRequests.delete(oldestKey)
-        else break
-    }
+    return crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex')
 }
+
+// In-memory fallback only when database model is unavailable in tests
+const inMemoryFallbackRequests = new Map()
 
 // --- POST /lobby/create -------------------------------------------------------
 
@@ -114,16 +106,6 @@ router.post('/create', async (req, res, next) => {
         clientRequestId
     } = req.body
 
-    sweepRecentCreateRequests()
-    if (clientRequestId && recentCreateRequests.has(clientRequestId)) {
-        const cached = recentCreateRequests.get(clientRequestId)
-        if (Date.now() - cached.timestamp < 60000) {
-            return res.status(200).json(cached.response)
-        } else {
-            recentCreateRequests.delete(clientRequestId)
-        }
-    }
-
     if (!convoyName || typeof convoyName !== 'string') {
         return res.status(400).json({ error: 'convoyName is required' })
     }
@@ -136,6 +118,81 @@ router.post('/create', async (req, res, next) => {
     // H1 / Phase 1.5 - block reserved names
     if (isReservedName(trimmedName)) {
         return res.status(400).json({ error: `"${trimmedName}" is a reserved convoy name` })
+    }
+
+    const payloadHash = computeCreatePayloadHash({
+        convoyName,
+        diagnosticsEnabled,
+        origin,
+        destination,
+        meetupPoint,
+        estimatedDurationMin,
+        allowSolo
+    })
+
+    // 1. Check durable idempotency if clientRequestId is provided
+    if (clientRequestId && typeof clientRequestId === 'string') {
+        try {
+            if (typeof prisma.rideCreateRequest?.findUnique === 'function') {
+                const existingReq = await prisma.rideCreateRequest.findUnique({
+                    where: {
+                        ownerId_clientRequestId: {
+                            ownerId: hostId,
+                            clientRequestId
+                        }
+                    },
+                    include: {
+                        room: {
+                            select: {
+                                id: true,
+                                name: true,
+                                ownerId: true,
+                                diagnosticsEnabled: true,
+                                joinCode: true,
+                                origin: true,
+                                destination: true,
+                                meetupPoint: true,
+                                estimatedDurationMin: true,
+                                status: true
+                            }
+                        }
+                    }
+                })
+
+                if (existingReq) {
+                    if (existingReq.payloadHash !== payloadHash) {
+                        return res.status(409).json({
+                            error: 'Idempotency key reused with different request payload',
+                            code: 'IDEMPOTENCY_KEY_REUSED'
+                        })
+                    }
+                    if (existingReq.room) {
+                        return res.status(200).json({
+                            roomId: existingReq.room.id,
+                            convoyName: existingReq.room.name,
+                            hostId: existingReq.room.ownerId,
+                            diagnosticsEnabled: existingReq.room.diagnosticsEnabled,
+                            joinCode: existingReq.room.joinCode,
+                            origin: existingReq.room.origin,
+                            destination: existingReq.room.destination,
+                            meetupPoint: existingReq.room.meetupPoint,
+                            estimatedDurationMin: existingReq.room.estimatedDurationMin
+                        })
+                    }
+                }
+            } else if (inMemoryFallbackRequests.has(`${hostId}:${clientRequestId}`)) {
+                const cached = inMemoryFallbackRequests.get(`${hostId}:${clientRequestId}`)
+                if (cached.payloadHash !== payloadHash) {
+                    return res.status(409).json({
+                        error: 'Idempotency key reused with different request payload',
+                        code: 'IDEMPOTENCY_KEY_REUSED'
+                    })
+                }
+                return res.status(200).json(cached.response)
+            }
+        } catch (err) {
+            console.warn('[LobbyCreate] Idempotency lookup notice:', err.message)
+        }
     }
 
     try {
@@ -159,6 +216,19 @@ router.post('/create', async (req, res, next) => {
         let finalConvoyName = trimmedName
         const existing = await findRoomByName(trimmedName)
         if (existing) {
+            if (existing.ownerId && existing.ownerId !== hostId) {
+                return res.status(409).json({
+                    error: 'A ride with this name already exists',
+                    code: 'ROOM_NAME_TAKEN'
+                })
+            }
+            if (existing.ownerId === hostId && clientRequestId) {
+                return res.status(409).json({
+                    error: 'You already have an active ride with this name',
+                    code: 'ROOM_NAME_TAKEN'
+                })
+            }
+            // Suffixing only for requests without clientRequestId (legacy / backwards compatibility)
             let suffix = 2
             let candidate = `${trimmedName}-${suffix}`
             while (await findRoomByName(candidate)) {
@@ -171,30 +241,137 @@ router.post('/create', async (req, res, next) => {
         const diagBool = diagnosticsEnabled === true
         const joinCode = await generateUniqueJoinCode()
 
-        const room = await prisma.room.create({
-            data: {
-                name: finalConvoyName,
-                ownerId: hostId,
-                diagnosticsEnabled: diagBool,
-                joinCode,
-                // H2 - persist ride metadata
-                origin: origin || null,
-                destination: destination || null,
-                meetupPoint: meetupPoint || null,
-                estimatedDurationMin: estimatedDurationMin ? parseInt(estimatedDurationMin, 10) : null,
-                // Store allowSolo in metadata via JSON-compatible field - stored as custom metadata
-            },
-            select: {
-                id: true,
-                name: true,
-                diagnosticsEnabled: true,
-                joinCode: true,
-                origin: true,
-                destination: true,
-                meetupPoint: true,
-                estimatedDurationMin: true
+        const assignUuid = process.env.STAGED_LK_ROOM_UUID === 'true' || process.env.ROOM_ID_MODE === 'true'
+        const newRoomId = crypto.randomUUID()
+        const initialLkRoomName = assignUuid ? newRoomId : finalConvoyName
+
+        let room
+        try {
+            if (clientRequestId && typeof prisma.$transaction === 'function') {
+                room = await prisma.$transaction(async (tx) => {
+                    const createdRoom = await tx.room.create({
+                        data: {
+                            id: newRoomId,
+                            name: finalConvoyName,
+                            lkRoomName: initialLkRoomName,
+                            ownerId: hostId,
+                            diagnosticsEnabled: diagBool,
+                            joinCode,
+                            origin: origin ? origin.trim() : null,
+                            destination: destination ? destination.trim() : null,
+                            meetupPoint: meetupPoint ? meetupPoint.trim() : null,
+                            estimatedDurationMin: estimatedDurationMin ? parseInt(estimatedDurationMin, 10) : null
+                        },
+                        select: {
+                            id: true,
+                            name: true,
+                            lkRoomName: true,
+                            ownerId: true,
+                            diagnosticsEnabled: true,
+                            joinCode: true,
+                            origin: true,
+                            destination: true,
+                            meetupPoint: true,
+                            estimatedDurationMin: true
+                        }
+                    })
+
+                    if (typeof tx.rideCreateRequest?.create === 'function') {
+                        await tx.rideCreateRequest.create({
+                            data: {
+                                ownerId: hostId,
+                                clientRequestId,
+                                payloadHash,
+                                roomId: createdRoom.id
+                            }
+                        })
+                    }
+
+                    return createdRoom
+                })
+            } else {
+                room = await prisma.room.create({
+                    data: {
+                        id: newRoomId,
+                        name: finalConvoyName,
+                        lkRoomName: initialLkRoomName,
+                        ownerId: hostId,
+                        diagnosticsEnabled: diagBool,
+                        joinCode,
+                        origin: origin ? origin.trim() : null,
+                        destination: destination ? destination.trim() : null,
+                        meetupPoint: meetupPoint ? meetupPoint.trim() : null,
+                        estimatedDurationMin: estimatedDurationMin ? parseInt(estimatedDurationMin, 10) : null
+                    },
+                    select: {
+                        id: true,
+                        name: true,
+                        lkRoomName: true,
+                        ownerId: true,
+                        diagnosticsEnabled: true,
+                        joinCode: true,
+                        origin: true,
+                        destination: true,
+                        meetupPoint: true,
+                        estimatedDurationMin: true
+                    }
+                })
+                if (clientRequestId && typeof prisma.rideCreateRequest?.create === 'function') {
+                    await prisma.rideCreateRequest.create({
+                        data: {
+                            ownerId: hostId,
+                            clientRequestId,
+                            payloadHash,
+                            roomId: room.id
+                        }
+                    }).catch(err => console.warn('[LobbyCreate] rideCreateRequest create warning:', err.message))
+                }
             }
-        })
+        } catch (dbErr) {
+            if (dbErr.code === 'P2002') {
+                const target = Array.isArray(dbErr.meta?.target) ? dbErr.meta.target.join(',') : (dbErr.meta?.target || '')
+                if (clientRequestId && (target.includes('clientRequestId') || target.includes('ownerId'))) {
+                    // Concurrent winner already inserted
+                    if (typeof prisma.rideCreateRequest?.findUnique === 'function') {
+                        const winnerReq = await prisma.rideCreateRequest.findUnique({
+                            where: {
+                                ownerId_clientRequestId: {
+                                ownerId: hostId,
+                                clientRequestId
+                            }
+                        },
+                        include: { room: true }
+                    }).catch(() => null)
+
+                        if (winnerReq && winnerReq.payloadHash === payloadHash && winnerReq.room) {
+                            return res.status(200).json({
+                                roomId: winnerReq.room.id,
+                                convoyName: winnerReq.room.name,
+                                hostId: winnerReq.room.ownerId,
+                                diagnosticsEnabled: winnerReq.room.diagnosticsEnabled,
+                                joinCode: winnerReq.room.joinCode,
+                                origin: winnerReq.room.origin,
+                                destination: winnerReq.room.destination,
+                                meetupPoint: winnerReq.room.meetupPoint,
+                                estimatedDurationMin: winnerReq.room.estimatedDurationMin
+                            })
+                        } else if (winnerReq && winnerReq.payloadHash !== payloadHash) {
+                            return res.status(409).json({
+                                error: 'Idempotency key reused with different request payload',
+                                code: 'IDEMPOTENCY_KEY_REUSED'
+                            })
+                        }
+                    }
+                }
+                if (target.includes('name') || target.includes('lower')) {
+                    return res.status(409).json({
+                        error: 'A ride with this name already exists',
+                        code: 'ROOM_NAME_TAKEN'
+                    })
+                }
+            }
+            throw dbErr
+        }
 
         if (diagBool) {
             try {
@@ -213,8 +390,8 @@ router.post('/create', async (req, res, next) => {
             createdAt: new Date()
         })
 
-        cacheService.del('lobby_status:' + room.name);
-        cacheService.del('lobby_status:' + room.id);
+        cacheService.del('lobby_status:' + room.name)
+        cacheService.del('lobby_status:' + room.id)
         const respPayload = {
             roomId: room.id,
             convoyName: room.name,
@@ -226,9 +403,11 @@ router.post('/create', async (req, res, next) => {
             meetupPoint: room.meetupPoint,
             estimatedDurationMin: room.estimatedDurationMin
         }
+
         if (clientRequestId) {
-            recentCreateRequests.set(clientRequestId, { response: respPayload, timestamp: Date.now() })
+            inMemoryFallbackRequests.set(`${hostId}:${clientRequestId}`, { response: respPayload, payloadHash })
         }
+
         res.status(201).json(respPayload)
     } catch (error) {
         next(error)
@@ -721,6 +900,9 @@ router.post('/:roomRef/end', async (req, res, next) => {
 
         // A3 - mark DB ENDED BEFORE calling deleteRoom in LiveKit
         const endedRoom = await markRoomEnded(room.id)
+        if (endedRoom.alreadyEnded) {
+            return res.json({ alreadyEnded: true, message: 'Convoy already ended', endedAt: endedRoom.endedAt?.toISOString() })
+        }
 
         // H6 - revoke all share links
         if (typeof prisma.roomJoinToken?.updateMany === 'function') {
@@ -733,7 +915,7 @@ router.post('/:roomRef/end', async (req, res, next) => {
         // Broadcast CONVOY_ENDED via LiveKit reliable data message, wait 400ms, then delete room
         await sendLiveKitData(lkRoomName(room), { type: 'CONVOY_ENDED', roomId: room.id, endedAt: endedRoom.endedAt })
         await new Promise(r => setTimeout(r, 400))
-        await deleteLiveKitRoom(lkRoomName(room))
+        await deleteLiveKitRoom(lkRoomName(room), room.id)
 
         // B6 - Diagnostics: close active run; persist closeAt on DB row
         try {

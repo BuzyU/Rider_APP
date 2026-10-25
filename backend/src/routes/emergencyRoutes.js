@@ -186,8 +186,17 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
             return { sent: false, recipientsCount: recipientList.length, delivered: 0, undeliverable: recipientList.length }
         })
 
+        const wasDelivered = (alertDelivery?.delivered || 0) > 0
+
+        if (alertId && typeof prisma.emergencyAlert?.update === 'function') {
+            await prisma.emergencyAlert.update({
+                where: { id: alertId },
+                data: { status: wasDelivered ? 'DELIVERED' : 'FAILED_DELIVERY' }
+            }).catch(() => null)
+        }
+
         res.status(200).json({
-            sent: alertDelivery?.sent ?? true,
+            sent: wasDelivered,
             alertId,
             recipientsCount: recipientList.length,
             delivered: alertDelivery?.delivered ?? 0,

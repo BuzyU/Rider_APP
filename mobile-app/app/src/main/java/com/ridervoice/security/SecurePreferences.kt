@@ -11,9 +11,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class SecurePreferences(private val context: Context) {
+open class SecurePreferences(private val context: Context? = null) {
 
-    private val prefs: SharedPreferences = createSafePreferences(context)
+    private val memoryStore = mutableMapOf<String, Any?>()
+    private val prefs: SharedPreferences? = context?.let { createSafePreferences(it) }
 
     companion object {
         private const val TAG = "SecurePreferences"
@@ -67,78 +68,90 @@ class SecurePreferences(private val context: Context) {
         }
     }
 
-    fun saveToken(token: String) {
-        runCatching { prefs.edit().putString("token", token).apply() }
+    open fun saveToken(token: String) {
+        val p = prefs ?: run { memoryStore["token"] = token; return }
+        runCatching { p.edit().putString("token", token).apply() }
     }
 
-    fun getToken(): String? {
-        return runCatching { prefs.getString("token", null) }.getOrNull()
+    open fun getToken(): String? {
+        val p = prefs ?: return memoryStore["token"] as? String
+        return runCatching { p.getString("token", null) }.getOrNull()
     }
 
-    fun saveRoomName(roomName: String) {
-        runCatching { prefs.edit().putString("last_room", roomName).apply() }
+    open fun saveRoomName(roomName: String) {
+        val p = prefs ?: run { memoryStore["last_room"] = roomName; return }
+        runCatching { p.edit().putString("last_room", roomName).apply() }
     }
 
-    fun getLastRoomName(): String? {
-        return runCatching { prefs.getString("last_room", null) }.getOrNull()
+    open fun getLastRoomName(): String? {
+        val p = prefs ?: return memoryStore["last_room"] as? String
+        return runCatching { p.getString("last_room", null) }.getOrNull()
     }
 
-    fun clear() {
-        runCatching { prefs.edit().clear().apply() }
+    open fun clear() {
+        val p = prefs ?: run { memoryStore.clear(); return }
+        runCatching { p.edit().clear().apply() }
     }
 
-    fun saveDeviceConfigured(configured: Boolean) {
-        runCatching { prefs.edit().putBoolean("device_configured", configured).apply() }
+    open fun saveDeviceConfigured(configured: Boolean) {
+        saveBoolean("device_configured", configured)
     }
 
-    fun isDeviceConfigured(): Boolean {
-        return runCatching { prefs.getBoolean("device_configured", false) }.getOrDefault(false)
+    open fun isDeviceConfigured(): Boolean {
+        return getBoolean("device_configured", false)
     }
 
-    fun saveDeviceName(name: String) {
-        runCatching { prefs.edit().putString("device_name", name).apply() }
+    open fun saveDeviceName(name: String) {
+        saveString("device_name", name)
     }
 
-    fun getDeviceName(): String? {
-        return runCatching { prefs.getString("device_name", null) }.getOrNull()
+    open fun getDeviceName(): String? {
+        val p = prefs ?: return memoryStore["device_name"] as? String
+        return runCatching { p.getString("device_name", null) }.getOrNull()
     }
 
-    fun saveString(key: String, value: String) {
-        runCatching { prefs.edit().putString(key, value).apply() }
+    open fun saveString(key: String, value: String) {
+        val p = prefs ?: run { memoryStore[key] = value; return }
+        runCatching { p.edit().putString(key, value).apply() }
     }
 
-    fun getString(key: String, defaultValue: String): String {
-        return runCatching { prefs.getString(key, defaultValue) ?: defaultValue }.getOrDefault(defaultValue)
+    open fun getString(key: String, defaultValue: String): String {
+        val p = prefs ?: return (memoryStore[key] as? String) ?: defaultValue
+        return runCatching { p.getString(key, defaultValue) ?: defaultValue }.getOrDefault(defaultValue)
     }
 
-    fun saveBoolean(key: String, value: Boolean) {
-        runCatching { prefs.edit().putBoolean(key, value).apply() }
+    open fun saveBoolean(key: String, value: Boolean) {
+        val p = prefs ?: run { memoryStore[key] = value; return }
+        runCatching { p.edit().putBoolean(key, value).apply() }
     }
 
-    fun getBoolean(key: String, defaultValue: Boolean): Boolean {
-        return runCatching { prefs.getBoolean(key, defaultValue) }.getOrDefault(defaultValue)
+    open fun getBoolean(key: String, defaultValue: Boolean): Boolean {
+        val p = prefs ?: return (memoryStore[key] as? Boolean) ?: defaultValue
+        return runCatching { p.getBoolean(key, defaultValue) }.getOrDefault(defaultValue)
     }
 
-    fun saveActiveRide(roomName: String, isHost: Boolean) {
-        runCatching {
-            prefs.edit()
-                .putString("active_ride_room", roomName)
-                .putBoolean("active_ride_is_host", isHost)
-                .apply()
+    open fun saveActiveRide(roomName: String, isHost: Boolean) {
+        saveString("active_ride_room", roomName)
+        saveBoolean("active_ride_is_host", isHost)
+    }
+
+    open fun getActiveRideRoom(): String? {
+        val p = prefs ?: return memoryStore["active_ride_room"] as? String
+        return runCatching { p.getString("active_ride_room", null) }.getOrNull()
+    }
+
+    open fun isActiveRideHost(): Boolean {
+        return getBoolean("active_ride_is_host", false)
+    }
+
+    open fun clearActiveRide() {
+        val p = prefs ?: run {
+            memoryStore.remove("active_ride_room")
+            memoryStore.remove("active_ride_is_host")
+            return
         }
-    }
-
-    fun getActiveRideRoom(): String? {
-        return runCatching { prefs.getString("active_ride_room", null) }.getOrNull()
-    }
-
-    fun isActiveRideHost(): Boolean {
-        return runCatching { prefs.getBoolean("active_ride_is_host", false) }.getOrDefault(false)
-    }
-
-    fun clearActiveRide() {
         runCatching {
-            prefs.edit()
+            p.edit()
                 .remove("active_ride_room")
                 .remove("active_ride_is_host")
                 .apply()
@@ -162,7 +175,7 @@ class SecurePreferences(private val context: Context) {
 
     init {
         try {
-            prefs.registerOnSharedPreferenceChangeListener(prefListener)
+            prefs?.registerOnSharedPreferenceChangeListener(prefListener)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to register OnSharedPreferenceChangeListener: ${e.message}")
         }

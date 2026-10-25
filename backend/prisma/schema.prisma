@@ -27,6 +27,7 @@ model User {
   rides                  RideSession[]
   alerts                 EmergencyAlert[] @relation("AlertSender")
   ownedRooms             Room[]        @relation("RoomOwner")
+  createRequests         RideCreateRequest[]
 }
 
 model DeviceToken {
@@ -72,6 +73,7 @@ enum RoomStatus {
 model Room {
   id                 String       @id @default(uuid())
   name               String
+  lkRoomName         String?
   status             RoomStatus   @default(LOBBY)
   ownerId            String
   diagnosticsEnabled Boolean      @default(false)
@@ -91,6 +93,7 @@ model Room {
   alerts         EmergencyAlert[]
   joinTokens     RoomJoinToken[]
   diagnosticRuns DiagnosticRun[]
+  createRequests RideCreateRequest[]
 
   // Partial unique: name unique among non-ENDED rooms enforced by DB index (see migration)
   // Partial unique: joinCode unique among non-ENDED rooms enforced by DB index (see migration)
@@ -99,6 +102,7 @@ model Room {
   @@index([name, status])
   @@index([joinCode])
   @@index([lastEmptyAt])
+  @@index([lkRoomName])
 }
 
 enum InviteStatus {
@@ -293,3 +297,21 @@ model DiagnosticBatch {
   @@unique([runId, riderId, sequenceNumber])
   @@index([runId, riderId])
 }
+
+model RideCreateRequest {
+  id              String   @id @default(uuid())
+  ownerId         String
+  clientRequestId String
+  payloadHash     String
+  roomId          String
+  createdAt       DateTime @default(now())
+
+  owner           User     @relation(fields: [ownerId], references: [id])
+  room            Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, clientRequestId])
+  @@index([ownerId])
+  @@index([roomId])
+  @@index([createdAt])
+}
+

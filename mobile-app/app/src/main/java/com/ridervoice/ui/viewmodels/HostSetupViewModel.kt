@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -17,6 +18,23 @@ class HostSetupViewModel @Inject constructor(
     private val securePreferences: SecurePreferences,
     private val activeRideRepository: com.ridervoice.state.ActiveRideRepository
 ) : ViewModel() {
+
+    sealed class CreateRideState {
+        object Draft : CreateRideState()
+        object Submitting : CreateRideState()
+        data class UnknownOutcome(val clientRequestId: String, val message: String) : CreateRideState()
+        data class Succeeded(val convoyName: String) : CreateRideState()
+        data class Conflict(val message: String) : CreateRideState()
+    }
+
+    companion object {
+        const val KEY_PENDING_CREATE_REQUEST_ID = "pending_create_request_id"
+        const val KEY_PENDING_CREATE_NAME = "pending_create_name"
+    }
+
+    private val _createState = MutableStateFlow<CreateRideState>(CreateRideState.Draft)
+    val createState = _createState.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
@@ -25,6 +43,30 @@ class HostSetupViewModel @Inject constructor(
 
     private val _createdConvoyName = MutableStateFlow<String?>(null)
     val createdConvoyName = _createdConvoyName.asStateFlow()
+
+    fun getOrCreateClientRequestId(): String {
+        val existing = securePreferences.getString(KEY_PENDING_CREATE_REQUEST_ID, "")
+        if (existing.isNotBlank()) return existing
+        val newId = UUID.randomUUID().toString()
+        securePreferences.saveString(KEY_PENDING_CREATE_REQUEST_ID, newId)
+        return newId
+    }
+
+    fun clearPendingAttempt() {
+        securePreferences.saveString(KEY_PENDING_CREATE_REQUEST_ID, "")
+        securePreferences.saveString(KEY_PENDING_CREATE_NAME, "")
+        _createState.value = CreateRideState.Draft
+    }
+
+    private fun savePendingAttempt(requestId: String, name: String) {
+        securePreferences.saveString(KEY_PENDING_CREATE_REQUEST_ID, requestId)
+        securePreferences.saveString(KEY_PENDING_CREATE_NAME, name)
+    }
+
+    fun onNavigationHandled() {
+        _createdConvoyName.value = null
+        _createState.value = CreateRideState.Draft
+    }
 
     fun createConvoy(
         convoyName: String,
@@ -35,9 +77,19 @@ class HostSetupViewModel @Inject constructor(
         diagnosticsEnabled: Boolean = false,
         clientRequestId: String? = null
     ) {
+        // Single-flight guard: prevent concurrent duplicate requests
+        if (_createState.value is CreateRideState.Submitting || _isLoading.value) {
+            return
+        }
+
+        val activeRequestId = clientRequestId ?: getOrCreateClientRequestId()
+        savePendingAttempt(activeRequestId, convoyName)
+
+        _createState.value = CreateRideState.Submitting
+        _isLoading.value = true
+        _error.value = null
+
         viewModelScope.launch {
-            _isLoading.value = true
-            _error.value = null
             try {
                 val req = ConvoyCreateRequest(
                     convoyName = convoyName,
@@ -46,7 +98,7 @@ class HostSetupViewModel @Inject constructor(
                     estimatedDurationMin = estimatedDurationMin,
                     meetupPoint = meetupPoint,
                     diagnosticsEnabled = diagnosticsEnabled,
-                    clientRequestId = clientRequestId
+                    clientRequestId = activeRequestId
                 )
                 val response = apiService.createConvoy(req)
                 if (response.isSuccessful && response.body() != null) {
@@ -57,13 +109,23 @@ class HostSetupViewModel @Inject constructor(
                         isHost = true,
                         joinCode = body.joinCode
                     )
+                    clearPendingAttempt()
                     _createdConvoyName.value = body.convoyName
+                    _createState.value = CreateRideState.Succeeded(body.convoyName)
                 } else {
                     val raw = response.errorBody()?.string()
-                    _error.value = parseConvoyError(raw, response.code())
+                    val errorMsg = parseConvoyError(raw, response.code())
+                    _error.value = errorMsg
+                    if (response.code() == 409) {
+                        _createState.value = CreateRideState.Conflict(errorMsg)
+                    } else {
+                        _createState.value = CreateRideState.UnknownOutcome(activeRequestId, errorMsg)
+                    }
                 }
             } catch (e: Exception) {
-                _error.value = "Network error: ${e.localizedMessage ?: "Please check your connection and retry."}"
+                val errorMsg = "Network error: ${e.localizedMessage ?: "Please check your connection and retry."}"
+                _error.value = errorMsg
+                _createState.value = CreateRideState.UnknownOutcome(activeRequestId, errorMsg)
             } finally {
                 _isLoading.value = false
             }

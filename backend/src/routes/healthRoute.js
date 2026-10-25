@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 const cacheService = require('../services/cacheService')
 const eventPipeline = require('../services/eventPipeline')
+const { getWebhookStatus } = require('./livekitWebhook')
 
 router.get(['/', '/health', '/api/health'], (req, res) => {
     res.json({
@@ -11,6 +12,31 @@ router.get(['/', '/health', '/api/health'], (req, res) => {
         cache: cacheService.stats(),
         pipeline: eventPipeline.getStats(),
         memoryRssMb: (process.memoryUsage().rss / (1024 * 1024)).toFixed(1)
+    })
+})
+
+router.get(['/ready', '/api/health/ready'], (req, res) => {
+    const webhookEnabled = process.env.LIVEKIT_WEBHOOK_ENABLED === 'true'
+    const isProduction = process.env.NODE_ENV === 'production'
+    const allowWebhookDisabled = process.env.ALLOW_WEBHOOK_DISABLED === 'true'
+
+    if (isProduction && !webhookEnabled && !allowWebhookDisabled) {
+        return res.status(503).json({
+            status: 'not_ready',
+            error: 'LIVEKIT_WEBHOOK_ENABLED is required in production (or set ALLOW_WEBHOOK_DISABLED=true override)',
+            webhookEnabled: false
+        })
+    }
+
+    const whStatus = getWebhookStatus()
+
+    res.json({
+        status: 'ok',
+        webhookEnabled,
+        lastSuccessfulWebhook: whStatus.lastSuccessfulEvent,
+        lastWebhookError: whStatus.lastProcessingError,
+        schemaReady: true,
+        timestamp: new Date().toISOString()
     })
 })
 

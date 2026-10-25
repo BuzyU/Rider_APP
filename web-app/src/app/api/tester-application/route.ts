@@ -4,15 +4,15 @@ import { sendSmtpMail } from '@/lib/email/smtpClient';
 import { buildTesterWelcomeEmail } from '@/lib/email/templates';
 
 const DEFAULT_RELEASE = {
-  version: 'v0.0.3.17',
-  releaseName: 'RiderVoice v0.0.3.17',
-  fileName: 'Rider_APP-v0.0.3.17.apk',
-  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.17/Rider_APP-v0.0.3.17.apk',
-  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.17',
+  version: 'v0.0.3.18',
+  releaseName: 'RiderVoice v0.0.3.18',
+  fileName: 'Rider_APP-v0.0.3.18.apk',
+  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.18/Rider_APP-v0.0.3.18.apk',
+  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.18',
   sha256: 'Pending release verification',
   fileSize: '~50 MB',
   targetArch: 'Universal ARM (arm64-v8a, armeabi-v7a)',
-  highlights: 'Removed TelephonyManager to eliminate false-positive Play Protect toll fraud heuristics, locale-based SOS routing'
+  highlights: 'Staged Room Identity Migration, Durable Create Idempotency, Race Mitigation & Webhook Defense'
 };
 
 async function getLatestRelease() {

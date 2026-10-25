@@ -16,6 +16,8 @@
 const { AccessToken, RoomServiceClient } = require('livekit-server-sdk')
 const prisma = require('../db')
 const { riderCallsign, disambiguateCallsigns } = require('./identity')
+const { resolveLkRoomName } = require('./roomResolver')
+const { deleteLiveKitRoom } = require('./roomSweeper')
 
 const LIVEKIT_TOKEN_TTL = '2h'
 const TOKEN_TTL_MS = 2 * 60 * 60 * 1000
@@ -96,12 +98,11 @@ async function ensureLiveKitRoom(lkRoomName, roomId) {
 }
 
 /**
- * Compute the LiveKit room name based on ROOM_ID_MODE.
- *   ROOM_ID_MODE=true  → room.id (UUID)
- *   ROOM_ID_MODE=false → room.name (legacy; also stored in token metadata so webhook can check)
+ * Compute the LiveKit room name using the unified staged resolver.
+ * Priority: room.lkRoomName -> ROOM_ID_MODE ? room.id : room.name
  */
 function lkRoomName(room) {
-    return process.env.ROOM_ID_MODE === 'true' ? room.id : room.name
+    return resolveLkRoomName(room)
 }
 
 /**
@@ -115,6 +116,14 @@ function lkRoomName(room) {
  * @returns {Promise<{token, livekitUrl, roomId, roomName, diagnosticsEnabled, testNumber, expiresAt}>}
  */
 async function issueRoomToken(user, room) {
+    // 0. Pre-check: reject ENDED rooms immediately
+    if (room.status === 'ENDED') {
+        const err = new Error('This convoy has ended')
+        err.status = 410
+        err.code = 'ROOM_ENDED'
+        throw err
+    }
+
     // 1. Auth check
     const isOwner = room.ownerId === user.uid
     if (!isOwner) {
@@ -145,6 +154,28 @@ async function issueRoomToken(user, room) {
 
     // 5. Ensure the LiveKit room exists (idempotent; creates if empty-timeout dropped it)
     await ensureLiveKitRoom(roomName, room.id)
+
+    // 5b. RM-4: Re-query database to verify room did not transition to ENDED while external ensureLiveKitRoom was in flight
+    let freshRoom = null
+    try {
+        if (typeof prisma.room?.findUnique === 'function') {
+            freshRoom = await prisma.room.findUnique({
+                where: { id: room.id },
+                select: { status: true, endedAt: true }
+            })
+        }
+    } catch (_) {
+        freshRoom = null
+    }
+
+    if (freshRoom && freshRoom.status === 'ENDED') {
+        // Room ended concurrently: execute compensating delete to prevent zombie LiveKit room
+        await deleteLiveKitRoom(roomName, room.id).catch(() => null)
+        const err = new Error('This convoy has ended')
+        err.status = 410
+        err.code = 'ROOM_ENDED'
+        throw err
+    }
 
     // 6. Build and sign token
     const role = isOwner ? 'host' : 'rider'
@@ -188,4 +219,4 @@ async function issueRoomToken(user, room) {
     }
 }
 
-module.exports = { issueRoomToken, ensureLiveKitRoom, lkRoomName, resolveDisplayName }
+module.exports = { issueRoomToken, ensureLiveKitRoom, lkRoomName, resolveLkRoomName, resolveDisplayName }

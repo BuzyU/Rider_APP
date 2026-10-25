@@ -84,15 +84,12 @@ function resolverError(status, message, code) {
  * @returns {Promise<object>} room row
  * @throws {ResolverError} 404 not found, 410 ended, 403 status mismatch
  */
-async function resolveRoom(ref, opts = {}) {
-    if (!ref || typeof ref !== 'string') {
-        throw resolverError(400, 'Room reference is required', 'INVALID_REF')
-    }
+let hasLkRoomNameColumn = true
 
-    const baseSelect = {
+function buildBaseSelect(optsSelect = {}) {
+    const base = {
         id: true,
         name: true,
-        lkRoomName: true,
         status: true,
         ownerId: true,
         diagnosticsEnabled: true,
@@ -104,54 +101,92 @@ async function resolveRoom(ref, opts = {}) {
         meetupPoint: true,
         estimatedDurationMin: true,
         createdAt: true,
-        ...(opts.select || {})
+        ...optsSelect
+    }
+    if (hasLkRoomNameColumn) {
+        base.lkRoomName = true
+    }
+    return base
+}
+
+/**
+ * Resolve a room by UUID id or (case-insensitive) name.
+ *
+ * @param {string} ref – room UUID or display name
+ * @param {object} [opts]
+ * @param {string[]} [opts.requireStatus] – if provided, room must be in one of these statuses
+ * @param {object} [opts.select] – additional Prisma select fields (merged with defaults)
+ * @returns {Promise<object>} room row
+ * @throws {ResolverError} 404 not found, 410 ended, 403 status mismatch
+ */
+async function resolveRoom(ref, opts = {}) {
+    if (!ref || typeof ref !== 'string') {
+        throw resolverError(400, 'Room reference is required', 'INVALID_REF')
     }
 
-    // 1. Try exact UUID match on id
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+    const queryRoom = async (withLk) => {
+        const select = buildBaseSelect(opts.select)
+        if (!withLk) delete select.lkRoomName
+        let room = null
+
+        // 1. Try exact UUID match on id
+        if (uuidPattern.test(ref)) {
+            room = await prisma.room.findUnique({
+                where: { id: ref },
+                select
+            })
+        }
+
+        // 2. Try matching by persisted LiveKit room identity among non-ENDED rooms (if column exists)
+        if (!room && withLk) {
+            room = await prisma.room.findFirst({
+                where: {
+                    lkRoomName: ref,
+                    status: { not: 'ENDED' }
+                },
+                select
+            })
+        }
+
+        // 3. Fall back to case-insensitive name among non-ENDED rooms
+        if (!room) {
+            room = await prisma.room.findFirst({
+                where: {
+                    name: { equals: ref, mode: 'insensitive' },
+                    status: { not: 'ENDED' }
+                },
+                select
+            })
+        }
+
+        // R10: If not found among active rooms and allowEnded is true, check for ended rooms
+        if (!room && opts.allowEnded) {
+            const orConditions = [{ name: { equals: ref, mode: 'insensitive' } }]
+            if (withLk) {
+                orConditions.unshift({ lkRoomName: ref })
+            }
+            room = await prisma.room.findFirst({
+                where: { OR: orConditions },
+                orderBy: { createdAt: 'desc' },
+                select
+            })
+        }
+
+        return room
+    }
+
     let room = null
-
-    if (uuidPattern.test(ref)) {
-        room = await prisma.room.findUnique({
-            where: { id: ref },
-            select: baseSelect
-        })
-    }
-
-    // 2. Try matching by persisted LiveKit room identity among non-ENDED rooms
-    if (!room) {
-        room = await prisma.room.findFirst({
-            where: {
-                lkRoomName: ref,
-                status: { not: 'ENDED' }
-            },
-            select: baseSelect
-        })
-    }
-
-    // 3. Fall back to case-insensitive name among non-ENDED rooms
-    if (!room) {
-        room = await prisma.room.findFirst({
-            where: {
-                name: { equals: ref, mode: 'insensitive' },
-                status: { not: 'ENDED' }
-            },
-            select: baseSelect
-        })
-    }
-
-    // R10: If not found among active rooms and allowEnded is true, check for ended rooms by lkRoomName or name
-    if (!room && opts.allowEnded) {
-        room = await prisma.room.findFirst({
-            where: {
-                OR: [
-                    { lkRoomName: ref },
-                    { name: { equals: ref, mode: 'insensitive' } }
-                ]
-            },
-            orderBy: { createdAt: 'desc' },
-            select: baseSelect
-        })
+    try {
+        room = await queryRoom(hasLkRoomNameColumn)
+    } catch (err) {
+        if (err.code === 'P2022' || (err.message && err.message.includes('lkRoomName'))) {
+            hasLkRoomNameColumn = false
+            room = await queryRoom(false)
+        } else {
+            throw err
+        }
     }
 
     if (!room) {
@@ -187,10 +222,27 @@ async function markRoomEnded(roomId) {
         data: { status: 'ENDED', endedAt: now, joinCode: null }
     })
 
-    const room = await prisma.room.findUnique({
-        where: { id: roomId },
-        select: { id: true, name: true, lkRoomName: true, status: true, endedAt: true, joinCode: true }
-    })
+    const select = { id: true, name: true, status: true, endedAt: true, joinCode: true }
+    if (hasLkRoomNameColumn) select.lkRoomName = true
+
+    let room
+    try {
+        room = await prisma.room.findUnique({
+            where: { id: roomId },
+            select
+        })
+    } catch (err) {
+        if (err.code === 'P2022' || (err.message && err.message.includes('lkRoomName'))) {
+            hasLkRoomNameColumn = false
+            delete select.lkRoomName
+            room = await prisma.room.findUnique({
+                where: { id: roomId },
+                select
+            })
+        } else {
+            throw err
+        }
+    }
 
     if (!room) {
         throw resolverError(404, 'Room not found', 'ROOM_NOT_FOUND')

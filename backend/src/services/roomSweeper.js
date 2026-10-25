@@ -48,6 +48,68 @@ function clearPendingCleanups() {
     pendingCleanups.clear()
 }
 
+let hasLkRoomNameColumn = true
+
+async function countActiveClaimants(lkName) {
+    if (typeof prisma.room?.count !== 'function') return 0
+    if (hasLkRoomNameColumn) {
+        try {
+            return await prisma.room.count({
+                where: {
+                    status: { not: 'ENDED' },
+                    OR: [
+                        { lkRoomName: lkName },
+                        { name: lkName }
+                    ]
+                }
+            })
+        } catch (err) {
+            if (err.code === 'P2022' || (err.message && err.message.includes('lkRoomName'))) {
+                hasLkRoomNameColumn = false
+                return await prisma.room.count({
+                    where: {
+                        status: { not: 'ENDED' },
+                        name: lkName
+                    }
+                }).catch(() => 0)
+            }
+            return 0
+        }
+    }
+    return await prisma.room.count({
+        where: {
+            status: { not: 'ENDED' },
+            name: lkName
+        }
+    }).catch(() => 0)
+}
+
+async function safeFindRooms(whereClause, extraSelect = {}) {
+    const base = { id: true, name: true, ...extraSelect }
+    if (hasLkRoomNameColumn) {
+        try {
+            return await prisma.room.findMany({
+                where: whereClause,
+                select: { ...base, lkRoomName: true }
+            })
+        } catch (err) {
+            if (err.code === 'P2022' || (err.message && err.message.includes('lkRoomName'))) {
+                hasLkRoomNameColumn = false
+                console.warn('[roomSweeper] lkRoomName column missing in DB; querying without lkRoomName')
+                return await prisma.room.findMany({
+                    where: whereClause,
+                    select: base
+                })
+            }
+            throw err
+        }
+    }
+    return await prisma.room.findMany({
+        where: whereClause,
+        select: base
+    })
+}
+
 async function deleteLiveKitRoom(lkName, roomId = null, client = null) {
     if (!lkName) return
     const livekitClient = client || getRoomServiceClient()
@@ -55,15 +117,7 @@ async function deleteLiveKitRoom(lkName, roomId = null, client = null) {
 
     // Ambiguous mapping defense: do not delete external room if multiple non-ended DB rides claim this identity
     if (typeof prisma.room?.count === 'function') {
-        const activeCount = await prisma.room.count({
-            where: {
-                status: { not: 'ENDED' },
-                OR: [
-                    { lkRoomName: lkName },
-                    { name: lkName }
-                ]
-            }
-        }).catch(() => 0)
+        const activeCount = await countActiveClaimants(lkName)
 
         if (activeCount > 0) {
             console.warn(`[LiveKit] Blocked deletion of ${lkName}: ${activeCount} active ride(s) still claim this identity`)
@@ -96,15 +150,7 @@ async function retryPendingCleanups(client = null) {
 
         // Ambiguous mapping check
         if (typeof prisma.room?.count === 'function') {
-            const activeCount = await prisma.room.count({
-                where: {
-                    status: { not: 'ENDED' },
-                    OR: [
-                        { lkRoomName: lkName },
-                        { name: lkName }
-                    ]
-                }
-            }).catch(() => 0)
+            const activeCount = await countActiveClaimants(lkName)
 
             if (activeCount > 0) {
                 console.warn(`[roomSweeper] Blocked pending retry for ${lkName}: ${activeCount} active ride(s) still claim identity`)
@@ -146,15 +192,12 @@ async function sweepStaleRooms(deps = {}) {
         // Retry any pending cleanups from transient LiveKit failures
         await retryPendingCleanups(livekitClient)
         if (typeof prisma.room?.findMany === 'function') {
-            const staleLobbies = await prisma.room.findMany({
-                where: {
-                    status: 'LOBBY',
-                    createdAt: { lte: sixHoursAgo },
-                    invites: {
-                        none: { status: 'ACCEPTED' }
-                    }
-                },
-                select: { id: true, name: true, lkRoomName: true }
+            const staleLobbies = await safeFindRooms({
+                status: 'LOBBY',
+                createdAt: { lte: sixHoursAgo },
+                invites: {
+                    none: { status: 'ACCEPTED' }
+                }
             })
 
             for (const lobby of staleLobbies) {
@@ -170,12 +213,9 @@ async function sweepStaleRooms(deps = {}) {
 
             // 1b. R15: LOBBY older than 24h regardless of accepted riders -> ENDED
             const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-            const ancientLobbies = await prisma.room.findMany({
-                where: {
-                    status: 'LOBBY',
-                    createdAt: { lte: twentyFourHoursAgo }
-                },
-                select: { id: true, name: true, lkRoomName: true }
+            const ancientLobbies = await safeFindRooms({
+                status: 'LOBBY',
+                createdAt: { lte: twentyFourHoursAgo }
             })
 
             for (const lobby of ancientLobbies) {
@@ -191,15 +231,12 @@ async function sweepStaleRooms(deps = {}) {
             }
 
             // 2. ACTIVE older than 12h -> ENDED (reason ABANDONED)
-            const ancientActive = await prisma.room.findMany({
-                where: {
-                    status: 'ACTIVE',
-                    OR: [
-                        { startedAt: { lte: twelveHoursAgo } },
-                        { startedAt: null, createdAt: { lte: twelveHoursAgo } }
-                    ]
-                },
-                select: { id: true, name: true, lkRoomName: true }
+            const ancientActive = await safeFindRooms({
+                status: 'ACTIVE',
+                OR: [
+                    { startedAt: { lte: twelveHoursAgo } },
+                    { startedAt: null, createdAt: { lte: twelveHoursAgo } }
+                ]
             })
 
             for (const room of ancientActive) {
@@ -214,10 +251,10 @@ async function sweepStaleRooms(deps = {}) {
             }
 
             // 3. ACTIVE with listParticipants empty or lastEmptyAt older than 15 min (R1 + R15)
-            const activeRooms = await prisma.room.findMany({
-                where: { status: 'ACTIVE' },
-                select: { id: true, name: true, lkRoomName: true, lastEmptyAt: true }
-            })
+            const activeRooms = await safeFindRooms(
+                { status: 'ACTIVE' },
+                { lastEmptyAt: true }
+            )
 
             for (const room of activeRooms) {
                 const targetName = resolveLkRoomName(room)

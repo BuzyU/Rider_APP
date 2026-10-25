@@ -130,6 +130,7 @@ router.post('/create', async (req, res, next) => {
         allowSolo
     })
 
+    let rideCreateRequestTableUnavailable = false
     // 1. Check durable idempotency if clientRequestId is provided
     if (clientRequestId && typeof clientRequestId === 'string') {
         try {
@@ -180,18 +181,24 @@ router.post('/create', async (req, res, next) => {
                         })
                     }
                 }
-            } else if (inMemoryFallbackRequests.has(`${hostId}:${clientRequestId}`)) {
-                const cached = inMemoryFallbackRequests.get(`${hostId}:${clientRequestId}`)
-                if (cached.payloadHash !== payloadHash) {
-                    return res.status(409).json({
-                        error: 'Idempotency key reused with different request payload',
-                        code: 'IDEMPOTENCY_KEY_REUSED'
-                    })
-                }
-                return res.status(200).json(cached.response)
             }
         } catch (err) {
+            if (err.code === 'P2021' || (err.message && err.message.includes('RideCreateRequest'))) {
+                rideCreateRequestTableUnavailable = true
+            }
             console.warn('[LobbyCreate] Idempotency lookup notice:', err.message)
+        }
+
+        // Fallback to in-memory idempotency cache if DB lookup didn't match or failed
+        if (inMemoryFallbackRequests.has(`${hostId}:${clientRequestId}`)) {
+            const cached = inMemoryFallbackRequests.get(`${hostId}:${clientRequestId}`)
+            if (cached.payloadHash !== payloadHash) {
+                return res.status(409).json({
+                    error: 'Idempotency key reused with different request payload',
+                    code: 'IDEMPOTENCY_KEY_REUSED'
+                })
+            }
+            return res.status(200).json(cached.response)
         }
     }
 
@@ -245,87 +252,114 @@ router.post('/create', async (req, res, next) => {
         const newRoomId = crypto.randomUUID()
         const initialLkRoomName = assignUuid ? newRoomId : finalConvoyName
 
+        const createRoomRecord = async (client, withLkRoomName) => {
+            const data = {
+                id: newRoomId,
+                name: finalConvoyName,
+                ownerId: hostId,
+                diagnosticsEnabled: diagBool,
+                joinCode,
+                origin: origin ? origin.trim() : null,
+                destination: destination ? destination.trim() : null,
+                meetupPoint: meetupPoint ? meetupPoint.trim() : null,
+                estimatedDurationMin: estimatedDurationMin ? parseInt(estimatedDurationMin, 10) : null
+            }
+            const select = {
+                id: true,
+                name: true,
+                ownerId: true,
+                diagnosticsEnabled: true,
+                joinCode: true,
+                origin: true,
+                destination: true,
+                meetupPoint: true,
+                estimatedDurationMin: true
+            }
+            if (withLkRoomName) {
+                data.lkRoomName = initialLkRoomName
+                select.lkRoomName = true
+            }
+            const created = await client.room.create({ data, select })
+            if (!created.lkRoomName) {
+                created.lkRoomName = initialLkRoomName
+            }
+            return created
+        }
+
         let room
         try {
-            if (clientRequestId && typeof prisma.$transaction === 'function') {
-                room = await prisma.$transaction(async (tx) => {
-                    const createdRoom = await tx.room.create({
-                        data: {
-                            id: newRoomId,
-                            name: finalConvoyName,
-                            lkRoomName: initialLkRoomName,
-                            ownerId: hostId,
-                            diagnosticsEnabled: diagBool,
-                            joinCode,
-                            origin: origin ? origin.trim() : null,
-                            destination: destination ? destination.trim() : null,
-                            meetupPoint: meetupPoint ? meetupPoint.trim() : null,
-                            estimatedDurationMin: estimatedDurationMin ? parseInt(estimatedDurationMin, 10) : null
-                        },
-                        select: {
-                            id: true,
-                            name: true,
-                            lkRoomName: true,
-                            ownerId: true,
-                            diagnosticsEnabled: true,
-                            joinCode: true,
-                            origin: true,
-                            destination: true,
-                            meetupPoint: true,
-                            estimatedDurationMin: true
-                        }
-                    })
-
-                    if (typeof tx.rideCreateRequest?.create === 'function') {
-                        await tx.rideCreateRequest.create({
-                            data: {
-                                ownerId: hostId,
-                                clientRequestId,
-                                payloadHash,
-                                roomId: createdRoom.id
+            if (clientRequestId && !rideCreateRequestTableUnavailable && typeof prisma.$transaction === 'function') {
+                try {
+                    room = await prisma.$transaction(async (tx) => {
+                        let createdRoom
+                        try {
+                            createdRoom = await createRoomRecord(tx, true)
+                        } catch (createErr) {
+                            if (createErr.code === 'P2022' || (createErr.message && createErr.message.includes('lkRoomName'))) {
+                                console.warn('[LobbyCreate] lkRoomName column missing in DB; creating without lkRoomName')
+                                createdRoom = await createRoomRecord(tx, false)
+                            } else {
+                                throw createErr
                             }
-                        })
-                    }
-
-                    return createdRoom
-                })
-            } else {
-                room = await prisma.room.create({
-                    data: {
-                        id: newRoomId,
-                        name: finalConvoyName,
-                        lkRoomName: initialLkRoomName,
-                        ownerId: hostId,
-                        diagnosticsEnabled: diagBool,
-                        joinCode,
-                        origin: origin ? origin.trim() : null,
-                        destination: destination ? destination.trim() : null,
-                        meetupPoint: meetupPoint ? meetupPoint.trim() : null,
-                        estimatedDurationMin: estimatedDurationMin ? parseInt(estimatedDurationMin, 10) : null
-                    },
-                    select: {
-                        id: true,
-                        name: true,
-                        lkRoomName: true,
-                        ownerId: true,
-                        diagnosticsEnabled: true,
-                        joinCode: true,
-                        origin: true,
-                        destination: true,
-                        meetupPoint: true,
-                        estimatedDurationMin: true
-                    }
-                })
-                if (clientRequestId && typeof prisma.rideCreateRequest?.create === 'function') {
-                    await prisma.rideCreateRequest.create({
-                        data: {
-                            ownerId: hostId,
-                            clientRequestId,
-                            payloadHash,
-                            roomId: room.id
                         }
-                    }).catch(err => console.warn('[LobbyCreate] rideCreateRequest create warning:', err.message))
+
+                        if (typeof tx.rideCreateRequest?.create === 'function') {
+                            await tx.rideCreateRequest.create({
+                                data: {
+                                    ownerId: hostId,
+                                    clientRequestId,
+                                    payloadHash,
+                                    roomId: createdRoom.id
+                                }
+                            })
+                        }
+
+                        return createdRoom
+                    })
+                } catch (txErr) {
+                    if (txErr.code === 'P2002') {
+                        throw txErr // Let outer catch handle concurrent winner or unique name conflict
+                    }
+                    if (txErr.code === 'P2021' || txErr.code === 'P2022' || (txErr.message && (txErr.message.includes('RideCreateRequest') || txErr.message.includes('lkRoomName')))) {
+                        console.warn('[LobbyCreate] DB schema fallback during transaction; creating room directly:', txErr.message)
+                        rideCreateRequestTableUnavailable = true
+                        try {
+                            room = await createRoomRecord(prisma, true)
+                        } catch (directErr) {
+                            if (directErr.code === 'P2022' || (directErr.message && directErr.message.includes('lkRoomName'))) {
+                                room = await createRoomRecord(prisma, false)
+                            } else {
+                                throw directErr
+                            }
+                        }
+                    } else {
+                        throw txErr
+                    }
                 }
+            } else {
+                try {
+                    room = await createRoomRecord(prisma, true)
+                } catch (directErr) {
+                    if (directErr.code === 'P2022' || (directErr.message && directErr.message.includes('lkRoomName'))) {
+                        console.warn('[LobbyCreate] lkRoomName column missing in DB; creating without lkRoomName')
+                        room = await createRoomRecord(prisma, false)
+                    } else {
+                        throw directErr
+                    }
+                }
+            }
+
+            if (clientRequestId && !rideCreateRequestTableUnavailable && typeof prisma.rideCreateRequest?.create === 'function') {
+                await prisma.rideCreateRequest.create({
+                    data: {
+                        ownerId: hostId,
+                        clientRequestId,
+                        payloadHash,
+                        roomId: room.id
+                    }
+                }).catch(err => {
+                    console.warn('[LobbyCreate] rideCreateRequest create notice:', err.message)
+                })
             }
         } catch (dbErr) {
             if (dbErr.code === 'P2002') {

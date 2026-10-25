@@ -307,4 +307,82 @@ describe('P0 Workstream 1: Durable Create Idempotency (RM-2, RM-3, RM-7, SEC-3)'
         assert.strictEqual(bodyB.code, 'ROOM_NAME_TAKEN')
         assert.strictEqual(bodyB.joinCode, undefined, 'Must not leak joinCode of the existing room')
     })
+
+    it('creates ride successfully when RideCreateRequest table does not exist in DB (P2021)', async () => {
+        currentUser = { uid: 'owner_fallback_p2021', name: 'Fallback Rider', email: 'fallback@test.com' }
+        const origFindUnique = prisma.rideCreateRequest.findUnique
+        const origCreate = prisma.rideCreateRequest.create
+
+        // Simulate P2021 on RideCreateRequest
+        const p2021Err = new Error('The table `public.RideCreateRequest` does not exist in the current database.')
+        p2021Err.code = 'P2021'
+        prisma.rideCreateRequest.findUnique = async () => { throw p2021Err }
+        prisma.rideCreateRequest.create = async () => { throw p2021Err }
+
+        try {
+            const clientReqId = 'p2021_req_test_1'
+            const res1 = await fetch(`${baseUrl}/api/lobby/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    convoyName: 'Resilient Ride P2021',
+                    clientRequestId: clientReqId
+                })
+            })
+            assert.strictEqual(res1.status, 201)
+            const body1 = await res1.json()
+            assert.ok(body1.roomId)
+            assert.strictEqual(body1.convoyName, 'Resilient Ride P2021')
+
+            // Replay with in-memory fallback should return 200
+            const res2 = await fetch(`${baseUrl}/api/lobby/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    convoyName: 'Resilient Ride P2021',
+                    clientRequestId: clientReqId
+                })
+            })
+            assert.strictEqual(res2.status, 200)
+            const body2 = await res2.json()
+            assert.strictEqual(body2.roomId, body1.roomId)
+        } finally {
+            prisma.rideCreateRequest.findUnique = origFindUnique
+            prisma.rideCreateRequest.create = origCreate
+        }
+    })
+
+    it('creates ride successfully when lkRoomName column does not exist in DB (P2022)', async () => {
+        currentUser = { uid: 'owner_fallback_p2022', name: 'Fallback Rider 2', email: 'fallback2@test.com' }
+        const origRoomCreate = prisma.room.create
+
+        // Simulate P2022 when lkRoomName is present in data
+        const p2022Err = new Error('The column `lkRoomName` does not exist in the current database.')
+        p2022Err.code = 'P2022'
+        p2022Err.meta = { modelName: 'Room', column: 'lkRoomName' }
+
+        prisma.room.create = async ({ data, select }) => {
+            if (data.lkRoomName !== undefined) {
+                throw p2022Err
+            }
+            return origRoomCreate({ data, select })
+        }
+
+        try {
+            const res = await fetch(`${baseUrl}/api/lobby/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    convoyName: 'Resilient Ride P2022',
+                    clientRequestId: 'p2022_req_test_1'
+                })
+            })
+            assert.strictEqual(res.status, 201)
+            const body = await res.json()
+            assert.ok(body.roomId)
+            assert.strictEqual(body.convoyName, 'Resilient Ride P2022')
+        } finally {
+            prisma.room.create = origRoomCreate
+        }
+    })
 })

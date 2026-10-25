@@ -233,6 +233,30 @@ const MIGRATION_STATEMENTS = [
             ALTER TABLE "Room" ADD CONSTRAINT "Room_ownerId_fkey"
                 FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
         END IF;
+    END $$;`,
+
+    // 13. RideCreateRequest table and indexes
+    `CREATE TABLE IF NOT EXISTS "RideCreateRequest" (
+        "id" TEXT NOT NULL,
+        "ownerId" TEXT NOT NULL,
+        "clientRequestId" TEXT NOT NULL,
+        "payloadHash" TEXT NOT NULL,
+        "roomId" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "RideCreateRequest_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "RideCreateRequest_ownerId_clientRequestId_key" ON "RideCreateRequest"("ownerId", "clientRequestId")`,
+    `CREATE INDEX IF NOT EXISTS "RideCreateRequest_ownerId_idx" ON "RideCreateRequest"("ownerId")`,
+    `CREATE INDEX IF NOT EXISTS "RideCreateRequest_roomId_idx" ON "RideCreateRequest"("roomId")`,
+    `CREATE INDEX IF NOT EXISTS "RideCreateRequest_createdAt_idx" ON "RideCreateRequest"("createdAt")`,
+    `DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RideCreateRequest_ownerId_fkey') THEN
+            ALTER TABLE "RideCreateRequest" ADD CONSTRAINT "RideCreateRequest_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RideCreateRequest_roomId_fkey') THEN
+            ALTER TABLE "RideCreateRequest" ADD CONSTRAINT "RideCreateRequest_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "Room"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
     END $$;`
 ]
 
@@ -298,9 +322,9 @@ async function ensureDbSchema(prisma) {
 
     console.warn(`[DB Schema] Missing schema elements: ${missing.join(', ')}`)
 
-    // Only apply additive self-healing DDL if explicitly opted in via AUTO_SCHEMA_REPAIR
-    if (process.env.AUTO_SCHEMA_REPAIR === 'true') {
-        console.log('[DB] AUTO_SCHEMA_REPAIR=true: Applying additive non-destructive DDL...')
+    // Automatically apply additive self-healing DDL unless explicitly opted out via AUTO_SCHEMA_REPAIR=false
+    if (process.env.AUTO_SCHEMA_REPAIR !== 'false') {
+        console.log('[DB] Missing schema elements detected; applying additive non-destructive DDL...')
         let applied = 0
         let failed = 0
         for (const sql of MIGRATION_STATEMENTS) {
@@ -313,9 +337,10 @@ async function ensureDbSchema(prisma) {
             }
         }
         console.log(`[DB] Additive schema migrations finished: ${applied} applied, ${failed} failed.`)
-        return { valid: false, repaired: true, applied, failed }
+        const recheck = await assertSchema(prisma)
+        return { valid: recheck.valid, repaired: true, applied, failed, missing: recheck.missing }
     } else {
-        console.warn('[DB] Destructive runtime repair is disabled. Use Prisma migrations (prisma migrate deploy) to align schema.')
+        console.warn('[DB] AUTO_SCHEMA_REPAIR=false: Runtime repair is disabled. Use Prisma migrations (prisma migrate deploy) to align schema.')
         return { valid: false, repaired: false, missing }
     }
 }

@@ -6,5 +6,8 @@ rtc:
   use_external_ip: true
   stun_servers:
     - stun:stun.l.google.com:19302
+room:
+  auto_create: false
+  empty_timeout: 600
 keys:
   devkey: secret

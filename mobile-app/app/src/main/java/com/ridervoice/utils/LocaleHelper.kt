@@ -2,6 +2,8 @@ package com.ridervoice.utils
 
 import android.content.Context
 import android.content.res.Configuration
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import java.util.Locale
 
 object LocaleHelper {
@@ -15,10 +17,18 @@ object LocaleHelper {
         }
     }
 
+    fun applyApplicationLocales(langCode: String) {
+        val localeList = when (langCode.lowercase()) {
+            "hi" -> LocaleListCompat.forLanguageTags("hi")
+            "mr" -> LocaleListCompat.forLanguageTags("mr")
+            "en" -> LocaleListCompat.forLanguageTags("en")
+            else -> LocaleListCompat.getEmptyLocaleList()
+        }
+        AppCompatDelegate.setApplicationLocales(localeList)
+    }
+
     fun getLocalizedContext(context: Context, langCode: String): Context {
         val locale = getLocaleForLanguage(langCode)
-        Locale.setDefault(locale)
-
         val config = Configuration(context.resources.configuration)
         config.setLocale(locale)
         config.setLayoutDirection(locale)

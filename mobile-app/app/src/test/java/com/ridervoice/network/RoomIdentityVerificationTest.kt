@@ -34,7 +34,8 @@ class RoomIdentityVerificationTest {
         }
 
         override suspend fun refreshToken(body: RefreshTokenRequest): Response<StartRideResponse> = throw NotImplementedError()
-        override suspend fun getLobbyStatus(roomName: String): Response<LobbyStatus> = throw NotImplementedError()
+        override suspend fun getLobbyStatus(roomName: String): Response<LobbyStatus> =
+            Response.error(404, okhttp3.ResponseBody.create(null, ""))
         override suspend fun updateFcmToken(body: FcmTokenRequest): Response<Any> = Response.success(Unit)
         override suspend fun upsertProfile(body: ProfileRequest): Response<ProfileResponse> = throw NotImplementedError()
         override suspend fun getMyProfile(): Response<ProfileResponse> = throw NotImplementedError()
@@ -194,5 +195,92 @@ class RoomIdentityVerificationTest {
         assertTrue("Session 2 has higher sessionId than session 1", session2 > session1)
         assertEquals("room-B", liveKitManager.currentRoomId)
         assertEquals("rv_room-B", liveKitManager.expectedLkRoomName)
+    }
+
+    private fun createToken(room: String): String {
+        val payload = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+            """{"video":{"room":"$room","roomJoin":true},"sub":"user123"}""".toByteArray(java.nio.charset.StandardCharsets.UTF_8)
+        )
+        return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.$payload.sig"
+    }
+
+    @Test
+    fun abortConnection_isIdempotent() = runTest {
+        val recordingApi = RecordingApiService()
+        val repo = ActiveRideRepository(prefs = null, api = recordingApi)
+        repo.enterLobby(roomId = "room-C", name = "Ride C", isHost = false, lkRoomName = "rv_room-C")
+
+        val liveKitManager = createLiveKitManager(recordingApi, repo)
+        liveKitManager.connect(
+            url = "wss://test.lk",
+            roomId = "room-C",
+            tokenProvider = { "token-C" },
+            expectedLkRoomName = "rv_room-C"
+        )
+
+        val activeSessionId = liveKitManager.currentSessionId
+        val fault = RoomFault.ConfirmedRoomMismatch(
+            intendedRoomId = "room-C",
+            expectedLkRoomName = "rv_room-C",
+            actualRoomName = "rv_room-X",
+            reason = "First abort"
+        )
+
+        var faultsEmitted = 0
+        val testDispatcher = UnconfinedTestDispatcher(testScheduler)
+        val faultJob = launch(testDispatcher) {
+            liveKitManager.roomFault.collect {
+                faultsEmitted++
+            }
+        }
+
+        // First abort call
+        liveKitManager.abortConnection(sessionId = activeSessionId, fault = fault)
+        assertEquals(1, faultsEmitted)
+
+        // Second duplicate abort call with same sessionId
+        liveKitManager.abortConnection(sessionId = activeSessionId, fault = fault)
+        assertEquals("Duplicate abort for same session must be ignored", 1, faultsEmitted)
+
+        faultJob.cancel()
+    }
+
+    @Test
+    fun preconnectMismatch_abortsBeforeConnect() = runTest {
+        val recordingApi = RecordingApiService()
+        val repo = ActiveRideRepository(prefs = null, api = recordingApi)
+        repo.enterLobby(roomId = "room-D", name = "Ride D", isHost = false, lkRoomName = "rv_room-expected")
+
+        val liveKitManager = createLiveKitManager(recordingApi, repo)
+        val testDispatcher = UnconfinedTestDispatcher(testScheduler)
+
+        var faultReceived: RoomFault? = null
+        val faultJob = launch(testDispatcher) {
+            liveKitManager.roomFault.collect { fault ->
+                faultReceived = fault
+            }
+        }
+
+        // Token has video.room = "rv_room-wrong" while expected is "rv_room-expected"
+        val mismatchToken = createToken("rv_room-wrong")
+
+        liveKitManager.connect(
+            url = "wss://test.lk",
+            roomId = "room-D",
+            tokenProvider = { mismatchToken },
+            expectedLkRoomName = "rv_room-expected"
+        )
+
+        assertNotNull("Must emit ConfirmedRoomMismatch before connecting", faultReceived)
+        assertTrue(faultReceived is RoomFault.ConfirmedRoomMismatch)
+        val mismatch = faultReceived as RoomFault.ConfirmedRoomMismatch
+        assertEquals("room-D", mismatch.intendedRoomId)
+        assertEquals("rv_room-expected", mismatch.expectedLkRoomName)
+        assertEquals("rv_room-wrong", mismatch.actualRoomName)
+
+        assertEquals(ConnectionState.DISCONNECTED, liveKitManager.connectionState.value)
+        assertNull(repo.state.value)
+
+        faultJob.cancel()
     }
 }

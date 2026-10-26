@@ -386,7 +386,9 @@ async function checkUniqueViolations(prisma) {
         if (dupNames.length > 0) {
             violations.push(`Duplicate active Room names found: ${dupNames.map(d => `${d.name} (${d.count})`).join(', ')}. Manual reconciliation required.`)
         }
-    } catch (_) {}
+    } catch (err) {
+        violations.push(`Failed to check duplicate active Room names: ${err.message}`)
+    }
 
     try {
         const dupJoinCodes = await prisma.$queryRaw`
@@ -399,7 +401,9 @@ async function checkUniqueViolations(prisma) {
         if (dupJoinCodes.length > 0) {
             violations.push(`Duplicate active Room joinCodes found: ${dupJoinCodes.map(d => `${d.joinCode} (${d.count})`).join(', ')}. Manual reconciliation required.`)
         }
-    } catch (_) {}
+    } catch (err) {
+        violations.push(`Failed to check duplicate active Room joinCodes: ${err.message}`)
+    }
 
     try {
         const dupInvites = await prisma.$queryRaw`
@@ -411,7 +415,9 @@ async function checkUniqueViolations(prisma) {
         if (dupInvites.length > 0) {
             violations.push(`Duplicate RideInvite (roomId, inviteeId) found: ${dupInvites.map(d => `(${d.roomId}, ${d.inviteeId}): ${d.count}`).join(', ')}. Manual reconciliation required.`)
         }
-    } catch (_) {}
+    } catch (err) {
+        violations.push(`Failed to check duplicate RideInvites: ${err.message}`)
+    }
 
     return violations
 }
@@ -430,18 +436,34 @@ async function ensureDbSchema(prisma) {
         return { valid: false, repaired: false, missing }
     }
 
-    // P0-C: Wrap repair in advisory lock
-    let hasLock = false
+    // P0-C: Transaction-scoped or safe advisory lock check
+    let hasSessionLock = false
+    let lockAcquired = false
+
     try {
-        const lockRes = await prisma.$queryRawUnsafe(`SELECT pg_try_advisory_lock(${ADVISORY_LOCK_ID}) AS locked`)
-        if (lockRes && lockRes[0] && lockRes[0].locked === false) {
+        // Try transaction-scoped advisory lock first (safe behind connection poolers)
+        let lockRes = null
+        try {
+            lockRes = await prisma.$queryRawUnsafe(`SELECT pg_try_advisory_xact_lock(${ADVISORY_LOCK_ID}) AS locked`)
+        } catch (_) {
+            // Fall back to session advisory lock if xact_lock is not supported (or in unit test mocks)
+            lockRes = await prisma.$queryRawUnsafe(`SELECT pg_try_advisory_lock(${ADVISORY_LOCK_ID}) AS locked`)
+            hasSessionLock = true
+        }
+
+        if (lockRes && lockRes[0] && lockRes[0].locked === true) {
+            lockAcquired = true
+        } else {
             console.warn('[DB] Another instance holds the advisory migration lock; skipping concurrent repair.')
             return { valid: false, repaired: false, skippedDueToLock: true, missing }
         }
-        hasLock = true
-    } catch (_) {
-        // If environment does not support advisory locks (e.g. SQLite/unit test mocks), continue
-        hasLock = false
+    } catch (err) {
+        console.warn(`[DB] Advisory lock acquisition failed (${err.message}). Refusing to run DDL without lock.`)
+        return { valid: false, repaired: false, lockError: err.message, missing }
+    }
+
+    if (!lockAcquired) {
+        return { valid: false, repaired: false, skippedDueToLock: true, missing }
     }
 
     try {
@@ -505,7 +527,7 @@ async function ensureDbSchema(prisma) {
             missing: recheck.missing
         }
     } finally {
-        if (hasLock) {
+        if (hasSessionLock) {
             try {
                 await prisma.$queryRawUnsafe(`SELECT pg_advisory_unlock(${ADVISORY_LOCK_ID})`)
             } catch (_) {}

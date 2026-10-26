@@ -108,4 +108,23 @@
         <item quantity="one">%d rider</item>
         <item quantity="other">%d riders</item>
     </plurals>
+
+    <!-- Notifications -->
+    <string name="notif_ride_invite_title">Ride Invite</string>
+    <string name="notif_ride_invite_desc">%1$s invited you to %2$s</string>
+    <string name="notif_rider_joined_title">Rider Joined</string>
+    <string name="notif_rider_joined_desc">%1$s joined %2$s</string>
+    <string name="notif_emergency_title">CRITICAL: %1$s</string>
+    <string name="notif_emergency_desc">Emergency alert from %1$s in %2$s</string>
+    <string name="notif_open_alert">Open Alert</string>
+    <string name="notif_channel_hud_name">Tactical Convoy HUD</string>
+    <string name="notif_channel_hud_desc">Convoy communication and telemetry overlay</string>
+    <string name="notif_convoy_live">Convoy LIVE</string>
+    <string name="notif_convoy_connecting">Connecting...</string>
+    <string name="notif_convoy_reconnecting">Reconnecting...</string>
+    <string name="notif_convoy_failed">Connection Failed</string>
+    <string name="notif_convoy_disconnected">Disconnected</string>
+    <string name="notif_active_speaker_nobody">Nobody</string>
+    <string name="notif_active_speaker_collapsed">Active: %1$s</string>
+    <string name="notif_active_speaker_expanded">Active Speaker: %1$s</string>
 </resources>

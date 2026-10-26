@@ -145,7 +145,7 @@ describe('P0-C: Migration and Startup Safety', () => {
                 return []
             },
             $queryRawUnsafe: async (sql) => {
-                if (sql.includes('pg_try_advisory_lock')) {
+                if (sql.includes('pg_try_advisory_lock') || sql.includes('pg_try_advisory_xact_lock')) {
                     return [{ locked: false }] // Lock already held by another replica
                 }
                 return []
@@ -186,7 +186,7 @@ describe('P0-C: Migration and Startup Safety', () => {
         const fakePrisma = {
             $queryRaw: async () => [], // Always returns missing elements
             $queryRawUnsafe: async (sql) => {
-                if (sql.includes('pg_try_advisory_lock')) return [{ locked: true }]
+                if (sql.includes('pg_try_advisory_lock') || sql.includes('pg_try_advisory_xact_lock')) return [{ locked: true }]
                 if (sql.includes('pg_advisory_unlock')) return []
                 return []
             },

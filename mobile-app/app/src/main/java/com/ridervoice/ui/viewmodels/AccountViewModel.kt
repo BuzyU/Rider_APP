@@ -101,8 +101,8 @@ class AccountViewModel @Inject constructor(
 
             try {
                 val profileResponse = apiService.getMyProfile()
-                if (profileResponse.isSuccessful && profileResponse.body() != null) {
-                    val p = profileResponse.body()!!
+                val p = profileResponse.body()
+                if (profileResponse.isSuccessful && p != null) {
                     if (!p.displayName.isNullOrBlank()) displayName = p.displayName
                     if (!p.handle.isNullOrBlank()) handle = p.handle
                     if (!p.email.isNullOrBlank() && email.isBlank()) email = p.email
@@ -166,8 +166,8 @@ class AccountViewModel @Inject constructor(
                     )
                 )
 
-                if (response.isSuccessful && response.body() != null) {
-                    val updated = response.body()!!
+                val updated = response.body()
+                if (response.isSuccessful && updated != null) {
                     _uiState.value = _uiState.value.copy(
                         isSaving = false,
                         successMessage = "Profile successfully calibrated.",

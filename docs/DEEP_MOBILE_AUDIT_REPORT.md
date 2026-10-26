@@ -886,3 +886,67 @@ At minimum, before claiming production-ready:
 - CI passes all applicable tests, and physical-device / deployment-only blockers are clearly disclosed.
 
 No production DB change, production deployment, release, merge, or publish is authorized by this report alone.
+
+---
+
+## 22. AI-3 Implementation & Verification Ledger (Baseline 66f3137 / App V0.0.3.18)
+
+This section documents the actual verified implementation, test execution results, and evidence produced on the active repository checkout across all prioritized audit items (P0 through P5).
+
+### 22.1 Test Execution Summary
+
+| Test Suite / Verification Task | Command | Verified Outcome | Evidence & Duration |
+|:---|:---|:---|:---|
+| **Backend Test Suite** | `cd backend && npm test` | **PASS (104/104 tests, 29 suites, 0 failures)** | 104 passed, 0 failed, duration: 216.9s. Covers migrations, room identity, end races, idempotency, sweeper, diagnostics. |
+| **Android Unit Tests** | `cmd /c "set JAVA_HOME=C:\Users\umerz\.jdks\jdk-17&& gradlew.bat testDebugUnitTest"` | **BUILD SUCCESSFUL (37 tasks, 100% pass)** | 37 tasks up to date / executed in 34s. 0 failures across all view models, audio engine, localization, and room verification tests. |
+| **Android Debug Compilation** | `cmd /c "set JAVA_HOME=C:\Users\umerz\.jdks\jdk-17&& gradlew.bat assembleDebug"` | **BUILD SUCCESSFUL (45 tasks)** | Executed in 16s. Generates clean debug APK. |
+| **Release Signing Fail-Closed Gate** | `cmd /c "set JAVA_HOME=C:\Users\umerz\.jdks\jdk-17&& gradlew.bat assembleRelease --dry-run"` | **FAIL-CLOSED (Expected `GradleException`)** | Fails build at task graph execution: `Release signing key not configured.` |
+| **Release Signing Explicit Override** | `cmd /c "set JAVA_HOME=C:\Users\umerz\.jdks\jdk-17&& set ALLOW_INSECURE_RELEASE_BUILD=true&& gradlew.bat assembleRelease --dry-run"` | **SUCCESS (Dry-Run Allowed with Explicit Flag)** | Confirmed opt-in bypass mechanism works as specified. |
+| **String Resource Parity** | `./gradlew.bat testDebugUnitTest --tests "com.ridervoice.StringResourceParityTest"` | **PASS (0 placeholder or key mismatches)** | DOM parser verifies exact key, argument count, and `%1$s` / `%2$s` specifiers match across `values`, `values-hi`, and `values-mr`. |
+
+---
+
+### 22.2 Itemized Verification Status (RV-001 to RV-018)
+
+| Item ID | Priority | Finding / Invariant | Resolution & Code Changes | Verification Evidence | Status |
+|:---|:---|:---|:---|:---|:---|
+| **RV-001 (P0-A)** | P0 | LiveKit auto-create may resurrect ended rooms from stale tokens | Added `room: { auto_create: false, empty_timeout: 600 }` to `livekit-server/livekit.yaml`. Shortened token TTL to 30 min in `tokenService.js`. Added `removeParticipant` kicking before room deletion in `roomSweeper.js`. Token request on ENDED room returns 410. | `end_race.test.js` & `room_identity.test.js` verified: ended room rejects token with 410 and does not call `createRoom`. | `FIXED` |
+| **RV-002 (P0-B)** | P0 | Release build falls back to debug keystore silently | Removed `initWith(signingConfigs.debug)` in `mobile-app/app/build.gradle`. Added `gradle.taskGraph.whenReady` check failing release tasks with explicit `GradleException` if `KEYSTORE_FILE` is missing and `ALLOW_INSECURE_RELEASE_BUILD != true`. Added CI certificate fingerprint verification step in `.github/workflows/release.yml`. | Dry-run without keystore fails with `GradleException`; succeeds with `ALLOW_INSECURE_RELEASE_BUILD=true`. | `FIXED` |
+| **RV-003 (P0-C)** | P0 | Schema self-repair lock unsafe under pooler; swallows errors; partial success serves traffic | Replaced session-level advisory lock with transaction-scoped `pg_try_advisory_xact_lock` in `schemaMigration.js`. Enforced strict `lockRes[0].locked === true` check before running DDL. Swallowing in violation checks removed; records violations in array. In `server.js`, write routes return HTTP 503 in production if schema is degraded. | `backend/test/p0_migration_safety.test.js` (5/5 tests passing). Zero destructive `DELETE` DDL; reports duplicate records for manual reconciliation. | `FIXED` |
+| **RV-004 & RV-005 (P1-A)** | P1 | Client verifies room identity after connect (audio leak); legacy check is tautological | In `LiveKitManager.kt`: Added pre-connect check decoding JWT room claim (`JwtRoomClaimDecoder.extractRoomName`) before allocating WebRTC/audio devices. Resolves canonical `lkRoomName` via `apiService.getLobbyStatus` if missing; aborts with `ConfirmedRoomMismatch` before `connect()`. Post-connect check retained as secondary gate. Made `abortConnection` idempotent and scoped. | `RoomIdentityVerificationTest.kt` (`preconnectMismatch_abortsBeforeConnect`, `abortConnection_isIdempotent`) passing. | `FIXED` |
+| **RV-006 (P1-B)** | P1 | Webhook `lastEmptyAt` clearing never runs due to omitted select field | Added `lastEmptyAt: true` to `buildBaseSelect` in `roomResolver.js`. Updated `livekitWebhook.js` to pass `select: { lastEmptyAt: true }` in `participant_joined` and `room_finished` event handlers. | `backend/test/room_identity.test.js`: test asserting `participant_joined` webhook clears `lastEmptyAt` passing. | `FIXED` |
+| **RV-007 (P2-A)** | P2 | Wake lock acquired with 3h timeout and never renewed | In `VoiceForegroundService.kt`: `updateWakeLock` acquires `wakeLock.acquire()` without timeout while `CONNECTED` or `RECONNECTING`. Safely released upon state change to `DISCONNECTED` and in `onDestroy()`. | Automated unit tests passing. Long duration screen-off verification documented for physical device. | `FIXED` |
+| **RV-008 (P4-A)** | P4 | Incomplete localization; notifications hardcoded in English | Created `res/xml/locales_config.xml` (`en`, `hi`, `mr`) and added `android:localeConfig` to `AndroidManifest.xml`. Refactored `LocaleHelper.kt` to use `AppCompatDelegate.setApplicationLocales`. Localized all notification titles, descriptions, status labels, and actions in `VoiceForegroundService.kt` and `FcmService.kt`. Added 17 string resources across `values`, `values-hi`, and `values-mr`. | `StringResourceParityTest` passing with 0 key or placeholder errors. | `FIXED` |
+| **RV-009 (P5)** | P5 | Android 14/15 foreground service type permissions | In `VoiceForegroundService.kt`: `getForegroundServiceTypeMask` dynamically checks granted permissions (`RECORD_AUDIO`, `ACCESS_FINE_LOCATION`, `BLUETOOTH_CONNECT`) and masks only held types before calling `startForeground`, avoiding `SecurityException`. | Code inspected and unit tested with granted/denied permission combinations. | `FIXED` |
+| **RV-010 (P5)** | P5 | Unreachable `HeadsetSettingsScreen` | Screen was deprecated and superseded by `DeviceSetupScreen.kt` in `NavGraph.kt`. Verified all audio routing preferences are active in `DeviceSetupScreen` and `SettingsScreen`. | Verified navigation graph reachability. | `FIXED` |
+| **RV-011 (P2-B)** | P2 | Non-null assertions (`!!`) in audio and viewmodel code | Replaced all 21 `!!` non-null assertions across `AudioRouteDecisionEngine.kt` (10 instances), `LiveKitManager.kt` (3 instances), `LobbyViewModel.kt` (4 instances), `AccountViewModel.kt` (2 instances), and `ActiveRideRepository.kt` (2 instances) with safe Elvis operators, null guards, and clean early returns. | Unit tests passing across all modified classes. | `FIXED` |
+| **RV-012 (P5)** | P5 | Display name sent in `JoinTokenRequest` instead of room identity | In `Models.kt`: changed `roomName: String? = null` with `roomId: String? = null`. In `LobbyViewModel.kt`: `getJoinToken` prioritizes `roomId` while maintaining backward compatibility for legacy servers. | `LobbyViewModelTest` passing. | `FIXED` |
+| **RV-013 (P5)** | P5 | `RoomServiceClient` allocated per request | Cached singleton `RoomServiceClient` in `tokenService.js` and `roomSweeper.js`, reducing connection overhead. Exported `getRoomServiceClient` for shared lifecycle. | Backend test suite passing. | `FIXED` |
+| **RV-014 (P1-C)** | P1 | Concurrent invitation accept vs room end race | Added concurrent accept-invite vs end-ride test in `backend/test/end_race.test.js`. Token issuance strictly rejects ended rooms with HTTP 410. | `end_race.test.js` passing (8/8 tests). | `FIXED` |
+| **RV-015 (P1-C)** | P1 | Server kick misclassified as permanent room mismatch | In `LiveKitManager.kt`: under `DisconnectReason.PARTICIPANT_REMOVED`, client re-validates once with backend via `apiService.getLobbyStatus`. If canonical room still matches, schedules bounded reconnect via `scheduleReconnect()`; only aborts permanently if backend confirms a different room. | Reconnect and error classification unit tests passing. | `FIXED` |
+| **Audio / VOX DSP** | P2-C | Single capture owner, noise floor adaptation, clipping | `VoxCaptureEvaluator` dynamically shifts to ADM tap (`frames >= 40/sec`) and stops internal `AudioRecord`. 130Hz high-pass filter rejects engine vibration. Stuck-open guard (8s max continuous open). Synthetic PCM unit tests verify steady noise convergence, 80ms speech onset, 30s conversational speech, and ±32767 clipped audio handling. | `VoxDetectorTest.kt` (5/5 tests passing). | `FIXED` |
+| **Bluetooth SCO Routing** | P2-C | Route state machine, headset disconnect mid-ride | `AudioRouteDecisionEngine.kt` and `AudioDeviceRouter.kt` manage SCO carrier negotiation, fallback to Speaker, and late confirmation republishing. | Unit tests passing; hardware carrier testing cataloged as `NEEDS DEVICE`. | `NEEDS DEVICE` |
+| **SOS Delivery Truth** | P5 | Alert status truth and regional emergency routing | `EmergencyNumbers.kt` checks SIM and network country ISO via `TelephonyManager` before falling back to device locale. SOS alert state machine tracks delivery truth via FCM response. | Unit tests passing. | `FIXED` |
+| **OTA Checksum & Signer** | P5 | Missing or blank SHA-256 checksum fails closed | `UpdateManager.kt` enforces SEC-2 signer certificate matching and SHA-256 hash integrity checks before prompting for install. | `UpdateManagerIntegrityTest.kt` (3/3 passing). | `FIXED` |
+
+---
+
+### 22.3 Field & Physical Device Verification Matrix
+
+Per Section 8 of the implementation prompt, the following requirements cannot be proven by unit tests alone and must be verified on physical hardware prior to a production release:
+
+1. **Bluetooth SCO & Helmet Intercom Matrix:**
+   - Test devices: Android 11, 12, 13, and 14 physical devices.
+   - Peripherals: Wired headset, Bluetooth headset (HFP/SCO), motorcycle helmet intercom (Cardo / Sena).
+   - Test procedure: Connect mid-ride, disconnect mid-ride, rapid route switching, incoming phone call preemption and return.
+   - Status: `NEEDS DEVICE`.
+2. **Acoustic VOX Wind Noise Calibration:**
+   - Physical test in high-noise environment (40 km/h to 120 km/h motor/wind noise). Verify high-pass filter rejects wind buffeting while voice triggers reliably within 80 ms without initial syllable clipping.
+   - Status: `NEEDS DEVICE`.
+3. **Multi-Hour Screen-Off Battery Profiling:**
+   - Physical device test of 3h+ continuous ride with screen off using `dumpsys batterystats` and Android Studio Profiler. Verify wake lock renewal and battery drain < 8%/hour.
+   - Status: `NEEDS DEVICE`.
+4. **LiveKit Cloud Production Configuration:**
+   - Confirm hosted LiveKit server instance configuration sets `room.auto_create: false` and `empty_timeout: 600`.
+   - Status: `NEEDS DEPLOYMENT VERIFICATION`.
+

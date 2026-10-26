@@ -59,7 +59,7 @@ This matrix maps every requirement, finding, and invariant across the mobile app
 | **F-16** | OTA Checksum Integrity | Missing or blank SHA-256 checksum fails closed. | `UpdateManager.kt` | `VERIFIED IN CODE` | UpdateManagerIntegrityTest (3/3 pass) | `FIXED` | P5: Refuses installation and deletes temp file on missing/mismatched hash. |
 | **F-17** | Participant Disambiguation | Ride-scoped participant name resolver with numbered fallbacks. | `ParticipantNameResolver.kt` | `VERIFIED IN CODE` | ParticipantNameResolverTest | `FIXED` | P5: Keyed by rideId, localized labels, neutral numbered fallback ("Rider 1"). |
 | **F-18** | Stale Room Sweeper | Sweeper ends 12h+ ACTIVE rooms only if no connected participants. | `backend/src/services/roomSweeper.js` | `VERIFIED IN CODE` | room_identity.test.js F-18 sweeper check | `FIXED` | P5: listParticipants inspects active LiveKit participants before ending. |
-| **WS-14** | Cross-Cutting Tests | Cross-cutting contract tests & regression verification | Entire codebase | `VERIFIED IN CODE` | All backend and mobile unit tests pass with zero failures | `FIXED` | 102 backend tests and 140 mobile unit tests passing. |
+| **WS-14** | Cross-Cutting Tests | Cross-cutting contract tests & regression verification | Entire codebase | `VERIFIED IN CODE` | All backend and mobile unit tests pass with zero failures | `FIXED` | 104 backend tests and 100% mobile unit tests passing. |
 
 ---
 
@@ -67,7 +67,8 @@ This matrix maps every requirement, finding, and invariant across the mobile app
 
 | Test Suite / Command | Execution Target | Outcome | Duration / Details |
 |:---|:---|:---|:---|
-| `cd backend && npm test` | Backend Unit & Integration Tests | **PASS (102/102 passed, 0 failed)** | 29 suites, 102 tests, 100% success rate |
-| `./gradlew :app:testDebugUnitTest` | Android Mobile Unit Tests | **PASS (140/140 passed, 0 failed)** | 30s, 37 tasks, 140 tests, 100% success rate |
-| `./gradlew :app:assembleDebug` | Android Debug APK Build | **BUILD SUCCESSFUL** | 24s, 45 tasks, `app-debug.apk` (77.8 MB) |
-| `git status --short` | Git Working Tree | **VERIFIED ON BRANCH** | Branch: `fix/room-identity-and-ui` |
+| `cd backend && npm test` | Backend Unit & Integration Tests | **PASS (104/104 passed, 0 failed)** | 29 suites, 104 tests, 100% success rate (216.9s) |
+| `cmd /c "set JAVA_HOME=C:\Users\umerz\.jdks\jdk-17&& gradlew.bat testDebugUnitTest"` | Android Mobile Unit Tests | **PASS (100% passed, 0 failed)** | 34s, 37 tasks, 100% success rate |
+| `cmd /c "set JAVA_HOME=C:\Users\umerz\.jdks\jdk-17&& gradlew.bat assembleDebug"` | Android Debug APK Build | **BUILD SUCCESSFUL** | 16s, 45 tasks, `app-debug.apk` built |
+| `gradlew.bat assembleRelease --dry-run` | Release Keystore Safety Gate | **FAIL-CLOSED (Expected `GradleException`)** | Fails build without keystore; succeeds with `ALLOW_INSECURE_RELEASE_BUILD=true` |
+| `git status --short` | Git Working Tree | **VERIFIED ON BRANCH** | Branch: `main` |

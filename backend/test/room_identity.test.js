@@ -236,6 +236,49 @@ describe('Workstream 2: Staged LiveKit Room Identity Migration (RM-1)', () => {
             prisma.room.findFirst = originals.roomFindFirst
         })
 
+        it('LiveKit webhook clears lastEmptyAt when participant rejoins an active room', async () => {
+            const { handleLiveKitEvent } = require('../src/routes/livekitWebhook')
+            const activeRoomWithEmptyAt = {
+                id: 'active-uuid-1234',
+                name: 'Sunday Express',
+                lkRoomName: 'rv_active-uuid-1234',
+                status: 'ACTIVE',
+                ownerId: 'host_1',
+                lastEmptyAt: new Date(Date.now() - 5 * 60 * 1000)
+            }
+
+            const originals = {}
+            originals.roomFindUnique = prisma.room.findUnique
+            originals.roomFindFirst = prisma.room.findFirst
+            originals.roomUpdate = prisma.room.update
+            prisma.room.findUnique = async () => activeRoomWithEmptyAt
+            prisma.room.findFirst = async () => activeRoomWithEmptyAt
+
+            let updatedData = null
+            prisma.room.update = async ({ where, data }) => {
+                updatedData = { where, data }
+                return { ...activeRoomWithEmptyAt, ...data }
+            }
+
+            const fakeClient = {
+                removeParticipant: async () => {}
+            }
+
+            await handleLiveKitEvent({
+                event: 'participant_joined',
+                room: { name: 'rv_active-uuid-1234' },
+                participant: { identity: 'host_1' }
+            }, { roomServiceClient: fakeClient })
+
+            assert.ok(updatedData, 'Expected prisma.room.update to have been called')
+            assert.strictEqual(updatedData.where.id, 'active-uuid-1234')
+            assert.strictEqual(updatedData.data.lastEmptyAt, null)
+
+            prisma.room.findUnique = originals.roomFindUnique
+            prisma.room.findFirst = originals.roomFindFirst
+            prisma.room.update = originals.roomUpdate
+        })
+
         it('F-18: sweeper does not end a 12h+ ACTIVE room if riders are connected in LiveKit', async () => {
             const { sweepStaleRooms } = require('../src/services/roomSweeper')
             const thirteenHoursAgo = new Date(Date.now() - 13 * 60 * 60 * 1000)

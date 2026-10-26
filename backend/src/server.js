@@ -89,6 +89,22 @@ app.use('/api/tester-application', testerRoutes)
 app.use('/api/testers', testerRoutes)
 app.use('/api/diagnostics', diagnosticRoutes)
 
+// P0-C (RV-003): Fail-closed on write operations when schema is invalid or degraded in production
+app.use((req, res, next) => {
+    const isWrite = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
+    if (isWrite && process.env.NODE_ENV === 'production') {
+        const { schemaDegraded, ...schemaDetails } = healthRoute.getSchemaHealth()
+        if (schemaDegraded && !req.path.startsWith('/api/health') && !req.path.startsWith('/health')) {
+            return res.status(503).json({
+                error: 'Service Unavailable: Database schema validation failed or degraded',
+                code: 'SCHEMA_DEGRADED',
+                details: schemaDetails
+            })
+        }
+    }
+    next()
+})
+
 // Protected routes: authMiddleware authenticates caller, then userLimiter enforces per-user quotas
 app.use('/api/rooms', authMiddleware, userLimiter, roomRoutes)
 app.use('/api/users', authMiddleware, userLimiter, profileRoutes)

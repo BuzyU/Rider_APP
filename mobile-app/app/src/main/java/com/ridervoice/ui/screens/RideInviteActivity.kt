@@ -37,6 +37,13 @@ class RideInviteActivity : ComponentActivity() {
     @Inject lateinit var apiService: ApiService
     @Inject lateinit var activeRideRepository: com.ridervoice.state.ActiveRideRepository
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val prefs = com.ridervoice.security.SecurePreferences(newBase)
+        val lang = prefs.getAppLanguage()
+        val localized = com.ridervoice.utils.LocaleHelper.getLocalizedContext(newBase, lang)
+        super.attachBaseContext(localized)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 

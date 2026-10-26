@@ -65,11 +65,24 @@ object EmergencyNumbers {
     }
 
     fun resolve(context: Context? = null): Info {
-        val iso = detectCountryIso()
+        val iso = detectCountryIso(context)
         return Info(iso, numberForCountry(iso))
     }
 
-    private fun detectCountryIso(): String? {
+    private fun detectCountryIso(context: Context?): String? {
+        if (context != null) {
+            try {
+                val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as? android.telephony.TelephonyManager
+                val simCountry = tm?.simCountryIso
+                if (!simCountry.isNullOrBlank()) {
+                    return simCountry.uppercase(Locale.ROOT)
+                }
+                val networkCountry = tm?.networkCountryIso
+                if (!networkCountry.isNullOrBlank()) {
+                    return networkCountry.uppercase(Locale.ROOT)
+                }
+            } catch (_: Exception) {}
+        }
         val locale = Locale.getDefault().country
         return locale.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)
     }

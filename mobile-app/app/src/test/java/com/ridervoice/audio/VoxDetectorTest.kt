@@ -106,4 +106,20 @@ class VoxDetectorTest {
         val closeDelay = sim.closedAt - speechEnd
         assertTrue("Close delay should match hold time (~900 ms), was $closeDelay", closeDelay in 700..1100)
     }
+
+    @Test
+    fun clippedAudio_handledGracefullyWithoutCrashOrNan() {
+        val sim = Sim(VoxDetector())
+        repeat(50) { sim.step(400f, ::noiseFrame) }
+        // Clipped loud frame at ±32767
+        val clippedFrame: (Float) -> ShortArray = {
+            ShortArray(VoxDetector.FRAME) { i -> if (i % 2 == 0) Short.MAX_VALUE else Short.MIN_VALUE }
+        }
+        sim.step(32767f, clippedFrame)
+        assertTrue(sim.d.floor > 0f)
+        assertFalse(sim.d.floor.isNaN())
+        assertFalse(sim.d.openThreshold.isNaN())
+        assertFalse(sim.d.floor.isInfinite())
+    }
 }
+

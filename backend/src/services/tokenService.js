@@ -19,8 +19,11 @@ const { riderCallsign, disambiguateCallsigns } = require('./identity')
 const { resolveLkRoomName } = require('./roomResolver')
 const { deleteLiveKitRoom } = require('./roomSweeper')
 
-const LIVEKIT_TOKEN_TTL = '2h'
-const TOKEN_TTL_MS = 2 * 60 * 60 * 1000
+const LIVEKIT_TOKEN_TTL = '30m'
+const TOKEN_TTL_MS = 30 * 60 * 1000
+
+let cachedSvcClient = null
+let cachedSvcKey = null
 
 function getLiveKitHttpUrl() {
     const raw = process.env.LIVEKIT_URL || ''
@@ -28,6 +31,20 @@ function getLiveKitHttpUrl() {
         console.error('[TokenService] LIVEKIT_URL is not set. Tokens will have no wss URL.')
     }
     return raw.replace('wss://', 'https://').replace('ws://', 'http://')
+}
+
+function getRoomServiceClient() {
+    const httpUrl = getLiveKitHttpUrl()
+    const apiKey = process.env.LIVEKIT_API_KEY
+    const apiSecret = process.env.LIVEKIT_API_SECRET
+    if (!httpUrl || !apiKey || !apiSecret) return null
+
+    const key = `${httpUrl}:${apiKey}:${apiSecret}`
+    if (!cachedSvcClient || cachedSvcKey !== key) {
+        cachedSvcClient = new RoomServiceClient(httpUrl, apiKey, apiSecret)
+        cachedSvcKey = key
+    }
+    return cachedSvcClient
 }
 
 /**
@@ -77,11 +94,10 @@ async function resolveDisplayName(uid, fallback = 'Rider', roomId = null) {
  * @param {string} roomId – DB room UUID (stored in LK room metadata)
  */
 async function ensureLiveKitRoom(lkRoomName, roomId) {
-    const httpUrl = getLiveKitHttpUrl()
-    if (!httpUrl || !process.env.LIVEKIT_API_KEY || !process.env.LIVEKIT_API_SECRET) return
+    const svc = getRoomServiceClient()
+    if (!svc) return
 
     try {
-        const svc = new RoomServiceClient(httpUrl, process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET)
         await svc.createRoom({
             name: lkRoomName,
             emptyTimeout: 600,       // 10 min: re-creates on first connect if empty
@@ -220,4 +236,4 @@ async function issueRoomToken(user, room) {
     }
 }
 
-module.exports = { issueRoomToken, ensureLiveKitRoom, lkRoomName, resolveLkRoomName, resolveDisplayName }
+module.exports = { issueRoomToken, ensureLiveKitRoom, lkRoomName, resolveLkRoomName, resolveDisplayName, getRoomServiceClient }

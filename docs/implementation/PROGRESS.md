@@ -187,9 +187,10 @@
 
 | Test Suite | Command | Result | Details |
 |:---|:---|:---|:---|
-| **Backend Test Suite** | `cd backend && npm test` | **PASS (102/102 passed, 0 failed)** | 29 suites, 102 tests, all assertions green. |
-| **Mobile Unit Tests** | `./gradlew :app:testDebugUnitTest` | **PASS (140/140 passed, 0 failed)** | 140 tests, 0 failures, 100% successful. |
-| **Android Debug APK** | `./gradlew :app:assembleDebug` | **BUILD SUCCESSFUL** | Generates `app-debug.apk` (77.8 MB). |
+| **Backend Test Suite** | `cd backend && npm test` | **PASS (104/104 passed, 0 failed)** | 29 suites, 104 tests, all assertions green (216.9s). Covers migrations, room identity, end races, idempotency, sweeper, diagnostics. |
+| **Mobile Unit Tests** | `cmd /c "set JAVA_HOME=C:\Users\umerz\.jdks\jdk-17&& gradlew.bat testDebugUnitTest"` | **PASS (100% passed, 0 failed)** | 37 tasks up to date / executed in 34s. 0 failures across all view models, audio engine, localization, and room verification tests. |
+| **Android Debug APK** | `cmd /c "set JAVA_HOME=C:\Users\umerz\.jdks\jdk-17&& gradlew.bat assembleDebug"` | **BUILD SUCCESSFUL** | Executed in 16s. Generates clean debug APK. |
+| **Release Signing Gate** | `gradlew.bat assembleRelease --dry-run` | **FAIL-CLOSED (Expected `GradleException`)** | Fails build without keystore; succeeds with `ALLOW_INSECURE_RELEASE_BUILD=true`. |
 
 ---
 

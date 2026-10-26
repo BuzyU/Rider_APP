@@ -74,8 +74,8 @@ class FcmService : FirebaseMessagingService() {
 
         val notification = NotificationCompat.Builder(this, "CHANNEL_CONVOY")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Ride Invite")
-            .setContentText("$inviter invited you to $rideName")
+            .setContentTitle(getString(R.string.notif_ride_invite_title))
+            .setContentText(getString(R.string.notif_ride_invite_desc, inviter, rideName))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
@@ -91,8 +91,8 @@ class FcmService : FirebaseMessagingService() {
 
         val notification = NotificationCompat.Builder(this, "CHANNEL_CONVOY")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Rider Joined")
-            .setContentText("$riderName joined $rideName")
+            .setContentTitle(getString(R.string.notif_rider_joined_title))
+            .setContentText(getString(R.string.notif_rider_joined_desc, riderName, rideName))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .build()
@@ -126,15 +126,15 @@ class FcmService : FirebaseMessagingService() {
 
         val builder = NotificationCompat.Builder(this, "CHANNEL_EMERGENCY")
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("CRITICAL: $alertType")
-            .setContentText("Emergency alert from $sender in $roomName")
+            .setContentTitle(getString(R.string.notif_emergency_title, alertType))
+            .setContentText(getString(R.string.notif_emergency_desc, sender, roomName))
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setSound(soundUri)
             .setAutoCancel(true)
             .setFullScreenIntent(pendingIntent, true)
             .setContentIntent(pendingIntent)
-            .addAction(0, "Open Alert", pendingIntent)
+            .addAction(0, getString(R.string.notif_open_alert), pendingIntent)
 
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(91100 + alertId.hashCode() % 1000, builder.build())

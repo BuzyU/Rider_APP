@@ -77,7 +77,7 @@ data class StartRideResponse(
 )
 
 data class JoinTokenRequest(
-    val roomName: String,
+    val roomName: String? = null,
     val roomId: String? = null
 )
 

@@ -137,6 +137,43 @@ describe('Workstream 3: End/Token/Create Race & Stale-Token Mitigation (RM-4, RM
                 }
             )
         })
+
+        it('concurrent accept-invite vs end-ride: ended room rejects token with 410 and does not call createRoom', async () => {
+            const endedRoom = {
+                id: '44444444-5555-6666-7777-888888888888',
+                name: 'Race Invite Convoy',
+                lkRoomName: 'lk-race-invite-uuid',
+                status: 'ENDED',
+                ownerId: 'host_race'
+            }
+
+            let createRoomCalled = false
+            const { getRoomServiceClient } = require('../src/services/tokenService')
+            const client = getRoomServiceClient()
+            let originalCreateRoom = null
+            if (client) {
+                originalCreateRoom = client.createRoom
+                client.createRoom = async () => {
+                    createRoomCalled = true
+                }
+            }
+
+            prisma.rideInvite.findUnique = async () => ({ status: 'ACCEPTED' })
+
+            await assert.rejects(
+                () => issueRoomToken({ uid: 'invitee_1' }, endedRoom),
+                (err) => {
+                    assert.strictEqual(err.status, 410)
+                    assert.strictEqual(err.code, 'ROOM_ENDED')
+                    return true
+                }
+            )
+
+            assert.strictEqual(createRoomCalled, false, 'createRoom must not be called when room is ended')
+            if (client && originalCreateRoom) {
+                client.createRoom = originalCreateRoom
+            }
+        })
     })
 
     describe('RM-6: Resilient LiveKit cleanup & pending retries', () => {

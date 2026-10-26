@@ -177,6 +177,7 @@ class LiveKitManager @Inject constructor(
     private val sessionCounter = java.util.concurrent.atomic.AtomicLong(0L)
     @Volatile var currentSessionId: Long = 0L
         private set
+    private val abortedSessions = java.util.concurrent.ConcurrentHashMap.newKeySet<Long>()
     private var tokenProvider: (suspend () -> String)? = null
 
     private var lastBroadcastLoc: RiderLocation? = null
@@ -227,6 +228,46 @@ class LiveKitManager @Inject constructor(
     @OptIn(FlowPreview::class)
     private suspend fun connectInternal(url: String, token: String, sessionId: Long) {
         if (sessionId != currentSessionId) return
+
+        // P1-A (RV-004): Pre-connect verification against token JWT room claim
+        val jwtRoom = com.ridervoice.utils.JwtRoomClaimDecoder.extractRoomName(token)
+        var expected = expectedLkRoomName ?: activeRideRepository.state.value?.lkRoomName
+
+        // If expected is missing and currentRoomId is present, query getLobbyStatus to resolve canonical lkRoomName
+        val currRoomId = currentRoomId
+        if (expected.isNullOrBlank() && !currRoomId.isNullOrBlank()) {
+            try {
+                val statusRes = apiService.getLobbyStatus(currRoomId)
+                if (statusRes.isSuccessful) {
+                    val body = statusRes.body()
+                    if (body?.lkRoomName != null && body.lkRoomName.isNotBlank()) {
+                        expected = body.lkRoomName
+                        this.expectedLkRoomName = expected
+                    }
+                }
+            } catch (e: Exception) {
+                com.ridervoice.utils.RvLog.w("LK", "Failed to resolve lobby status before connect: ${e.message}")
+            }
+        }
+
+        if (!expected.isNullOrBlank()) {
+            if (jwtRoom != null && jwtRoom != expected) {
+                com.ridervoice.utils.RvLog.e("LK", "PRE-CONNECT ROOM IDENTITY MISMATCH! expected=$expected jwtRoom=$jwtRoom roomId=$currentRoomId")
+                abortConnection(
+                    sessionId = sessionId,
+                    fault = com.ridervoice.state.RoomFault.ConfirmedRoomMismatch(
+                        intendedRoomId = currentRoomId ?: "",
+                        expectedLkRoomName = expected,
+                        actualRoomName = jwtRoom,
+                        reason = "Token room '$jwtRoom' does not match expected canonical room '$expected'"
+                    )
+                )
+                return
+            }
+        } else {
+            com.ridervoice.utils.RvLog.w("LK", "legacy_identity_unverified: jwtRoom=$jwtRoom")
+        }
+
         _connectionState.value = ConnectionState.CONNECTING
 
         audioDeviceRouter.start()
@@ -299,11 +340,9 @@ class LiveKitManager @Inject constructor(
 
             // P0-B: Verify connected room name before declaring CONNECTED or publishing audio
             val actualRoomName = newRoom.name
-            val expected = expectedLkRoomName ?: activeRideRepository.state.value?.lkRoomName
             val verified = if (!expected.isNullOrBlank()) {
                 actualRoomName == expected
             } else {
-                val jwtRoom = com.ridervoice.utils.JwtRoomClaimDecoder.extractRoomName(token)
                 com.ridervoice.utils.RvLog.w("LK", "legacy_identity_unverified: actual=$actualRoomName expectedJwt=$jwtRoom")
                 !jwtRoom.isNullOrBlank() && actualRoomName == jwtRoom
             }
@@ -564,30 +603,41 @@ class LiveKitManager @Inject constructor(
                     DisconnectReason.PARTICIPANT_REMOVED -> {
                         val targetRoom = currentRoomId
                         val sessionId = currentSessionId
+                        val connectedRoomName = room?.name
                         scope.launch {
                             var confirmedRemoved = true
                             if (!targetRoom.isNullOrBlank()) {
                                 try {
                                     val statusRes = apiService.getLobbyStatus(targetRoom)
-                                    if (statusRes.isSuccessful && statusRes.body() != null) {
-                                        val status = statusRes.body()!!
+                                    val status = statusRes.body()
+                                    if (statusRes.isSuccessful && status != null) {
                                         val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
                                         val isStillMember = status.invites.any { it.invitee.id == currentUid && it.status == "ACCEPTED" } ||
                                                 status.host?.id == currentUid
                                         if (isStillMember) {
-                                            confirmedRemoved = false
-                                            abortConnection(
-                                                sessionId = sessionId,
-                                                fault = com.ridervoice.state.RoomFault.ConfirmedRoomMismatch(
-                                                    intendedRoomId = targetRoom,
-                                                    expectedLkRoomName = expectedLkRoomName,
-                                                    actualRoomName = room?.name,
-                                                    reason = "Server kicked participant (possible room mismatch)"
+                                            val canonicalRoom = status.lkRoomName ?: targetRoom
+                                            val expected = expectedLkRoomName ?: canonicalRoom
+                                            if (connectedRoomName != null && connectedRoomName != expected) {
+                                                confirmedRemoved = false
+                                                abortConnection(
+                                                    sessionId = sessionId,
+                                                    fault = com.ridervoice.state.RoomFault.ConfirmedRoomMismatch(
+                                                        intendedRoomId = targetRoom,
+                                                        expectedLkRoomName = expected,
+                                                        actualRoomName = connectedRoomName,
+                                                        reason = "Server kicked participant (confirmed room mismatch: connected=$connectedRoomName canonical=$expected)"
+                                                    )
                                                 )
-                                            )
+                                            } else {
+                                                confirmedRemoved = false
+                                                com.ridervoice.utils.RvLog.w("LK", "Participant removed but still valid member of $targetRoom. Scheduling reconnect.")
+                                                scheduleReconnect()
+                                            }
                                         }
                                     }
-                                } catch (_: Exception) {}
+                                } catch (e: Exception) {
+                                    com.ridervoice.utils.RvLog.w("LK", "Error re-validating member status after removal: ${e.message}")
+                                }
                             }
                             if (confirmedRemoved) {
                                 _removedFromConvoy.value = true
@@ -701,10 +751,10 @@ class LiveKitManager @Inject constructor(
         val localName = localParticipant?.name?.takeIf { it.isNotBlank() }
 
         val remotes = room?.remoteParticipants?.values
-            ?.filter { !it.identity?.value.isNullOrBlank() }
-            ?.map { p ->
+            ?.mapNotNull { p ->
+                val identityVal = p.identity?.value ?: return@mapNotNull null
                 com.ridervoice.models.Participant(
-                    identity = p.identity!!.value,
+                    identity = identityVal,
                     displayName = p.name?.takeIf { it.isNotBlank() }
                 )
             } ?: emptyList()
@@ -738,9 +788,10 @@ class LiveKitManager @Inject constructor(
             if (sessionId != currentSessionId) return@launch
 
             // M5: Check lobby status after first reconnect attempt fails
-            if (reconnectAttempts > 1 && !currentRoomId.isNullOrBlank()) {
+            val roomId = currentRoomId
+            if (reconnectAttempts > 1 && !roomId.isNullOrBlank()) {
                 try {
-                    val statusRes = apiService.getLobbyStatus(currentRoomId!!)
+                    val statusRes = apiService.getLobbyStatus(roomId)
                     when (statusRes.code()) {
                         404, 410 -> {
                             _convoyEnded.value = true
@@ -755,13 +806,13 @@ class LiveKitManager @Inject constructor(
                             return@launch
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (_: Throwable) {}
             }
 
             if (_connectionState.value == ConnectionState.RECONNECTING && !_convoyEnded.value && !_removedFromConvoy.value) {
                 val freshToken = try {
                     tokenProvider?.invoke()
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     val msg = e.message ?: ""
                     if (msg.contains("REMOVED", ignoreCase = true) || msg.contains("NOT_A_MEMBER", ignoreCase = true)) {
                         _removedFromConvoy.value = true
@@ -900,6 +951,7 @@ class LiveKitManager @Inject constructor(
      */
     fun abortConnection(sessionId: Long, fault: com.ridervoice.state.RoomFault) {
         if (sessionId != currentSessionId) return
+        if (!abortedSessions.add(sessionId)) return
         blockedRoomId = currentRoomId
 
         reconnectJob?.cancel()

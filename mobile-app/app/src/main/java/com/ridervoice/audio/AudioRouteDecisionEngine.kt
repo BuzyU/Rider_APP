@@ -57,15 +57,16 @@ class AudioRouteDecisionEngine(
             )
         }
 
-        targetDevice = candidates[0]
-        currentActiveDevice = targetDevice!!
-        requestedCandidates[targetDevice!!.id] = targetDevice!!
+        val firstCandidate = candidates.getOrNull(0) ?: fallbackSpeaker
+        targetDevice = firstCandidate
+        currentActiveDevice = firstCandidate
+        requestedCandidates[firstCandidate.id] = firstCandidate
         currentState = RoutingState.PENDING_CONFIRMATION
         return RoutingDecision(
             state = currentState,
             activeDevice = currentActiveDevice,
             requiresRepublish = false,
-            note = "Attempting candidate ${targetDevice!!.name} (id=${targetDevice!!.id})"
+            note = "Attempting candidate ${firstCandidate.name} (id=${firstCandidate.id})"
         )
     }
 
@@ -75,10 +76,11 @@ class AudioRouteDecisionEngine(
      * Rule 4: Late confirmation triggers a republish request.
      */
     fun confirm(activeDeviceId: Int): RoutingDecision {
-        if (currentState == RoutingState.PENDING_CONFIRMATION && targetDevice != null) {
-            if (activeDeviceId == targetDevice!!.id) {
+        val target = targetDevice
+        if (currentState == RoutingState.PENDING_CONFIRMATION && target != null) {
+            if (activeDeviceId == target.id) {
                 currentState = RoutingState.CONFIRMED
-                currentActiveDevice = targetDevice!!
+                currentActiveDevice = target
                 return RoutingDecision(
                     state = currentState,
                     activeDevice = currentActiveDevice,
@@ -90,15 +92,16 @@ class AudioRouteDecisionEngine(
                     state = currentState,
                     activeDevice = currentActiveDevice,
                     requiresRepublish = false,
-                    note = "Mismatched device ID ($activeDeviceId != ${targetDevice!!.id}), remains pending"
+                    note = "Mismatched device ID ($activeDeviceId != ${target.id}), remains pending"
                 )
             }
         }
 
         // Late confirmation: if confirmed device was one of our previously requested candidates
         // but confirmation arrived after we had timed out or moved on
-        if (requestedCandidates.containsKey(activeDeviceId) && activeDeviceId != currentActiveDevice.id) {
-            currentActiveDevice = requestedCandidates[activeDeviceId]!!
+        val lateCandidate = requestedCandidates[activeDeviceId]
+        if (lateCandidate != null && activeDeviceId != currentActiveDevice.id) {
+            currentActiveDevice = lateCandidate
             targetDevice = null
             currentState = RoutingState.CONFIRMED
             return RoutingDecision(
@@ -134,15 +137,16 @@ class AudioRouteDecisionEngine(
 
         currentIndex++
         if (currentIndex < candidates.size) {
-            targetDevice = candidates[currentIndex]
-            currentActiveDevice = targetDevice!!
-            requestedCandidates[targetDevice!!.id] = targetDevice!!
+            val nextCandidate = candidates[currentIndex]
+            targetDevice = nextCandidate
+            currentActiveDevice = nextCandidate
+            requestedCandidates[nextCandidate.id] = nextCandidate
             currentState = RoutingState.PENDING_CONFIRMATION
             return RoutingDecision(
                 state = currentState,
                 activeDevice = currentActiveDevice,
                 requiresRepublish = false,
-                note = "Timed out, advancing to candidate ${targetDevice!!.name} (id=${targetDevice!!.id})"
+                note = "Timed out, advancing to candidate ${nextCandidate.name} (id=${nextCandidate.id})"
             )
         } else {
             currentState = RoutingState.FALLBACK

@@ -87,9 +87,23 @@ android {
                     keyAlias "androiddebugkey"
                     keyPassword "android"
                 } else {
-                    logger.warn("Release keystore not found. Release signing requires KEYSTORE_FILE or explicit ALLOW_INSECURE_RELEASE_BUILD=true (SEC-1).")
-                    initWith(signingConfigs.debug)
+                    logger.warn("Release keystore not found. Release builds will fail at task execution unless KEYSTORE_FILE or ALLOW_INSECURE_RELEASE_BUILD=true is provided (SEC-1 / RV-002).")
                 }
+            }
+        }
+    }
+
+    gradle.taskGraph.whenReady { taskGraph ->
+        def hasReleaseTask = taskGraph.allTasks.any { task ->
+            def taskName = task.name.toLowerCase()
+            taskName.contains("release") && (taskName.contains("assemble") || taskName.contains("bundle") || taskName.contains("package"))
+        }
+        if (hasReleaseTask) {
+            def envKeystore = System.getenv("KEYSTORE_FILE")
+            def keystoreFile = envKeystore != null ? (file(envKeystore).isAbsolute() ? file(envKeystore) : file("$projectDir/$envKeystore")) : null
+            def allowInsecure = Boolean.parseBoolean(System.getenv("ALLOW_INSECURE_RELEASE_BUILD") ?: "false")
+            if ((keystoreFile == null || !keystoreFile.exists()) && !allowInsecure) {
+                throw new GradleException("Release build failed: Real signing keystore not found and ALLOW_INSECURE_RELEASE_BUILD is not enabled. Specify KEYSTORE_FILE or set ALLOW_INSECURE_RELEASE_BUILD=true (SEC-1 / RV-002).")
             }
         }
     }

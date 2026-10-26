@@ -108,4 +108,23 @@
         <item quantity="one">%d राइडर</item>
         <item quantity="other">%d राइडर्स</item>
     </plurals>
+
+    <!-- Notifications -->
+    <string name="notif_ride_invite_title">राइड आमंत्रण</string>
+    <string name="notif_ride_invite_desc">%1$s ने आपको %2$s में आमंत्रित किया</string>
+    <string name="notif_rider_joined_title">राइडर शामिल हुआ</string>
+    <string name="notif_rider_joined_desc">%1$s %2$s में शामिल हो गया</string>
+    <string name="notif_emergency_title">गंभीर: %1$s</string>
+    <string name="notif_emergency_desc">%2$s में %1$s से आपातकालीन चेतावनी</string>
+    <string name="notif_open_alert">अलर्ट खोलें</string>
+    <string name="notif_channel_hud_name">सामरिक काफिला HUD</string>
+    <string name="notif_channel_hud_desc">काफिला संचार और टेलीमेट्री ओवरले</string>
+    <string name="notif_convoy_live">काफिला लाइव</string>
+    <string name="notif_convoy_connecting">कनेक्ट हो रहा है...</string>
+    <string name="notif_convoy_reconnecting">पुनः कनेक्ट हो रहा है...</string>
+    <string name="notif_convoy_failed">कनेक्शन विफल</string>
+    <string name="notif_convoy_disconnected">डिस्कनेक्ट हुआ</string>
+    <string name="notif_active_speaker_nobody">कोई नहीं</string>
+    <string name="notif_active_speaker_collapsed">सक्रिय: %1$s</string>
+    <string name="notif_active_speaker_expanded">सक्रिय वक्ता: %1$s</string>
 </resources>

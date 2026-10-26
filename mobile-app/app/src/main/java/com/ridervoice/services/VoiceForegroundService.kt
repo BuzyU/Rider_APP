@@ -94,11 +94,11 @@ class VoiceForegroundService : Service() {
         serviceScope.launch {
             liveKitManager.connectionState.collectLatest { state ->
                 currentConvoyState = when (state) {
-                    ConnectionState.CONNECTED -> "Convoy LIVE"
-                    ConnectionState.CONNECTING -> "Connecting..."
-                    ConnectionState.RECONNECTING -> "Reconnecting..."
-                    ConnectionState.FAILED -> "Connection Failed"
-                    ConnectionState.DISCONNECTED -> "Disconnected"
+                    ConnectionState.CONNECTED -> getString(R.string.notif_convoy_live)
+                    ConnectionState.CONNECTING -> getString(R.string.notif_convoy_connecting)
+                    ConnectionState.RECONNECTING -> getString(R.string.notif_convoy_reconnecting)
+                    ConnectionState.FAILED -> getString(R.string.notif_convoy_failed)
+                    ConnectionState.DISCONNECTED -> getString(R.string.notif_convoy_disconnected)
                 }
                 updateWakeLock(state)
                 debouncedUpdateNotification()
@@ -107,7 +107,7 @@ class VoiceForegroundService : Service() {
 
         serviceScope.launch {
             liveKitManager.activeSpeaker.collectLatest { speaker ->
-                currentActiveSpeaker = speaker ?: "Nobody"
+                currentActiveSpeaker = speaker ?: getString(R.string.notif_active_speaker_nobody)
                 debouncedUpdateNotification()
             }
         }
@@ -211,8 +211,8 @@ class VoiceForegroundService : Service() {
             }
             wakeLock?.let {
                 if (!it.isHeld) {
-                    it.acquire(3 * 3600 * 1000L) // 3h renewal window
-                    com.ridervoice.utils.RvLog.d("BAT", "WakeLock acquired for 3h")
+                    it.acquire()
+                    com.ridervoice.utils.RvLog.d("BAT", "WakeLock acquired while connected/reconnecting")
                 }
             }
         } else {
@@ -241,17 +241,17 @@ class VoiceForegroundService : Service() {
                 mask = mask or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
             }
         }
-        return if (mask == 0) android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else mask
+        return mask
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Tactical Convoy HUD",
+                getString(R.string.notif_channel_hud_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Convoy communication and telemetry overlay"
+                description = getString(R.string.notif_channel_hud_desc)
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
@@ -284,10 +284,10 @@ class VoiceForegroundService : Service() {
         val expandedViews = RemoteViews(packageName, R.layout.notification_tactical_expanded)
 
         collapsedViews.setTextViewText(R.id.text_convoy_status, currentConvoyState)
-        collapsedViews.setTextViewText(R.id.text_active_speaker, "Active: $currentActiveSpeaker")
+        collapsedViews.setTextViewText(R.id.text_active_speaker, getString(R.string.notif_active_speaker_collapsed, currentActiveSpeaker))
 
         expandedViews.setTextViewText(R.id.text_convoy_status_expanded, currentConvoyState)
-        expandedViews.setTextViewText(R.id.text_active_speaker_expanded, "Active Speaker: $currentActiveSpeaker")
+        expandedViews.setTextViewText(R.id.text_active_speaker_expanded, getString(R.string.notif_active_speaker_expanded, currentActiveSpeaker))
 
         val muteIcon = if (isMuted) android.R.drawable.ic_lock_silent_mode else android.R.drawable.ic_btn_speak_now
         collapsedViews.setImageViewResource(R.id.btn_mute, muteIcon)

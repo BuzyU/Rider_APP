@@ -39,7 +39,7 @@ async function handleLiveKitEvent(event, deps = {}) {
         }
 
         try {
-            const room = await resolveRoom(lkRoomName, { allowEnded: true })
+            const room = await resolveRoom(lkRoomName, { allowEnded: true, select: { lastEmptyAt: true } })
 
             // 1. If DB room is ENDED -> kick only if matched by exact LiveKit room identity, never on display-name fallback
             if (room.status === 'ENDED') {
@@ -98,7 +98,7 @@ async function handleLiveKitEvent(event, deps = {}) {
         }
     } else if (eventType === 'room_finished') {
         try {
-            const room = await resolveRoom(lkRoomName, { allowEnded: true })
+            const room = await resolveRoom(lkRoomName, { allowEnded: true, select: { lastEmptyAt: true } })
             if (!room || room.status === 'ENDED') {
                 return
             }

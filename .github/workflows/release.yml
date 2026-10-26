@@ -83,12 +83,16 @@ jobs:
             echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
             echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
             echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
-          else
-            echo "::warning::KEYSTORE_BASE64 secret is not configured. Using consistent repository debug keystore for release build."
+          elif [ "${{ vars.ALLOW_INSECURE_RELEASE_BUILD }}" = "true" ]; then
+            echo "::warning::ALLOW_INSECURE_RELEASE_BUILD is enabled. Using debug-fallback keystore."
+            echo "ALLOW_INSECURE_RELEASE_BUILD=true" >> $GITHUB_ENV
             echo "KEYSTORE_FILE=signing/debug-fallback.keystore" >> $GITHUB_ENV
             echo "KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
             echo "KEY_ALIAS=androiddebugkey" >> $GITHUB_ENV
             echo "KEY_PASSWORD=android" >> $GITHUB_ENV
+          else
+            echo "::error::Release build requires real signing credentials. KEYSTORE_BASE64 secret is not configured and ALLOW_INSECURE_RELEASE_BUILD is false."
+            exit 1
           fi
 
       - name: Grant Execute Permissions for Gradlew
@@ -101,6 +105,20 @@ jobs:
             -PversionName="${{ env.VERSION_NAME }}" \
             -PversionCode="${{ env.VERSION_CODE }}" \
             --stacktrace
+
+      - name: Verify APK Signer Certificate Fingerprint
+        run: |
+          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          APK_SOURCE="mobile-app/app/build/outputs/apk/release/app-release.apk"
+          CERT_DIGEST=$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$APK_SOURCE" | grep "Signer #1 certificate SHA-256 digest:" | awk '{print $NF}')
+          echo "APK Signer SHA-256 digest: $CERT_DIGEST"
+          if [ -n "${{ secrets.EXPECTED_SIGNER_SHA256 }}" ]; then
+            if [ "$CERT_DIGEST" != "${{ secrets.EXPECTED_SIGNER_SHA256 }}" ]; then
+              echo "::error::Signer SHA-256 mismatch! Expected ${{ secrets.EXPECTED_SIGNER_SHA256 }} but found $CERT_DIGEST"
+              exit 1
+            fi
+            echo "Signer SHA-256 successfully verified against expected secret."
+          fi
 
       - name: Prepare Versioned Assets & Calculate SHA-256 Checksum
         run: |

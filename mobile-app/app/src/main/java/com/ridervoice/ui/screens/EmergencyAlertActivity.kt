@@ -52,6 +52,13 @@ class EmergencyAlertActivity : ComponentActivity() {
 
     private var vibrator: Vibrator? = null
 
+    override fun attachBaseContext(newBase: Context) {
+        val prefs = com.ridervoice.security.SecurePreferences(newBase)
+        val lang = prefs.getAppLanguage()
+        val localized = com.ridervoice.utils.LocaleHelper.getLocalizedContext(newBase, lang)
+        super.attachBaseContext(localized)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 

@@ -101,6 +101,7 @@ function buildBaseSelect(optsSelect = {}) {
         meetupPoint: true,
         estimatedDurationMin: true,
         createdAt: true,
+        lastEmptyAt: true,
         ...optsSelect
     }
     if (hasLkRoomNameColumn) {

@@ -46,9 +46,9 @@ class LobbyViewModel @Inject constructor(
             while (isActive) {
                 try {
                     val response = apiService.getLobbyStatus(roomName)
-                    if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()
+                    if (response.isSuccessful && body != null) {
                         consecutiveErrors = 0
-                        val body = response.body()!!
                         _lobbyStatus.value = body
 
                         activeRideRepository.enterLobby(
@@ -62,9 +62,14 @@ class LobbyViewModel @Inject constructor(
                             activeRideRepository.goLive()
                             if (activeRideRepository.state.value?.token.isNullOrBlank()) {
                                 try {
-                                    val tokenRes = apiService.getJoinToken(com.ridervoice.models.JoinTokenRequest(roomName = body.convoyName, roomId = body.roomId))
-                                    if (tokenRes.isSuccessful && tokenRes.body() != null) {
-                                        val tb = tokenRes.body()!!
+                                    val tokenRes = apiService.getJoinToken(
+                                        com.ridervoice.models.JoinTokenRequest(
+                                            roomName = if (body.roomId != null) null else body.convoyName,
+                                            roomId = body.roomId
+                                        )
+                                    )
+                                    val tb = tokenRes.body()
+                                    if (tokenRes.isSuccessful && tb != null) {
                                         activeRideRepository.applyTokenPayload(
                                             com.ridervoice.models.TokenPayload(
                                                 token = tb.token,
@@ -141,8 +146,9 @@ class LobbyViewModel @Inject constructor(
             _linkError.value = null
             try {
                 val res = apiService.generateShareLink(safeRoom)
-                if (res.isSuccessful && res.body() != null) {
-                    _shareLink.value = res.body()!!.shareUrl
+                val body = res.body()
+                if (res.isSuccessful && body != null) {
+                    _shareLink.value = body.shareUrl
                 } else {
                     _linkError.value = "Failed to generate link (${res.code()})"
                 }
@@ -206,8 +212,8 @@ class LobbyViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val res = apiService.startRide(roomName)
-                if (res.isSuccessful && res.body() != null) {
-                    val body = res.body()!!
+                val body = res.body()
+                if (res.isSuccessful && body != null) {
                     activeRideRepository.applyTokenPayload(
                         com.ridervoice.models.TokenPayload(
                             token = body.token,

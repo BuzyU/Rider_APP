@@ -3,12 +3,23 @@ const prisma = require('../db')
 const { markRoomEnded, invalidateRoom, resolveLkRoomName } = require('./roomResolver')
 const diagnosticService = require('./diagnosticService')
 
+let cachedSweeperClient = null
+let cachedSweeperKey = null
+
 function getRoomServiceClient() {
     let host = process.env.LIVEKIT_URL || ''
     if (host.startsWith('wss://')) host = host.replace('wss://', 'https://')
     else if (host.startsWith('ws://')) host = host.replace('ws://', 'http://')
     if (!host) return null
-    return new RoomServiceClient(host, process.env.LIVEKIT_API_KEY || 'test_key', process.env.LIVEKIT_API_SECRET || 'test_secret')
+
+    const apiKey = process.env.LIVEKIT_API_KEY || 'test_key'
+    const apiSecret = process.env.LIVEKIT_API_SECRET || 'test_secret'
+    const key = `${host}:${apiKey}:${apiSecret}`
+    if (!cachedSweeperClient || cachedSweeperKey !== key) {
+        cachedSweeperClient = new RoomServiceClient(host, apiKey, apiSecret)
+        cachedSweeperKey = key
+    }
+    return cachedSweeperClient
 }
 
 // Track when ACTIVE rooms were first observed empty { [roomId]: firstEmptyEpochMs }
@@ -126,6 +137,19 @@ async function deleteLiveKitRoom(lkName, roomId = null, client = null) {
     }
 
     try {
+        if (typeof livekitClient.listParticipants === 'function' && typeof livekitClient.removeParticipant === 'function') {
+            try {
+                const participants = await livekitClient.listParticipants(lkName)
+                if (Array.isArray(participants)) {
+                    for (const p of participants) {
+                        const id = p.identity || p.sid
+                        if (id) {
+                            await livekitClient.removeParticipant(lkName, id).catch(() => null)
+                        }
+                    }
+                }
+            } catch (_) {}
+        }
         await livekitClient.deleteRoom(lkName)
         pendingCleanups.delete(lkName)
     } catch (err) {

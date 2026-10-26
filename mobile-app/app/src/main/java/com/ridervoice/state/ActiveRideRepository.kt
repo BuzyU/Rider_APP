@@ -125,8 +125,8 @@ class ActiveRideRepository @Inject constructor(
                     roomName = current.displayName.ifBlank { null }
                 )
             )
-            if (res.isSuccessful && res.body() != null) {
-                val body = res.body()!!
+            val body = res.body()
+            if (res.isSuccessful && body != null) {
                 val expSec = body.expiresAt?.let { parseEpochSec(it) } ?: JwtRoomClaimDecoder.extractExpiry(body.token)
                 applyTokenPayload(
                     TokenPayload(
@@ -207,9 +207,10 @@ class ActiveRideRepository @Inject constructor(
                 clear(ClearReason.NOT_FOUND)
             } else if (code == 403) {
                 clear(ClearReason.REMOVED)
-            } else if (res.isSuccessful && res.body() != null) {
-                val status = res.body()!!
-                val activeRide = ActiveRide(
+            } else {
+                val status = res.body()
+                if (res.isSuccessful && status != null) {
+                    val activeRide = ActiveRide(
                     roomId = status.roomId ?: savedRoomId,
                     displayName = status.convoyName ?: savedRoomId,
                     isHost = status.isHost ?: isHost,
@@ -217,8 +218,9 @@ class ActiveRideRepository @Inject constructor(
                     lkRoomName = status.lkRoomName ?: savedLkRoom,
                     diagnosticsEnabled = status.diagnosticsEnabled ?: false,
                     joinCode = status.joinCode
-                )
-                _state.update { activeRide }
+                    )
+                    _state.update { activeRide }
+                }
             }
         } catch (e: Exception) {
             // M8c: Offline relaunch: restore optimistically from saved preferences if state is null

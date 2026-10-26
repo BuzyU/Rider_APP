@@ -1,3 +1,27 @@
+## RiderVoice v0.0.3.19 Release Notes
+
+### 🚀 Overview
+RiderVoice **v0.0.3.19** fixes the convoy creation lobby hang, resolves missing column resilience on `lastEmptyAt`, ensures write circuit-breaker exemptions for emergency SOS and webhooks, hardens transaction-scoped advisory locking, and eliminates `TelephonyManager` usage to clear Google Play Protect flags.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.19` |
+| **Version Code** | `3019` |
+| **Release Tag** | [`v0.0.3.19`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.19) |
+| **Download APK** | [`Rider_APP-v0.0.3.19.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.19/Rider_APP-v0.0.3.19.apk) |
+
+---
+
+### 🛡️ Key Improvements & Fixes
+- **Lobby Load State Machine & Shell Rendering**: Resolved infinite lobby loading spinner by adding explicit `LobbyLoadState` with bounded exponential backoff, failure transitions after 5 attempts / 30s timeout, immediate local shell rendering from `ActiveRideRepository`, and localized strings with 100% placeholder parity.
+- **Backend Missing-Column Resilience**: Added startup column probing and runtime Prisma `P2022` fallback resilience for `lastEmptyAt` in `roomResolver`, `roomSweeper`, and `livekitWebhook`.
+- **Backend `riderCallsign` Import Fix**: Imported `riderCallsign` from `services/identity.js` in `lobbyRoutes.js`, resolving unhandled 500 errors on `GET /api/lobby/:roomRef/status`.
+- **Circuit Breaker Structural vs Data Separation**: Split health state into `schemaStructuralOk` and `dataWarnings`; guaranteed emergency SOS (`/api/emergency`), LiveKit webhooks, and auth routes are never blocked.
+- **Advisory Migration Lock Hardening**: Wrapped migration repair in interactive transactions with per-statement savepoints and safe concurrent skipping.
+- **Play Protect Telephony Removal**: Completely removed all `TelephonyManager` references from `EmergencyNumbers.kt` and added user-configurable Emergency Country preference in Settings.
+
+---
+
 ## RiderVoice v0.0.3.18 Release Notes
 
 ### 🚀 Overview

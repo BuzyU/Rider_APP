@@ -52,7 +52,7 @@ def calculateVersionCode(String vName) {
     }
 }
 
-def appVersionName = project.hasProperty('versionName') ? project.property('versionName').toString() : (System.getenv("VERSION_NAME") ?: "V0.0.3.18")
+def appVersionName = project.hasProperty('versionName') ? project.property('versionName').toString() : (System.getenv("VERSION_NAME") ?: "V0.0.3.19")
 def appVersionCode = calculateVersionCode(appVersionName)
 
 android {

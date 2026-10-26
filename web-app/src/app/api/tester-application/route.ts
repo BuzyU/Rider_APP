@@ -4,11 +4,11 @@ import { sendSmtpMail } from '@/lib/email/smtpClient';
 import { buildTesterWelcomeEmail } from '@/lib/email/templates';
 
 const DEFAULT_RELEASE = {
-  version: 'v0.0.3.18',
-  releaseName: 'RiderVoice v0.0.3.18',
-  fileName: 'Rider_APP-v0.0.3.18.apk',
-  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.18/Rider_APP-v0.0.3.18.apk',
-  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.18',
+  version: 'v0.0.3.19',
+  releaseName: 'RiderVoice v0.0.3.19',
+  fileName: 'Rider_APP-v0.0.3.19.apk',
+  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.19/Rider_APP-v0.0.3.19.apk',
+  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.19',
   sha256: 'Pending release verification',
   fileSize: '~50 MB',
   targetArch: 'Universal ARM (arm64-v8a, armeabi-v7a)',

@@ -289,6 +289,7 @@ router.post('/create', async (req, res, next) => {
 
         let room
         try {
+            let createdInTx = false
             if (clientRequestId && !rideCreateRequestTableUnavailable && typeof prisma.$transaction === 'function') {
                 try {
                     room = await prisma.$transaction(async (tx) => {
@@ -314,6 +315,7 @@ router.post('/create', async (req, res, next) => {
                                     roomId: createdRoom.id
                                 }
                             })
+                            createdInTx = true
                         }
 
                         return createdRoom
@@ -354,7 +356,7 @@ router.post('/create', async (req, res, next) => {
                 }
             }
 
-            if (clientRequestId && !rideCreateRequestTableUnavailable && typeof prisma.rideCreateRequest?.create === 'function') {
+            if (!createdInTx && clientRequestId && !rideCreateRequestTableUnavailable && typeof prisma.rideCreateRequest?.create === 'function') {
                 await prisma.rideCreateRequest.create({
                     data: {
                         ownerId: hostId,

@@ -1,0 +1,9 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.IntercomMvp" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#405F91</item>
+        <item name="android:navigationBarColor">#F9F9FF</item>
+        <item name="android:statusBarColor">#F9F9FF</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

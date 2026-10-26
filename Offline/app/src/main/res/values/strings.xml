@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Intercom MVP</string>
+    <string name="notification_channel_name">Intercom audio</string>
+    <string name="notification_channel_description">Keeps push-to-talk audio available</string>
+</resources>

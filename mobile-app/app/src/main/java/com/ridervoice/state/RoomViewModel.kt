@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -49,7 +50,8 @@ class RoomViewModel @Inject constructor(
     private val securePrefs: SecurePreferences,
     private val hardwarePTTManager: HardwarePTTManager,
     private val networkDiagnosticsCollector: com.ridervoice.diagnostics.collector.NetworkDiagnosticsCollector,
-    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository
+    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository,
+    private val audioSettingsApplier: com.ridervoice.audio.AudioSettingsApplier? = null
 ) : ViewModel() {
 
     val activeRide: StateFlow<com.ridervoice.state.ActiveRideRepository.ActiveRide?> = activeRideRepository.state
@@ -162,8 +164,9 @@ class RoomViewModel @Inject constructor(
             .launchIn(viewModelScope)
 
         viewModelScope.launch {
-            while (true) {
+            while (isActive) {
                 kotlinx.coroutines.delay(60_000)
+                if (activeRideRepository.state.value == null) continue
                 val now = System.currentTimeMillis()
                 _participants.value = _participants.value.filter { p ->
                     if (p.isGhost && p.disconnectedAt != null) {
@@ -174,21 +177,57 @@ class RoomViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            while (true) {
+            while (isActive) {
                 kotlinx.coroutines.delay(30_000)
-                val ride = activeRideRepository.state.value
-                val active = ride?.roomId ?: ride?.displayName
-                if (ride != null && !ride.isHost && !active.isNullOrBlank() && !liveKitManager.convoyEnded.value) {
+                val ride = activeRideRepository.state.value ?: continue
+                val active = ride.roomId.ifBlank { ride.displayName }
+                if (!ride.isHost && active.isNotBlank() && !liveKitManager.convoyEnded.value) {
                     try {
                         val res = apiService.getLobbyStatus(active)
                         if (res.code() == 404 || res.code() == 410) {
                             liveKitManager.signalConvoyEnded()
                             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.ENDED_BY_HOST)
                         } else if (res.code() == 403) {
-                            liveKitManager.signalConvoyEnded()
                             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.REMOVED)
+                            liveKitManager.disconnect()
                         }
                     } catch (_: Exception) {}
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            liveKitManager.roomFault.collect { fault ->
+                when (fault) {
+                    is com.ridervoice.state.RoomFault.ConfirmedRoomMismatch -> {
+                        val msg = UiMessage(
+                            title = "Room Mismatch",
+                            message = "Unable to join convoy audio: room identity mismatch. Please re-join the ride.",
+                            actionText = "Go home",
+                            isFatal = true
+                        )
+                        _uiMessage.value = msg
+                        _error.value = msg.message
+                    }
+                    is com.ridervoice.state.RoomFault.RemovedByHost -> {
+                        val msg = UiMessage(
+                            title = "Removed",
+                            message = "You were removed from this convoy by the host.",
+                            actionText = "Go home",
+                            isFatal = true
+                        )
+                        _uiMessage.value = msg
+                    }
+                    is com.ridervoice.state.RoomFault.RoomEnded -> {
+                        val msg = UiMessage(
+                            title = "Ride Ended",
+                            message = "The convoy ride has ended.",
+                            actionText = "Go home",
+                            isFatal = true
+                        )
+                        _uiMessage.value = msg
+                    }
+                    else -> {}
                 }
             }
         }
@@ -197,8 +236,15 @@ class RoomViewModel @Inject constructor(
     private var isJoining = false
 
     fun joinRoom(roomName: String, userName: String) {
-        if (isJoining || liveKitManager.connectionState.value == ConnectionState.CONNECTED) {
-            return
+        val ride = activeRideRepository.state.value
+        val effectiveRoomId = ride?.roomId?.takeIf { it.isNotBlank() } ?: roomName
+        if (isJoining) return
+        if (liveKitManager.connectionState.value == ConnectionState.CONNECTED) {
+            if (liveKitManager.currentRoomId == effectiveRoomId) {
+                return
+            }
+            // Connected to a different ride session! Disconnect first before proceeding.
+            liveKitManager.disconnect()
         }
         isJoining = true
         _participants.value = emptyList()
@@ -216,11 +262,10 @@ class RoomViewModel @Inject constructor(
             try {
                 val tokenResult = activeRideRepository.ensureFreshToken()
                 val token = tokenResult.getOrThrow()
-                val ride = activeRideRepository.state.value
-                val effectiveUrl = ride?.livekitUrl?.takeIf { it.isNotBlank() } ?: Constants.LIVEKIT_URL
-                val effectiveRoomId = ride?.roomId?.takeIf { it.isNotBlank() } ?: roomName
+                val currentRide = activeRideRepository.state.value
+                val effectiveUrl = currentRide?.livekitUrl?.takeIf { it.isNotBlank() } ?: Constants.LIVEKIT_URL
 
-                if (ride?.diagnosticsEnabled == true) {
+                if (currentRide?.diagnosticsEnabled == true) {
                     securePrefs.setNetworkDiagnosticsEnabled(true)
                 }
 
@@ -229,7 +274,8 @@ class RoomViewModel @Inject constructor(
                     roomId = effectiveRoomId,
                     tokenProvider = {
                         activeRideRepository.ensureFreshToken().getOrThrow()
-                    }
+                    },
+                    expectedLkRoomName = currentRide?.lkRoomName
                 )
             } catch (e: Exception) {
                 val msg = UiMessageMapper.map(500, fallback = "Connection error: ${e.message}")
@@ -254,6 +300,10 @@ class RoomViewModel @Inject constructor(
     }
 
     private fun applyAudioSettings() {
+        if (audioSettingsApplier != null) {
+            audioSettingsApplier.applyAll()
+            return
+        }
         val sensitivity = when (securePrefs.getString("settings_vox_sensitivity", "Medium")) {
             "Low" -> 0.2f
             "High" -> 0.8f

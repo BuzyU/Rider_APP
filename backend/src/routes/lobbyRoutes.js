@@ -39,9 +39,9 @@ const { resolveRoom, markRoomEnded, generateUniqueJoinCode, isReservedName, Reso
 const { issueRoomToken, lkRoomName } = require('../services/tokenService')
 const { selfJoin, removeRider, leaveRoom, notifyJoined } = require('../services/membershipService')
 const { joinLimiter, recordFailedJoinCode } = require('../middleware/rateLimiter')
-const { riderCallsign } = require('../services/identity')
 const { joinWithLinkToken, joinWithCode, joinAsMember, extractCleanToken } = require('../services/joinService')
 const { deleteLiveKitRoom } = require('../services/roomSweeper')
+const { setSchemaHealth } = require('./healthRoute')
 
 // --- Helpers -----------------------------------------------------------------
 
@@ -248,9 +248,9 @@ router.post('/create', async (req, res, next) => {
         const diagBool = diagnosticsEnabled === true
         const joinCode = await generateUniqueJoinCode()
 
-        const assignUuid = process.env.STAGED_LK_ROOM_UUID === 'true' || process.env.ROOM_ID_MODE === 'true'
         const newRoomId = crypto.randomUUID()
-        const initialLkRoomName = assignUuid ? newRoomId : finalConvoyName
+        // P0-A (F-01): Canonical, unique, immutable LiveKit room identity for all newly created rooms
+        const initialLkRoomName = `rv_${newRoomId}`
 
         const createRoomRecord = async (client, withLkRoomName) => {
             const data = {
@@ -296,7 +296,8 @@ router.post('/create', async (req, res, next) => {
                             createdRoom = await createRoomRecord(tx, true)
                         } catch (createErr) {
                             if (createErr.code === 'P2022' || (createErr.message && createErr.message.includes('lkRoomName'))) {
-                                console.warn('[LobbyCreate] lkRoomName column missing in DB; creating without lkRoomName')
+                                console.error('[LobbyCreate] Schema degraded: lkRoomName column missing in DB; creating without lkRoomName')
+                                setSchemaHealth(false, { error: 'Missing lkRoomName column in database' })
                                 createdRoom = await createRoomRecord(tx, false)
                             } else {
                                 throw createErr
@@ -327,6 +328,8 @@ router.post('/create', async (req, res, next) => {
                             room = await createRoomRecord(prisma, true)
                         } catch (directErr) {
                             if (directErr.code === 'P2022' || (directErr.message && directErr.message.includes('lkRoomName'))) {
+                                console.error('[LobbyCreate] Schema degraded: lkRoomName column missing in DB; creating without lkRoomName')
+                                setSchemaHealth(false, { error: 'Missing lkRoomName column in database' })
                                 room = await createRoomRecord(prisma, false)
                             } else {
                                 throw directErr
@@ -341,7 +344,8 @@ router.post('/create', async (req, res, next) => {
                     room = await createRoomRecord(prisma, true)
                 } catch (directErr) {
                     if (directErr.code === 'P2022' || (directErr.message && directErr.message.includes('lkRoomName'))) {
-                        console.warn('[LobbyCreate] lkRoomName column missing in DB; creating without lkRoomName')
+                        console.error('[LobbyCreate] Schema degraded: lkRoomName column missing in DB; creating without lkRoomName')
+                        setSchemaHealth(false, { error: 'Missing lkRoomName column in database' })
                         room = await createRoomRecord(prisma, false)
                     } else {
                         throw directErr
@@ -566,6 +570,7 @@ router.get('/:roomRef/status', async (req, res, next) => {
         const payload = {
             roomId: room.id,
             convoyName: room.name,
+            lkRoomName: room.lkRoomName || null,
             status: room.status,                       // new: LOBBY | ACTIVE | ENDED
             isHost: isOwner,                           // legacy name, REQUIRED by current app
             isOwner,                                   // new alias

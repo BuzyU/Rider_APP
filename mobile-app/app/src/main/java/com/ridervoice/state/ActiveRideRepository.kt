@@ -30,6 +30,7 @@ class ActiveRideRepository @Inject constructor(
         val displayName: String,
         val isHost: Boolean,
         val phase: Phase,
+        val lkRoomName: String? = null,
         val livekitUrl: String? = null,
         val token: String? = null,
         val tokenExpEpochSec: Long? = null,
@@ -43,13 +44,14 @@ class ActiveRideRepository @Inject constructor(
     private val _lastEnded = MutableStateFlow<PostRideSnapshot?>(null)
     val lastEnded: StateFlow<PostRideSnapshot?> = _lastEnded.asStateFlow()
 
-    fun enterLobby(roomId: String, name: String, isHost: Boolean, joinCode: String? = null) {
+    fun enterLobby(roomId: String, name: String, isHost: Boolean, joinCode: String? = null, lkRoomName: String? = null) {
         val ride = ActiveRide(
             roomId = roomId,
             displayName = name,
             isHost = isHost,
             phase = Phase.LOBBY,
-            joinCode = joinCode
+            joinCode = joinCode,
+            lkRoomName = lkRoomName
         )
         _state.update { ride }
         persist(ride)
@@ -66,6 +68,7 @@ class ActiveRideRepository @Inject constructor(
             val updated = current.copy(
                 roomId = p.roomId ?: current.roomId,
                 displayName = p.roomName ?: current.displayName,
+                lkRoomName = p.lkRoomName ?: current.lkRoomName,
                 livekitUrl = p.livekitUrl ?: current.livekitUrl,
                 token = p.token,
                 tokenExpEpochSec = p.expiresAtEpochSec ?: current.tokenExpEpochSec,
@@ -107,7 +110,8 @@ class ActiveRideRepository @Inject constructor(
                 expectedRoomName = current.displayName,
                 nowEpochSeconds = nowSec,
                 skewSeconds = 60,
-                refreshWindowSeconds = 300
+                refreshWindowSeconds = 300,
+                expectedLkRoomName = current.lkRoomName
             )
             if (check == JwtRoomClaimDecoder.TokenCheck.VALID) {
                 return Result.success(existingToken)
@@ -130,6 +134,7 @@ class ActiveRideRepository @Inject constructor(
                         livekitUrl = body.livekitUrl,
                         roomId = body.roomId ?: current.roomId,
                         roomName = body.roomName ?: current.displayName,
+                        lkRoomName = body.lkRoomName ?: current.lkRoomName,
                         expiresAtEpochSec = expSec,
                         diagnosticsEnabled = body.diagnosticsEnabled,
                         testNumber = body.testNumber
@@ -138,14 +143,31 @@ class ActiveRideRepository @Inject constructor(
                 Result.success(body.token)
             } else {
                 val code = res.code()
+                val errBody = try { res.errorBody()?.string() } catch (_: Exception) { null }
                 when (code) {
                     403 -> {
                         clear(ClearReason.REMOVED)
-                        Result.failure(Exception("REMOVED_FROM_CONVOY"))
+                        val msg = if (errBody?.contains("NOT_A_MEMBER") == true) "NOT_A_MEMBER" else "REMOVED_FROM_CONVOY"
+                        Result.failure(Exception(msg))
                     }
-                    410, 404 -> {
+                    410 -> {
                         clear(ClearReason.ENDED_BY_HOST)
                         Result.failure(Exception("CONVOY_ENDED"))
+                    }
+                    404 -> {
+                        var reallyNotFound = true
+                        try {
+                            val statusRes = api.getLobbyStatus(current.roomId)
+                            if (statusRes.isSuccessful && statusRes.body() != null) {
+                                reallyNotFound = false
+                            }
+                        } catch (_: Exception) {}
+                        if (reallyNotFound) {
+                            clear(ClearReason.ENDED_BY_HOST)
+                            Result.failure(Exception("ROOM_NOT_FOUND"))
+                        } else {
+                            Result.failure(Exception("Token refresh failed: transient 404"))
+                        }
                     }
                     else -> Result.failure(Exception("Token refresh failed with HTTP $code"))
                 }
@@ -171,6 +193,7 @@ class ActiveRideRepository @Inject constructor(
 
     suspend fun validateOnStart() {
         val savedRoomId = prefs?.getActiveRideRoom() ?: return
+        val savedLkRoom = prefs?.getActiveRideLkRoom()
         val isHost = prefs?.isActiveRideHost() ?: false
         val phaseName = prefs?.getString("active_ride_phase", Phase.LOBBY.name) ?: Phase.LOBBY.name
         val phase = runCatching { Phase.valueOf(phaseName) }.getOrDefault(Phase.LOBBY)
@@ -178,7 +201,9 @@ class ActiveRideRepository @Inject constructor(
         try {
             val res = api.getLobbyStatus(savedRoomId)
             val code = res.code()
-            if (code == 410 || code == 404) {
+            if (code == 410) {
+                clear(ClearReason.ENDED_BY_HOST)
+            } else if (code == 404) {
                 clear(ClearReason.NOT_FOUND)
             } else if (code == 403) {
                 clear(ClearReason.REMOVED)
@@ -189,6 +214,7 @@ class ActiveRideRepository @Inject constructor(
                     displayName = status.convoyName ?: savedRoomId,
                     isHost = status.isHost ?: isHost,
                     phase = if (status.isRideStarted == true) Phase.LIVE else phase,
+                    lkRoomName = status.lkRoomName ?: savedLkRoom,
                     diagnosticsEnabled = status.diagnosticsEnabled ?: false,
                     joinCode = status.joinCode
                 )
@@ -201,14 +227,15 @@ class ActiveRideRepository @Inject constructor(
                     roomId = savedRoomId,
                     displayName = savedRoomId,
                     isHost = isHost,
-                    phase = phase
+                    phase = phase,
+                    lkRoomName = savedLkRoom
                 )
             }
         }
     }
 
     private fun persist(ride: ActiveRide) {
-        prefs?.saveActiveRide(ride.roomId, ride.isHost)
+        prefs?.saveActiveRide(ride.roomId, ride.isHost, ride.lkRoomName)
         prefs?.saveString("active_ride_phase", ride.phase.name)
     }
 

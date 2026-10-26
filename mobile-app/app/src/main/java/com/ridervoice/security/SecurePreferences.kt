@@ -23,6 +23,7 @@ open class SecurePreferences(private val context: Context? = null) {
         const val KEY_NETWORK_DIAGNOSTICS = "network_diagnostics_enabled"
         const val KEY_SHARE_DIAGNOSTICS_HOST_ENABLED = "share_diagnostics_host_enabled"
         const val KEY_DIAGNOSTICS_CONSENT_SHOWN = "diagnostics_consent_shown"
+        const val KEY_APP_LANGUAGE = "app_language"
 
         private fun createSafePreferences(context: Context): SharedPreferences {
             return try {
@@ -89,8 +90,28 @@ open class SecurePreferences(private val context: Context? = null) {
     }
 
     open fun clear() {
-        val p = prefs ?: run { memoryStore.clear(); return }
-        runCatching { p.edit().clear().apply() }
+        val lang = getAppLanguage()
+        val p = prefs ?: run {
+            memoryStore.clear()
+            memoryStore[KEY_APP_LANGUAGE] = lang
+            return
+        }
+        runCatching {
+            p.edit().clear().putString(KEY_APP_LANGUAGE, lang).apply()
+        }
+    }
+
+    open fun saveAppLanguage(lang: String) {
+        val sanitized = when (lang.lowercase()) {
+            "en", "hi", "mr" -> lang.lowercase()
+            else -> "system"
+        }
+        saveString(KEY_APP_LANGUAGE, sanitized)
+        _appLanguage.value = sanitized
+    }
+
+    open fun getAppLanguage(): String {
+        return getString(KEY_APP_LANGUAGE, "system")
     }
 
     open fun saveDeviceConfigured(configured: Boolean) {
@@ -130,14 +151,25 @@ open class SecurePreferences(private val context: Context? = null) {
         return runCatching { p.getBoolean(key, defaultValue) }.getOrDefault(defaultValue)
     }
 
-    open fun saveActiveRide(roomName: String, isHost: Boolean) {
+    open fun saveActiveRide(roomName: String, isHost: Boolean, lkRoomName: String? = null) {
         saveString("active_ride_room", roomName)
         saveBoolean("active_ride_is_host", isHost)
+        if (lkRoomName != null) {
+            saveString("active_ride_lk_room", lkRoomName)
+        } else {
+            val p = prefs ?: run { memoryStore.remove("active_ride_lk_room"); return }
+            runCatching { p.edit().remove("active_ride_lk_room").apply() }
+        }
     }
 
     open fun getActiveRideRoom(): String? {
         val p = prefs ?: return memoryStore["active_ride_room"] as? String
         return runCatching { p.getString("active_ride_room", null) }.getOrNull()
+    }
+
+    open fun getActiveRideLkRoom(): String? {
+        val p = prefs ?: return memoryStore["active_ride_lk_room"] as? String
+        return runCatching { p.getString("active_ride_lk_room", null) }.getOrNull()
     }
 
     open fun isActiveRideHost(): Boolean {
@@ -148,12 +180,14 @@ open class SecurePreferences(private val context: Context? = null) {
         val p = prefs ?: run {
             memoryStore.remove("active_ride_room")
             memoryStore.remove("active_ride_is_host")
+            memoryStore.remove("active_ride_lk_room")
             return
         }
         runCatching {
             p.edit()
                 .remove("active_ride_room")
                 .remove("active_ride_is_host")
+                .remove("active_ride_lk_room")
                 .apply()
         }
     }
@@ -164,12 +198,18 @@ open class SecurePreferences(private val context: Context? = null) {
     private val _shareDiagnosticsWhenHostEnabled = MutableStateFlow(isShareDiagnosticsWhenHostEnabled())
     val shareDiagnosticsWhenHostEnabled: StateFlow<Boolean> = _shareDiagnosticsWhenHostEnabled.asStateFlow()
 
+    private val _appLanguage = MutableStateFlow(getAppLanguage())
+    val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
+
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == KEY_NETWORK_DIAGNOSTICS) {
             _networkDiagnosticsEnabled.value = isNetworkDiagnosticsEnabled()
         }
         if (key == KEY_SHARE_DIAGNOSTICS_HOST_ENABLED) {
             _shareDiagnosticsWhenHostEnabled.value = isShareDiagnosticsWhenHostEnabled()
+        }
+        if (key == KEY_APP_LANGUAGE) {
+            _appLanguage.value = getAppLanguage()
         }
     }
 
@@ -205,5 +245,13 @@ open class SecurePreferences(private val context: Context? = null) {
 
     fun setDiagnosticsConsentShown(shown: Boolean) {
         saveBoolean(KEY_DIAGNOSTICS_CONSENT_SHOWN, shown)
+    }
+
+    open fun registerListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        prefs?.registerOnSharedPreferenceChangeListener(listener)
+    }
+
+    open fun unregisterListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+        prefs?.unregisterOnSharedPreferenceChangeListener(listener)
     }
 }

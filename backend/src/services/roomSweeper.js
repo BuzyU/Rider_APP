@@ -230,7 +230,7 @@ async function sweepStaleRooms(deps = {}) {
                 }
             }
 
-            // 2. ACTIVE older than 12h -> ENDED (reason ABANDONED)
+            // 2. ACTIVE older than 12h -> ENDED (reason ABANDONED) unless riders are connected (F-18)
             const ancientActive = await safeFindRooms({
                 status: 'ACTIVE',
                 OR: [
@@ -240,6 +240,25 @@ async function sweepStaleRooms(deps = {}) {
             })
 
             for (const room of ancientActive) {
+                const targetName = resolveLkRoomName(room)
+                let connectedCount = null
+                try {
+                    if (livekitClient && typeof livekitClient.listParticipants === 'function') {
+                        const participants = await livekitClient.listParticipants(targetName)
+                        if (Array.isArray(participants)) {
+                            connectedCount = participants.length
+                        }
+                    }
+                } catch (e) {
+                    connectedCount = null
+                }
+
+                // F-18: If riders are currently connected in LiveKit, skip ending this active room
+                if (connectedCount !== null && connectedCount > 0) {
+                    console.log(`[roomSweeper] Active room ${room.id} (${room.name}) is older than 12h but has ${connectedCount} connected participants; skipping sweep.`)
+                    continue
+                }
+
                 const updated = await prisma.room.updateMany({
                     where: { id: room.id, status: 'ACTIVE' },
                     data: { status: 'ENDED', endedAt: now, joinCode: null }

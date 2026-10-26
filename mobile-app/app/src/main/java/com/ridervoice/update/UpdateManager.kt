@@ -548,7 +548,8 @@ class UpdateManager @Inject constructor(
         _uiState.value = UpdateUiState.Idle
     }
 
-    private fun verifyAndPrepareInstall(tempFile: File, releaseInfo: AppReleaseInfo) {
+    @androidx.annotation.VisibleForTesting
+    internal fun verifyAndPrepareInstall(tempFile: File, releaseInfo: AppReleaseInfo) {
         _uiState.value = UpdateUiState.Verifying(releaseInfo)
 
         try {
@@ -559,13 +560,18 @@ class UpdateManager @Inject constructor(
                 return
             }
 
-            if (!releaseInfo.sha256Checksum.isNullOrBlank()) {
-                val computedHash = calculateSha256(tempFile)
-                if (!computedHash.equals(releaseInfo.sha256Checksum.trim(), ignoreCase = true)) {
-                    tempFile.delete()
-                    _uiState.value = UpdateUiState.Error("Update integrity verification failed (checksum mismatch). Download rejected.")
-                    return
-                }
+            // F-16: Fail closed when no checksum is provided in release
+            if (releaseInfo.sha256Checksum.isNullOrBlank()) {
+                tempFile.delete()
+                _uiState.value = UpdateUiState.Error("Update verification failed: release is missing required SHA-256 checksum. Download rejected.")
+                return
+            }
+
+            val computedHash = calculateSha256(tempFile)
+            if (!computedHash.equals(releaseInfo.sha256Checksum.trim(), ignoreCase = true)) {
+                tempFile.delete()
+                _uiState.value = UpdateUiState.Error("Update integrity verification failed (checksum mismatch). Download rejected.")
+                return
             }
 
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

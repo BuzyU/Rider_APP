@@ -98,7 +98,7 @@ fun ProfileDrawer(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "TELEMETRY LOGBOOK",
+            text = "RIDE STATS",
             color = NeonOrange,
             style = MaterialTheme.typography.labelSmall,
             letterSpacing = 1.sp
@@ -107,11 +107,10 @@ fun ProfileDrawer(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceAround
         ) {
             StatItem(value = totalMiles, label = "Miles")
             StatItem(value = totalRides, label = "Rides")
-            StatItem(value = "CH-01", label = "Default")
         }
 
         Spacer(modifier = Modifier.height(28.dp))
@@ -120,13 +119,13 @@ fun ProfileDrawer(
 
         DrawerMenuItem(
             icon = Icons.Default.AccountCircle,
-            text = "Operator Dossier (Account)",
+            text = "Account",
             tint = ElectricCyan,
             onClick = onAccountClick
         )
         DrawerMenuItem(
             icon = Icons.Default.Settings,
-            text = "Transceiver Settings",
+            text = "Settings",
             onClick = onSettingsClick
         )
         DrawerMenuItem(
@@ -139,7 +138,7 @@ fun ProfileDrawer(
 
         DrawerMenuItem(
             icon = Icons.Default.Logout,
-            text = "Disengage (Sign Out)",
+            text = "Sign Out",
             tint = AlertRed,
             onClick = onLogoutClick
         )

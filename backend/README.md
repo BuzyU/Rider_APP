@@ -67,7 +67,8 @@ Backend API and real-time coordination service for RiderVoice, built with Node.j
 
 1. **Token Generation (`tokenService.js`)**:
    - `AccessToken` issued with `roomCreate: false`.
-   - `video.room` contains `roomId` (when `ROOM_ID_MODE=true`) or sanitized `roomName` (legacy).
+   - `video.room` contains canonical immutable LiveKit room identity `rv_<roomId>` (or legacy fallback for older un-migrated rooms).
+   - Response payload includes `lkRoomName` along with `roomId` and display `roomName` for client verification.
    - TTL: 2 hours (7200 seconds).
 2. **Token Refresh (`POST /api/rooms/token/refresh`)**:
    - Available when token has less than 5 minutes remaining.
@@ -90,7 +91,7 @@ All join paths converge on `joinService.js`:
 ## 5. LiveKit Webhook Defense (`/api/livekit/webhook`)
 
 Mounted before `express.json` with a 256KB raw body parser.
-- **Event `participant_joined`**: Verifies that the room is not ENDED, metadata `roomId` matches DB, and the participant is the host or an ACCEPTED member. Unauthorized participants are kicked immediately via `RoomServiceClient.removeParticipant`.
+- **Event `participant_joined`**: Verifies that the room is not ENDED, metadata `roomId` matches DB, and the participant is the host or an ACCEPTED member. Unauthorized participants are kicked immediately via `RoomServiceClient.removeParticipant`. Mismatches against ENDED rooms via display-name fallbacks are ignored without kicking.
 - **Event `room_finished`**: Marks the DB room as ENDED, revokes active tokens, clears join code, and triggers diagnostics close.
 
 To configure in LiveKit Cloud:
@@ -108,7 +109,7 @@ To configure in LiveKit Cloud:
 | `LIVEKIT_API_KEY` | *Required* | LiveKit Cloud API Key |
 | `LIVEKIT_API_SECRET` | *Required* | LiveKit Cloud API Secret |
 | `LIVEKIT_WEBHOOK_ENABLED` | `false` | Enable LiveKit webhook ingress verification |
-| `ROOM_ID_MODE` | `false` | When `true`, LiveKit rooms are named by UUID instead of display name |
+| `ROOM_ID_MODE` | `false` | Legacy fallback only for pre-existing rooms with null `lkRoomName`. All new rooms use server-generated canonical `rv_<roomId>` identity |
 | `LEGACY_CLIENTS_ALLOWED`| `true` | When `false`, enforces `MIN_APP_VERSION` via HTTP 426 |
 | `MIN_APP_VERSION` | `0.0.3.14` | Minimum client version allowed |
 | `APP_BASE_URL` | `RENDER_EXTERNAL_URL` | Public base URL for HTTPS landing links |

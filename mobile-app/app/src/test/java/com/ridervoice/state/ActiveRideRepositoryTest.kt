@@ -167,4 +167,54 @@ class ActiveRideRepositoryTest {
         assertNull(repo.state.value)
         assertEquals("ENDED_BY_HOST", repo.lastEnded.value?.endedBy)
     }
+
+    @Test
+    fun applyTokenPayload_propagatesLkRoomName() {
+        val repo = ActiveRideRepository(prefs = null, api = FakeApi())
+        repo.enterLobby("room-uuid-1", "Sunday Ghat", false, lkRoomName = "rv_room-uuid-1")
+
+        repo.applyTokenPayload(
+            TokenPayload(
+                token = "lk_token_123",
+                livekitUrl = "wss://lk.domain",
+                roomId = "room-uuid-1",
+                roomName = "Sunday Ghat",
+                lkRoomName = "rv_room-uuid-1"
+            )
+        )
+
+        val state = repo.state.value
+        assertNotNull(state)
+        assertEquals("rv_room-uuid-1", state?.lkRoomName)
+    }
+
+    @Test
+    fun ensureFreshToken_403NotAMember_returnsNotMemberError() = runTest {
+        val fakeApi = FakeApi().apply {
+            refreshResult = Response.error(403, "{\"code\":\"NOT_A_MEMBER\"}".toResponseBody("application/json".toMediaType()))
+        }
+        val repo = ActiveRideRepository(prefs = null, api = fakeApi)
+        repo.enterLobby("room-1", "convoy", false)
+
+        val result = repo.ensureFreshToken()
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()?.message?.contains("NOT_A_MEMBER") == true)
+        assertNull(repo.state.value)
+        assertEquals("REMOVED", repo.lastEnded.value?.endedBy)
+    }
+
+    @Test
+    fun ensureFreshToken_404ConfirmedNotFound_clearsEndedByHost() = runTest {
+        val fakeApi = FakeApi().apply {
+            refreshResult = Response.error(404, "{\"code\":\"ROOM_NOT_FOUND\"}".toResponseBody("application/json".toMediaType()))
+            lobbyStatusResult = Response.error(404, "{}".toResponseBody("application/json".toMediaType()))
+        }
+        val repo = ActiveRideRepository(prefs = null, api = fakeApi)
+        repo.enterLobby("room-1", "convoy", false)
+
+        val result = repo.ensureFreshToken()
+        assertTrue(result.isFailure)
+        assertNull(repo.state.value)
+        assertEquals("ENDED_BY_HOST", repo.lastEnded.value?.endedBy)
+    }
 }

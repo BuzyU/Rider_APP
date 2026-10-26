@@ -1,95 +1,111 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- TODO: Translate to Marathi -->
     <string name="app_name">RiderVoice</string>
-    <string name="app_tagline">Talk to your riding group, hands-free.</string>
+    <string name="app_tagline">आपल्या रायडिंग ग्रुपशी बोला, हँड्स-फ्री.</string>
     <string name="mapbox_access_token" translatable="false">pk.eyJ1IjoicmlkZXJ2b2ljZSIsImEiOiJjbTByaWRlcnZvaWNlMDAwMDExIn0.dummy_public_key</string>
 
-    <string name="nav_home">Home</string>
-    <string name="nav_friends">Friends</string>
-    <string name="nav_invites">Invites</string>
-    <string name="nav_history">Ride history</string>
-    <string name="nav_settings">Settings</string>
-    <string name="nav_account">Account</string>
+    <!-- Navigation & Titles -->
+    <string name="nav_home">होम</string>
+    <string name="nav_friends">मित्र</string>
+    <string name="nav_invites">आमंत्रणे</string>
+    <string name="nav_history">राइड इतिहास</string>
+    <string name="nav_settings">सेटिंग्ज</string>
+    <string name="nav_account">खाते</string>
 
-    <string name="action_start_ride">Start a ride</string>
-    <string name="action_join_ride">Join a ride</string>
-    <string name="action_create_ride">Create ride</string>
-    <string name="action_invite_friends">Invite friends</string>
-    <string name="action_send_invite">Send invite</string>
-    <string name="action_add_friend">Add a friend</string>
-    <string name="action_leave_ride">Leave this ride?</string>
-    <string name="action_end_ride">End ride for everyone</string>
-    <string name="action_log_out">Log out?</string>
-    <string name="action_copy_code">Copy code</string>
-    <string name="action_share_link">Share link</string>
-    <string name="action_try_again">Try again</string>
-    <string name="action_go_home">Go home</string>
-    <string name="action_cancel">Cancel</string>
-    <string name="action_confirm">Confirm</string>
-    <string name="action_update_app">Update app</string>
+    <!-- Actions -->
+    <string name="action_start_ride">राइड सुरू करा</string>
+    <string name="action_join_ride">राइडमध्ये सामील व्हा</string>
+    <string name="action_create_ride">राइड तयार करा</string>
+    <string name="action_invite_friends">मित्रांना आमंत्रित करा</string>
+    <string name="action_send_invite">आमंत्रण पाठवा</string>
+    <string name="action_add_friend">मित्र जोडा</string>
+    <string name="action_leave_ride">ही राइड सोडायची?</string>
+    <string name="action_end_ride">सर्वांसाठी राइड समाप्त करा</string>
+    <string name="action_log_out">लॉग आउट करायचे?</string>
+    <string name="action_copy_code">कोड कॉपी करा</string>
+    <string name="action_share_link">लिंक शेअर करा</string>
+    <string name="action_try_again">पुन्हा प्रयत्न करा</string>
+    <string name="action_go_home">होमवर जा</string>
+    <string name="action_cancel">रद्द करा</string>
+    <string name="action_confirm">पुष्टी करा</string>
+    <string name="action_update_app">ॲप अपडेट करा</string>
 
-    <string name="create_ride_title">New ride</string>
-    <string name="create_ride_name_label">Ride name *</string>
-    <string name="create_ride_name_placeholder">e.g. Sunday Ghats Run</string>
-    <string name="create_ride_name_helper">Riders will see this name</string>
-    <string name="create_ride_meetup_label">Meet-up point (optional)</string>
-    <string name="create_ride_destination_label">Destination (optional)</string>
-    <string name="create_ride_duration_label">Estimated time</string>
-    <string name="create_ride_more_options">More options</string>
-    <string name="create_ride_diagnostics_title">Network test (beta)</string>
-    <string name="create_ride_diagnostics_help">Share network performance data with the team to help improve voice quality.</string>
+    <!-- Create Ride Screen -->
+    <string name="create_ride_title">नवीन राइड</string>
+    <string name="create_ride_name_label">राइडचे नाव *</string>
+    <string name="create_ride_name_placeholder">उदा. रविवार घाट राइड</string>
+    <string name="create_ride_name_helper">रायडर्सना हे नाव दिसेल</string>
+    <string name="create_ride_meetup_label">भेटण्याचे ठिकाण (पर्यायी)</string>
+    <string name="create_ride_destination_label">गंतव्यस्थान (पर्यायी)</string>
+    <string name="create_ride_duration_label">अंदाजे वेळ</string>
+    <string name="create_ride_more_options">अधिक पर्याय</string>
+    <string name="create_ride_diagnostics_title">नेटवर्क चाचणी (बीटा)</string>
+    <string name="create_ride_diagnostics_help">आवाजाचा दर्जा सुधारण्यासाठी टीमसोबत नेटवर्क डेटा शेअर करा.</string>
 
-    <string name="lobby_title">Ride lobby</string>
-    <string name="lobby_loading">Loading ride...</string>
-    <string name="lobby_waiting_host">Waiting for the host to start</string>
-    <string name="lobby_section_joined">Joined</string>
-    <string name="lobby_section_invited">Invited</string>
-    <string name="lobby_section_declined">Declined</string>
-    <string name="lobby_empty_joined">Nobody has joined yet. Share the ride code.</string>
-    <string name="lobby_start_alone_prompt">Start alone?</string>
-    <string name="lobby_start_alone_desc">No riders have joined yet. You can still invite friends while riding.</string>
+    <!-- Lobby Screen -->
+    <string name="lobby_title">राइड लॉबी</string>
+    <string name="lobby_loading">राइड लोड होत आहे...</string>
+    <string name="lobby_waiting_host">होस्ट सुरू करण्याची प्रतीक्षा करत आहे</string>
+    <string name="lobby_section_joined">सामील झाले</string>
+    <string name="lobby_section_invited">आमंत्रित</string>
+    <string name="lobby_section_declined">नाकारले</string>
+    <string name="lobby_empty_joined">अजून कोणीही सामील झाले नाही. राइड कोड शेअर करा.</string>
+    <string name="lobby_start_alone_prompt">एकटेच सुरू करायचे?</string>
+    <string name="lobby_start_alone_desc">अजून कोणतेही रायडर सामील झालेले नाहीत. राइड दरम्यानही आमंत्रित करू शकता.</string>
 
-    <string name="ride_screen_title">Ride screen</string>
-    <string name="ride_status_connected">Connected</string>
-    <string name="ride_status_reconnecting">Reconnecting...</string>
-    <string name="ride_status_offline">Offline</string>
-    <string name="ride_hands_free_on">Hands-free is on</string>
-    <string name="ride_hands_free_off">Muted</string>
-    <string name="ride_push_to_talk">Push to talk</string>
-    <string name="ride_show_map">Show map</string>
-    <string name="ride_hide_map">Hide map</string>
+    <!-- Ride Screen -->
+    <string name="ride_screen_title">राइड स्क्रीन</string>
+    <string name="ride_status_connected">कनेक्टेड</string>
+    <string name="ride_status_reconnecting">पुन्हा कनेक्ट होत आहे...</string>
+    <string name="ride_status_offline">ऑफलाइन</string>
+    <string name="ride_hands_free_on">हँड्स-फ्री सुरू आहे</string>
+    <string name="ride_hands_free_off">म्यूट</string>
+    <string name="ride_push_to_talk">बोलण्यासाठी दाबा</string>
+    <string name="ride_show_map">नकाशा दाखवा</string>
+    <string name="ride_hide_map">नकाशा लपवा</string>
 
-    <string name="sos_title">Emergency SOS</string>
-    <string name="sos_button">Send SOS now</string>
-    <string name="sos_active">SOS is on</string>
-    <string name="sos_sent">SOS sent</string>
-    <string name="sos_sending">Sending SOS...</string>
-    <string name="sos_not_sent">SOS not sent. Call 112 now.</string>
+    <!-- Emergency SOS -->
+    <string name="sos_title">आपत्कालीन SOS</string>
+    <string name="sos_button">आता SOS पाठवा</string>
+    <string name="sos_active">SOS सुरू आहे</string>
+    <string name="sos_sent">SOS पाठवले</string>
+    <string name="sos_sending">SOS पाठवत आहे...</string>
+    <string name="sos_not_sent">SOS पाठवले नाही. ११२ वर कॉल करा.</string>
 
-    <string name="settings_title">Settings</string>
-    <string name="settings_talking_title">Talking</string>
-    <string name="settings_vox_sensitivity">Hands-free sensitivity</string>
-    <string name="settings_noise_filter">Noise filter</string>
-    <string name="settings_headset_button">Headset button</string>
-    <string name="settings_audio_title">Audio</string>
-    <string name="settings_audio_device">Audio device</string>
-    <string name="settings_location_title">Location</string>
-    <string name="settings_share_location">Share location while riding</string>
-    <string name="settings_battery_title">Battery</string>
-    <string name="settings_battery_help">Allow running in background</string>
-    <string name="settings_about_title">About &amp; Updates</string>
-    <string name="settings_check_updates">Check for updates</string>
+    <!-- Settings -->
+    <string name="settings_title">सेटिंग्ज</string>
+    <string name="settings_talking_title">संभाषण</string>
+    <string name="settings_vox_sensitivity">हँड्स-फ्री संवेदनशीलता</string>
+    <string name="settings_noise_filter">आवाज फिल्टर</string>
+    <string name="settings_headset_button">हेडसेट बटण</string>
+    <string name="settings_audio_title">ऑडिओ</string>
+    <string name="settings_audio_device">ऑडिओ डिव्हाइस</string>
+    <string name="settings_location_title">स्थान</string>
+    <string name="settings_share_location">राइड दरम्यान स्थान शेअर करा</string>
+    <string name="settings_battery_title">बॅटरी</string>
+    <string name="settings_battery_help">बॅकग्राउंडमध्ये चालवण्यास अनुमती द्या</string>
+    <string name="settings_about_title">माहिती आणि अपडेट्स</string>
+    <string name="settings_check_updates">अपडेट्स तपासा</string>
+    <string name="settings_language">भाषा</string>
+    <string name="language_system">सिस्टम डीफॉल्ट</string>
+    <string name="language_en">English</string>
+    <string name="language_hi">हिन्दी</string>
+    <string name="language_mr">मराठी</string>
 
-    <string name="profile_title">My profile</string>
-    <string name="profile_edit">Edit profile</string>
-    <string name="profile_rider_name">Rider name</string>
-    <string name="profile_handle">Handle</string>
-    <string name="profile_bike">Motorcycle model</string>
-    <string name="profile_bio">About me</string>
+    <!-- Participant Labels -->
+    <string name="participant_you">तुम्ही</string>
+    <string name="participant_rider_prefix">स्वार</string>
+
+    <!-- Account & Profile -->
+    <string name="profile_title">माझी प्रोफाईल</string>
+    <string name="profile_edit">प्रोफाईल संपादित करा</string>
+    <string name="profile_rider_name">रायडरचे नाव</string>
+    <string name="profile_handle">हँडल</string>
+    <string name="profile_bike">मोटरसायकल मॉडेल</string>
+    <string name="profile_bio">माझ्याबद्दल</string>
 
     <plurals name="riders_count">
-        <item quantity="one">%d rider</item>
-        <item quantity="other">%d riders</item>
+        <item quantity="one">%d रायडर</item>
+        <item quantity="other">%d रायडर्स</item>
     </plurals>
 </resources>

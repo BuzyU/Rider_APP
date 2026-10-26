@@ -115,9 +115,22 @@ async function ensureDbExtensions() {
     }
     console.log('[DB] Connectivity check passed.')
 
-    // 2. Self-healing schema synchronization
+    // 2. Self-healing schema synchronization (P0-C)
     const { ensureDbSchema } = require('./services/schemaMigration')
-    await ensureDbSchema(prisma)
+    const { setSchemaHealth } = require('./routes/healthRoute')
+    const schemaResult = await ensureDbSchema(prisma)
+    if (!schemaResult.valid) {
+        console.error('[DB] Schema validation failed:', schemaResult.missing || schemaResult.failedStatements || schemaResult.violations)
+        setSchemaHealth(false, {
+            error: 'Database schema validation failed or degraded',
+            missing: schemaResult.missing,
+            failedStatements: schemaResult.failedStatements,
+            violations: schemaResult.violations
+        })
+    } else {
+        setSchemaHealth(true)
+    }
+    return schemaResult
 }
 
 /**
@@ -152,8 +165,12 @@ const keepAliveService = require('./services/keepAliveService')
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
     keepAliveService.start()
-    ensureDbExtensions().then(() => {
-        console.log('[DB] Database schema verified.')
+    ensureDbExtensions().then((schemaResult) => {
+        if (schemaResult && schemaResult.valid) {
+            console.log('[DB] Database schema verified.')
+        } else {
+            console.error('[DB] Database schema verification failed or degraded; readiness will report degraded (503).')
+        }
 
         // B6 – Recover pending diagnostic closes from before restart
         recoverPendingDiagnosticCloses()

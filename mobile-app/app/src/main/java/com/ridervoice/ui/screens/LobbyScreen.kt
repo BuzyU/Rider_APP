@@ -76,7 +76,7 @@ fun LobbyScreen(
     LaunchedEffect(lobbyStatus?.invites) {
         lobbyStatus?.invites?.forEach { entry ->
             val name = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider"
-            ParticipantNameResolver.register(entry.invitee.id, name)
+            ParticipantNameResolver.register(entry.invitee.id, name, rideId = convoyName)
         }
     }
 
@@ -221,6 +221,7 @@ fun LobbyScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
+                    .imePadding()
             ) {
                 Column(
                     modifier = Modifier

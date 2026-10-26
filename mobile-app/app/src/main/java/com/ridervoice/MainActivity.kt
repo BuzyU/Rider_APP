@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -50,6 +51,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val prefs = com.ridervoice.security.SecurePreferences(newBase)
+        val lang = prefs.getAppLanguage()
+        val localized = com.ridervoice.utils.LocaleHelper.getLocalizedContext(newBase, lang)
+        super.attachBaseContext(localized)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -75,7 +83,14 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            com.ridervoice.ui.theme.RiderVoiceTheme {
+            val appLang by securePreferences.appLanguage.collectAsState()
+            val localizedContext = remember(appLang) {
+                com.ridervoice.utils.LocaleHelper.getLocalizedContext(this@MainActivity, appLang)
+            }
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalContext provides localizedContext
+            ) {
+                com.ridervoice.ui.theme.RiderVoiceTheme {
                 val showUpdateSuccessDialog = remember { mutableStateOf(false) }
                 val updatedVersionName = remember { mutableStateOf("") }
                 val crashReportText = remember { mutableStateOf<String?>(null) }
@@ -296,6 +311,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

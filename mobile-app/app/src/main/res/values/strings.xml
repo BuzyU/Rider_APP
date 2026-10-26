@@ -86,6 +86,15 @@
     <string name="settings_battery_help">Allow running in background</string>
     <string name="settings_about_title">About &amp; Updates</string>
     <string name="settings_check_updates">Check for updates</string>
+    <string name="settings_language">Language</string>
+    <string name="language_system">System default</string>
+    <string name="language_en">English</string>
+    <string name="language_hi">हिन्दी</string>
+    <string name="language_mr">मराठी</string>
+
+    <!-- Participant Labels -->
+    <string name="participant_you">You</string>
+    <string name="participant_rider_prefix">Rider</string>
 
     <!-- Account & Profile -->
     <string name="profile_title">My profile</string>

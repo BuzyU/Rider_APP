@@ -43,6 +43,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 import kotlinx.coroutines.flow.debounce
@@ -109,6 +110,9 @@ class LiveKitManager @Inject constructor(
     private val _removedFromConvoy = MutableStateFlow(false)
     val removedFromConvoy: StateFlow<Boolean> = _removedFromConvoy.asStateFlow()
 
+    private val _roomFault = kotlinx.coroutines.flow.MutableSharedFlow<com.ridervoice.state.RoomFault>(replay = 0, extraBufferCapacity = 1)
+    val roomFault: kotlinx.coroutines.flow.SharedFlow<com.ridervoice.state.RoomFault> = _roomFault.asSharedFlow()
+
     private val _inRideSosAlert = MutableStateFlow<InRideSosAlert?>(null)
     val inRideSosAlert: StateFlow<InRideSosAlert?> = _inRideSosAlert.asStateFlow()
 
@@ -165,7 +169,14 @@ class LiveKitManager @Inject constructor(
     private val MAX_RECONNECT_ATTEMPTS = 10
     private var lastUrl = ""
     private var lastToken = ""
-    @Volatile private var currentRoomId: String? = null
+    @Volatile var currentRoomId: String? = null
+        private set
+    @Volatile var expectedLkRoomName: String? = null
+        private set
+    @Volatile private var blockedRoomId: String? = null
+    private val sessionCounter = java.util.concurrent.atomic.AtomicLong(0L)
+    @Volatile var currentSessionId: Long = 0L
+        private set
     private var tokenProvider: (suspend () -> String)? = null
 
     private var lastBroadcastLoc: RiderLocation? = null
@@ -173,36 +184,49 @@ class LiveKitManager @Inject constructor(
 
     private val gson = Gson()
 
-    suspend fun connect(url: String, roomId: String, tokenProvider: suspend () -> String) {
+    suspend fun connect(
+        url: String,
+        roomId: String,
+        tokenProvider: suspend () -> String,
+        expectedLkRoomName: String? = null
+    ) {
         when {
             _connectionState.value in setOf(ConnectionState.CONNECTED, ConnectionState.CONNECTING) && currentRoomId == roomId -> return
             _connectionState.value in setOf(ConnectionState.CONNECTED, ConnectionState.CONNECTING, ConnectionState.RECONNECTING) -> disconnect()
         }
+        reconnectJob?.cancel()
+        val sessionId = sessionCounter.incrementAndGet()
+        currentSessionId = sessionId
         currentRoomId = roomId
+        this.expectedLkRoomName = expectedLkRoomName ?: activeRideRepository.state.value?.lkRoomName
         this.tokenProvider = tokenProvider
         lastUrl = url
         reconnectAttempts = 0
+        blockedRoomId = null
         _convoyEnded.value = false
+        _removedFromConvoy.value = false
 
         val token = tokenProvider()
         lastToken = token
-        connectInternal(url, token)
+        connectInternal(url, token, sessionId)
     }
 
+    @Deprecated("Use connect(url, roomId, tokenProvider, expectedLkRoomName) for verified room identity")
     fun connect(url: String, token: String) {
-        if (_connectionState.value == ConnectionState.CONNECTED ||
-            _connectionState.value == ConnectionState.CONNECTING) return
-
-        lastUrl = url
-        lastToken = token
-        reconnectAttempts = 0
-        _convoyEnded.value = false
-
-        scope.launch { connectInternal(url, token) }
+        val extractedRoom = com.ridervoice.utils.JwtRoomClaimDecoder.extractRoomName(token) ?: "unknown"
+        scope.launch {
+            connect(
+                url = url,
+                roomId = extractedRoom,
+                tokenProvider = { token },
+                expectedLkRoomName = extractedRoom
+            )
+        }
     }
 
     @OptIn(FlowPreview::class)
-    private suspend fun connectInternal(url: String, token: String) {
+    private suspend fun connectInternal(url: String, token: String, sessionId: Long) {
+        if (sessionId != currentSessionId) return
         _connectionState.value = ConnectionState.CONNECTING
 
         audioDeviceRouter.start()
@@ -257,10 +281,46 @@ class LiveKitManager @Inject constructor(
                     )
                 )
             )
+            if (sessionId != currentSessionId) {
+                runCatching { newRoom.disconnect() }
+                runCatching { newRoom.release() }
+                return
+            }
             room = newRoom
             eventsJob = scope.launch { newRoom.events.collect { event -> handleEvent(event) } }
 
             newRoom.connect(url = url, token = token)
+
+            if (sessionId != currentSessionId) {
+                runCatching { newRoom.disconnect() }
+                runCatching { newRoom.release() }
+                return
+            }
+
+            // P0-B: Verify connected room name before declaring CONNECTED or publishing audio
+            val actualRoomName = newRoom.name
+            val expected = expectedLkRoomName ?: activeRideRepository.state.value?.lkRoomName
+            val verified = if (!expected.isNullOrBlank()) {
+                actualRoomName == expected
+            } else {
+                val jwtRoom = com.ridervoice.utils.JwtRoomClaimDecoder.extractRoomName(token)
+                com.ridervoice.utils.RvLog.w("LK", "legacy_identity_unverified: actual=$actualRoomName expectedJwt=$jwtRoom")
+                !jwtRoom.isNullOrBlank() && actualRoomName == jwtRoom
+            }
+
+            if (!verified) {
+                com.ridervoice.utils.RvLog.e("LK", "ROOM IDENTITY MISMATCH! expected=$expected actual=$actualRoomName roomId=$currentRoomId")
+                abortConnection(
+                    sessionId = sessionId,
+                    fault = com.ridervoice.state.RoomFault.ConfirmedRoomMismatch(
+                        intendedRoomId = currentRoomId ?: "",
+                        expectedLkRoomName = expected,
+                        actualRoomName = actualRoomName,
+                        reason = "Connected room '$actualRoomName' does not match expected canonical room '$expected'"
+                    )
+                )
+                return
+            }
 
             withTimeoutOrNull(5000) {
                 while (audioDeviceRouter.routerState.value != RouterState.ACTIVE &&
@@ -502,7 +562,38 @@ class LiveKitManager @Inject constructor(
                 com.ridervoice.utils.RvLog.lk("state=DISCONNECTED reason=$reasonName room=$currentRoomId")
                 when (reason) {
                     DisconnectReason.PARTICIPANT_REMOVED -> {
-                        _removedFromConvoy.value = true
+                        val targetRoom = currentRoomId
+                        val sessionId = currentSessionId
+                        scope.launch {
+                            var confirmedRemoved = true
+                            if (!targetRoom.isNullOrBlank()) {
+                                try {
+                                    val statusRes = apiService.getLobbyStatus(targetRoom)
+                                    if (statusRes.isSuccessful && statusRes.body() != null) {
+                                        val status = statusRes.body()!!
+                                        val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                        val isStillMember = status.invites.any { it.invitee.id == currentUid && it.status == "ACCEPTED" } ||
+                                                status.host?.id == currentUid
+                                        if (isStillMember) {
+                                            confirmedRemoved = false
+                                            abortConnection(
+                                                sessionId = sessionId,
+                                                fault = com.ridervoice.state.RoomFault.ConfirmedRoomMismatch(
+                                                    intendedRoomId = targetRoom,
+                                                    expectedLkRoomName = expectedLkRoomName,
+                                                    actualRoomName = room?.name,
+                                                    reason = "Server kicked participant (possible room mismatch)"
+                                                )
+                                            )
+                                        }
+                                    }
+                                } catch (_: Exception) {}
+                            }
+                            if (confirmedRemoved) {
+                                _removedFromConvoy.value = true
+                                activeRideRepository.clear(ActiveRideRepository.ClearReason.REMOVED)
+                            }
+                        }
                     }
                     DisconnectReason.ROOM_DELETED,
                     DisconnectReason.ROOM_CLOSED -> {
@@ -627,11 +718,16 @@ class LiveKitManager @Inject constructor(
 
     private fun scheduleReconnect() {
         if (_convoyEnded.value || _removedFromConvoy.value) return
+        if (blockedRoomId != null && blockedRoomId == currentRoomId) {
+            Log.w(TAG, "scheduleReconnect skipped: room $currentRoomId is blocked due to room fault")
+            return
+        }
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
             _connectionState.value = ConnectionState.FAILED
             return
         }
 
+        val sessionId = currentSessionId
         reconnectJob?.cancel()
         reconnectJob = scope.launch {
             reconnectAttempts++
@@ -639,6 +735,7 @@ class LiveKitManager @Inject constructor(
             val delayMs = backoffs.getOrElse(reconnectAttempts - 1) { 10000L }
             _connectionState.value = ConnectionState.RECONNECTING
             delay(delayMs)
+            if (sessionId != currentSessionId) return@launch
 
             // M5: Check lobby status after first reconnect attempt fails
             if (reconnectAttempts > 1 && !currentRoomId.isNullOrBlank()) {
@@ -648,11 +745,13 @@ class LiveKitManager @Inject constructor(
                         404, 410 -> {
                             _convoyEnded.value = true
                             _connectionState.value = ConnectionState.DISCONNECTED
+                            activeRideRepository.clear(ActiveRideRepository.ClearReason.ENDED_BY_HOST)
                             return@launch
                         }
                         403 -> {
                             _removedFromConvoy.value = true
                             _connectionState.value = ConnectionState.DISCONNECTED
+                            activeRideRepository.clear(ActiveRideRepository.ClearReason.REMOVED)
                             return@launch
                         }
                     }
@@ -661,34 +760,55 @@ class LiveKitManager @Inject constructor(
 
             if (_connectionState.value == ConnectionState.RECONNECTING && !_convoyEnded.value && !_removedFromConvoy.value) {
                 val freshToken = try {
-                    tokenProvider?.invoke() ?: lastToken
+                    tokenProvider?.invoke()
                 } catch (e: Exception) {
                     val msg = e.message ?: ""
-                    if (msg.contains("REMOVED", ignoreCase = true)) {
+                    if (msg.contains("REMOVED", ignoreCase = true) || msg.contains("NOT_A_MEMBER", ignoreCase = true)) {
                         _removedFromConvoy.value = true
                         _connectionState.value = ConnectionState.DISCONNECTED
+                        activeRideRepository.clear(ActiveRideRepository.ClearReason.REMOVED)
                         return@launch
                     } else if (msg.contains("ENDED", ignoreCase = true)) {
                         _convoyEnded.value = true
                         _connectionState.value = ConnectionState.DISCONNECTED
+                        activeRideRepository.clear(ActiveRideRepository.ClearReason.ENDED_BY_HOST)
                         return@launch
                     }
-                    lastToken
+                    null
                 }
-                connectInternal(lastUrl, freshToken)
+                if (freshToken != null && sessionId == currentSessionId) {
+                    lastToken = freshToken
+                    connectInternal(lastUrl, freshToken, sessionId)
+                } else if (freshToken == null && sessionId == currentSessionId) {
+                    // Do not fallback to stale lastToken on token failure; schedule next attempt with backoff
+                    scheduleReconnect()
+                }
             }
         }
     }
 
     fun onNetworkRestored() {
         if (_convoyEnded.value || _removedFromConvoy.value) return
+        if (blockedRoomId != null && blockedRoomId == currentRoomId) return
         if ((_connectionState.value == ConnectionState.FAILED ||
              _connectionState.value == ConnectionState.DISCONNECTED ||
              _connectionState.value == ConnectionState.RECONNECTING) &&
-            lastUrl.isNotBlank() && lastToken.isNotBlank()) {
+            lastUrl.isNotBlank() && tokenProvider != null) {
             reconnectAttempts = 0
             reconnectJob?.cancel()
-            scope.launch { connectInternal(lastUrl, lastToken) }
+            val sessionId = currentSessionId
+            scope.launch {
+                val freshToken = try {
+                    tokenProvider?.invoke()
+                } catch (e: Exception) {
+                    Log.w(TAG, "onNetworkRestored token refresh error: ${e.message}")
+                    null
+                }
+                if (freshToken != null && sessionId == currentSessionId) {
+                    lastToken = freshToken
+                    connectInternal(lastUrl, freshToken, sessionId)
+                }
+            }
         }
     }
 
@@ -735,6 +855,7 @@ class LiveKitManager @Inject constructor(
     }
 
     fun disconnect() {
+        currentSessionId = sessionCounter.incrementAndGet()
         reconnectJob?.cancel()
         reconnectAttempts = MAX_RECONNECT_ATTEMPTS
         lastBroadcastLoc = null
@@ -769,6 +890,57 @@ class LiveKitManager @Inject constructor(
         _participants.value = emptyList()
         _activeSpeaker.value = null
         _isMicEnabled.value = false
+    }
+
+    /**
+     * Session-scoped fail-closed isolation (P0-B).
+     * Teardown scope: LOCAL DEVICE SESSION ONLY.
+     * Does NOT call apiService.endRideForEveryone, apiService.removeRiderFromConvoy, FirebaseAuth.signOut,
+     * or clear global user/app caches.
+     */
+    fun abortConnection(sessionId: Long, fault: com.ridervoice.state.RoomFault) {
+        if (sessionId != currentSessionId) return
+        blockedRoomId = currentRoomId
+
+        reconnectJob?.cancel()
+        reconnectAttempts = MAX_RECONNECT_ATTEMPTS
+        lastBroadcastLoc = null
+        lastBroadcastTime = 0L
+        deviceJob?.cancel()
+        deviceJob = null
+        republishJob?.cancel()
+        republishJob = null
+        eventsJob?.cancel()
+        eventsJob = null
+        stopPingScheduler()
+        voiceGateOpen = false
+        voxEngine.onMicStateChange = null
+        audioDeviceRouter.onFocusRegained = null
+        _deafened.value = false
+
+        runCatching { room?.disconnect() }
+        voxEngine.stop()
+        audioDeviceRouter.stop()
+
+        localAudioTrack?.stop()
+        localAudioTrack = null
+        lastOptions = null
+
+        _inRideSosAlert.value = null
+
+        runCatching { room?.release() }
+        room = null
+
+        _connectionState.value = ConnectionState.DISCONNECTED
+        _participants.value = emptyList()
+        _activeSpeaker.value = null
+        _isMicEnabled.value = false
+
+        // Emit RoomFault for client-side containment and notification
+        _roomFault.tryEmit(fault)
+
+        // Clear local active ride state only (local teardown only)
+        activeRideRepository.clear(ActiveRideRepository.ClearReason.NOT_FOUND)
     }
 
     fun broadcastSos(alertId: String, lat: Double?, lng: Double?, callsign: String) {

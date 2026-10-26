@@ -260,8 +260,10 @@ const MIGRATION_STATEMENTS = [
     END $$;`
 ]
 
+const ADVISORY_LOCK_ID = 742918491
+
 /**
- * Read-only schema assertion that validates essential tables and columns.
+ * Read-only schema assertion that validates essential tables, columns, enums, indexes, and FKs.
  * Never mutates or deletes data.
  * @param {object} prisma
  * @returns {Promise<{ valid: boolean, missing: string[] }>}
@@ -304,6 +306,59 @@ async function assertSchema(prisma) {
                 }
             }
         }
+
+        // P0-C: Check InviteStatus enum values
+        try {
+            const enumRows = await prisma.$queryRaw`
+                SELECT e.enumlabel
+                FROM pg_enum e
+                JOIN pg_type t ON e.enumtypid = t.oid
+                WHERE t.typname = 'InviteStatus'
+            `
+            const enumLabels = new Set(enumRows.map(r => r.enumlabel))
+            if (!enumLabels.has('REMOVED')) missing.push('InviteStatus.REMOVED')
+            if (!enumLabels.has('LEFT')) missing.push('InviteStatus.LEFT')
+        } catch (_) {}
+
+        // P0-C: Check indexes
+        try {
+            const indexRows = await prisma.$queryRaw`
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public'
+            `
+            const indexSet = new Set(indexRows.map(r => r.indexname))
+            if (!indexSet.has('Room_name_active_unique')) missing.push('Index: Room_name_active_unique')
+            if (!indexSet.has('Room_joinCode_active_unique')) missing.push('Index: Room_joinCode_active_unique')
+            if (!indexSet.has('RideInvite_roomId_inviteeId_key')) {
+                const conRows = await prisma.$queryRaw`
+                    SELECT conname FROM pg_constraint WHERE conname = 'RideInvite_roomId_inviteeId_key'
+                `
+                if (conRows.length === 0) missing.push('Constraint/Index: RideInvite_roomId_inviteeId_key')
+            }
+        } catch (_) {}
+
+        // P0-C: Check Foreign Keys
+        try {
+            const requiredFks = [
+                'RoomJoinToken_roomId_fkey',
+                'DiagnosticRun_convoyId_fkey',
+                'DiagnosticParticipant_runId_fkey',
+                'DiagnosticBatch_runId_fkey',
+                'RideCreateRequest_ownerId_fkey',
+                'RideCreateRequest_roomId_fkey',
+                'Room_ownerId_fkey'
+            ]
+            const fkRows = await prisma.$queryRaw`
+                SELECT conname FROM pg_constraint WHERE conname = ANY(${requiredFks})
+            `
+            const conSet = new Set(fkRows.map(r => r.conname))
+            for (const fk of requiredFks) {
+                if (!conSet.has(fk)) {
+                    missing.push(`FK: ${fk}`)
+                }
+            }
+        } catch (_) {}
     } catch (err) {
         missing.push(`Query failed: ${err.message}`)
     }
@@ -312,6 +367,53 @@ async function assertSchema(prisma) {
         valid: missing.length === 0,
         missing
     }
+}
+
+/**
+ * Pre-checks tables for duplicate rows that would prevent unique indexes from building.
+ * Never modifies or deletes rows.
+ */
+async function checkUniqueViolations(prisma) {
+    const violations = []
+    try {
+        const dupNames = await prisma.$queryRaw`
+            SELECT lower("name") AS name, count(*)::int AS count
+            FROM "Room"
+            WHERE "status" != 'ENDED'
+            GROUP BY lower("name")
+            HAVING count(*) > 1
+        `
+        if (dupNames.length > 0) {
+            violations.push(`Duplicate active Room names found: ${dupNames.map(d => `${d.name} (${d.count})`).join(', ')}. Manual reconciliation required.`)
+        }
+    } catch (_) {}
+
+    try {
+        const dupJoinCodes = await prisma.$queryRaw`
+            SELECT "joinCode", count(*)::int AS count
+            FROM "Room"
+            WHERE "status" != 'ENDED' AND "joinCode" IS NOT NULL
+            GROUP BY "joinCode"
+            HAVING count(*) > 1
+        `
+        if (dupJoinCodes.length > 0) {
+            violations.push(`Duplicate active Room joinCodes found: ${dupJoinCodes.map(d => `${d.joinCode} (${d.count})`).join(', ')}. Manual reconciliation required.`)
+        }
+    } catch (_) {}
+
+    try {
+        const dupInvites = await prisma.$queryRaw`
+            SELECT "roomId", "inviteeId", count(*)::int AS count
+            FROM "RideInvite"
+            GROUP BY "roomId", "inviteeId"
+            HAVING count(*) > 1
+        `
+        if (dupInvites.length > 0) {
+            violations.push(`Duplicate RideInvite (roomId, inviteeId) found: ${dupInvites.map(d => `(${d.roomId}, ${d.inviteeId}): ${d.count}`).join(', ')}. Manual reconciliation required.`)
+        }
+    } catch (_) {}
+
+    return violations
 }
 
 async function ensureDbSchema(prisma) {
@@ -323,26 +425,93 @@ async function ensureDbSchema(prisma) {
     console.warn(`[DB Schema] Missing schema elements: ${missing.join(', ')}`)
 
     // Automatically apply additive self-healing DDL unless explicitly opted out via AUTO_SCHEMA_REPAIR=false
-    if (process.env.AUTO_SCHEMA_REPAIR !== 'false') {
+    if (process.env.AUTO_SCHEMA_REPAIR === 'false') {
+        console.warn('[DB] AUTO_SCHEMA_REPAIR=false: Runtime repair is disabled. Use Prisma migrations (prisma migrate deploy) to align schema.')
+        return { valid: false, repaired: false, missing }
+    }
+
+    // P0-C: Wrap repair in advisory lock
+    let hasLock = false
+    try {
+        const lockRes = await prisma.$queryRawUnsafe(`SELECT pg_try_advisory_lock(${ADVISORY_LOCK_ID}) AS locked`)
+        if (lockRes && lockRes[0] && lockRes[0].locked === false) {
+            console.warn('[DB] Another instance holds the advisory migration lock; skipping concurrent repair.')
+            return { valid: false, repaired: false, skippedDueToLock: true, missing }
+        }
+        hasLock = true
+    } catch (_) {
+        // If environment does not support advisory locks (e.g. SQLite/unit test mocks), continue
+        hasLock = false
+    }
+
+    try {
+        // Pre-check for unique constraint/index violations
+        const violations = await checkUniqueViolations(prisma)
+        if (violations.length > 0) {
+            for (const v of violations) {
+                console.warn(`[DB Schema Pre-Check Violation] ${v}`)
+            }
+        }
+
         console.log('[DB] Missing schema elements detected; applying additive non-destructive DDL...')
         let applied = 0
         let failed = 0
-        for (const sql of MIGRATION_STATEMENTS) {
+        const failedStatements = []
+
+        for (let i = 0; i < MIGRATION_STATEMENTS.length; i++) {
+            const sql = MIGRATION_STATEMENTS[i]
+
+            // If duplicates detected, skip the specific index creation to avoid failure
+            if (violations.some(v => v.includes('Room names')) && sql.includes('"Room_name_active_unique"')) {
+                failed++
+                failedStatements.push({ index: i, name: 'Room_name_active_unique', error: 'Skipped due to duplicate active room names' })
+                continue
+            }
+            if (violations.some(v => v.includes('joinCodes')) && sql.includes('"Room_joinCode_active_unique"')) {
+                failed++
+                failedStatements.push({ index: i, name: 'Room_joinCode_active_unique', error: 'Skipped due to duplicate join codes' })
+                continue
+            }
+            if (violations.some(v => v.includes('RideInvite')) && sql.includes('RideInvite_roomId_inviteeId_key')) {
+                failed++
+                failedStatements.push({ index: i, name: 'RideInvite_roomId_inviteeId_key', error: 'Skipped due to duplicate ride invites' })
+                continue
+            }
+
             try {
                 await prisma.$executeRawUnsafe(sql)
                 applied++
             } catch (err) {
                 failed++
-                console.warn('[DB] Migration statement notice:', err.message)
+                failedStatements.push({
+                    index: i,
+                    sql: sql.trim().substring(0, 60),
+                    error: err.message
+                })
+                console.warn(`[DB] Migration statement #${i} notice:`, err.message)
             }
         }
+
         console.log(`[DB] Additive schema migrations finished: ${applied} applied, ${failed} failed.`)
         const recheck = await assertSchema(prisma)
-        return { valid: recheck.valid, repaired: true, applied, failed, missing: recheck.missing }
-    } else {
-        console.warn('[DB] AUTO_SCHEMA_REPAIR=false: Runtime repair is disabled. Use Prisma migrations (prisma migrate deploy) to align schema.')
-        return { valid: false, repaired: false, missing }
+        const isOverallValid = recheck.valid && failedStatements.length === 0 && violations.length === 0
+        return {
+            valid: isOverallValid,
+            repaired: true,
+            applied,
+            failed,
+            failedStatements,
+            violations,
+            missing: recheck.missing
+        }
+    } finally {
+        if (hasLock) {
+            try {
+                await prisma.$queryRawUnsafe(`SELECT pg_advisory_unlock(${ADVISORY_LOCK_ID})`)
+            } catch (_) {}
+        }
     }
 }
 
-module.exports = { ensureDbSchema, assertSchema, MIGRATION_STATEMENTS }
+module.exports = { ensureDbSchema, assertSchema, checkUniqueViolations, MIGRATION_STATEMENTS, ADVISORY_LOCK_ID }
+

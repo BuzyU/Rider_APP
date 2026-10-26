@@ -20,7 +20,8 @@ data class AppSettingsState(
     val hardwarePtt: Boolean = true,
     val hybridVox: Boolean = true,
     val networkDiagnostics: Boolean = false,
-    val shareDiagnosticsWhenHostEnabled: Boolean = true
+    val shareDiagnosticsWhenHostEnabled: Boolean = true,
+    val appLanguage: String = "system"
 )
 
 @HiltViewModel
@@ -48,8 +49,18 @@ class SettingsViewModel @Inject constructor(
             hardwarePtt = securePrefs.getBoolean("settings_hardware_ptt", true),
             hybridVox = securePrefs.getBoolean("settings_hybrid_vox", true),
             networkDiagnostics = securePrefs.isNetworkDiagnosticsEnabled(),
-            shareDiagnosticsWhenHostEnabled = securePrefs.isShareDiagnosticsWhenHostEnabled()
+            shareDiagnosticsWhenHostEnabled = securePrefs.isShareDiagnosticsWhenHostEnabled(),
+            appLanguage = securePrefs.getAppLanguage()
         )
+    }
+
+    fun setAppLanguage(lang: String) {
+        val sanitized = when (lang.lowercase()) {
+            "en", "hi", "mr" -> lang.lowercase()
+            else -> "system"
+        }
+        securePrefs.saveAppLanguage(sanitized)
+        _settingsState.value = _settingsState.value.copy(appLanguage = sanitized)
     }
 
     fun toggleDarkTheme() {

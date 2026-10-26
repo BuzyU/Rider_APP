@@ -32,6 +32,7 @@ import com.ridervoice.state.RoomViewModel
 import com.ridervoice.ui.screens.room.*
 import com.ridervoice.ui.theme.*
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun RoomScreen(
     roomName: String,
@@ -201,266 +202,142 @@ fun RoomScreen(
         )
     }
 
-    Box(
+    Scaffold(
         modifier = Modifier
             .fillMaxSize()
             .background(GraphiteBase)
-    ) {
-            // Main Center Content: Navigation Launcher
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = if (isVoiceChannelExpanded) 360.dp else 160.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding(),
+        topBar = {
+            RideTopBar(
+                rideName = roomName,
+                connectionState = connectionState,
+                activeSpeaker = activeSpeaker,
+                currentUid = currentUid,
+                participants = participants,
+                activeDevice = activeDevice,
+                routerState = routerState,
+                requestedDevice = requestedDevice,
+                routedInput = routedInput,
+                routedOutput = routedOutput,
+                isCollectingDiag = isCollectingDiag,
+                diagSampleCount = diagSampleCount,
+                onAudioRouteClick = { showAudioRoutePicker = true },
+                onDiagnosticsClick = { showDiagnosticsDialog = true },
+                onLeaveClick = { showLeaveConfirmDialog = true },
+                onRescanAudio = { viewModel.rescanAudioDevices() }
+            )
+        },
+        bottomBar = {
+            Surface(
+                color = DarkSlate,
+                modifier = Modifier.fillMaxWidth(),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Navigation,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(56.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "ACTIVE RIDE VOICE",
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Hands-free group voice is running",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q="))
-                        intent.setPackage("com.google.android.apps.maps")
-                        if (intent.resolveActivity(context.packageManager) != null) {
-                            context.startActivity(intent)
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricCyan),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text(
-                        "LAUNCH NAVIGATION",
-                        color = if (isDark) Color.Black else Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // Top Area: TopBar, In-Ride SOS Banner, Error, VU Meter
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-            ) {
-                RideTopBar(
-                    rideName = roomName,
-                    connectionState = connectionState,
-                    activeSpeaker = activeSpeaker,
-                    currentUid = currentUid,
-                    participants = participants,
-                    activeDevice = activeDevice,
-                    routerState = routerState,
-                    requestedDevice = requestedDevice,
-                    routedInput = routedInput,
-                    routedOutput = routedOutput,
-                    isCollectingDiag = isCollectingDiag,
-                    diagSampleCount = diagSampleCount,
-                    onAudioRouteClick = { showAudioRoutePicker = true },
-                    onDiagnosticsClick = { showDiagnosticsDialog = true },
-                    onLeaveClick = { showLeaveConfirmDialog = true },
-                    onRescanAudio = { viewModel.rescanAudioDevices() }
-                )
-
-                SosAlertBanner(
-                    alert = inRideSosAlert,
-                    onDismiss = { viewModel.dismissInRideSosAlert() }
-                )
-
-                error?.let { msg ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xCC331010))
-                            .border(1.dp, AlertRed, RoundedCornerShape(8.dp))
-                            .padding(10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(msg, color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                            IconButton(
-                                onClick = { viewModel.clearError() },
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = "Dismiss error", tint = Color.White)
-                            }
-                        }
-                    }
-                }
-
-                // VU Meter and Audio Status Line Strip
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(DarkSlate)
-                        .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Integrated VU Meter & Audio Status Line
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         AudioVuMeter(
                             viewModel = viewModel,
                             isSpeaking = isMicEnabled || isVoxOpen,
-                            modifier = Modifier.width(120.dp)
+                            modifier = Modifier.width(110.dp)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = audioStatusLine,
                             color = TextSecondary,
                             style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
                     }
+
+                    // Pinned Talk Controls (PTT, Mic toggle, Deafen toggle, SOS)
+                    TalkControls(
+                        isMicEnabled = isMicEnabled,
+                        isDeafened = isDeafened,
+                        isPttPressed = isPttPressed,
+                        isVoxOpen = isVoxOpen,
+                        onToggleMic = { viewModel.toggleMute() },
+                        onToggleDeafen = { viewModel.setDeafened(!isDeafened) },
+                        onPttPressStart = {
+                            isPttPressed = true
+                            viewModel.onPttPressed(true)
+                        },
+                        onPttPressEnd = {
+                            isPttPressed = false
+                            viewModel.onPttPressed(false)
+                        },
+                        onSosClick = onSosClick,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
+        },
+        containerColor = GraphiteBase
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp)
+        ) {
+            // Banners area: In-ride SOS alert, then error banner (stacked, dismissible)
+            SosAlertBanner(
+                alert = inRideSosAlert,
+                onDismiss = { viewModel.dismissInRideSosAlert() }
+            )
 
-            // Bottom Area: Riders Sheet & Talk Controls
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .fillMaxHeight(if (isVoiceChannelExpanded) 0.72f else 0.28f)
-                    .background(DarkSlate, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                    .border(1.dp, BorderColor, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                // Drag / Expand Handle
+            error?.let { msg ->
+                Spacer(modifier = Modifier.height(4.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { isVoiceChannelExpanded = !isVoiceChannelExpanded }
-                        .padding(bottom = 6.dp),
-                    contentAlignment = Alignment.Center
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xCC331010))
+                        .border(1.dp, AlertRed, RoundedCornerShape(8.dp))
+                        .padding(10.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .width(40.dp)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(TextSecondary)
-                    )
-                }
-
-                if (isVoiceChannelExpanded) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text(
-                                text = "RIDE GROUP",
-                                color = NeonOrange,
-                                style = MaterialTheme.typography.labelSmall,
-                                letterSpacing = 1.sp
-                            )
-                            Text(
-                                text = roomName,
-                                color = TextPrimary,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        IconButton(onClick = { isVoiceChannelExpanded = false }) {
-                            Icon(Icons.Default.ExpandMore, contentDescription = "Collapse Riders List", tint = TextSecondary)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    RiderList(
-                        participants = participants,
-                        currentUid = currentUid,
-                        activeSpeaker = activeSpeaker,
-                        isCurrentUserTransmitting = isPttPressed || isMicEnabled || isVoxOpen,
-                        isHost = isHost,
-                        remoteLocations = remoteLocations,
-                        currentLocation = currentLocation,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-                } else {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isVoiceChannelExpanded = true }
-                            .padding(bottom = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val activeCount = participants.count { !it.isGhost }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (activeCount == 1) "1 RIDER CONNECTED" else "$activeCount RIDERS CONNECTED",
-                                color = TextPrimary,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = when {
-                                    isDeafened -> "Incoming audio deafened"
-                                    activeSpeaker != null -> {
-                                        val spk = participants.find { it.identity == activeSpeaker }
-                                        val name = if (activeSpeaker == currentUid) "You" else (spk?.displayName ?: activeSpeaker ?: "Unknown")
-                                        "$name is speaking"
-                                    }
-                                    else -> audioStatusLine
-                                },
-                                color = when {
-                                    isDeafened -> AlertRed
-                                    activeSpeaker != null -> ElectricCyan
-                                    else -> TextSecondary
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (activeSpeaker != null) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
-                        IconButton(onClick = { isVoiceChannelExpanded = true }) {
-                            Icon(Icons.Default.ExpandLess, contentDescription = "Expand Riders List", tint = TextSecondary)
+                        Text(msg, color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                        IconButton(
+                            onClick = { viewModel.clearError() },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Dismiss error", tint = Color.White)
                         }
                     }
                 }
-
-                // Talk Controls bar
-                TalkControls(
-                    isMicEnabled = isMicEnabled,
-                    isDeafened = isDeafened,
-                    isPttPressed = isPttPressed,
-                    isVoxOpen = isVoxOpen,
-                    onToggleMic = { viewModel.toggleMute() },
-                    onToggleDeafen = { viewModel.setDeafened(!isDeafened) },
-                    onPttPressStart = {
-                        isPttPressed = true
-                        viewModel.onPttPressed(true)
-                    },
-                    onPttPressEnd = {
-                        isPttPressed = false
-                        viewModel.onPttPressed(false)
-                    },
-                    onSosClick = onSosClick,
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Participants list as the flexible, scrollable region
+            RiderList(
+                participants = participants,
+                currentUid = currentUid,
+                activeSpeaker = activeSpeaker,
+                isCurrentUserTransmitting = isPttPressed || isMicEnabled || isVoxOpen,
+                isHost = isHost,
+                remoteLocations = remoteLocations,
+                currentLocation = currentLocation,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
+}

@@ -62,10 +62,15 @@ class VoxCaptureEvaluator(
 }
 
 @Singleton
-class VoxEngine @Inject constructor(
-    @ApplicationContext private val context: Context,
+open class VoxEngine @Inject constructor(
+    @ApplicationContext private val context: Context?,
     private val audioDeviceRouter: AudioDeviceRouter
 ) {
+    constructor(audioDeviceRouter: AudioDeviceRouter) : this(
+        context = null,
+        audioDeviceRouter = audioDeviceRouter
+    )
+
     private val TAG = "VoxEngine"
 
     private val detector = VoxDetector()
@@ -78,7 +83,7 @@ class VoxEngine @Inject constructor(
     private val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)
     private val bufferSize = maxOf(minBuf * 4, FRAME * 2 * 10)
 
-    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private val audioManager = context?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
     private val _isMicOpen = MutableStateFlow(false)
     val isMicOpen: StateFlow<Boolean> = _isMicOpen.asStateFlow()
@@ -115,7 +120,7 @@ class VoxEngine @Inject constructor(
     }
 
     @Synchronized
-    fun start() {
+    open fun start() {
         if (isRunning) return
         isRunning = true
         Log.d(TAG, "VOX engine starting")
@@ -126,7 +131,7 @@ class VoxEngine @Inject constructor(
     }
 
     @Synchronized
-    fun stop() {
+    open fun stop() {
         isRunning = false
         stopOwnAudioRecord()
         pttReleaseJob?.cancel()
@@ -341,16 +346,17 @@ class VoxEngine @Inject constructor(
         }
     }
 
-    fun updatePreferredDevice() {
+    open fun updatePreferredDevice() {
         val record = audioRecord ?: return
         preferCommunicationInput(record)
     }
 
     private fun preferCommunicationInput(record: AudioRecord) {
+        val am = audioManager ?: return
         try {
-            val inputs = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+            val inputs = am.getDevices(AudioManager.GET_DEVICES_INPUTS)
             val wantedType: Int? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                when (audioManager.communicationDevice?.type) {
+                when (am.communicationDevice?.type) {
                     AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> AudioDeviceInfo.TYPE_BLUETOOTH_SCO
                     AudioDeviceInfo.TYPE_BLE_HEADSET -> AudioDeviceInfo.TYPE_BLE_HEADSET
                     AudioDeviceInfo.TYPE_WIRED_HEADSET -> AudioDeviceInfo.TYPE_WIRED_HEADSET
@@ -360,8 +366,8 @@ class VoxEngine @Inject constructor(
             } else {
                 @Suppress("DEPRECATION")
                 when {
-                    audioManager.isBluetoothScoOn -> AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-                    audioManager.isWiredHeadsetOn -> AudioDeviceInfo.TYPE_WIRED_HEADSET
+                    am.isBluetoothScoOn -> AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                    am.isWiredHeadsetOn -> AudioDeviceInfo.TYPE_WIRED_HEADSET
                     else -> null
                 }
             }

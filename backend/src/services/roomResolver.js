@@ -291,12 +291,14 @@ function invalidateRoom(roomOrId) {
     }
 }
 
+let legacyFallbackCount = 0
+
 /**
  * Resolves the external LiveKit room name for a given room record.
- * Follows the staged room identity rollout:
+ * Follows canonical room identity:
  * 1. If room.lkRoomName is persisted and non-empty, use it directly (immutable per-ride identity).
- * 2. If room.lkRoomName is null/empty (legacy room), fallback to legacy configuration:
- *    process.env.ROOM_ID_MODE === 'true' ? room.id : room.name.
+ * 2. If room.lkRoomName is null/empty (legacy room created prior to immutable identity),
+ *    fall back to legacy configuration and track metric counter.
  *
  * @param {object} room – room record containing { id, name, lkRoomName? }
  * @returns {string} LiveKit room name
@@ -306,12 +308,19 @@ function resolveLkRoomName(room) {
     if (room.lkRoomName && typeof room.lkRoomName === 'string' && room.lkRoomName.trim()) {
         return room.lkRoomName.trim()
     }
+    // Metric counter for legacy fallbacks (F-01 requirement)
+    legacyFallbackCount++
     return process.env.ROOM_ID_MODE === 'true' ? room.id : room.name
+}
+
+function getLegacyFallbackCount() {
+    return legacyFallbackCount
 }
 
 module.exports = {
     resolveRoom,
     resolveLkRoomName,
+    getLegacyFallbackCount,
     markRoomEnded,
     isMember,
     generateUniqueJoinCode,
@@ -320,4 +329,5 @@ module.exports = {
     resolverError,
     invalidateRoom
 }
+
 

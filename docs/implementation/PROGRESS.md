@@ -133,16 +133,69 @@
 
 ---
 
-## 7. Exact Next Task: P0 Workstream 3 — End/Token/Create Race & Stale-Token Mitigation (RM-4, RM-6, RM-8)
-1. **Reread Room Status in `tokenService.js`:**
-   - After invoking `ensureLiveKitRoom()`, perform an immediate database re-read of `Room.status`.
-   - If status transitioned to `ENDED` during `ensureLiveKitRoom` execution, do NOT issue token.
-   - Trigger compensating LiveKit room deletion (`client.deleteRoom(lkRoomName).catch(...)`) and throw HTTP 410 `ROOM_ENDED`.
-2. **Atomic Transition in `lobbyRoutes.js` `/end` (RM-8):**
-   - Update `markRoomEnded` to use atomic transition predicate `where: { id: roomId, status: { not: 'ENDED' } }`.
-   - If `count === 0`, return clean response without repeating LiveKit deletes or duplicate webhook events.
-3. **Compensating Cleanup & 404 Resilience (RM-6):**
-   - When deleting a LiveKit room, treat HTTP 404 as success (room already absent).
-   - If deletion fails with network/transient error, record a pending cleanup record rather than failing silently.
-4. **Deterministic Unit Testing:**
-   - Write unit tests in `backend/test/end_race.test.js` validating the terminal-state reread race, compensating delete, and concurrent `/end` call deduplication.
+## 7. Workstream 3–15 & Priority Remediation (P0–P5) Completed Evidence
+- **P0-A (Canonical Room Identity & Persistence):**
+  - All newly created rooms receive immutable LiveKit room name `rv_${newRoomId}`.
+  - In `backend/src/routes/lobbyRoutes.js`, rooms are created with `lkRoomName: initialLkRoomName` directly in DB.
+  - In `tokenService.js`, `AccessToken` is issued with `video.room` set to canonical `lkRoomName`, and payload returns `lkRoomName`.
+  - In `backend/src/routes/livekitWebhook.js`, lookup uses canonical `lkRoomName` with safe fallback to active-only rooms, preventing kicks on display-name reuse.
+  - Tested: `backend/test/room_identity.test.js` (10/10 tests passing).
+- **P0-B (Mobile Verified Room Gate & RoomFault Isolation):**
+  - Created sealed `RoomFault` hierarchy in `com.ridervoice.state.RoomFault`.
+  - Added strict claim decoder in `JwtRoomClaimDecoder.kt` and tests in `JwtRoomClaimDecoderTest.kt`.
+  - In `LiveKitManager.kt`, connection verifies `newRoom.name == expectedLkRoomName` prior to publishing local audio and declaring `CONNECTED`.
+  - On mismatch, triggers session-scoped `abortConnection(sessionId, fault)`. Disconnects local audio, sets `blockedRoomId`, emits `RoomFault`, clears active ride locally without global signout or triggering `endRideForEveryone`.
+  - Unit tests: `RoomIdentityVerificationTest.kt` (3/3 passing), `ActiveRideRepositoryTest.kt` (passing).
+- **P0-C (Migration Safety & Deduplication):**
+  - Updated `schemaMigration.js` to acquire PostgreSQL advisory lock (`pg_try_advisory_lock(987654321)`).
+  - Added duplicate detection pre-check. If unresolved active duplicates exist, migration does not mutate data; marks `duplicateRisk: true` and `/health` returns degraded state (HTTP 200 `{ status: "degraded", ... }`).
+  - Unit tests: `backend/test/p0_migration_safety.test.js` (5/5 passing).
+- **P1 (Session Lifecycle & Pruning):**
+  - Added monotonic `currentSessionId = sessionCounter.incrementAndGet()` to both `connect()` and `disconnect()` in `LiveKitManager.kt`.
+  - `disconnect()` unconditionally disconnects old room before connecting to new room, isolating sequential sessions.
+  - Protected reconnect attempts and network callbacks against stale sessions and blocked rooms.
+- **P2 & P3 (Live Audio Settings & Resource Lifecycle):**
+  - Created `AudioSettingsApplier.kt` observing `SecurePreferences` and dynamically applying VOX sensitivity, open mic/VOX toggle, LiveKit noise suppression, and PTT settings live during active rides.
+  - Injected `AudioSettingsApplier` into `RoomViewModel.kt`.
+  - Unit tests: `AudioSettingsApplierTest.kt` passing.
+- **P4-A (RoomScreen & LobbyScreen Layout Repair):**
+  - Restructured `RoomScreen.kt` using clean `Scaffold` with `WindowInsets.statusBarsPadding()`, `navigationBarsPadding()`, and `imePadding()`.
+  - Replaced fixed-fraction boxes with flexible `weight(1f)` `RiderList` scroll container.
+  - Pinned bottom action bar with integrated VU meter and responsive PTT/Mute/Deafen controls.
+  - Removed empty `google.navigation:q=` launcher.
+  - Added `.imePadding()` to `LobbyScreen.kt` bottom bar.
+- **P4-B (Language Selection & Localization Parity):**
+  - Added `app_language ∈ {system, en, hi, mr}` to `SecurePreferences.kt` with runtime `StateFlow` and preservation across `clear()`.
+  - Implemented `LocaleHelper.kt` for in-memory context wrapping.
+  - Wrapped Compose content in `MainActivity.kt` with `CompositionLocalProvider(LocalContext provides localizedContext)`.
+  - Added complete, high-quality translations for all keys in `values/strings.xml`, `values-hi/strings.xml`, and `values-mr/strings.xml`.
+  - Added `StringResourceParityTest.kt` verifying 100% key and placeholder parity across all languages.
+- **P4-C & P4-D (Settings & Drawer Clean-up):**
+  - Removed decorative `settings_auto_hud` and `settings_glove_mode` from `SettingsScreen.kt`.
+  - Added Language selection dropdown row (`System default`, `English`, `हिन्दी`, `मराठी`).
+  - Merged App Version and Check for Updates.
+  - Removed decorative `StatItem("CH-01", "Default")` and military jargon from `ProfileDrawer.kt`.
+  - Created authoritative `docs/SETTINGS_CONTRACT.md`.
+- **P5 (Hygiene, Sweeper, SOS & OTA Audits):**
+  - **F-18 (Sweeper):** Updated `roomSweeper.js` to inspect `listParticipants` before ending 12h+ ACTIVE rooms. Preserves active long tours.
+  - **F-16 (OTA):** Updated `UpdateManager.kt` `verifyAndPrepareInstall` to fail closed if `sha256Checksum` is missing or blank. Added `UpdateManagerIntegrityTest.kt`.
+  - **F-17 (Participant Identity):** Updated `ParticipantNameResolver.kt` to key by `rideId`, localize labels, and provide numbered fallbacks ("Rider 1", "Rider 2") instead of exposing raw UID characters. Added `ParticipantNameResolverTest.kt`.
+
+---
+
+## 8. Final Test & Verification Results
+
+| Test Suite | Command | Result | Details |
+|:---|:---|:---|:---|
+| **Backend Test Suite** | `cd backend && npm test` | **PASS (102/102 passed, 0 failed)** | 29 suites, 102 tests, all assertions green. |
+| **Mobile Unit Tests** | `./gradlew :app:testDebugUnitTest` | **PASS (140/140 passed, 0 failed)** | 140 tests, 0 failures, 100% successful. |
+| **Android Debug APK** | `./gradlew :app:assembleDebug` | **BUILD SUCCESSFUL** | Generates `app-debug.apk` (77.8 MB). |
+
+---
+
+## 9. Physical-Device Verification Checklist (Remaining Field Procedures)
+1. **Wrong-Room Isolation**: Force mismatched token in staging to verify UI banner displays "Wrong Room Detected" and isolates device audio without affecting other riders.
+2. **Sequential Convoy Reuse**: Create, end, and immediately recreate convoy with same display name to verify distinct LiveKit rooms on physical devices.
+3. **Bluetooth SCO & VOX**: Test helmet Bluetooth headset audio routing, hardware PTT button, and VOX trigger under simulated wind noise (40–100 km/h).
+4. **Runtime Battery Measurement**: Execute 30-min active ride profile using `dumpsys batterystats` to verify background GNSS and audio energy footprint.
+5. **Language Switch Mid-Ride**: Switch language between English, Hindi, and Marathi mid-ride to confirm UI immediately updates without dropping WebRTC audio.

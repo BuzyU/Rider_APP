@@ -22,6 +22,7 @@ data class ConvoyCreateResponse(
 data class LobbyStatus(
     val roomId: String,
     val convoyName: String,
+    val lkRoomName: String? = null,
     val invites: List<LobbyInviteEntry> = emptyList(),
     val acceptedCount: Int = 0,
     val pendingCount: Int = 0,
@@ -68,6 +69,7 @@ data class StartRideResponse(
     val token: String,
     val roomName: String,
     val roomId: String? = null,
+    val lkRoomName: String? = null,
     val livekitUrl: String,
     val diagnosticsEnabled: Boolean = false,
     val testNumber: Int? = null,
@@ -138,6 +140,7 @@ data class RoomData(
     val roomName: String,
     val token: String,
     val roomId: String? = null,
+    val lkRoomName: String? = null,
     val livekitUrl: String? = null,
     val diagnosticsEnabled: Boolean = false,
     val testNumber: Int? = null
@@ -157,6 +160,7 @@ data class TokenPayload(
     val livekitUrl: String? = null,
     val roomId: String? = null,
     val roomName: String? = null,
+    val lkRoomName: String? = null,
     val expiresAtEpochSec: Long? = null,
     val diagnosticsEnabled: Boolean = false,
     val testNumber: Int? = null

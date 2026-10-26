@@ -212,6 +212,7 @@ async function issueRoomToken(user, room) {
         livekitUrl: process.env.LIVEKIT_URL || '',
         roomId: room.id,
         roomName: room.name,        // always the display name, not the LK room name
+        lkRoomName: roomName,       // Canonical LiveKit room identity for client verification
         diagnosticsEnabled: room.diagnosticsEnabled ?? activeRun != null,
         testNumber: activeRun?.testNumber || null,
         expiresAt,

@@ -34,9 +34,6 @@ services:
       - key: LIVEKIT_API_SECRET
         sync: false
 
-      - key: ROOM_ID_MODE
-        sync: false
-
       - key: LEGACY_CLIENTS_ALLOWED
         sync: false
 

@@ -41,8 +41,13 @@ async function handleLiveKitEvent(event, deps = {}) {
         try {
             const room = await resolveRoom(lkRoomName, { allowEnded: true })
 
-            // 1. If DB room is ENDED -> kick
+            // 1. If DB room is ENDED -> kick only if matched by exact LiveKit room identity, never on display-name fallback
             if (room.status === 'ENDED') {
+                const matchedByExactLkIdentity = (room.lkRoomName && room.lkRoomName === lkRoomName) || room.id === lkRoomName
+                if (!matchedByExactLkIdentity) {
+                    console.warn(`[webhook] Ignoring display-name fallback match to ENDED room ${room.id} (${room.name}) for live LiveKit room ${lkRoomName}`)
+                    return
+                }
                 console.warn(`[webhook] Kicking ${identity}: room ${room.id} is ENDED`)
                 await client.removeParticipant(lkRoomName, identity).catch(err => console.warn(`[webhook] removeParticipant warning: ${err.message}`))
                 return

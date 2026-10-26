@@ -93,8 +93,10 @@ object JwtRoomClaimDecoder {
     }
 
     /**
-     * Full validation: room claim must equal [expectedRoomId] OR [expectedRoomName];
-     * token must not be expired (allowing [skewSeconds] of clock skew) and must have more than
+     * Full validation:
+     * When [expectedLkRoomName] is provided, the token claim must strictly equal [expectedLkRoomName].
+     * Otherwise (legacy servers), room claim must equal [expectedRoomId] OR [expectedRoomName].
+     * Token must not be expired (allowing [skewSeconds] of clock skew) and must have more than
      * [refreshWindowSeconds] left, otherwise the caller should refresh before connecting.
      * Tokens without an `exp` claim are treated as VALID for backward compatibility.
      */
@@ -104,15 +106,21 @@ object JwtRoomClaimDecoder {
         expectedRoomName: String?,
         nowEpochSeconds: Long = System.currentTimeMillis() / 1000,
         skewSeconds: Long = 60,
-        refreshWindowSeconds: Long = 300
+        refreshWindowSeconds: Long = 300,
+        expectedLkRoomName: String? = null
     ): TokenCheck {
-        if (token.isNullOrBlank() || (expectedRoomId.isNullOrBlank() && expectedRoomName.isNullOrBlank())) {
+        if (token.isNullOrBlank() || (expectedRoomId.isNullOrBlank() && expectedRoomName.isNullOrBlank() && expectedLkRoomName.isNullOrBlank())) {
             return TokenCheck.MALFORMED
         }
         val claim = extractRoomName(token) ?: return TokenCheck.MALFORMED
-        val matchesId = !expectedRoomId.isNullOrBlank() && claim == expectedRoomId
-        val matchesName = !expectedRoomName.isNullOrBlank() && claim == expectedRoomName
-        if (!matchesId && !matchesName) {
+        val matchedRoom = if (!expectedLkRoomName.isNullOrBlank()) {
+            claim == expectedLkRoomName
+        } else {
+            val matchesId = !expectedRoomId.isNullOrBlank() && claim == expectedRoomId
+            val matchesName = !expectedRoomName.isNullOrBlank() && claim == expectedRoomName
+            matchesId || matchesName
+        }
+        if (!matchedRoom) {
             return TokenCheck.WRONG_ROOM
         }
         val exp = extractExpiry(token) ?: return TokenCheck.VALID
@@ -136,6 +144,7 @@ object JwtRoomClaimDecoder {
         expectedRoomName = expectedRoom,
         nowEpochSeconds = nowEpochSeconds,
         skewSeconds = skewSeconds,
-        refreshWindowSeconds = refreshWindowSeconds
+        refreshWindowSeconds = refreshWindowSeconds,
+        expectedLkRoomName = null
     )
 }

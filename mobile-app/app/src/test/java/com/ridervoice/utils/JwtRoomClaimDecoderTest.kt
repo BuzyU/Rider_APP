@@ -135,4 +135,36 @@ class JwtRoomClaimDecoderTest {
             )
         )
     }
+
+    @Test
+    fun `validate strictly requires expectedLkRoomName when provided`() {
+        // Token has legacy display name "Sunday-Ride", but expectedLkRoomName is "rv_d3b07384"
+        val t = tokenWith("Sunday-Ride", 10_000)
+        assertEquals(
+            JwtRoomClaimDecoder.TokenCheck.WRONG_ROOM,
+            JwtRoomClaimDecoder.validate(
+                token = t,
+                expectedRoomId = "d3b07384-d113-40f4-a0ff-4e943c7b398a",
+                expectedRoomName = "Sunday-Ride",
+                nowEpochSeconds = 1_000,
+                expectedLkRoomName = "rv_d3b07384-d113-40f4-a0ff-4e943c7b398a"
+            )
+        )
+    }
+
+    @Test
+    fun `validate accepts token matching expectedLkRoomName`() {
+        val canonical = "rv_d3b07384-d113-40f4-a0ff-4e943c7b398a"
+        val t = tokenWith(canonical, 10_000)
+        assertEquals(
+            JwtRoomClaimDecoder.TokenCheck.VALID,
+            JwtRoomClaimDecoder.validate(
+                token = t,
+                expectedRoomId = "d3b07384-d113-40f4-a0ff-4e943c7b398a",
+                expectedRoomName = "Sunday-Ride",
+                nowEpochSeconds = 1_000,
+                expectedLkRoomName = canonical
+            )
+        )
+    }
 }

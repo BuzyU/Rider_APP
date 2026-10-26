@@ -91,12 +91,25 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionHeader("DISPLAY")
+                    SettingsSectionHeader("DISPLAY & LANGUAGE")
                     SettingsItemToggle(
                         label = "Dark Mode",
                         icon = Icons.Default.DarkMode,
                         checked = settingsState.darkTheme,
                         onCheckedChange = { settingsViewModel.toggleDarkTheme() }
+                    )
+                    SettingsItemValue(
+                        label = "Language",
+                        value = when (settingsState.appLanguage) {
+                            "hi" -> "हिन्दी"
+                            "mr" -> "मराठी"
+                            "en" -> "English"
+                            else -> "System default"
+                        },
+                        icon = Icons.Default.Language,
+                        onClick = {
+                            showOptionsDialog = "appLanguage" to listOf("System default", "English", "हिन्दी", "मराठी")
+                        }
                     )
                 }
 
@@ -129,25 +142,10 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsSectionHeader("RIDE HUD")
+                    SettingsSectionHeader("VOICE TRANSMISSION")
                     SettingsItemToggle(
-                        label = "High-Contrast Mode",
-                        icon = Icons.Default.Dashboard,
-                        checked = settingsState.autoHudMode,
-                        onCheckedChange = { settingsViewModel.toggleAutoHud() }
-                    )
-                    SettingsItemToggle(
-                        label = "Glove Mode",
-                        icon = Icons.Default.TouchApp,
-                        checked = settingsState.gloveMode,
-                        onCheckedChange = { settingsViewModel.toggleGloveMode() }
-                    )
-                }
-
-                item {
-                    SettingsSectionHeader("COMMUNICATION")
-                    SettingsItemToggle(
-                        label = "Open Mic (always active)",
+                        label = "Voice activation (VOX)",
+                        subtitle = if (settingsState.openMic) "Voice gate active (hands-free)" else "Push-to-Talk only",
                         icon = Icons.Default.Podcasts,
                         checked = settingsState.openMic,
                         onCheckedChange = { settingsViewModel.toggleOpenMic() }
@@ -170,13 +168,7 @@ fun SettingsScreen(
                     SettingsSectionHeader("UPDATES")
                     SettingsItemValue(
                         label = "App Version",
-                        value = "v${updateViewModel.currentVersionName}",
-                        icon = Icons.Default.Info,
-                        onClick = { updateViewModel.checkForUpdates() }
-                    )
-                    SettingsItemValue(
-                        label = "Check for Updates",
-                        value = "Check Now",
+                        value = "v${updateViewModel.currentVersionName} • Tap to check",
                         icon = Icons.Default.SystemUpdate,
                         onClick = { updateViewModel.checkForUpdates() }
                     )
@@ -260,6 +252,12 @@ fun SettingsScreen(
         showOptionsDialog?.let { (key, options) ->
             val currentValue = when (key) {
                 "voxSensitivity"  -> settingsState.voxSensitivity
+                "appLanguage"     -> when (settingsState.appLanguage) {
+                    "hi" -> "हिन्दी"
+                    "mr" -> "मराठी"
+                    "en" -> "English"
+                    else -> "System default"
+                }
                 else              -> ""
             }
 
@@ -267,7 +265,7 @@ fun SettingsScreen(
                 onDismissRequest = { showOptionsDialog = null },
                 title = {
                     Text(
-                        text = "SELECT OPTION",
+                        text = if (key == "appLanguage") "SELECT LANGUAGE" else "SELECT OPTION",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary
                     )
@@ -283,7 +281,17 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        settingsViewModel.updateSettingValue(key, option)
+                                        if (key == "appLanguage") {
+                                            val code = when (option) {
+                                                "हिन्दी" -> "hi"
+                                                "मराठी" -> "mr"
+                                                "English" -> "en"
+                                                else -> "system"
+                                            }
+                                            settingsViewModel.setAppLanguage(code)
+                                        } else {
+                                            settingsViewModel.updateSettingValue(key, option)
+                                        }
                                         showOptionsDialog = null
                                     }
                             ) {

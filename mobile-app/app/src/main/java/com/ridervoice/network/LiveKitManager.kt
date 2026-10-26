@@ -343,8 +343,8 @@ class LiveKitManager @Inject constructor(
             val verified = if (!expected.isNullOrBlank()) {
                 actualRoomName == expected
             } else {
-                com.ridervoice.utils.RvLog.w("LK", "legacy_identity_unverified: actual=$actualRoomName expectedJwt=$jwtRoom")
-                !jwtRoom.isNullOrBlank() && actualRoomName == jwtRoom
+                com.ridervoice.utils.RvLog.e("LK", "Cannot verify room identity: expectedLkRoomName is null. Token's own claim cannot self-verify.")
+                false
             }
 
             if (!verified) {

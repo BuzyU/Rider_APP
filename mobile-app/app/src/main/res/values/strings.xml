@@ -52,6 +52,14 @@
     <string name="lobby_empty_joined">Nobody has joined yet. Share the ride code.</string>
     <string name="lobby_start_alone_prompt">Start alone?</string>
     <string name="lobby_start_alone_desc">No riders have joined yet. You can still invite friends while riding.</string>
+    <string name="lobby_failed_title">Unable to connect to lobby</string>
+    <string name="lobby_failed_desc">Connection timed out or could not be established. Please check your network and try again.</string>
+    <string name="lobby_schema_degraded">Service is updating, try again shortly</string>
+    <string name="lobby_session_expired">Session expired. Please sign in again.</string>
+    <string name="lobby_retrying">Retrying (%1$d/%2$d)...</string>
+    <string name="lobby_connecting">Connecting to lobby...</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_leave">Leave</string>
 
     <!-- Ride Screen -->
     <string name="ride_screen_title">Ride screen</string>

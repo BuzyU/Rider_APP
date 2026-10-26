@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { WebhookReceiver, RoomServiceClient } = require('livekit-server-sdk')
 const prisma = require('../db')
-const { resolveRoom, markRoomEnded, invalidateRoom, ResolverError } = require('../services/roomResolver')
+const { resolveRoom, markRoomEnded, invalidateRoom, ResolverError, getAvailableColumns } = require('../services/roomResolver')
 const diagnosticService = require('../services/diagnosticService')
 
 function getRoomServiceClient() {
@@ -106,7 +106,7 @@ async function handleLiveKitEvent(event, deps = {}) {
                 // R1 fix: Tunnel / temporary loss protection: DO NOT end room immediately.
                 // Record lastEmptyAt in DB. The background room sweeper will end after 15 min empty.
                 console.log(`[webhook] Room finished: recording lastEmptyAt for ${room.status} room ${room.id}`)
-                if (typeof prisma.room?.update === 'function') {
+                if (getAvailableColumns().hasLastEmptyAt && typeof prisma.room?.update === 'function') {
                     await prisma.room.update({
                         where: { id: room.id },
                         data: { lastEmptyAt: new Date() }

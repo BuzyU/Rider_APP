@@ -60,6 +60,7 @@ function clearPendingCleanups() {
 }
 
 let hasLkRoomNameColumn = true
+let hasLastEmptyAtColumn = true
 
 async function countActiveClaimants(lkName) {
     if (typeof prisma.room?.count !== 'function') return 0
@@ -96,29 +97,40 @@ async function countActiveClaimants(lkName) {
 }
 
 async function safeFindRooms(whereClause, extraSelect = {}) {
-    const base = { id: true, name: true, ...extraSelect }
-    if (hasLkRoomNameColumn) {
-        try {
-            return await prisma.room.findMany({
-                where: whereClause,
-                select: { ...base, lkRoomName: true }
-            })
-        } catch (err) {
-            if (err.code === 'P2022' || (err.message && err.message.includes('lkRoomName'))) {
+    const query = async (withLk, withLastEmpty) => {
+        const sel = { id: true, name: true, ...extraSelect }
+        if (withLk && hasLkRoomNameColumn) sel.lkRoomName = true
+        else delete sel.lkRoomName
+        if (withLastEmpty && hasLastEmptyAtColumn && extraSelect.lastEmptyAt) sel.lastEmptyAt = true
+        else delete sel.lastEmptyAt
+        return await prisma.room.findMany({
+            where: whereClause,
+            select: sel
+        })
+    }
+
+    try {
+        return await query(hasLkRoomNameColumn, hasLastEmptyAtColumn)
+    } catch (err) {
+        const isP2022 = err.code === 'P2022'
+        const msg = err.message || ''
+        if (isP2022 || msg.includes('lkRoomName') || msg.includes('lastEmptyAt')) {
+            if (hasLkRoomNameColumn && (isP2022 || msg.includes('lkRoomName'))) {
                 hasLkRoomNameColumn = false
                 console.warn('[roomSweeper] lkRoomName column missing in DB; querying without lkRoomName')
-                return await prisma.room.findMany({
-                    where: whereClause,
-                    select: base
-                })
             }
-            throw err
+            if (hasLastEmptyAtColumn && (isP2022 || msg.includes('lastEmptyAt'))) {
+                hasLastEmptyAtColumn = false
+                console.warn('[roomSweeper] lastEmptyAt column missing in DB; querying without lastEmptyAt')
+            }
+            return await query(hasLkRoomNameColumn, hasLastEmptyAtColumn).catch(async () => {
+                hasLkRoomNameColumn = false
+                hasLastEmptyAtColumn = false
+                return await query(false, false)
+            })
         }
+        throw err
     }
-    return await prisma.room.findMany({
-        where: whereClause,
-        select: base
-    })
 }
 
 async function deleteLiveKitRoom(lkName, roomId = null, client = null) {
@@ -318,11 +330,15 @@ async function sweepStaleRooms(deps = {}) {
                             : (activeRoomEmptySince.get(room.id) || Date.now())
                         activeRoomEmptySince.set(room.id, emptySince)
 
-                        if (!room.lastEmptyAt && typeof prisma.room?.update === 'function') {
+                        if (hasLastEmptyAtColumn && !room.lastEmptyAt && typeof prisma.room?.update === 'function') {
                             await prisma.room.update({
                                 where: { id: room.id },
                                 data: { lastEmptyAt: new Date(emptySince) }
-                            }).catch(() => null)
+                            }).catch(err => {
+                                if (err.code === 'P2022' || (err.message && err.message.includes('lastEmptyAt'))) {
+                                    hasLastEmptyAtColumn = false
+                                }
+                            })
                         }
 
                         if (Date.now() - emptySince >= fifteenMinMs) {
@@ -338,11 +354,15 @@ async function sweepStaleRooms(deps = {}) {
                         }
                     } else {
                         activeRoomEmptySince.delete(room.id)
-                        if (room.lastEmptyAt && typeof prisma.room?.update === 'function') {
+                        if (hasLastEmptyAtColumn && room.lastEmptyAt && typeof prisma.room?.update === 'function') {
                             await prisma.room.update({
                                 where: { id: room.id },
                                 data: { lastEmptyAt: null }
-                            }).catch(() => null)
+                            }).catch(err => {
+                                if (err.code === 'P2022' || (err.message && err.message.includes('lastEmptyAt'))) {
+                                    hasLastEmptyAtColumn = false
+                                }
+                            })
                         }
                     }
                 }

@@ -165,6 +165,42 @@ fun SettingsScreen(
                 }
 
                 item {
+                    val ctx = LocalContext.current
+                    SettingsSectionHeader("SAFETY & EMERGENCY")
+                    val emergencyInfo = remember(settingsState.emergencyCountry) {
+                        com.ridervoice.utils.EmergencyNumbers.resolve(ctx, settingsState.emergencyCountry)
+                    }
+                    val currentDisplay = when (settingsState.emergencyCountry) {
+                        "IN" -> "India (112)"
+                        "US" -> "United States (911)"
+                        "GB" -> "United Kingdom (999)"
+                        "AU" -> "Australia (000)"
+                        "JP" -> "Japan (119)"
+                        "CA" -> "Canada (911)"
+                        "OTHER" -> "Other / Global (112)"
+                        null, "" -> "Auto (${emergencyInfo.countryIso ?: "112"})"
+                        else -> "${settingsState.emergencyCountry} (${emergencyInfo.number})"
+                    }
+                    SettingsItemValue(
+                        label = "Emergency Country",
+                        value = currentDisplay,
+                        icon = Icons.Default.LocalHospital,
+                        onClick = {
+                            showOptionsDialog = "emergencyCountry" to listOf(
+                                "Auto (Device Region)",
+                                "India (112)",
+                                "United States (911)",
+                                "United Kingdom (999)",
+                                "Australia (000)",
+                                "Japan (119)",
+                                "Canada (911)",
+                                "Other / Global (112)"
+                            )
+                        }
+                    )
+                }
+
+                item {
                     SettingsSectionHeader("UPDATES")
                     SettingsItemValue(
                         label = "App Version",
@@ -258,6 +294,16 @@ fun SettingsScreen(
                     "en" -> "English"
                     else -> "System default"
                 }
+                "emergencyCountry" -> when (settingsState.emergencyCountry) {
+                    "IN" -> "India (112)"
+                    "US" -> "United States (911)"
+                    "GB" -> "United Kingdom (999)"
+                    "AU" -> "Australia (000)"
+                    "JP" -> "Japan (119)"
+                    "CA" -> "Canada (911)"
+                    "OTHER" -> "Other / Global (112)"
+                    else -> "Auto (Device Region)"
+                }
                 else              -> ""
             }
 
@@ -265,7 +311,11 @@ fun SettingsScreen(
                 onDismissRequest = { showOptionsDialog = null },
                 title = {
                     Text(
-                        text = if (key == "appLanguage") "SELECT LANGUAGE" else "SELECT OPTION",
+                        text = when (key) {
+                            "appLanguage" -> "SELECT LANGUAGE"
+                            "emergencyCountry" -> "SELECT EMERGENCY COUNTRY"
+                            else -> "SELECT OPTION"
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary
                     )

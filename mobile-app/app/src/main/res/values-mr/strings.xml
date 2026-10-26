@@ -52,6 +52,14 @@
     <string name="lobby_empty_joined">अजून कोणीही सामील झाले नाही. राइड कोड शेअर करा.</string>
     <string name="lobby_start_alone_prompt">एकटेच सुरू करायचे?</string>
     <string name="lobby_start_alone_desc">अजून कोणतेही रायडर सामील झालेले नाहीत. राइड दरम्यानही आमंत्रित करू शकता.</string>
+    <string name="lobby_failed_title">लॉबीशी कनेक्ट करणे अशक्य</string>
+    <string name="lobby_failed_desc">कनेक्शन वेळ संपली किंवा स्थापित करता आले नाही. कृपया नेटवर्क तपासा आणि पुन्हा प्रयत्न करा.</string>
+    <string name="lobby_schema_degraded">सेवा अपडेट होत आहे, कृपया थोड्या वेळाने पुन्हा प्रयत्न करा</string>
+    <string name="lobby_session_expired">सत्र संपले आहे. कृपया पुन्हा साइन इन करा.</string>
+    <string name="lobby_retrying">पुन्हा प्रयत्न करत आहे (%1$d/%2$d)...</string>
+    <string name="lobby_connecting">लॉबीशी कनेक्ट होत आहे...</string>
+    <string name="action_retry">पुन्हा प्रयत्न करा</string>
+    <string name="action_leave">सोडा</string>
 
     <!-- Ride Screen -->
     <string name="ride_screen_title">राइड स्क्रीन</string>

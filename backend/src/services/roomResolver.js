@@ -85,6 +85,39 @@ function resolverError(status, message, code) {
  * @throws {ResolverError} 404 not found, 410 ended, 403 status mismatch
  */
 let hasLkRoomNameColumn = true
+let hasLastEmptyAtColumn = true
+
+function setAvailableColumns(cols = {}) {
+    if (typeof cols.hasLkRoomName === 'boolean') hasLkRoomNameColumn = cols.hasLkRoomName
+    if (typeof cols.hasLastEmptyAt === 'boolean') hasLastEmptyAtColumn = cols.hasLastEmptyAt
+}
+
+function getAvailableColumns() {
+    return { hasLkRoomName: hasLkRoomNameColumn, hasLastEmptyAt: hasLastEmptyAtColumn }
+}
+
+async function probeColumns(client = prisma) {
+    try {
+        const rows = await client.$queryRaw`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'Room'
+        `
+        if (Array.isArray(rows) && rows.length > 0) {
+            const cols = new Set(rows.map(r => r.column_name))
+            hasLkRoomNameColumn = cols.has('lkRoomName')
+            hasLastEmptyAtColumn = cols.has('lastEmptyAt')
+            if (!hasLastEmptyAtColumn) {
+                console.warn('[roomResolver] Notice: "lastEmptyAt" column missing in Room table; lastEmptyAt queries disabled until migration.')
+            }
+            if (!hasLkRoomNameColumn) {
+                console.warn('[roomResolver] Notice: "lkRoomName" column missing in Room table; lkRoomName queries disabled until migration.')
+            }
+        }
+    } catch (_) {
+        // Fall back to dynamic P2022 detection
+    }
+}
 
 function buildBaseSelect(optsSelect = {}) {
     const base = {
@@ -101,11 +134,17 @@ function buildBaseSelect(optsSelect = {}) {
         meetupPoint: true,
         estimatedDurationMin: true,
         createdAt: true,
-        lastEmptyAt: true,
         ...optsSelect
     }
-    if (hasLkRoomNameColumn) {
+    if (hasLastEmptyAtColumn && optsSelect.lastEmptyAt !== false) {
+        base.lastEmptyAt = true
+    } else {
+        delete base.lastEmptyAt
+    }
+    if (hasLkRoomNameColumn && optsSelect.lkRoomName !== false) {
         base.lkRoomName = true
+    } else {
+        delete base.lkRoomName
     }
     return base
 }
@@ -127,9 +166,10 @@ async function resolveRoom(ref, opts = {}) {
 
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-    const queryRoom = async (withLk) => {
+    const queryRoom = async (withLk, withLastEmpty) => {
         const select = buildBaseSelect(opts.select)
         if (!withLk) delete select.lkRoomName
+        if (!withLastEmpty) delete select.lastEmptyAt
         let room = null
 
         // 1. Try exact UUID match on id
@@ -180,11 +220,33 @@ async function resolveRoom(ref, opts = {}) {
 
     let room = null
     try {
-        room = await queryRoom(hasLkRoomNameColumn)
+        room = await queryRoom(hasLkRoomNameColumn, hasLastEmptyAtColumn)
     } catch (err) {
-        if (err.code === 'P2022' || (err.message && err.message.includes('lkRoomName'))) {
-            hasLkRoomNameColumn = false
-            room = await queryRoom(false)
+        let retried = false
+        const msg = err.message || ''
+        const isP2022 = err.code === 'P2022'
+        if (isP2022 || msg.includes('lastEmptyAt') || msg.includes('lkRoomName')) {
+            if (hasLastEmptyAtColumn && (msg.includes('lastEmptyAt') || isP2022)) {
+                hasLastEmptyAtColumn = false
+                retried = true
+            }
+            if (hasLkRoomNameColumn && (msg.includes('lkRoomName') || isP2022)) {
+                hasLkRoomNameColumn = false
+                retried = true
+            }
+        }
+        if (retried) {
+            try {
+                room = await queryRoom(hasLkRoomNameColumn, hasLastEmptyAtColumn)
+            } catch (retryErr) {
+                if (hasLkRoomNameColumn || hasLastEmptyAtColumn) {
+                    hasLkRoomNameColumn = false
+                    hasLastEmptyAtColumn = false
+                    room = await queryRoom(false, false)
+                } else {
+                    throw retryErr
+                }
+            }
         } else {
             throw err
         }
@@ -328,7 +390,11 @@ module.exports = {
     isReservedName,
     ResolverError,
     resolverError,
-    invalidateRoom
+    invalidateRoom,
+    buildBaseSelect,
+    setAvailableColumns,
+    getAvailableColumns,
+    probeColumns
 }
 
 

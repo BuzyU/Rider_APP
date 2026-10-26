@@ -42,6 +42,7 @@ const { joinLimiter, recordFailedJoinCode } = require('../middleware/rateLimiter
 const { joinWithLinkToken, joinWithCode, joinAsMember, extractCleanToken } = require('../services/joinService')
 const { deleteLiveKitRoom } = require('../services/roomSweeper')
 const { setSchemaHealth } = require('./healthRoute')
+const { riderCallsign } = require('../services/identity')
 
 // --- Helpers -----------------------------------------------------------------
 
@@ -374,12 +375,12 @@ router.post('/create', async (req, res, next) => {
                         const winnerReq = await prisma.rideCreateRequest.findUnique({
                             where: {
                                 ownerId_clientRequestId: {
-                                ownerId: hostId,
-                                clientRequestId
-                            }
-                        },
-                        include: { room: true }
-                    }).catch(() => null)
+                                    ownerId: hostId,
+                                    clientRequestId
+                                }
+                            },
+                            include: { room: true }
+                        }).catch(() => null)
 
                         if (winnerReq && winnerReq.payloadHash === payloadHash && winnerReq.room) {
                             return res.status(200).json({
@@ -903,7 +904,7 @@ router.delete('/:roomRef/riders/:userId', async (req, res, next) => {
             await prisma.roomJoinToken.updateMany({
                 where: { roomId: room.id, createdById: userId, revokedAt: null },
                 data: { revokedAt: new Date() }
-            }).catch(() => {})
+            }).catch(() => { })
         }
 
         invalidateRoom(room.id)
@@ -948,7 +949,7 @@ router.post('/:roomRef/end', async (req, res, next) => {
             await prisma.roomJoinToken.updateMany({
                 where: { roomId: room.id, revokedAt: null },
                 data: { revokedAt: new Date() }
-            }).catch(() => {})
+            }).catch(() => { })
         }
 
         // Broadcast CONVOY_ENDED via LiveKit reliable data message, wait 400ms, then delete room
@@ -979,7 +980,7 @@ router.post('/:roomRef/end', async (req, res, next) => {
                         await prisma.diagnosticRun.update({
                             where: { id: activeRun.id },
                             data: { closeAt }
-                        }).catch(() => {})
+                        }).catch(() => { })
                     }
 
                     setTimeout(() => {

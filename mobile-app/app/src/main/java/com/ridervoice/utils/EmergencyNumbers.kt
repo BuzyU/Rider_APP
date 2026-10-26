@@ -4,26 +4,38 @@ import android.content.Context
 import java.util.Locale
 
 /**
- * Resolves the local emergency phone number for the rider's current country.
+ * Resolves the emergency phone number for the rider's configured country or device region.
  *
- * Country detection:
- *  Uses the device's configured locale region.
+ * Country resolution precedence:
+ *  1. User manual override in Settings (persisted in SecurePreferences)
+ *  2. Device configured locale region (Locale.getDefault().country)
+ *  3. Global fallback to [DEFAULT_NUMBER] (112)
  *
- * If the country is unknown or not listed, [DEFAULT_NUMBER] (112) is used. 112 is the GSM
- * standard and is redirected to the local emergency service by mobile networks in most countries.
+ * NOTE: Telephony subsystem APIs are deliberately omitted to prevent false-positive Play Protect
+ * toll-fraud warnings and permission triggers. Emergency numbers reflect the rider's
+ * selected emergency country or device region, and are never claimed to be live GPS-derived.
  */
 object EmergencyNumbers {
 
     const val DEFAULT_NUMBER = "112"
 
-    data class Info(val countryIso: String?, val number: String)
+    data class Info(
+        val countryIso: String?,
+        val number: String,
+        val isFallback: Boolean = false,
+        val countryName: String? = null,
+        val source: String = "FALLBACK"
+    ) {
+        val countryDisplay: String
+            get() = countryName ?: countryIso ?: "Global"
+    }
 
     /**
      * General emergency number (ambulance / road accident first) per ISO-3166 alpha-2 country.
      * Only countries that do NOT use 112 are listed; everything else falls back to 112
      * (EU members, India, Russia, Ukraine, Turkey, Indonesia, Nigeria, South Africa, etc.).
      */
-    private val NUMBERS: Map<String, String> = mapOf(
+    val NUMBERS: Map<String, String> = mapOf(
         // North & Central America
         "US" to "911", "CA" to "911", "MX" to "911", "PR" to "911", "DO" to "911",
         "PA" to "911", "CR" to "911", "SV" to "911", "GT" to "911", "HN" to "911",
@@ -64,26 +76,59 @@ object EmergencyNumbers {
         return NUMBERS[iso] ?: DEFAULT_NUMBER
     }
 
-    fun resolve(context: Context? = null): Info {
-        val iso = detectCountryIso(context)
-        return Info(iso, numberForCountry(iso))
+    fun isFallback(countryIso: String?): Boolean {
+        val iso = countryIso?.trim()?.uppercase(Locale.ROOT)
+        if (iso.isNullOrEmpty()) return true
+        return !NUMBERS.containsKey(iso)
     }
 
-    private fun detectCountryIso(context: Context?): String? {
-        if (context != null) {
+    fun resolve(context: Context? = null, overrideIso: String? = null): Info {
+        // 1. User manual override (passed directly or read from SecurePreferences)
+        val userOverride = overrideIso ?: if (context != null) {
             try {
-                val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as? android.telephony.TelephonyManager
-                val simCountry = tm?.simCountryIso
-                if (!simCountry.isNullOrBlank()) {
-                    return simCountry.uppercase(Locale.ROOT)
-                }
-                val networkCountry = tm?.networkCountryIso
-                if (!networkCountry.isNullOrBlank()) {
-                    return networkCountry.uppercase(Locale.ROOT)
-                }
-            } catch (_: Exception) {}
+                com.ridervoice.security.SecurePreferences(context).getEmergencyCountry()
+            } catch (_: Exception) {
+                null
+            }
+        } else null
+
+        if (!userOverride.isNullOrBlank()) {
+            val iso = userOverride.trim().uppercase(Locale.ROOT)
+            val number = numberForCountry(iso)
+            val isFb = isFallback(iso)
+            val name = try { Locale("", iso).displayCountry.takeIf { it.isNotBlank() } } catch (_: Exception) { null }
+            return Info(
+                countryIso = iso,
+                number = number,
+                isFallback = isFb,
+                countryName = name,
+                source = "USER_OVERRIDE"
+            )
         }
+
+        // 2. Default to device configured locale region (Locale.getDefault().country)
         val locale = Locale.getDefault().country
-        return locale.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)
+        val localeIso = locale.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)
+        if (localeIso != null) {
+            val number = numberForCountry(localeIso)
+            val isFb = isFallback(localeIso)
+            val name = try { Locale("", localeIso).displayCountry.takeIf { it.isNotBlank() } } catch (_: Exception) { null }
+            return Info(
+                countryIso = localeIso,
+                number = number,
+                isFallback = isFb,
+                countryName = name,
+                source = "DEVICE_LOCALE"
+            )
+        }
+
+        // 3. Fallback to global GSM standard 112
+        return Info(
+            countryIso = null,
+            number = DEFAULT_NUMBER,
+            isFallback = true,
+            countryName = "Global Fallback",
+            source = "FALLBACK"
+        )
     }
 }

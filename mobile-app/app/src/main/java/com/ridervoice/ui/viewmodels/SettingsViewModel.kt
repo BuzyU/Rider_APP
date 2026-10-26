@@ -21,7 +21,8 @@ data class AppSettingsState(
     val hybridVox: Boolean = true,
     val networkDiagnostics: Boolean = false,
     val shareDiagnosticsWhenHostEnabled: Boolean = true,
-    val appLanguage: String = "system"
+    val appLanguage: String = "system",
+    val emergencyCountry: String? = null
 )
 
 @HiltViewModel
@@ -50,7 +51,8 @@ class SettingsViewModel @Inject constructor(
             hybridVox = securePrefs.getBoolean("settings_hybrid_vox", true),
             networkDiagnostics = securePrefs.isNetworkDiagnosticsEnabled(),
             shareDiagnosticsWhenHostEnabled = securePrefs.isShareDiagnosticsWhenHostEnabled(),
-            appLanguage = securePrefs.getAppLanguage()
+            appLanguage = securePrefs.getAppLanguage(),
+            emergencyCountry = securePrefs.getEmergencyCountry()
         )
     }
 
@@ -148,12 +150,32 @@ class SettingsViewModel @Inject constructor(
         securePrefs.setShareDiagnosticsWhenHostEnabled(newValue)
     }
 
+    fun setEmergencyCountry(countryIso: String?) {
+        val sanitized = countryIso?.takeIf { it.isNotBlank() }?.trim()?.uppercase()
+        securePrefs.saveEmergencyCountry(sanitized)
+        _settingsState.value = _settingsState.value.copy(emergencyCountry = sanitized)
+    }
+
     fun updateSettingValue(key: String, value: String) {
         val current = _settingsState.value
         _settingsState.value = when (key) {
             "voxSensitivity" -> {
                 securePrefs.saveString("settings_vox_sensitivity", value)
                 current.copy(voxSensitivity = value)
+            }
+            "emergencyCountry" -> {
+                val iso = when (value) {
+                    "India (112)" -> "IN"
+                    "United States (911)" -> "US"
+                    "United Kingdom (999)" -> "GB"
+                    "Australia (000)" -> "AU"
+                    "Japan (119)" -> "JP"
+                    "Canada (911)" -> "CA"
+                    "Other / Global (112)" -> "OTHER"
+                    else -> null // Auto (Device Region)
+                }
+                securePrefs.saveEmergencyCountry(iso)
+                current.copy(emergencyCountry = iso)
             }
             else -> current
         }

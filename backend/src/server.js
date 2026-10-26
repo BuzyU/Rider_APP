@@ -89,14 +89,23 @@ app.use('/api/tester-application', testerRoutes)
 app.use('/api/testers', testerRoutes)
 app.use('/api/diagnostics', diagnosticRoutes)
 
-// P0-C (RV-003): Fail-closed on write operations when schema is invalid or degraded in production
+// P0-C / Fix 2: Fail-closed on write operations ONLY when database schema has a structural failure in production.
+// NEVER block emergency (SOS), auth, webhooks, or health endpoints. Data warnings do not block writes.
 app.use((req, res, next) => {
     const isWrite = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
     if (isWrite && process.env.NODE_ENV === 'production') {
-        const { schemaDegraded, ...schemaDetails } = healthRoute.getSchemaHealth()
-        if (schemaDegraded && !req.path.startsWith('/api/health') && !req.path.startsWith('/health')) {
+        const { schemaStructuralOk, ...schemaDetails } = healthRoute.getSchemaHealth()
+        const isExempt = req.path.startsWith('/api/emergency') ||
+            req.path.startsWith('/api/auth') ||
+            req.path.startsWith('/api/health') ||
+            req.path.startsWith('/health') ||
+            req.path.startsWith('/api/livekit') ||
+            req.path.startsWith('/webhook')
+
+        if (!schemaStructuralOk && !isExempt) {
+            res.set('Retry-After', '30')
             return res.status(503).json({
-                error: 'Service Unavailable: Database schema validation failed or degraded',
+                error: 'Service Unavailable: Database schema structural validation failed or degraded',
                 code: 'SCHEMA_DEGRADED',
                 details: schemaDetails
             })
@@ -131,20 +140,41 @@ async function ensureDbExtensions() {
     }
     console.log('[DB] Connectivity check passed.')
 
-    // 2. Self-healing schema synchronization (P0-C)
-    const { ensureDbSchema } = require('./services/schemaMigration')
+    // 2. Self-healing schema synchronization (Fix 2, Fix 3, Fix 4)
+    const { ensureDbSchema, assertSchema, checkUniqueViolations } = require('./services/schemaMigration')
     const { setSchemaHealth } = require('./routes/healthRoute')
+    const { probeColumns } = require('./services/roomResolver')
+
     const schemaResult = await ensureDbSchema(prisma)
-    if (!schemaResult.valid) {
-        console.error('[DB] Schema validation failed:', schemaResult.missing || schemaResult.failedStatements || schemaResult.violations)
-        setSchemaHealth(false, {
-            error: 'Database schema validation failed or degraded',
+
+    // Probe columns after schema migration attempt
+    await probeColumns(prisma).catch(() => {})
+
+    if (schemaResult.skippedDueToLock) {
+        console.warn('[DB] Advisory migration lock held by another instance; waiting 3s to re-verify schema...')
+        await new Promise(r => setTimeout(r, 3000))
+        const recheck = await assertSchema(prisma).catch(() => ({ valid: false, missing: ['recheck_failed'] }))
+        const violations = await checkUniqueViolations(prisma).catch(() => [])
+        const structuralOk = recheck.valid && (recheck.missing?.length === 0)
+        setSchemaHealth(structuralOk, {
+            structuralOk,
+            missing: recheck.missing,
+            violations,
+            message: structuralOk ? 'Schema ready (verified after concurrent repair)' : 'Schema still missing elements after concurrent repair wait'
+        })
+    } else {
+        const structuralOk = schemaResult.structuralOk !== undefined ? schemaResult.structuralOk : schemaResult.valid
+        setSchemaHealth(structuralOk, {
+            structuralOk,
             missing: schemaResult.missing,
             failedStatements: schemaResult.failedStatements,
             violations: schemaResult.violations
         })
-    } else {
-        setSchemaHealth(true)
+        if (!structuralOk) {
+            console.error('[DB] Schema structural validation failed:', schemaResult.missing || schemaResult.failedStatements)
+        } else if (schemaResult.violations && schemaResult.violations.length > 0) {
+            console.warn('[DB] Schema structural validation passed, but data warnings present:', schemaResult.violations)
+        }
     }
     return schemaResult
 }
@@ -178,44 +208,47 @@ async function recoverPendingDiagnosticCloses() {
 const PORT = process.env.PORT || 3000
 const keepAliveService = require('./services/keepAliveService')
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
-    keepAliveService.start()
-    ensureDbExtensions().then((schemaResult) => {
-        if (schemaResult && schemaResult.valid) {
-            console.log('[DB] Database schema verified.')
-        } else {
-            console.error('[DB] Database schema verification failed or degraded; readiness will report degraded (503).')
-        }
+let serverInstance = null
+if (require.main === module) {
+    serverInstance = app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`)
+        keepAliveService.start()
+        ensureDbExtensions().then((schemaResult) => {
+            if (schemaResult && schemaResult.valid) {
+                console.log('[DB] Database schema verified.')
+            } else {
+                console.error('[DB] Database schema verification failed or degraded; readiness will report degraded (503).')
+            }
 
-        // B6 – Recover pending diagnostic closes from before restart
-        recoverPendingDiagnosticCloses()
+            // B6 – Recover pending diagnostic closes from before restart
+            recoverPendingDiagnosticCloses()
 
-        // 1.6 / D3 – Stale-room sweeper (sweeps expired lobbies and abandoned active rooms)
-        const { startRoomSweeper } = require('./services/roomSweeper')
-        startRoomSweeper()
+            // 1.6 / D3 – Stale-room sweeper (sweeps expired lobbies and abandoned active rooms)
+            const { startRoomSweeper } = require('./services/roomSweeper')
+            startRoomSweeper()
 
-        // Diagnostic idle checker: 60s interval (unchanged, lightweight)
-        const idleInterval = setInterval(() => {
-            diagnosticService.checkIdleDiagnosticRuns().catch(() => {})
-        }, 60 * 1000)
-        if (idleInterval.unref) idleInterval.unref()
+            // Diagnostic idle checker: 60s interval (unchanged, lightweight)
+            const idleInterval = setInterval(() => {
+                diagnosticService.checkIdleDiagnosticRuns().catch(() => {})
+            }, 60 * 1000)
+            if (idleInterval.unref) idleInterval.unref()
 
-        // Diagnostic retention cleanup: daily
-        const retentionInterval = setInterval(() => {
-            diagnosticService.cleanOldDiagnosticRuns().catch(() => {})
-        }, 24 * 60 * 60 * 1000)
-        if (retentionInterval.unref) retentionInterval.unref()
+            // Diagnostic retention cleanup: daily
+            const retentionInterval = setInterval(() => {
+                diagnosticService.cleanOldDiagnosticRuns().catch(() => {})
+            }, 24 * 60 * 60 * 1000)
+            if (retentionInterval.unref) retentionInterval.unref()
 
-        // H12 – heartbeat log: 10s → 5min (reduces noise in Render logs)
-        const heartbeatInterval = setInterval(() => {
-            if (process.env.NODE_ENV !== 'production') return
-            console.log(`[Heartbeat] ${new Date().toISOString()} – server alive on port ${PORT}`)
-        }, 5 * 60 * 1000)
-        if (heartbeatInterval.unref) heartbeatInterval.unref()
-    }).catch((e) => {
-        console.warn('[DB] ensureDbExtensions warning:', e.message)
+            // H12 – heartbeat log: 10s → 5min (reduces noise in Render logs)
+            const heartbeatInterval = setInterval(() => {
+                if (process.env.NODE_ENV !== 'production') return
+                console.log(`[Heartbeat] ${new Date().toISOString()} – server alive on port ${PORT}`)
+            }, 5 * 60 * 1000)
+            if (heartbeatInterval.unref) heartbeatInterval.unref()
+        }).catch((e) => {
+            console.warn('[DB] ensureDbExtensions warning:', e.message)
+        })
     })
-})
+}
 
 module.exports = { app, ensureDbExtensions }

@@ -19,6 +19,7 @@ This document provides the authoritative contract for all persistent settings in
 | **Active Ride Room** | `active_ride_room` | `null` | String (Room ID) | `ActiveRideRepository` | On start/join | Server room record | Cleared on ride end/leave/isolation | `ActiveRideRepositoryTest` |
 | **Active Ride LK Room** | `active_ride_lk_room` | `null` | String (`rv_${roomId}`) | `LiveKitManager`, `JwtRoomClaimDecoder` | On connection verification | P0-A canonical room format | Cleared on ride end/leave/isolation | `RoomIdentityVerificationTest` |
 | **Device Configured** | `device_configured` | `false` | `true`, `false` | `AuthViewModel`, `NavGraph` | App startup | None | No | `DeviceSetupTest` |
+| **Emergency Country** | `emergency_country` | `null` (auto-detect device locale region) | ISO-3166 alpha-2 country (e.g. `"IN"`, `"US"`, `"GB"`) or empty for auto | `EmergencyNumbers.resolve`, `SosScreen`, `EmergencyAlertActivity` | **Live** on SOS / Emergency resolution | None (TelephonyManager strictly omitted for Play Protect safety) | **No** (Preserved across logout) | `EmergencyNumbersTest` |
 
 ## Removed Decorative Controls
 

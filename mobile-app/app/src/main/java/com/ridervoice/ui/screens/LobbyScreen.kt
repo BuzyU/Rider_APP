@@ -27,6 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.R
 import com.ridervoice.ui.components.*
 import com.ridervoice.ui.theme.*
+import com.ridervoice.ui.viewmodels.LobbyLoadState
 import com.ridervoice.ui.viewmodels.LobbyViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,6 +42,8 @@ fun LobbyScreen(
 ) {
     val context = LocalContext.current
     val lobbyStatus by viewModel.lobbyStatus.collectAsState()
+    val loadState by viewModel.loadState.collectAsState()
+    val activeRide by viewModel.activeRideState.collectAsState()
     val error by viewModel.error.collectAsState()
     val terminal by viewModel.terminal.collectAsState()
 
@@ -60,7 +63,8 @@ fun LobbyScreen(
         }
     }
 
-    val navigatedToRide = androidx.compose.runtime.saveable.rememberSaveable(lobbyStatus?.roomId ?: convoyName) {
+    val currentRoomRef = lobbyStatus?.roomId ?: activeRide?.roomId ?: convoyName
+    val navigatedToRide = androidx.compose.runtime.saveable.rememberSaveable(currentRoomRef) {
         mutableStateOf(false)
     }
 
@@ -98,7 +102,7 @@ fun LobbyScreen(
     }
 
     if (showExitDialog) {
-        val isHost = lobbyStatus?.isHost == true
+        val isHost = lobbyStatus?.isHost ?: activeRide?.isHost ?: true
         ConfirmDialog(
             title = if (isHost) "Leave ride lobby?" else "Leave this ride?",
             body = if (isHost) "Leaving the lobby will stop monitoring rider invitations. You can rejoin or start later." else "You will leave this ride lobby.",
@@ -106,7 +110,7 @@ fun LobbyScreen(
             dismissLabel = "Stay",
             onConfirm = {
                 showExitDialog = false
-                val roomRef = lobbyStatus?.roomId ?: convoyName
+                val roomRef = lobbyStatus?.roomId ?: activeRide?.roomId ?: convoyName
                 viewModel.leaveRoom(roomRef) {
                     onBackClick()
                 }
@@ -158,10 +162,13 @@ fun LobbyScreen(
     }
 
     val status = lobbyStatus
-    val isHost = status?.isHost == true
+    val effectiveDisplayName = status?.convoyName ?: activeRide?.displayName ?: convoyName
+    val effectiveJoinCode = status?.joinCode ?: activeRide?.joinCode ?: ""
+    val isHost = status?.isHost ?: activeRide?.isHost ?: true
     val accepted = status?.invites?.filter { it.status == "ACCEPTED" } ?: emptyList()
     val pending = status?.invites?.filter { it.status == "PENDING" } ?: emptyList()
     val declined = status?.invites?.filter { it.status == "DECLINED" } ?: emptyList()
+    val isFailedWithNoData = status == null && activeRide == null && loadState is LobbyLoadState.Failed
 
     Scaffold(
         modifier = Modifier
@@ -172,15 +179,23 @@ fun LobbyScreen(
                 title = {
                     Column {
                         Text(
-                            text = convoyName,
+                            text = effectiveDisplayName,
                             style = MaterialTheme.typography.titleMedium,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Waiting to start",
+                            text = when {
+                                loadState is LobbyLoadState.Failed -> stringResource(R.string.lobby_failed_title)
+                                loadState is LobbyLoadState.Retrying -> {
+                                    val r = loadState as LobbyLoadState.Retrying
+                                    stringResource(R.string.lobby_retrying, r.attempt, r.maxAttempts)
+                                }
+                                status == null -> stringResource(R.string.lobby_connecting)
+                                else -> "Waiting to start"
+                            },
                             style = MaterialTheme.typography.labelSmall,
-                            color = WarningAmber
+                            color = if (loadState is LobbyLoadState.Failed) AlertRed else WarningAmber
                         )
                     }
                 },
@@ -216,92 +231,163 @@ fun LobbyScreen(
             )
         },
         bottomBar = {
-            Surface(
-                color = GraphiteBase,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .imePadding()
-            ) {
-                Column(
+            if (!isFailedWithNoData) {
+                Surface(
+                    color = GraphiteBase,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = RvSpacing.lg, vertical = RvSpacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(RvSpacing.xs)
+                        .navigationBarsPadding()
+                        .imePadding()
                 ) {
-                    if (isHost) {
-                        PrimaryButton(
-                            text = if (accepted.isNotEmpty()) "Start ride (${accepted.size + 1} riders)" else "Start ride",
-                            onClick = {
-                                if (accepted.isEmpty()) {
-                                    showStartAloneDialog = true
-                                } else {
-                                    viewModel.startRide(convoyName, onStartSuccess = {
-                                        onStartRide(true)
-                                    })
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = RvSpacing.lg, vertical = RvSpacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(RvSpacing.xs)
+                    ) {
+                        if (isHost) {
+                            PrimaryButton(
+                                text = if (accepted.isNotEmpty()) "Start ride (${accepted.size + 1} riders)" else "Start ride",
+                                enabled = status != null,
+                                onClick = {
+                                    if (accepted.isEmpty()) {
+                                        showStartAloneDialog = true
+                                    } else {
+                                        viewModel.startRide(convoyName, onStartSuccess = {
+                                            onStartRide(true)
+                                        })
+                                    }
+                                }
+                            )
+                            SecondaryButton(
+                                text = stringResource(R.string.action_invite_friends),
+                                onClick = {
+                                    showAddRidersSheet = true
+                                    onInviteMoreClick()
+                                },
+                                leadingIcon = Icons.Default.PersonAdd
+                            )
+                        } else {
+                            Surface(
+                                color = DarkSlate,
+                                shape = RoundedCornerShape(RvRadius.md),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen.copy(alpha = 0.4f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(RvSpacing.md),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = TechGreen,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(RvSpacing.md))
+                                    Text(
+                                        text = stringResource(R.string.lobby_waiting_host),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = TechGreen,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
                                 }
                             }
-                        )
-                        SecondaryButton(
-                            text = stringResource(R.string.action_invite_friends),
-                            onClick = {
-                                showAddRidersSheet = true
-                                onInviteMoreClick()
-                            },
-                            leadingIcon = Icons.Default.PersonAdd
-                        )
-                    } else {
-                        Surface(
-                            color = DarkSlate,
-                            shape = RoundedCornerShape(RvRadius.md),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen.copy(alpha = 0.4f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(RvSpacing.md),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    color = TechGreen,
-                                    strokeWidth = 2.dp,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(RvSpacing.md))
-                                Text(
-                                    text = stringResource(R.string.lobby_waiting_host),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = TechGreen,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                            SecondaryButton(
+                                text = stringResource(R.string.action_leave),
+                                onClick = { showExitDialog = true },
+                                destructive = true
+                            )
                         }
-                        SecondaryButton(
-                            text = "Leave ride",
-                            onClick = { showExitDialog = true },
-                            destructive = true
-                        )
                     }
                 }
             }
         },
         containerColor = GraphiteBase
     ) { innerPadding ->
-        if (status == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
-                    Spacer(modifier = Modifier.height(RvSpacing.md))
-                    Text(
-                        text = stringResource(R.string.lobby_loading),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary
-                    )
+        if (status == null && activeRide == null) {
+            if (loadState is LobbyLoadState.Failed) {
+                val failed = loadState as LobbyLoadState.Failed
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(RvSpacing.lg),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = AlertRed,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(RvSpacing.md))
+                        Text(
+                            text = stringResource(R.string.lobby_failed_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(RvSpacing.sm))
+                        Text(
+                            text = if (failed.isSchemaDegraded) {
+                                stringResource(R.string.lobby_schema_degraded)
+                            } else {
+                                failed.reason.ifBlank { stringResource(R.string.lobby_failed_desc) }
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(RvSpacing.xl))
+                        if (failed.isRetryable) {
+                            PrimaryButton(
+                                text = stringResource(R.string.action_retry),
+                                onClick = { viewModel.retryPolling(convoyName) }
+                            )
+                            Spacer(modifier = Modifier.height(RvSpacing.sm))
+                        }
+                        SecondaryButton(
+                            text = stringResource(R.string.action_leave),
+                            onClick = { showExitDialog = true },
+                            destructive = true
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
+                        Spacer(modifier = Modifier.height(RvSpacing.md))
+                        val loadingText = if (loadState is LobbyLoadState.Retrying) {
+                            val retrying = loadState as LobbyLoadState.Retrying
+                            stringResource(R.string.lobby_retrying, retrying.attempt, retrying.maxAttempts)
+                        } else {
+                            stringResource(R.string.lobby_loading)
+                        }
+                        Text(
+                            text = loadingText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(RvSpacing.lg))
+                        TextButton(onClick = { showExitDialog = true }) {
+                            Text(
+                                text = stringResource(R.string.action_leave),
+                                color = TextSecondary,
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
                 }
             }
         } else {
@@ -313,8 +399,103 @@ fun LobbyScreen(
                 verticalArrangement = Arrangement.spacedBy(RvSpacing.md),
                 contentPadding = PaddingValues(vertical = RvSpacing.md)
             ) {
-                // Polling / Reconnecting banner (small inline, never FAILED TO START)
-                if (error != null) {
+                // Failure banner if polling failed after having data / shell
+                if (loadState is LobbyLoadState.Failed) {
+                    val failed = loadState as LobbyLoadState.Failed
+                    item {
+                        Surface(
+                            color = DarkSlate,
+                            shape = RoundedCornerShape(RvRadius.md),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(RvSpacing.md),
+                                verticalArrangement = Arrangement.spacedBy(RvSpacing.sm)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = AlertRed,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(RvSpacing.sm))
+                                    Text(
+                                        text = stringResource(R.string.lobby_failed_title),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = AlertRed,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Text(
+                                    text = if (failed.isSchemaDegraded) {
+                                        stringResource(R.string.lobby_schema_degraded)
+                                    } else {
+                                        failed.reason.ifBlank { stringResource(R.string.lobby_failed_desc) }
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(RvSpacing.sm)
+                                ) {
+                                    if (failed.isRetryable) {
+                                        Button(
+                                            onClick = { viewModel.retryPolling(convoyName) },
+                                            modifier = Modifier.weight(1f).height(RvTouchTarget.min),
+                                            shape = RoundedCornerShape(RvRadius.sm),
+                                            colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                                        ) {
+                                            Text(stringResource(R.string.action_retry), color = Color.White)
+                                        }
+                                    }
+                                    OutlinedButton(
+                                        onClick = { showExitDialog = true },
+                                        modifier = Modifier.weight(1f).height(RvTouchTarget.min),
+                                        shape = RoundedCornerShape(RvRadius.sm),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AlertRed)
+                                    ) {
+                                        Text(stringResource(R.string.action_leave))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if (status == null) {
+                    // Shell initial connecting banner
+                    item {
+                        Surface(
+                            color = Gunmetal,
+                            shape = RoundedCornerShape(RvRadius.sm),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = RvSpacing.md, vertical = RvSpacing.sm),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    color = NeonOrange,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(RvSpacing.sm))
+                                Text(
+                                    text = if (loadState is LobbyLoadState.Retrying) {
+                                        val retrying = loadState as LobbyLoadState.Retrying
+                                        stringResource(R.string.lobby_retrying, retrying.attempt, retrying.maxAttempts)
+                                    } else {
+                                        stringResource(R.string.lobby_connecting)
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = WarningAmber
+                                )
+                            }
+                        }
+                    }
+                } else if (error != null || loadState is LobbyLoadState.Retrying) {
+                    // Polling / Reconnecting banner
                     item {
                         Surface(
                             color = Gunmetal,
@@ -332,7 +513,12 @@ fun LobbyScreen(
                                 )
                                 Spacer(modifier = Modifier.width(RvSpacing.sm))
                                 Text(
-                                    text = "Reconnecting...",
+                                    text = if (loadState is LobbyLoadState.Retrying) {
+                                        val retrying = loadState as LobbyLoadState.Retrying
+                                        stringResource(R.string.lobby_retrying, retrying.attempt, retrying.maxAttempts)
+                                    } else {
+                                        "Reconnecting..."
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = WarningAmber
                                 )
@@ -342,21 +528,20 @@ fun LobbyScreen(
                 }
 
                 // Ride Code Card (CodeCard)
-                val joinCode = status.joinCode ?: ""
-                if (joinCode.isNotBlank()) {
+                if (effectiveJoinCode.isNotBlank()) {
                     item {
                         CodeCard(
-                            code = joinCode,
+                            code = effectiveJoinCode,
                             onCopy = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                                val clip = ClipData.newPlainText("Ride Code", joinCode)
+                                val clip = ClipData.newPlainText("Ride Code", effectiveJoinCode)
                                 clipboard?.setPrimaryClip(clip)
                                 Toast.makeText(context, "Ride code copied", Toast.LENGTH_SHORT).show()
                             },
                             onShare = {
                                 val sendIntent = Intent().apply {
                                     action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TEXT, "Join my ride '$convoyName' on RiderVoice using code: $joinCode\nhttps://ridervoice.app/j/$joinCode")
+                                    putExtra(Intent.EXTRA_TEXT, "Join my ride '$effectiveDisplayName' on RiderVoice using code: $effectiveJoinCode\nhttps://ridervoice.app/j/$effectiveJoinCode")
                                     type = "text/plain"
                                 }
                                 context.startActivity(Intent.createChooser(sendIntent, "Share ride code"))

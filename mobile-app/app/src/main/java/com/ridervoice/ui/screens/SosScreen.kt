@@ -39,7 +39,8 @@ fun SosScreen(
     onSend: () -> Unit
 ) {
     val context = LocalContext.current
-    val emergencyNumber = remember { com.ridervoice.utils.EmergencyNumbers.resolve(context).number }
+    val emergencyInfo = remember { com.ridervoice.utils.EmergencyNumbers.resolve(context) }
+    val emergencyNumber = emergencyInfo.number
     val isDark = ThemeState.isDarkTheme
     var countdown by remember { mutableIntStateOf(15) }
 
@@ -304,8 +305,13 @@ fun SosScreen(
                 ) {
                     Icon(Icons.Default.Phone, contentDescription = "Call $emergencyNumber", modifier = Modifier.size(22.dp))
                     Spacer(modifier = Modifier.width(8.dp))
+                    val callLabel = if (emergencyInfo.isFallback) {
+                        "CALL $emergencyNumber (FALLBACK) / EMERGENCY"
+                    } else {
+                        "CALL $emergencyNumber (${emergencyInfo.countryDisplay}) / EMERGENCY"
+                    }
                     Text(
-                        text = "CALL $emergencyNumber / EMERGENCY SERVICES",
+                        text = callLabel,
                         style = MaterialTheme.typography.labelLarge,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold

@@ -16,14 +16,31 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+sealed class LobbyLoadState {
+    object Loading : LobbyLoadState()
+    data class Ready(val status: LobbyStatus) : LobbyLoadState()
+    data class Retrying(val attempt: Int, val maxAttempts: Int = 5, val message: String? = null) : LobbyLoadState()
+    data class Failed(
+        val reason: String,
+        val isRetryable: Boolean = true,
+        val isSchemaDegraded: Boolean = false
+    ) : LobbyLoadState()
+    data class Terminal(val terminal: LobbyViewModel.Terminal) : LobbyLoadState()
+}
+
 @HiltViewModel
 class LobbyViewModel @Inject constructor(
     private val apiService: ApiService,
     private val activeRideRepository: com.ridervoice.state.ActiveRideRepository
 ) : ViewModel() {
 
+    private val _loadState = MutableStateFlow<LobbyLoadState>(LobbyLoadState.Loading)
+    val loadState: StateFlow<LobbyLoadState> = _loadState.asStateFlow()
+
     private val _lobbyStatus = MutableStateFlow<LobbyStatus?>(null)
     val lobbyStatus: StateFlow<LobbyStatus?> = _lobbyStatus.asStateFlow()
+
+    val activeRideState = activeRideRepository.state
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
@@ -39,17 +56,35 @@ class LobbyViewModel @Inject constructor(
 
     private var pollingJob: Job? = null
 
+    private fun computeBackoff(attempt: Int): Long {
+        return when (attempt) {
+            1 -> 2000L
+            2 -> 4000L
+            3 -> 8000L
+            else -> 15000L
+        }
+    }
+
     fun startPolling(roomName: String) {
         pollingJob?.cancel()
         pollingJob = viewModelScope.launch {
+            val startTime = System.currentTimeMillis()
             var consecutiveErrors = 0
+            var authRefreshedOnce = false
+            if (_lobbyStatus.value == null) {
+                _loadState.value = LobbyLoadState.Loading
+            }
+
             while (isActive) {
+                var delayMs = 3000L
                 try {
                     val response = apiService.getLobbyStatus(roomName)
                     val body = response.body()
                     if (response.isSuccessful && body != null) {
                         consecutiveErrors = 0
                         _lobbyStatus.value = body
+                        _loadState.value = LobbyLoadState.Ready(body)
+                        _error.value = null
 
                         activeRideRepository.enterLobby(
                             roomId = body.roomId ?: roomName,
@@ -84,45 +119,112 @@ class LobbyViewModel @Inject constructor(
                                 } catch (_: Exception) {}
                             }
                         }
-                    } else when (response.code()) {
-                        410 -> {
-                            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.ENDED_BY_HOST)
-                            _terminal.value = Terminal.ENDED
-                            val msg = com.ridervoice.ui.components.UiMessageMapper.map(410)
-                            _uiMessage.value = msg
-                            _error.value = msg.message
-                            break
-                        }
-                        403 -> {
-                            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.REMOVED)
-                            _terminal.value = Terminal.REMOVED
-                            val msg = com.ridervoice.ui.components.UiMessageMapper.map(403, "REMOVED_BY_HOST")
-                            _uiMessage.value = msg
-                            _error.value = msg.message
-                            break
-                        }
-                        404 -> {
-                            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.NOT_FOUND)
-                            _terminal.value = Terminal.NOT_FOUND
-                            val msg = com.ridervoice.ui.components.UiMessageMapper.map(404)
-                            _uiMessage.value = msg
-                            _error.value = msg.message
-                            break
-                        }
-                        else -> {
-                            consecutiveErrors++
+                    } else {
+                        val code = response.code()
+                        when (code) {
+                            410 -> {
+                                activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.ENDED_BY_HOST)
+                                _terminal.value = Terminal.ENDED
+                                _loadState.value = LobbyLoadState.Terminal(Terminal.ENDED)
+                                val msg = com.ridervoice.ui.components.UiMessageMapper.map(410)
+                                _uiMessage.value = msg
+                                _error.value = msg.message
+                                break
+                            }
+                            403 -> {
+                                activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.REMOVED)
+                                _terminal.value = Terminal.REMOVED
+                                _loadState.value = LobbyLoadState.Terminal(Terminal.REMOVED)
+                                val msg = com.ridervoice.ui.components.UiMessageMapper.map(403, "REMOVED_BY_HOST")
+                                _uiMessage.value = msg
+                                _error.value = msg.message
+                                break
+                            }
+                            404 -> {
+                                activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.NOT_FOUND)
+                                _terminal.value = Terminal.NOT_FOUND
+                                _loadState.value = LobbyLoadState.Terminal(Terminal.NOT_FOUND)
+                                val msg = com.ridervoice.ui.components.UiMessageMapper.map(404)
+                                _uiMessage.value = msg
+                                _error.value = msg.message
+                                break
+                            }
+                            401 -> {
+                                if (!authRefreshedOnce) {
+                                    authRefreshedOnce = true
+                                    val refreshed = activeRideRepository.ensureFreshToken().isSuccess
+                                    if (refreshed) {
+                                        delay(1000L)
+                                        continue
+                                    }
+                                }
+                                val msg = "Session expired. Please sign in again."
+                                _error.value = msg
+                                _loadState.value = LobbyLoadState.Failed(msg, isRetryable = false)
+                                break
+                            }
+                            429 -> {
+                                consecutiveErrors++
+                                val retryAfterSec = response.headers()["Retry-After"]?.toLongOrNull() ?: 5L
+                                delayMs = (retryAfterSec * 1000L).coerceAtLeast(2000L)
+                                val msg = "Rate limited. Retrying..."
+                                _error.value = msg
+                                if (_lobbyStatus.value == null && consecutiveErrors >= 5) {
+                                    _loadState.value = LobbyLoadState.Failed(msg, isRetryable = true)
+                                } else if (_lobbyStatus.value == null) {
+                                    _loadState.value = LobbyLoadState.Retrying(consecutiveErrors, 5, msg)
+                                }
+                            }
+                            503 -> {
+                                consecutiveErrors++
+                                val errStr = try { response.errorBody()?.string() ?: "" } catch (_: Exception) { "" }
+                                val isDegraded = errStr.contains("SCHEMA_DEGRADED") || errStr.contains("schema")
+                                val reason = if (isDegraded) "Service is updating, try again shortly" else "Server temporarily unavailable"
+                                _error.value = reason
+                                delayMs = computeBackoff(consecutiveErrors)
+                                val elapsed = System.currentTimeMillis() - startTime
+                                if (_lobbyStatus.value == null && (consecutiveErrors >= 5 || elapsed >= 30000L)) {
+                                    _loadState.value = LobbyLoadState.Failed(reason, isRetryable = true, isSchemaDegraded = isDegraded)
+                                } else if (_lobbyStatus.value == null) {
+                                    _loadState.value = LobbyLoadState.Retrying(consecutiveErrors, 5, reason)
+                                }
+                            }
+                            else -> {
+                                consecutiveErrors++
+                                val reason = "Server error ($code)"
+                                _error.value = reason
+                                delayMs = computeBackoff(consecutiveErrors)
+                                val elapsed = System.currentTimeMillis() - startTime
+                                if (_lobbyStatus.value == null && (consecutiveErrors >= 5 || elapsed >= 30000L)) {
+                                    _loadState.value = LobbyLoadState.Failed(reason, isRetryable = true)
+                                } else if (_lobbyStatus.value == null) {
+                                    _loadState.value = LobbyLoadState.Retrying(consecutiveErrors, 5, reason)
+                                }
+                            }
                         }
                     }
                 } catch (e: Exception) {
                     consecutiveErrors++
-                    val msg = com.ridervoice.ui.components.UiMessageMapper.map(500, fallback = e.localizedMessage ?: "Network connection issue")
+                    val reason = e.localizedMessage ?: "Network connection issue"
+                    val msg = com.ridervoice.ui.components.UiMessageMapper.map(500, fallback = reason)
                     _uiMessage.value = msg
                     _error.value = msg.message
+                    delayMs = computeBackoff(consecutiveErrors)
+                    val elapsed = System.currentTimeMillis() - startTime
+                    if (_lobbyStatus.value == null && (consecutiveErrors >= 5 || elapsed >= 30000L)) {
+                        _loadState.value = LobbyLoadState.Failed(reason, isRetryable = true)
+                    } else if (_lobbyStatus.value == null) {
+                        _loadState.value = LobbyLoadState.Retrying(consecutiveErrors, 5, reason)
+                    }
                 }
-                val delayMs = if (consecutiveErrors >= 3) 10000L else 3000L
                 delay(delayMs)
             }
         }
+    }
+
+    fun retryPolling(roomName: String) {
+        _loadState.value = LobbyLoadState.Loading
+        startPolling(roomName)
     }
 
     fun stopPolling() {

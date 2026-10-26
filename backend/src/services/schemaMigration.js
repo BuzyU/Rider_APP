@@ -425,7 +425,14 @@ async function checkUniqueViolations(prisma) {
 async function ensureDbSchema(prisma) {
     const { valid, missing } = await assertSchema(prisma)
     if (valid) {
-        return { valid: true, repaired: false }
+        const violations = await checkUniqueViolations(prisma)
+        return {
+            valid: violations.length === 0,
+            structuralOk: true,
+            repaired: false,
+            violations,
+            missing
+        }
     }
 
     console.warn(`[DB Schema] Missing schema elements: ${missing.join(', ')}`)
@@ -433,42 +440,29 @@ async function ensureDbSchema(prisma) {
     // Automatically apply additive self-healing DDL unless explicitly opted out via AUTO_SCHEMA_REPAIR=false
     if (process.env.AUTO_SCHEMA_REPAIR === 'false') {
         console.warn('[DB] AUTO_SCHEMA_REPAIR=false: Runtime repair is disabled. Use Prisma migrations (prisma migrate deploy) to align schema.')
-        return { valid: false, repaired: false, missing }
+        return { valid: false, structuralOk: false, repaired: false, missing }
     }
 
-    // P0-C: Transaction-scoped or safe advisory lock check
-    let hasSessionLock = false
-    let lockAcquired = false
-
-    try {
-        // Try transaction-scoped advisory lock first (safe behind connection poolers)
+    const executeRepair = async (tx) => {
         let lockRes = null
         try {
-            lockRes = await prisma.$queryRawUnsafe(`SELECT pg_try_advisory_xact_lock(${ADVISORY_LOCK_ID}) AS locked`)
+            lockRes = await tx.$queryRawUnsafe(`SELECT pg_try_advisory_xact_lock(${ADVISORY_LOCK_ID}) AS locked`)
         } catch (_) {
-            // Fall back to session advisory lock if xact_lock is not supported (or in unit test mocks)
-            lockRes = await prisma.$queryRawUnsafe(`SELECT pg_try_advisory_lock(${ADVISORY_LOCK_ID}) AS locked`)
-            hasSessionLock = true
+            try {
+                lockRes = await tx.$queryRawUnsafe(`SELECT pg_try_advisory_lock(${ADVISORY_LOCK_ID}) AS locked`)
+            } catch (err) {
+                console.warn(`[DB] Advisory lock acquisition failed (${err.message}). Refusing to run DDL without lock.`)
+                return { valid: false, structuralOk: false, repaired: false, lockError: err.message, missing }
+            }
         }
 
-        if (lockRes && lockRes[0] && lockRes[0].locked === true) {
-            lockAcquired = true
-        } else {
+        if (!lockRes || !lockRes[0] || lockRes[0].locked !== true) {
             console.warn('[DB] Another instance holds the advisory migration lock; skipping concurrent repair.')
-            return { valid: false, repaired: false, skippedDueToLock: true, missing }
+            return { valid: false, structuralOk: false, repaired: false, skippedDueToLock: true, missing }
         }
-    } catch (err) {
-        console.warn(`[DB] Advisory lock acquisition failed (${err.message}). Refusing to run DDL without lock.`)
-        return { valid: false, repaired: false, lockError: err.message, missing }
-    }
 
-    if (!lockAcquired) {
-        return { valid: false, repaired: false, skippedDueToLock: true, missing }
-    }
-
-    try {
         // Pre-check for unique constraint/index violations
-        const violations = await checkUniqueViolations(prisma)
+        const violations = await checkUniqueViolations(tx).catch(() => [])
         if (violations.length > 0) {
             for (const v of violations) {
                 console.warn(`[DB Schema Pre-Check Violation] ${v}`)
@@ -500,10 +494,20 @@ async function ensureDbSchema(prisma) {
                 continue
             }
 
+            const useSavepoint = typeof prisma.$transaction === 'function'
             try {
-                await prisma.$executeRawUnsafe(sql)
+                if (useSavepoint) {
+                    await tx.$executeRawUnsafe(`SAVEPOINT stmt_${i}`).catch(() => {})
+                }
+                await tx.$executeRawUnsafe(sql)
+                if (useSavepoint) {
+                    await tx.$executeRawUnsafe(`RELEASE SAVEPOINT stmt_${i}`).catch(() => {})
+                }
                 applied++
             } catch (err) {
+                if (useSavepoint) {
+                    await tx.$executeRawUnsafe(`ROLLBACK TO SAVEPOINT stmt_${i}`).catch(() => {})
+                }
                 failed++
                 failedStatements.push({
                     index: i,
@@ -515,10 +519,11 @@ async function ensureDbSchema(prisma) {
         }
 
         console.log(`[DB] Additive schema migrations finished: ${applied} applied, ${failed} failed.`)
-        const recheck = await assertSchema(prisma)
+        const recheck = await assertSchema(tx).catch(() => ({ valid: false, missing: ['recheck_failed'] }))
         const isOverallValid = recheck.valid && failedStatements.length === 0 && violations.length === 0
         return {
             valid: isOverallValid,
+            structuralOk: recheck.valid,
             repaired: true,
             applied,
             failed,
@@ -526,12 +531,12 @@ async function ensureDbSchema(prisma) {
             violations,
             missing: recheck.missing
         }
-    } finally {
-        if (hasSessionLock) {
-            try {
-                await prisma.$queryRawUnsafe(`SELECT pg_advisory_unlock(${ADVISORY_LOCK_ID})`)
-            } catch (_) {}
-        }
+    }
+
+    if (typeof prisma.$transaction === 'function') {
+        return await prisma.$transaction(executeRepair, { timeout: 60000, maxWait: 10000 })
+    } else {
+        return await executeRepair(prisma)
     }
 }
 

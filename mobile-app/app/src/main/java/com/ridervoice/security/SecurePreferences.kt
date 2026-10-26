@@ -24,6 +24,7 @@ open class SecurePreferences(private val context: Context? = null) {
         const val KEY_SHARE_DIAGNOSTICS_HOST_ENABLED = "share_diagnostics_host_enabled"
         const val KEY_DIAGNOSTICS_CONSENT_SHOWN = "diagnostics_consent_shown"
         const val KEY_APP_LANGUAGE = "app_language"
+        const val KEY_EMERGENCY_COUNTRY = "emergency_country"
 
         private fun createSafePreferences(context: Context): SharedPreferences {
             return try {
@@ -91,14 +92,39 @@ open class SecurePreferences(private val context: Context? = null) {
 
     open fun clear() {
         val lang = getAppLanguage()
+        val emergencyCountry = getEmergencyCountry()
         val p = prefs ?: run {
             memoryStore.clear()
             memoryStore[KEY_APP_LANGUAGE] = lang
+            if (emergencyCountry != null) memoryStore[KEY_EMERGENCY_COUNTRY] = emergencyCountry
             return
         }
         runCatching {
-            p.edit().clear().putString(KEY_APP_LANGUAGE, lang).apply()
+            val editor = p.edit().clear().putString(KEY_APP_LANGUAGE, lang)
+            if (emergencyCountry != null) editor.putString(KEY_EMERGENCY_COUNTRY, emergencyCountry)
+            editor.apply()
         }
+    }
+
+    open fun saveEmergencyCountry(countryIso: String?) {
+        val sanitized = countryIso?.takeIf { it.isNotBlank() }?.trim()?.uppercase()
+        val p = prefs ?: run {
+            if (sanitized == null) memoryStore.remove(KEY_EMERGENCY_COUNTRY)
+            else memoryStore[KEY_EMERGENCY_COUNTRY] = sanitized
+            return
+        }
+        runCatching {
+            if (sanitized == null) {
+                p.edit().remove(KEY_EMERGENCY_COUNTRY).apply()
+            } else {
+                p.edit().putString(KEY_EMERGENCY_COUNTRY, sanitized).apply()
+            }
+        }
+    }
+
+    open fun getEmergencyCountry(): String? {
+        val p = prefs ?: return memoryStore[KEY_EMERGENCY_COUNTRY] as? String
+        return runCatching { p.getString(KEY_EMERGENCY_COUNTRY, null) }.getOrNull()
     }
 
     open fun saveAppLanguage(lang: String) {

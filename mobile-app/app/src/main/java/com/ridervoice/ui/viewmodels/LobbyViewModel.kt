@@ -23,7 +23,8 @@ sealed class LobbyLoadState {
     data class Failed(
         val reason: String,
         val isRetryable: Boolean = true,
-        val isSchemaDegraded: Boolean = false
+        val isSchemaDegraded: Boolean = false,
+        val requestId: String? = null
     ) : LobbyLoadState()
     data class Terminal(val terminal: LobbyViewModel.Terminal) : LobbyLoadState()
 }
@@ -160,43 +161,52 @@ class LobbyViewModel @Inject constructor(
                                 }
                                 val msg = "Session expired. Please sign in again."
                                 _error.value = msg
-                                _loadState.value = LobbyLoadState.Failed(msg, isRetryable = false)
+                                val reqId = response.headers()["X-Request-Id"]
+                                _loadState.value = LobbyLoadState.Failed(msg, isRetryable = false, requestId = reqId)
                                 break
                             }
                             429 -> {
                                 consecutiveErrors++
+                                val reqId = response.headers()["X-Request-Id"]
                                 val retryAfterSec = response.headers()["Retry-After"]?.toLongOrNull() ?: 5L
                                 delayMs = (retryAfterSec * 1000L).coerceAtLeast(2000L)
                                 val msg = "Rate limited. Retrying..."
                                 _error.value = msg
                                 if (_lobbyStatus.value == null && consecutiveErrors >= 5) {
-                                    _loadState.value = LobbyLoadState.Failed(msg, isRetryable = true)
+                                    _loadState.value = LobbyLoadState.Failed(msg, isRetryable = true, requestId = reqId)
                                 } else if (_lobbyStatus.value == null) {
                                     _loadState.value = LobbyLoadState.Retrying(consecutiveErrors, 5, msg)
                                 }
                             }
                             503 -> {
                                 consecutiveErrors++
+                                val headerReqId = response.headers()["X-Request-Id"]
                                 val errStr = try { response.errorBody()?.string() ?: "" } catch (_: Exception) { "" }
+                                val bodyReqId = try { org.json.JSONObject(errStr).optString("requestId", null) } catch (_: Exception) { null }
+                                val reqId = headerReqId ?: bodyReqId
                                 val isDegraded = errStr.contains("SCHEMA_DEGRADED") || errStr.contains("schema")
                                 val reason = if (isDegraded) "Service is updating, try again shortly" else "Server temporarily unavailable"
                                 _error.value = reason
                                 delayMs = computeBackoff(consecutiveErrors)
                                 val elapsed = System.currentTimeMillis() - startTime
                                 if (_lobbyStatus.value == null && (consecutiveErrors >= 5 || elapsed >= 30000L)) {
-                                    _loadState.value = LobbyLoadState.Failed(reason, isRetryable = true, isSchemaDegraded = isDegraded)
+                                    _loadState.value = LobbyLoadState.Failed(reason, isRetryable = true, isSchemaDegraded = isDegraded, requestId = reqId)
                                 } else if (_lobbyStatus.value == null) {
                                     _loadState.value = LobbyLoadState.Retrying(consecutiveErrors, 5, reason)
                                 }
                             }
                             else -> {
                                 consecutiveErrors++
+                                val headerReqId = response.headers()["X-Request-Id"]
+                                val errStr = try { response.errorBody()?.string() ?: "" } catch (_: Exception) { "" }
+                                val bodyReqId = try { org.json.JSONObject(errStr).optString("requestId", null) } catch (_: Exception) { null }
+                                val reqId = headerReqId ?: bodyReqId
                                 val reason = "Server error ($code)"
                                 _error.value = reason
                                 delayMs = computeBackoff(consecutiveErrors)
                                 val elapsed = System.currentTimeMillis() - startTime
                                 if (_lobbyStatus.value == null && (consecutiveErrors >= 5 || elapsed >= 30000L)) {
-                                    _loadState.value = LobbyLoadState.Failed(reason, isRetryable = true)
+                                    _loadState.value = LobbyLoadState.Failed(reason, isRetryable = true, requestId = reqId)
                                 } else if (_lobbyStatus.value == null) {
                                     _loadState.value = LobbyLoadState.Retrying(consecutiveErrors, 5, reason)
                                 }

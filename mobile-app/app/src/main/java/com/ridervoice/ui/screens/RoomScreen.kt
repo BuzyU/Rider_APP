@@ -206,8 +206,6 @@ fun RoomScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(GraphiteBase)
-            .statusBarsPadding()
-            .navigationBarsPadding()
             .imePadding(),
         topBar = {
             RideTopBar(
@@ -336,7 +334,9 @@ fun RoomScreen(
                 isHost = isHost,
                 remoteLocations = remoteLocations,
                 currentLocation = currentLocation,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .defaultMinSize(minHeight = 120.dp)
             )
         }
     }

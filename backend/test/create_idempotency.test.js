@@ -308,7 +308,7 @@ describe('P0 Workstream 1: Durable Create Idempotency (RM-2, RM-3, RM-7, SEC-3)'
         assert.strictEqual(bodyB.joinCode, undefined, 'Must not leak joinCode of the existing room')
     })
 
-    it('creates ride successfully when RideCreateRequest table does not exist in DB (P2021)', async () => {
+    it('returns 503 SCHEMA_DEGRADED without creating non-canonical room when RideCreateRequest table does not exist (P2021)', async () => {
         currentUser = { uid: 'owner_fallback_p2021', name: 'Fallback Rider', email: 'fallback@test.com' }
         const origFindUnique = prisma.rideCreateRequest.findUnique
         const origCreate = prisma.rideCreateRequest.create
@@ -329,30 +329,16 @@ describe('P0 Workstream 1: Durable Create Idempotency (RM-2, RM-3, RM-7, SEC-3)'
                     clientRequestId: clientReqId
                 })
             })
-            assert.strictEqual(res1.status, 201)
+            assert.strictEqual(res1.status, 503, 'P2021 structural failure must return 503 SCHEMA_DEGRADED')
             const body1 = await res1.json()
-            assert.ok(body1.roomId)
-            assert.strictEqual(body1.convoyName, 'Resilient Ride P2021')
-
-            // Replay with in-memory fallback should return 200
-            const res2 = await fetch(`${baseUrl}/api/lobby/create`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    convoyName: 'Resilient Ride P2021',
-                    clientRequestId: clientReqId
-                })
-            })
-            assert.strictEqual(res2.status, 200)
-            const body2 = await res2.json()
-            assert.strictEqual(body2.roomId, body1.roomId)
+            assert.strictEqual(body1.code, 'SCHEMA_DEGRADED')
         } finally {
             prisma.rideCreateRequest.findUnique = origFindUnique
             prisma.rideCreateRequest.create = origCreate
         }
     })
 
-    it('creates ride successfully when lkRoomName column does not exist in DB (P2022)', async () => {
+    it('returns 503 SCHEMA_DEGRADED without creating non-canonical room when lkRoomName column does not exist (P2022)', async () => {
         currentUser = { uid: 'owner_fallback_p2022', name: 'Fallback Rider 2', email: 'fallback2@test.com' }
         const origRoomCreate = prisma.room.create
 
@@ -377,10 +363,9 @@ describe('P0 Workstream 1: Durable Create Idempotency (RM-2, RM-3, RM-7, SEC-3)'
                     clientRequestId: 'p2022_req_test_1'
                 })
             })
-            assert.strictEqual(res.status, 201)
+            assert.strictEqual(res.status, 503, 'P2022 structural failure must return 503 SCHEMA_DEGRADED')
             const body = await res.json()
-            assert.ok(body.roomId)
-            assert.strictEqual(body.convoyName, 'Resilient Ride P2022')
+            assert.strictEqual(body.code, 'SCHEMA_DEGRADED')
         } finally {
             prisma.room.create = origRoomCreate
         }

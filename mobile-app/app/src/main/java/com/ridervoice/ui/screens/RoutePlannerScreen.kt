@@ -392,7 +392,7 @@ fun RoutePlannerScreen(
         // Nearby Active Squad Riders
         if (uiState.nearbyRiders.isNotEmpty()) {
             Text(
-                text = "NEARBY ACTIVE SQUAD RIDERS",
+                text = androidx.compose.ui.res.stringResource(R.string.route_nearby_riders_simulated).uppercase(),
                 color = TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 letterSpacing = 1.sp,

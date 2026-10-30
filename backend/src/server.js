@@ -33,9 +33,12 @@ const lobbyRoutes = require('./routes/lobbyRoutes')
 const emergencyRoutes = require('./routes/emergencyRoutes')
 const diagnosticRoutes = require('./routes/diagnosticRoutes')
 const testerRoutes = require('./routes/testerRoutes')
+const requestIdMiddleware = require('./middleware/requestIdMiddleware')
 
 const app = express()
 app.set('trust proxy', 1)
+
+app.use(requestIdMiddleware)
 
 app.use((req, res, next) => {
     res.setHeader('Connection', 'keep-alive')
@@ -133,12 +136,20 @@ const diagnosticService = require('./services/diagnosticService')
  * schema synchronizations if migrations were skipped (e.g. on Render with pooled connections).
  */
 async function ensureDbExtensions() {
-    // 1. Simple connectivity check – fail fast on misconfigured DATABASE_URL
+    // 1. Simple connectivity check and latency measurement (V3-5)
+    const serverRegion = process.env.RENDER_REGION || process.env.REGION || process.env.FLY_REGION || 'local'
+    const dbRegion = process.env.DB_REGION || 'unknown'
+    const dbStartTime = Date.now()
     const result = await prisma.$queryRaw`SELECT 1 AS ok`
+    const dbLatencyMs = Date.now() - dbStartTime
+
     if (!result || result[0]?.ok !== 1) {
         throw new Error('Database connectivity check returned unexpected result')
     }
-    console.log('[DB] Connectivity check passed.')
+    console.log(`[Startup] Server region: ${serverRegion}, DB region: ${dbRegion}, Measured DB latency: ${dbLatencyMs}ms`)
+    if (dbLatencyMs > 500) {
+        console.warn(`[Startup Warning] High DB latency detected (${dbLatencyMs}ms). Co-locating Server and Database regions is strongly recommended.`)
+    }
 
     // 2. Self-healing schema synchronization (Fix 2, Fix 3, Fix 4)
     const { ensureDbSchema, assertSchema, checkUniqueViolations } = require('./services/schemaMigration')
@@ -210,6 +221,22 @@ const keepAliveService = require('./services/keepAliveService')
 
 let serverInstance = null
 if (require.main === module) {
+    process.on('uncaughtException', (err) => {
+        console.error('[FATAL UNCAUGHT EXCEPTION]', JSON.stringify({
+            error: err?.message || String(err),
+            stack: err?.stack
+        }))
+        process.exit(1)
+    })
+
+    process.on('unhandledRejection', (reason) => {
+        console.error('[FATAL UNHANDLED REJECTION]', JSON.stringify({
+            reason: reason?.message || String(reason),
+            stack: reason?.stack
+        }))
+        process.exit(1)
+    })
+
     serverInstance = app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`)
         keepAliveService.start()

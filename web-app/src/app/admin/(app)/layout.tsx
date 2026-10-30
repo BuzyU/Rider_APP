@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { Cormorant_Garamond, IBM_Plex_Sans } from "next/font/google";
-import { adminAuth } from "@/utils/firebase/admin";
+import { requireAdminPage } from "@/lib/auth/requireAdminPage";
 import { supabaseAdmin } from "@/utils/supabase/admin";
 import "../admin.css";
 
@@ -25,27 +23,7 @@ export default async function AdminAppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("__session")?.value;
-
-  if (!sessionCookie) {
-    redirect("/admin/login");
-  }
-
-  try {
-    const decoded = await adminAuth().verifySessionCookie(sessionCookie, true);
-    const { data: user } = await supabaseAdmin
-      .from("User")
-      .select("role")
-      .or(`id.eq.${decoded.uid},email.eq.${decoded.email ?? ""}`)
-      .maybeSingle();
-
-    if (!user || user.role !== "ADMIN") {
-      redirect("/admin/login?error=forbidden");
-    }
-  } catch {
-    redirect("/admin/login");
-  }
+  await requireAdminPage();
 
   let userCount: number | null = null;
   let rideCount: number | null = null;

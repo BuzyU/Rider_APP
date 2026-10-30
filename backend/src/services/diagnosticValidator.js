@@ -136,5 +136,7 @@ function createValidationError(message) {
 
 module.exports = {
     MAX_BATCH_ROWS,
+    VALID_NETWORK_TYPES,
+    VALID_THERMAL_STATUSES,
     validateBatchPayload
 }

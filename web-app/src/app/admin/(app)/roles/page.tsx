@@ -1,8 +1,10 @@
+import { requireAdminPage } from "@/lib/auth/requireAdminPage";
 import { supabaseAdmin } from "@/utils/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminRolesPage() {
+  await requireAdminPage();
   const [adminCount, customerCount] = await Promise.all([
     supabaseAdmin
       .from("User")

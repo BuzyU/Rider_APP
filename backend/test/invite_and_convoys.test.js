@@ -22,8 +22,17 @@ describe('Invites Response and Convoy Name Disambiguation', () => {
         originals.rideInviteUpdateMany = prisma.rideInvite.updateMany
         originals.userFindUnique = prisma.user.findUnique
         originals.roomFindUnique = prisma.room.findUnique
+        originals.roomFindFirst = prisma.room.findFirst
         originals.roomCreate = prisma.room.create
         originals.diagnosticRunFindFirst = prisma.diagnosticRun.findFirst
+
+        prisma.room.findFirst = async ({ where }) => {
+            const name = where?.name?.equals || where?.name
+            if (name) {
+                return prisma.room.findUnique({ where: { name } })
+            }
+            return null
+        }
 
         app = express()
         app.use(express.json())
@@ -49,6 +58,7 @@ describe('Invites Response and Convoy Name Disambiguation', () => {
         prisma.rideInvite.updateMany = originals.rideInviteUpdateMany
         prisma.user.findUnique = originals.userFindUnique
         prisma.room.findUnique = originals.roomFindUnique
+        prisma.room.findFirst = originals.roomFindFirst
         prisma.room.create = originals.roomCreate
         prisma.diagnosticRun.findFirst = originals.diagnosticRunFindFirst
 

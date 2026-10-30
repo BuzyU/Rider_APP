@@ -27,6 +27,8 @@ import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
 import com.ridervoice.ui.viewmodels.SettingsViewModel
 import com.ridervoice.ui.viewmodels.UpdateViewModel
+import androidx.compose.ui.res.stringResource
+import com.ridervoice.R
 import com.ridervoice.ui.components.UpdateDialog
 
 @Composable
@@ -36,6 +38,7 @@ fun SettingsScreen(
     updateViewModel: UpdateViewModel = hiltViewModel(),
     onBackClick: () -> Unit,
     onNavigateToAccount: () -> Unit = {},
+    onDeviceSetupClick: () -> Unit = {},
     onSignOutSuccess: () -> Unit = {}
 ) {
     val settingsState by settingsViewModel.settingsState.collectAsState()
@@ -115,6 +118,12 @@ fun SettingsScreen(
 
                 item {
                     SettingsSectionHeader("AUDIO")
+                    SettingsItemAction(
+                        label = stringResource(R.string.settings_headset_setup_title),
+                        subtitle = stringResource(R.string.settings_headset_setup_subtitle),
+                        icon = Icons.Default.HeadsetMic,
+                        onClick = onDeviceSetupClick
+                    )
                     SettingsItemValue(
                         label = "VOX Sensitivity",
                         value = settingsState.voxSensitivity,
@@ -492,6 +501,60 @@ fun SettingsItemValue(
                 Spacer(modifier = Modifier.width(6.dp))
                 Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
             }
+        }
+    }
+}
+
+@Composable
+fun SettingsItemAction(
+    label: String,
+    subtitle: String? = null,
+    icon: ImageVector = Icons.Default.Settings,
+    onClick: () -> Unit = {}
+) {
+    Surface(
+        color = DarkSlate,
+        shape = RoundedCornerShape(10.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Gunmetal),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(18.dp))
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column {
+                    Text(
+                        text = label,
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontSize = 14.sp
+                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            text = subtitle,
+                            color = TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
         }
     }
 }

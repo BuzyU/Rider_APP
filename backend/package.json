@@ -10,6 +10,7 @@
     "build": "prisma generate",
     "postinstall": "prisma generate",
     "test": "node --test --test-concurrency=1 test/*.test.js",
+    "lint": "eslint src",
     "diag:test-email": "node scripts/test_email.js"
   },
   "dependencies": {
@@ -25,6 +26,7 @@
     "prisma": "^5.14.0"
   },
   "devDependencies": {
-    "embedded-postgres": "^18.4.0-beta.17"
+    "embedded-postgres": "^18.4.0-beta.17",
+    "eslint": "^8.57.1"
   }
 }

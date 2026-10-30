@@ -1,9 +1,11 @@
+import { requireAdminPage } from "@/lib/auth/requireAdminPage";
 import UsersTable from "./UsersTable";
 import { supabaseAdmin } from "@/utils/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminUsersPage() {
+  await requireAdminPage();
   const { data: users } = await supabaseAdmin
     .from("User")
     .select("id, email, handle, displayName, role, createdAt")

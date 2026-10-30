@@ -1,8 +1,10 @@
+import { requireAdminPage } from "@/lib/auth/requireAdminPage";
 import { supabaseAdmin } from "@/utils/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminRoomsPage() {
+  await requireAdminPage();
   const { data: rooms } = await supabaseAdmin
     .from("Room")
     .select("id, name, ownerId, createdAt")

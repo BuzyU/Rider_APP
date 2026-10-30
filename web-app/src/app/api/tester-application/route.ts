@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/utils/supabase/admin';
 import { sendSmtpMail } from '@/lib/email/smtpClient';
 import { buildTesterWelcomeEmail } from '@/lib/email/templates';
+import { rateLimit, clientIp } from '@/lib/rateLimit';
 
 const DEFAULT_RELEASE = {
   version: 'v0.0.3.19',
@@ -26,7 +27,7 @@ async function getLatestRelease() {
       },
       next: { revalidate: 3600 },
       signal: controller.signal
-    } as any);
+    } as RequestInit & { next?: { revalidate: number } });
     clearTimeout(timeout);
 
     if (res.ok) {
@@ -53,92 +54,122 @@ async function getLatestRelease() {
   return DEFAULT_RELEASE;
 }
 
+
+const MAX = { name: 100, email: 254, phone: 30, deviceModel: 100, motorcycleModel: 100, experienceNotes: 2000 };
+const EMAIL_RE = /^[a-zA-Z0-9_%+-]+(?:\.[a-zA-Z0-9_%+-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+
+function optionalText(value: unknown, max: number): string | null | undefined {
+  // undefined => invalid; null => absent; string => trimmed value
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || value.length > max) return undefined;
+  return value.trim() || null;
+}
+
+const fail = (status: number, error: string) => NextResponse.json({ error }, { status });
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { name, email, phone, deviceModel, motorcycleModel, experienceNotes } = body;
-
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Please enter your name.' },
-        { status: 400 }
-      );
+    if (!rateLimit(`tester:ip:${clientIp(request)}`, 5, 10 * 60_000)) {
+      return fail(429, 'Too many requests. Please try again later.');
     }
 
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      return NextResponse.json(
-        { error: 'Please enter a valid email address.' },
-        { status: 400 }
-      );
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return fail(400, 'Invalid request body.');
+    }
+    if (!body || typeof body !== 'object') return fail(400, 'Invalid request body.');
+    const { name, email, phone, deviceModel, motorcycleModel, experienceNotes } = body;
+
+    if (typeof name !== 'string' || name.trim().length === 0 || name.length > MAX.name) {
+      return fail(400, 'Please enter your name.');
+    }
+    if (typeof email !== 'string' || email.length > MAX.email || !EMAIL_RE.test(email.trim())) {
+      return fail(400, 'Please enter a valid email address.');
+    }
+
+    const phoneV = optionalText(phone, MAX.phone);
+    const deviceV = optionalText(deviceModel, MAX.deviceModel);
+    const motoV = optionalText(motorcycleModel, MAX.motorcycleModel);
+    const notesV = optionalText(experienceNotes, MAX.experienceNotes);
+    if ([phoneV, deviceV, motoV, notesV].includes(undefined)) {
+      return fail(400, 'One or more fields are invalid or too long.');
     }
 
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedName = name.trim();
+
+    if (!rateLimit(`tester:email:${normalizedEmail}`, 3, 60 * 60_000)) {
+      return fail(429, 'Too many requests. Please try again later.');
+    }
+
     const release = await getLatestRelease();
+    const now = new Date().toISOString();
+    const fields = {
+      name: normalizedName,
+      phone: phoneV,
+      device_model: deviceV,
+      motorcycle_model: motoV,
+      experience_notes: notesV,
+      apk_version: release.version,
+      updated_at: now,
+    };
 
-    try {
-      const { data: existing, error: selectErr } = await supabaseAdmin
+    const { data: existing, error: selectErr } = await supabaseAdmin
+      .from('tester_applications')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (selectErr) {
+      console.error('Tester application select failed:', selectErr);
+      return fail(503, 'Service temporarily unavailable. Please try again.');
+    }
+
+    let alreadyApplied = false;
+    if (existing) {
+      const { error: updateErr } = await supabaseAdmin
         .from('tester_applications')
-        .select('id, download_count')
-        .eq('email', normalizedEmail)
-        .maybeSingle();
-
-      if (existing) {
-        await supabaseAdmin
-          .from('tester_applications')
-          .update({
-            name: normalizedName,
-            phone: phone?.trim() || null,
-            device_model: deviceModel?.trim() || null,
-            motorcycle_model: motorcycleModel?.trim() || null,
-            experience_notes: experienceNotes?.trim() || null,
-            apk_version: release.version,
-            download_count: (existing.download_count || 1) + 1,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existing.id);
-      } else if (!selectErr) {
-        await supabaseAdmin
-          .from('tester_applications')
-          .insert([
-            {
-              name: normalizedName,
-              email: normalizedEmail,
-              phone: phone?.trim() || null,
-              device_model: deviceModel?.trim() || null,
-              motorcycle_model: motorcycleModel?.trim() || null,
-              experience_notes: experienceNotes?.trim() || null,
-              apk_version: release.version,
-              status: 'PENDING',
-              download_count: 1,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }
-          ]);
+        .update(fields)
+        .eq('id', existing.id);
+      if (updateErr) {
+        console.error('Tester application update failed:', updateErr);
+        return fail(503, 'Service temporarily unavailable. Please try again.');
       }
-    } catch (dbError) {
-      console.warn('Warning: Supabase write failed:', dbError);
+      alreadyApplied = true;
+    } else {
+      const { error: insertErr } = await supabaseAdmin
+        .from('tester_applications')
+        .insert([{ ...fields, email: normalizedEmail, status: 'PENDING', download_count: 1, created_at: now }]);
+      if (insertErr?.code === '23505') {
+        alreadyApplied = true; // concurrent duplicate: idempotent success, no second email
+      } else if (insertErr) {
+        console.error('Tester application insert failed:', insertErr);
+        return fail(503, 'Service temporarily unavailable. Please try again.');
+      }
     }
 
     let emailSent = false;
     let emailMessageId: string | undefined;
-    try {
-      const emailPayload = buildTesterWelcomeEmail({
-        name: normalizedName,
-        email: normalizedEmail,
-        version: release.version,
-      });
-
-      const res = await sendSmtpMail({
-        to: normalizedEmail,
-        subject: emailPayload.subject,
-        html: emailPayload.html,
-        text: emailPayload.text,
-      });
-      emailSent = res.success;
-      emailMessageId = res.messageId;
-    } catch (mailError) {
-      console.warn(`[SMTP Warning] Failed to send confirmation email to ${normalizedEmail}:`, mailError);
+    if (!alreadyApplied) {
+      try {
+        const emailPayload = buildTesterWelcomeEmail({
+          name: normalizedName,
+          email: normalizedEmail,
+          version: release.version,
+        });
+        const res = await sendSmtpMail({
+          to: normalizedEmail,
+          subject: emailPayload.subject,
+          html: emailPayload.html,
+          text: emailPayload.text,
+        });
+        emailSent = res.success;
+        emailMessageId = res.messageId;
+      } catch (mailError) {
+        console.warn('[SMTP Warning] Failed to send confirmation email:', mailError);
+      }
     }
 
     return NextResponse.json({
@@ -146,46 +177,15 @@ export async function POST(request: Request) {
       message: 'Application received! You are on our priority waitlist.',
       release,
       emailSent,
-      emailMessageId
+      emailMessageId,
     });
   } catch (error: unknown) {
     console.error('Tester application API error:', error);
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    return fail(500, 'Internal server error');
   }
 }
 
 export async function GET() {
   const release = await getLatestRelease();
   return NextResponse.json({ release });
-}
-
-export async function PATCH(request: Request) {
-  try {
-    const { id, status } = await request.json();
-
-    if (!id || !status || !['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
-      return NextResponse.json(
-        { error: 'Valid application id and status (PENDING, APPROVED, REJECTED) are required.' },
-        { status: 400 }
-      );
-    }
-
-    const { error } = await supabaseAdmin
-      .from('tester_applications')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, id, status });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
 }

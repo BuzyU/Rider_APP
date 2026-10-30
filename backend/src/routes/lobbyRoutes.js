@@ -131,8 +131,7 @@ router.post('/create', async (req, res, next) => {
         allowSolo
     })
 
-    let rideCreateRequestTableUnavailable = false
-    // 1. Check durable idempotency if clientRequestId is provided
+    // 1. Check durable idempotency if clientRequestId is provided (V3-4)
     if (clientRequestId && typeof clientRequestId === 'string') {
         try {
             if (typeof prisma.rideCreateRequest?.findUnique === 'function') {
@@ -172,6 +171,7 @@ router.post('/create', async (req, res, next) => {
                         return res.status(200).json({
                             roomId: existingReq.room.id,
                             convoyName: existingReq.room.name,
+                            lkRoomName: existingReq.room.lkRoomName || `rv_${existingReq.room.id}`,
                             hostId: existingReq.room.ownerId,
                             diagnosticsEnabled: existingReq.room.diagnosticsEnabled,
                             joinCode: existingReq.room.joinCode,
@@ -184,22 +184,16 @@ router.post('/create', async (req, res, next) => {
                 }
             }
         } catch (err) {
-            if (err.code === 'P2021' || (err.message && err.message.includes('RideCreateRequest'))) {
-                rideCreateRequestTableUnavailable = true
-            }
-            console.warn('[LobbyCreate] Idempotency lookup notice:', err.message)
-        }
-
-        // Fallback to in-memory idempotency cache if DB lookup didn't match or failed
-        if (inMemoryFallbackRequests.has(`${hostId}:${clientRequestId}`)) {
-            const cached = inMemoryFallbackRequests.get(`${hostId}:${clientRequestId}`)
-            if (cached.payloadHash !== payloadHash) {
-                return res.status(409).json({
-                    error: 'Idempotency key reused with different request payload',
-                    code: 'IDEMPOTENCY_KEY_REUSED'
+            if (err.code === 'P2021' || err.code === 'P2022' || (err.message && err.message.includes('RideCreateRequest'))) {
+                setSchemaHealth(false, { error: 'Structural failure: RideCreateRequest table unavailable' })
+                res.set('Retry-After', '30')
+                return res.status(503).json({
+                    error: 'Service Unavailable: Database schema structural validation failed or degraded',
+                    code: 'SCHEMA_DEGRADED',
+                    details: { error: err.message }
                 })
             }
-            return res.status(200).json(cached.response)
+            console.warn('[LobbyCreate] Idempotency lookup notice:', err.message)
         }
     }
 
@@ -253,119 +247,57 @@ router.post('/create', async (req, res, next) => {
         // P0-A (F-01): Canonical, unique, immutable LiveKit room identity for all newly created rooms
         const initialLkRoomName = `rv_${newRoomId}`
 
-        const createRoomRecord = async (client, withLkRoomName) => {
-            const data = {
-                id: newRoomId,
-                name: finalConvoyName,
-                ownerId: hostId,
-                diagnosticsEnabled: diagBool,
-                joinCode,
-                origin: origin ? origin.trim() : null,
-                destination: destination ? destination.trim() : null,
-                meetupPoint: meetupPoint ? meetupPoint.trim() : null,
-                estimatedDurationMin: estimatedDurationMin ? parseInt(estimatedDurationMin, 10) : null
-            }
-            const select = {
-                id: true,
-                name: true,
-                ownerId: true,
-                diagnosticsEnabled: true,
-                joinCode: true,
-                origin: true,
-                destination: true,
-                meetupPoint: true,
-                estimatedDurationMin: true
-            }
-            if (withLkRoomName) {
-                data.lkRoomName = initialLkRoomName
-                select.lkRoomName = true
-            }
-            const created = await client.room.create({ data, select })
-            if (!created.lkRoomName) {
-                created.lkRoomName = initialLkRoomName
-            }
-            return created
+        const roomData = {
+            id: newRoomId,
+            name: finalConvoyName,
+            lkRoomName: initialLkRoomName,
+            ownerId: hostId,
+            diagnosticsEnabled: diagBool,
+            joinCode,
+            origin: origin ? origin.trim() : null,
+            destination: destination ? destination.trim() : null,
+            meetupPoint: meetupPoint ? meetupPoint.trim() : null,
+            estimatedDurationMin: estimatedDurationMin ? parseInt(estimatedDurationMin, 10) : null
+        }
+        const roomSelect = {
+            id: true,
+            name: true,
+            ownerId: true,
+            diagnosticsEnabled: true,
+            joinCode: true,
+            origin: true,
+            destination: true,
+            meetupPoint: true,
+            estimatedDurationMin: true,
+            lkRoomName: true
         }
 
         let room
         try {
-            let createdInTx = false
-            if (clientRequestId && !rideCreateRequestTableUnavailable && typeof prisma.$transaction === 'function') {
-                try {
-                    room = await prisma.$transaction(async (tx) => {
-                        let createdRoom
-                        try {
-                            createdRoom = await createRoomRecord(tx, true)
-                        } catch (createErr) {
-                            if (createErr.code === 'P2022' || (createErr.message && createErr.message.includes('lkRoomName'))) {
-                                console.error('[LobbyCreate] Schema degraded: lkRoomName column missing in DB; creating without lkRoomName')
-                                setSchemaHealth(false, { error: 'Missing lkRoomName column in database' })
-                                createdRoom = await createRoomRecord(tx, false)
-                            } else {
-                                throw createErr
-                            }
-                        }
-
-                        if (typeof tx.rideCreateRequest?.create === 'function') {
-                            await tx.rideCreateRequest.create({
-                                data: {
-                                    ownerId: hostId,
-                                    clientRequestId,
-                                    payloadHash,
-                                    roomId: createdRoom.id
-                                }
-                            })
-                            createdInTx = true
-                        }
-
-                        return createdRoom
+            if (clientRequestId && typeof prisma.$transaction === 'function') {
+                room = await prisma.$transaction(async (tx) => {
+                    const createdRoom = await tx.room.create({
+                        data: roomData,
+                        select: roomSelect
                     })
-                } catch (txErr) {
-                    if (txErr.code === 'P2002') {
-                        throw txErr // Let outer catch handle concurrent winner or unique name conflict
-                    }
-                    if (txErr.code === 'P2021' || txErr.code === 'P2022' || (txErr.message && (txErr.message.includes('RideCreateRequest') || txErr.message.includes('lkRoomName')))) {
-                        console.warn('[LobbyCreate] DB schema fallback during transaction; creating room directly:', txErr.message)
-                        rideCreateRequestTableUnavailable = true
-                        try {
-                            room = await createRoomRecord(prisma, true)
-                        } catch (directErr) {
-                            if (directErr.code === 'P2022' || (directErr.message && directErr.message.includes('lkRoomName'))) {
-                                console.error('[LobbyCreate] Schema degraded: lkRoomName column missing in DB; creating without lkRoomName')
-                                setSchemaHealth(false, { error: 'Missing lkRoomName column in database' })
-                                room = await createRoomRecord(prisma, false)
-                            } else {
-                                throw directErr
-                            }
-                        }
-                    } else {
-                        throw txErr
-                    }
-                }
-            } else {
-                try {
-                    room = await createRoomRecord(prisma, true)
-                } catch (directErr) {
-                    if (directErr.code === 'P2022' || (directErr.message && directErr.message.includes('lkRoomName'))) {
-                        console.error('[LobbyCreate] Schema degraded: lkRoomName column missing in DB; creating without lkRoomName')
-                        setSchemaHealth(false, { error: 'Missing lkRoomName column in database' })
-                        room = await createRoomRecord(prisma, false)
-                    } else {
-                        throw directErr
-                    }
-                }
-            }
 
-            if (!createdInTx && clientRequestId && !rideCreateRequestTableUnavailable && typeof prisma.rideCreateRequest?.create === 'function') {
-                await prisma.rideCreateRequest.create({
-                    data: {
-                        ownerId: hostId,
-                        clientRequestId,
-                        payloadHash,
-                        roomId: room.id
+                    if (typeof tx.rideCreateRequest?.create === 'function') {
+                        await tx.rideCreateRequest.create({
+                            data: {
+                                ownerId: hostId,
+                                clientRequestId,
+                                payloadHash,
+                                roomId: createdRoom.id
+                            }
+                        })
                     }
-                }).catch(err => {
-                    console.warn('[LobbyCreate] rideCreateRequest create notice:', err.message)
+
+                    return createdRoom
+                })
+            } else {
+                room = await prisma.room.create({
+                    data: roomData,
+                    select: roomSelect
                 })
             }
         } catch (dbErr) {
@@ -388,6 +320,7 @@ router.post('/create', async (req, res, next) => {
                             return res.status(200).json({
                                 roomId: winnerReq.room.id,
                                 convoyName: winnerReq.room.name,
+                                lkRoomName: winnerReq.room.lkRoomName || `rv_${winnerReq.room.id}`,
                                 hostId: winnerReq.room.ownerId,
                                 diagnosticsEnabled: winnerReq.room.diagnosticsEnabled,
                                 joinCode: winnerReq.room.joinCode,
@@ -399,7 +332,7 @@ router.post('/create', async (req, res, next) => {
                         } else if (winnerReq && winnerReq.payloadHash !== payloadHash) {
                             return res.status(409).json({
                                 error: 'Idempotency key reused with different request payload',
-                                code: 'IDEMPOTENCY_KEY_REUSED'
+                                code: 'IDEMPOTENCY_CONFLICT'
                             })
                         }
                     }
@@ -411,6 +344,18 @@ router.post('/create', async (req, res, next) => {
                     })
                 }
             }
+
+            if (dbErr.code === 'P2021' || dbErr.code === 'P2022' || (dbErr.message && (dbErr.message.includes('lkRoomName') || dbErr.message.includes('RideCreateRequest')))) {
+                console.error('[LobbyCreate] Structural failure: missing column or table in DB:', dbErr.message)
+                setSchemaHealth(false, { error: dbErr.message })
+                res.set('Retry-After', '30')
+                return res.status(503).json({
+                    error: 'Service Unavailable: Database schema structural validation failed or degraded',
+                    code: 'SCHEMA_DEGRADED',
+                    details: { error: dbErr.message }
+                })
+            }
+
             throw dbErr
         }
 
@@ -436,6 +381,7 @@ router.post('/create', async (req, res, next) => {
         const respPayload = {
             roomId: room.id,
             convoyName: room.name,
+            lkRoomName: room.lkRoomName || `rv_${room.id}`,
             hostId,
             diagnosticsEnabled: room.diagnosticsEnabled,
             joinCode: room.joinCode,

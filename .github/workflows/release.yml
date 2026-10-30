@@ -74,29 +74,41 @@ jobs:
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
-      - name: Configure Keystore Signing (Optional Secrets)
+      - name: Configure Keystore Signing (Production Required)
+        env:
+          ALLOW_INSECURE_RELEASE_BUILD: ${{ vars.ALLOW_INSECURE_RELEASE_BUILD }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Decoding production keystore from repository secrets..."
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > mobile-app/app/release.keystore
-            echo "KEYSTORE_FILE=release.keystore" >> $GITHUB_ENV
-            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-            echo "KEY_ALIAS=${{ secrets.KEY_ALIAS }}" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> $GITHUB_ENV
-          elif [ "${{ vars.ALLOW_INSECURE_RELEASE_BUILD }}" = "true" ]; then
-            echo "::warning::ALLOW_INSECURE_RELEASE_BUILD is enabled. Using debug-fallback keystore."
-            echo "ALLOW_INSECURE_RELEASE_BUILD=true" >> $GITHUB_ENV
-            echo "KEYSTORE_FILE=signing/debug-fallback.keystore" >> $GITHUB_ENV
-            echo "KEYSTORE_PASSWORD=android" >> $GITHUB_ENV
-            echo "KEY_ALIAS=androiddebugkey" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=android" >> $GITHUB_ENV
-          else
-            echo "::error::Release build requires real signing credentials. KEYSTORE_BASE64 secret is not configured and ALLOW_INSECURE_RELEASE_BUILD is false."
+          INSECURE_NORM="$(echo "${ALLOW_INSECURE_RELEASE_BUILD:-false}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+          if [ "$INSECURE_NORM" != "false" ] && [ "$INSECURE_NORM" != "0" ] && [ -n "$INSECURE_NORM" ]; then
+            echo "::error::Insecure release signing is strictly prohibited on release tags. ALLOW_INSECURE_RELEASE_BUILD must be false or unset."
             exit 1
           fi
 
-      - name: Grant Execute Permissions for Gradlew
-        run: chmod +x mobile-app/gradlew
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Release build requires production signing credentials. KEYSTORE_BASE64 secret is missing or empty."
+            exit 1
+          fi
+
+          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Release build requires complete production signing credentials. Keystore passwords or key alias missing."
+            exit 1
+          fi
+
+          echo "Decoding production keystore from repository secrets..."
+          echo "$KEYSTORE_BASE64" | base64 --decode > mobile-app/app/release.keystore
+          echo "KEYSTORE_FILE=release.keystore" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> $GITHUB_ENV
+          echo "KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=$KEY_PASSWORD" >> $GITHUB_ENV
+
+      - name: Grant Execute Permissions for Scripts and Gradlew
+        run: |
+          chmod +x mobile-app/gradlew
+          chmod +x .github/scripts/verify-release-apk.sh
 
       - name: Build Release APK
         working-directory: mobile-app
@@ -106,21 +118,7 @@ jobs:
             -PversionCode="${{ env.VERSION_CODE }}" \
             --stacktrace
 
-      - name: Verify APK Signer Certificate Fingerprint
-        run: |
-          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
-          APK_SOURCE="mobile-app/app/build/outputs/apk/release/app-release.apk"
-          CERT_DIGEST=$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$APK_SOURCE" | grep "Signer #1 certificate SHA-256 digest:" | awk '{print $NF}')
-          echo "APK Signer SHA-256 digest: $CERT_DIGEST"
-          if [ -n "${{ secrets.EXPECTED_SIGNER_SHA256 }}" ]; then
-            if [ "$CERT_DIGEST" != "${{ secrets.EXPECTED_SIGNER_SHA256 }}" ]; then
-              echo "::error::Signer SHA-256 mismatch! Expected ${{ secrets.EXPECTED_SIGNER_SHA256 }} but found $CERT_DIGEST"
-              exit 1
-            fi
-            echo "Signer SHA-256 successfully verified against expected secret."
-          fi
-
-      - name: Prepare Versioned Assets & Calculate SHA-256 Checksum
+      - name: Prepare Versioned Assets & Verify Cryptographic Identity
         run: |
           APK_SOURCE="mobile-app/app/build/outputs/apk/release/app-release.apk"
           if [ ! -f "$APK_SOURCE" ]; then
@@ -128,22 +126,49 @@ jobs:
             exit 1
           fi
 
+          SOURCE_SHA="$(sha256sum "$APK_SOURCE" | awk '{print $1}')"
+
           TARGET_APK="Rider_APP-${{ env.TAG_NAME }}.apk"
           cp "$APK_SOURCE" "./$TARGET_APK"
+          TARGET_SHA="$(sha256sum "$TARGET_APK" | awk '{print $1}')"
+
+          if [ "$SOURCE_SHA" != "$TARGET_SHA" ]; then
+            echo "::error::Cryptographic mismatch between built APK and target asset $TARGET_APK"
+            exit 1
+          fi
 
           CANONICAL_APK="Rider_APP-v${{ env.VERSION_NAME }}.apk"
           if [ "$TARGET_APK" != "$CANONICAL_APK" ]; then
             cp "$APK_SOURCE" "./$CANONICAL_APK"
-            sha256sum "$CANONICAL_APK" > "${CANONICAL_APK}.sha256"
+            CANONICAL_SHA="$(sha256sum "$CANONICAL_APK" | awk '{print $1}')"
+            if [ "$SOURCE_SHA" != "$CANONICAL_SHA" ]; then
+              echo "::error::Cryptographic mismatch between built APK and canonical asset $CANONICAL_APK"
+              exit 1
+            fi
+            echo "$CANONICAL_SHA  $CANONICAL_APK" > "${CANONICAL_APK}.sha256"
           fi
 
           # Calculate SHA-256 Checksum
-          sha256sum "$TARGET_APK" > "${TARGET_APK}.sha256"
-          CHECKSUM=$(awk '{print $1}' "${TARGET_APK}.sha256")
-          echo "SHA256_HASH=$CHECKSUM" >> $GITHUB_ENV
+          echo "$TARGET_SHA  $TARGET_APK" > "${TARGET_APK}.sha256"
+          echo "SHA256_HASH=$TARGET_SHA" >> $GITHUB_ENV
 
           echo "Generated Asset: $TARGET_APK"
-          echo "SHA-256 Checksum: $CHECKSUM"
+          echo "SHA-256 Checksum: $TARGET_SHA"
+
+      - name: Verify Prepared Release APK Signer Certificate Fingerprint
+        env:
+          EXPECTED_SIGNER_SHA256: ${{ secrets.EXPECTED_SIGNER_SHA256 }}
+          ALLOW_INSECURE_RELEASE_BUILD: ${{ vars.ALLOW_INSECURE_RELEASE_BUILD }}
+        run: |
+          TARGET_APK="Rider_APP-${{ env.TAG_NAME }}.apk"
+          CANONICAL_APK="Rider_APP-v${{ env.VERSION_NAME }}.apk"
+          if [ -f "$CANONICAL_APK" ] && [ "$TARGET_APK" != "$CANONICAL_APK" ]; then
+            echo "Verifying signing certificates of prepared assets: $TARGET_APK and $CANONICAL_APK"
+            ./.github/scripts/verify-release-apk.sh "$TARGET_APK" "$CANONICAL_APK"
+          else
+            echo "Verifying signing certificate of prepared asset: $TARGET_APK"
+            ./.github/scripts/verify-release-apk.sh "$TARGET_APK"
+          fi
 
       - name: Generate Dynamic Release Description
         id: release_notes
@@ -211,3 +236,11 @@ jobs:
             Rider_APP-*.apk.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean Up Temporary Keystore Material
+        if: always()
+        run: |
+          if [ -f "mobile-app/app/release.keystore" ]; then
+            shred -u -z -n 3 mobile-app/app/release.keystore 2>/dev/null || rm -f mobile-app/app/release.keystore
+            echo "Temporary production keystore securely wiped from runner workspace."
+          fi

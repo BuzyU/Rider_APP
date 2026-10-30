@@ -306,6 +306,7 @@ fun NavGraph(
             SettingsScreen(
                 onBackClick = { navController.navigateUp() },
                 onNavigateToAccount = { navController.navigate(Routes.ACCOUNT) },
+                onDeviceSetupClick = { navController.navigate(Routes.deviceSetupPath("GLOBAL", isHost = false)) },
                 onSignOutSuccess = {
                     navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
                 }

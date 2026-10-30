@@ -1,6 +1,6 @@
 const { describe, it } = require('node:test')
 const assert = require('node:assert/strict')
-const { ensureDbSchema, assertSchema, checkUniqueViolations, ADVISORY_LOCK_ID } = require('../src/services/schemaMigration')
+const { ensureDbSchema, assertSchema, checkUniqueViolations, ADVISORY_LOCK_ID, MIGRATION_STATEMENTS } = require('../src/services/schemaMigration')
 
 describe('P0-C: Migration and Startup Safety', () => {
     it('assertSchema validates tables, columns, enums, indexes, and FKs', async () => {
@@ -182,7 +182,6 @@ describe('P0-C: Migration and Startup Safety', () => {
     })
 
     it('simulated failing statement is reported with index and marked valid:false', async () => {
-        let calls = 0
         const fakePrisma = {
             $queryRaw: async () => [], // Always returns missing elements
             $queryRawUnsafe: async (sql) => {
@@ -191,8 +190,7 @@ describe('P0-C: Migration and Startup Safety', () => {
                 return []
             },
             $executeRawUnsafe: async (sql) => {
-                calls++
-                if (calls === 3) {
+                if (sql.includes(MIGRATION_STATEMENTS[2]) || sql.includes('CREATE TYPE "user_role"')) {
                     throw new Error('Simulated syntax or permission error in DDL')
                 }
                 return 1

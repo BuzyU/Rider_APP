@@ -135,4 +135,85 @@
     <string name="notif_active_speaker_nobody">कोई नहीं</string>
     <string name="notif_active_speaker_collapsed">सक्रिय: %1$s</string>
     <string name="notif_active_speaker_expanded">सक्रिय वक्ता: %1$s</string>
+    <!-- Update Dialog -->
+    <string name="update_checking_title">अपडेट की जांच हो रही है</string>
+    <string name="update_checking_desc">आधिकारिक रिलीज चैनल से जांच जारी...</string>
+    <string name="update_uptodate_title">नवीनतम संस्करण</string>
+    <string name="update_uptodate_desc">आप वर्तमान में RiderVoice का नवीनतम संस्करण (v%1$s) उपयोग कर रहे हैं। किसी अपडेट की आवश्यकता नहीं है।</string>
+    <string name="update_available_badge">फर्मवेयर अपग्रेड</string>
+    <string name="update_available_title">नया संस्करण उपलब्ध है</string>
+    <string name="update_current_label">वर्तमान</string>
+    <string name="update_newest_label">नवीनतम (%1$s)</string>
+    <string name="update_whats_new">नया क्या है</string>
+    <string name="update_safety_note">अपडेट सीधे आपके डिवाइस पर डाउनलोड होगा और इंस्टॉलेशन से पहले सत्यापित किया जाएगा।</string>
+    <string name="update_action_download_now">अभी डाउनलोड करें</string>
+    <string name="update_action_later">बाद में</string>
+    <string name="update_confirm_title">डाउनलोड की पुष्टि करें</string>
+    <string name="update_confirm_body">क्या आप RiderVoice v%1$s (%2$s) डाउनलोड करना चाहते हैं?</string>
+    <string name="update_confirm_storage_note">APK को HTTPS के माध्यम से सुरक्षित रूप से डाउनलोड किया जाएगा। स्टोरेज स्थान सत्यापित है।</string>
+    <string name="update_downloading_badge">OTA ट्रांसमिशन</string>
+    <string name="update_downloading_title">अपडेट डाउनलोड हो रहा है</string>
+    <string name="update_verifying_title">पैकेज का सत्यापन जारी</string>
+    <string name="update_install_ready_title">इंस्टॉल करने के लिए तैयार</string>
+    <string name="update_install_ready_desc">RiderVoice v%1$s डाउनलोड और सत्यापित हो चुका है।</string>
+    <string name="update_action_install_now">अपडेट इंस्टॉल करें</string>
+    <string name="update_failed_title">अपडेट विफल रहा</string>
+
+    <!-- Route Planner -->
+    <string name="route_planner_title">रूट प्लानर</string>
+    <string name="route_planner_waypoint_badge">वेपॉइंट प्लॉटर</string>
+    <string name="route_origin_placeholder">प्रस्थान बिंदु</string>
+    <string name="route_dest_placeholder">गंतव्य / पर्वतीय दर्रा</string>
+    <string name="route_routing_characteristic">रूट प्रकार</string>
+    <string name="route_radar_view">रडार दृश्य</string>
+    <string name="route_mapbox_sat">मैपबॉक्स सैटेलाइट</string>
+    <string name="route_switch_mapbox">मैपबॉक्स दृश्य पर जाएं</string>
+    <string name="route_switch_radar">रडार दृश्य पर जाएं</string>
+    <string name="route_configure_mapbox">मैपबॉक्स कुंजी कॉन्फ़िगर करें</string>
+    <string name="route_export_gpx">GPX ट्रैक निर्यात करें</string>
+    <string name="route_invert_swap">रूट उल्टा करें (अदला-बदली)</string>
+    <string name="route_clear">रूट हटाएं</string>
+    <string name="route_nearby_riders_simulated">निकटवर्ती राइडर्स (सिम्युलेटेड पूर्वावलोकन)</string>
+
+    <!-- Post Ride Summary -->
+    <string name="summary_ride_complete">राइड पूर्ण हुई</string>
+    <string name="summary_ride_summary">राइड सारांश</string>
+    <string name="summary_stat_time">समय</string>
+    <string name="summary_stat_distance">दूरी</string>
+    <string name="summary_stat_top_speed">शीर्ष गति</string>
+    <string name="summary_diagnostics_title">राइड डायग्नोस्टिक्स</string>
+    <string name="summary_excel_exported">एक्सेल (.xlsx) प्रारूप में %1$s को निर्यात किया गया</string>
+
+    <!-- Account Screen -->
+    <string name="account_operator_badge">ट्रांसीवर ऑपरेटर</string>
+    <string name="account_title">राइडर खाता</string>
+    <string name="account_loading_dossier">ऑपरेटर प्रोफ़ाइल प्राप्त की जा रही है...</string>
+    <string name="account_edit_profile">प्रोफ़ाइल संपादित करें</string>
+
+    <!-- Diagnostics Dialog -->
+    <string name="diagnostics_dialog_title">राइड डायग्नोस्टिक्स</string>
+    <string name="diagnostics_monitoring_active">निगरानी सक्रिय — %1$d नमूने दर्ज</string>
+    <string name="diagnostics_auto_export_desc">राइड समाप्त होने पर मल्टी-शीट एक्सेल (.xlsx) में %1$s को स्वचालित रूप से निर्यात।</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_headset_setup_title">ब्लूटूथ और हेडसेट सेटअप</string>
+    <string name="settings_headset_setup_subtitle">इंटरकॉम, माइक रूटिंग और SCO ऑडियो कॉन्फ़िगर करें</string>
+    <string name="settings_noise_cancellation">शोर रद्दीकरण</string>
+    <string name="settings_hardware_ptt">हार्डवेयर PTT (हेलमेट बटन)</string>
+    <string name="settings_hybrid_vox">हाइब्रिड VOX + PTT मोड</string>
+    <string name="settings_section_voice_tx">वॉयस ट्रांसमिशन</string>
+    <string name="settings_voice_activation">वॉयस सक्रियण (VOX)</string>
+
+    <!-- Register Screen -->
+    <string name="register_operator_badge">नया ट्रांसीवर ऑपरेटर</string>
+    <string name="register_callsign_title">कॉलसाइन पंजीकृत करें</string>
+    <string name="register_callsign_desc">अपनी प्रोफ़ाइल बनाएं और समूह फ़्रीक्वेंसी से जुड़ें।</string>
+
+    <!-- Join Room Screen -->
+    <string name="join_room_title">राइड में शामिल हों</string>
+    <string name="join_connecting">राइड से कनेक्ट हो रहा है...</string>
+    <string name="join_verifying">राइड आमंत्रण सत्यापित किया जा रहा है...</string>
+    <string name="join_failed_title">राइड में शामिल नहीं हो सके</string>
+    <string name="join_callsign_label">आपका कॉलसाइन / नाम</string>
+    <string name="join_action_enter_code">कोड दर्ज करें</string>
 </resources>

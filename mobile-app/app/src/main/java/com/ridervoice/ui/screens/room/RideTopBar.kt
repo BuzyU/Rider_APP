@@ -55,10 +55,13 @@ fun RideTopBar(
     onRescanAudio: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+    val isLargeFont = fontScale > 1.3f
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = if (isLargeFont) 4.dp else 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -74,6 +77,7 @@ fun RideTopBar(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
+                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                         .clip(RoundedCornerShape(4.dp))
                         .background(Color(0x33FF3B30))
                         .border(1.dp, Color(0xFFFF3B30), RoundedCornerShape(4.dp))
@@ -121,9 +125,12 @@ fun RideTopBar(
                     ParticipantNameResolver.resolve(activeSpeaker, spk?.displayName)
                 }
                 "$resolvedName is speaking"
-            } else {
+            } else if (!isLargeFont) {
                 val count = participants.count { !it.isGhost }
                 if (count == 1) "1 rider in voice" else "$count riders in voice"
+            } else {
+                val count = participants.count { !it.isGhost }
+                "$count in voice"
             }
             Text(
                 text = speakerText,
@@ -141,7 +148,12 @@ fun RideTopBar(
             modifier = Modifier.weight(1f, fill = false),
             horizontalArrangement = Arrangement.End
         ) {
-            Box(modifier = Modifier.clickable { onAudioRouteClick() }) {
+            Box(
+                modifier = Modifier
+                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                    .clickable { onAudioRouteClick() },
+                contentAlignment = Alignment.Center
+            ) {
                 AudioDeviceBadge(
                     device = activeDevice,
                     routerState = routerState,
@@ -157,7 +169,7 @@ fun RideTopBar(
             IconButton(
                 onClick = onLeaveClick,
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(Gunmetal)
                     .border(1.5.dp, AlertRed, CircleShape)
@@ -167,7 +179,7 @@ fun RideTopBar(
                     imageVector = Icons.Default.CallEnd,
                     contentDescription = "Leave Ride",
                     tint = AlertRed,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
@@ -252,6 +264,14 @@ fun AudioDeviceBadge(
                     Text("Retry", fontSize = 8.sp, color = Color.White)
                 }
             }
+        } else if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f) {
+            Text(
+                text = routedOutput.display(),
+                color = TextSecondary,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 9.sp,
+                maxLines = 1
+            )
         } else {
             Text(
                 text = "Mic: ${routedInput.display()}",

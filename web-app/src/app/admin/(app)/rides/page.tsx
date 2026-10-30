@@ -1,8 +1,10 @@
+import { requireAdminPage } from "@/lib/auth/requireAdminPage";
 import { supabaseAdmin } from "@/utils/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminRidesPage() {
+  await requireAdminPage();
   const { data: rides } = await supabaseAdmin
     .from("RideSession")
     .select("id, riderId, startTime, endTime, distanceKm")

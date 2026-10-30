@@ -1,9 +1,11 @@
+import { requireAdminPage } from "@/lib/auth/requireAdminPage";
 import SettingsForm from "./SettingsForm";
 import { supabaseAdmin } from "@/utils/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminSettingsPage() {
+  await requireAdminPage();
   const { data } = await supabaseAdmin
     .from("admin_settings")
     .select("settings")

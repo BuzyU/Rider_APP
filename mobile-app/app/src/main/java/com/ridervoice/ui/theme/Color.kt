@@ -55,6 +55,7 @@ val GraphiteSurface: Color get() = if (ThemeState.isDarkTheme) DarkPalette.Surfa
 val BorderColor: Color get() = if (ThemeState.isDarkTheme) DarkPalette.Border else LightPalette.Border
 val TextPrimary: Color get() = if (ThemeState.isDarkTheme) DarkPalette.TextPrimary else LightPalette.TextPrimary
 val TextSecondary: Color get() = if (ThemeState.isDarkTheme) DarkPalette.TextSecondary else LightPalette.TextSecondary
+val TextMuted: Color get() = TextSecondary
 
 val NeonOrange: Color get() = if (ThemeState.isDarkTheme) DarkPalette.AccentAmber else LightPalette.AccentAmber
 val ElectricCyan: Color get() = if (ThemeState.isDarkTheme) DarkPalette.VhfTeal else LightPalette.VhfTeal

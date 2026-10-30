@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { adminAuth } from "@/utils/firebase/admin";
-import { supabaseAdmin } from "@/utils/supabase/admin";
+import { resolveRole } from "@/lib/auth/adminIdentity";
 
 export async function POST(request: Request) {
   const { idToken } = await request.json();
@@ -14,13 +14,9 @@ export async function POST(request: Request) {
 
   try {
     const decoded = await adminAuth().verifyIdToken(idToken);
-    const { data: user, error } = await supabaseAdmin
-      .from("User")
-      .select("role, email")
-      .or(`id.eq.${decoded.uid},email.eq.${decoded.email ?? ""}`)
-      .maybeSingle();
+    const role = await resolveRole({ uid: decoded.uid, email: decoded.email, email_verified: decoded.email_verified });
 
-    if (error || !user || user.role !== "ADMIN") {
+    if (role !== "ADMIN") {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
@@ -46,9 +42,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    console.warn("[admin/session] auth failed:", error);
     return NextResponse.json(
-      { error: `Auth error: ${message}` },
+      { error: "Authentication failed" },
       { status: 401 }
     );
   }

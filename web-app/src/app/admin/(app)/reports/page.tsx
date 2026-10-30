@@ -1,8 +1,10 @@
+import { requireAdminPage } from "@/lib/auth/requireAdminPage";
 import { supabaseAdmin } from "@/utils/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminReportsPage() {
+  await requireAdminPage();
   const now = new Date();
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(now.getDate() - 30);

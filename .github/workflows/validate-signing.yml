@@ -1,0 +1,99 @@
+name: Validate Production Signing (Non-Publishing)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-production-signing:
+    name: Verify Production Keystore & Certificate
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Enforce Default Branch Only (main)
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Production signing validation is strictly restricted to the default 'main' branch."
+            exit 1
+          fi
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Configure Keystore Signing (Production Required)
+        env:
+          ALLOW_INSECURE_RELEASE_BUILD: ${{ vars.ALLOW_INSECURE_RELEASE_BUILD }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          INSECURE_NORM="$(echo "${ALLOW_INSECURE_RELEASE_BUILD:-false}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+          if [ "$INSECURE_NORM" != "false" ] && [ "$INSECURE_NORM" != "0" ] && [ -n "$INSECURE_NORM" ]; then
+            echo "::error::Insecure release signing is strictly prohibited for production validation. ALLOW_INSECURE_RELEASE_BUILD must be false or unset."
+            exit 1
+          fi
+
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Validation requires production signing credentials. KEYSTORE_BASE64 secret is missing or empty."
+            exit 1
+          fi
+
+          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Validation requires complete production signing credentials. Keystore passwords or key alias missing."
+            exit 1
+          fi
+
+          echo "Decoding production keystore from repository secrets..."
+          echo "$KEYSTORE_BASE64" | base64 --decode > mobile-app/app/release.keystore
+          echo "KEYSTORE_FILE=release.keystore" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> $GITHUB_ENV
+          echo "KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=$KEY_PASSWORD" >> $GITHUB_ENV
+
+      - name: Grant Execute Permissions for Scripts and Gradlew
+        run: |
+          chmod +x mobile-app/gradlew
+          chmod +x .github/scripts/verify-release-apk.sh
+
+      - name: Build Release APK
+        working-directory: mobile-app
+        run: |
+          ./gradlew assembleRelease \
+            -PversionName="0.0.1-validation" \
+            -PversionCode=1 \
+            --stacktrace
+
+      - name: Verify Production APK Signer Certificate Fingerprint
+        env:
+          EXPECTED_SIGNER_SHA256: ${{ secrets.EXPECTED_SIGNER_SHA256 }}
+          ALLOW_INSECURE_RELEASE_BUILD: "false"
+        run: |
+          APK_SOURCE="mobile-app/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK_SOURCE" ]; then
+            echo "::error::Generated release APK not found at $APK_SOURCE"
+            exit 1
+          fi
+
+          echo "Verifying compiled release APK signature against pinned expected certificate..."
+          ./.github/scripts/verify-release-apk.sh "$APK_SOURCE"
+          echo "Production signing validation succeeded: APK matches pinned production certificate."
+
+      - name: Clean Up Temporary Keystore Material
+        if: always()
+        run: |
+          if [ -f "mobile-app/app/release.keystore" ]; then
+            shred -u -z -n 3 mobile-app/app/release.keystore 2>/dev/null || rm -f mobile-app/app/release.keystore
+            echo "Temporary production keystore securely wiped from runner workspace."
+          fi
+

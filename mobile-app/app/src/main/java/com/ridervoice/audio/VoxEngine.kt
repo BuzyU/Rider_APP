@@ -28,36 +28,76 @@ import javax.inject.Singleton
 enum class VoxCaptureMode { AUTO, ADM, OWN }
 
 class VoxCaptureEvaluator(
-    var mode: VoxCaptureMode = VoxCaptureMode.AUTO
+    var mode: VoxCaptureMode = VoxCaptureMode.AUTO,
+    initialPath: String = "adm"
 ) {
     private var consecutiveValidSeconds = 0
-    var activePath: String = "own"
+    var activePath: String = initialPath
+        private set
+    var pathSwitchCount: Int = 0
+        private set
+    var lastAdmFrameTime: Long = 0L
         private set
 
-    fun onSecondTick(admFramesInLastSecWhileClosed: Int): String {
+    fun onAdmFrameReceived(now: Long = System.currentTimeMillis()) {
+        lastAdmFrameTime = now
+    }
+
+    fun isAdmAlive(now: Long = System.currentTimeMillis(), timeoutMs: Long = 1000L): Boolean {
+        return lastAdmFrameTime > 0L && (now - lastAdmFrameTime) <= timeoutMs
+    }
+
+    fun onSecondTick(
+        admFramesInLastSec: Int,
+        isMicOpen: Boolean = false,
+        now: Long = System.currentTimeMillis()
+    ): String {
+        val previousPath = activePath
         activePath = when (mode) {
             VoxCaptureMode.ADM -> "adm"
             VoxCaptureMode.OWN -> "own"
             VoxCaptureMode.AUTO -> {
-                if (admFramesInLastSecWhileClosed >= 40) {
-                    consecutiveValidSeconds++
-                    if (consecutiveValidSeconds >= 3) {
+                val admAlive = isAdmAlive(now, timeoutMs = 1000L) || admFramesInLastSec >= 40
+                if (activePath == "adm") {
+                    // Critical safety: NEVER downgrade capture path mid-speech while the mic is open
+                    if (isMicOpen) {
+                        "adm"
+                    } else if (admAlive) {
                         "adm"
                     } else {
-                        activePath
+                        consecutiveValidSeconds = 0
+                        "own"
                     }
                 } else {
-                    consecutiveValidSeconds = 0
-                    "own"
+                    // In "own" mode: require 3 consecutive seconds of steady frames to return to "adm" (hysteresis)
+                    if (admAlive && admFramesInLastSec >= 40) {
+                        consecutiveValidSeconds++
+                        if (consecutiveValidSeconds >= 3) {
+                            "adm"
+                        } else {
+                            "own"
+                        }
+                    } else {
+                        consecutiveValidSeconds = 0
+                        "own"
+                    }
                 }
             }
+        }
+        if (activePath != previousPath) {
+            pathSwitchCount++
         }
         return activePath
     }
 
-    fun reset() {
+    fun reset(startInAdm: Boolean = true) {
         consecutiveValidSeconds = 0
-        activePath = if (mode == VoxCaptureMode.ADM) "adm" else "own"
+        lastAdmFrameTime = 0L
+        activePath = when (mode) {
+            VoxCaptureMode.ADM -> "adm"
+            VoxCaptureMode.OWN -> "own"
+            VoxCaptureMode.AUTO -> if (startInAdm) "adm" else "own"
+        }
     }
 }
 
@@ -224,22 +264,23 @@ open class VoxEngine @Inject constructor(
         audioRecord = null
     }
 
+    val pathSwitchCount: Int get() = evaluator.pathSwitchCount
+
     fun onTxFrame(pcmBytes: ByteArray, sampleRate: Int = 16000) {
         val now = System.currentTimeMillis()
         lastTxFrameTime = now
-
-        if (!_isMicOpen.value) {
-            admFramesThisSec++
-        }
+        evaluator.onAdmFrameReceived(now)
+        admFramesThisSec++
 
         if (now - lastEvalTime >= 1000L) {
             val previousPath = evaluator.activePath
-            val newPath = evaluator.onSecondTick(admFramesThisSec)
-            RvLog.vox("path=$newPath frames_per_s=$admFramesThisSec rate=$sampleRate")
+            val newPath = evaluator.onSecondTick(admFramesThisSec, _isMicOpen.value, now)
+            RvLog.vox("path=$newPath frames_per_s=$admFramesThisSec mic_open=${_isMicOpen.value} switches=${evaluator.pathSwitchCount} rate=$sampleRate")
             admFramesThisSec = 0
             lastEvalTime = now
 
             if (previousPath != newPath) {
+                Log.i(TAG, "Capture path transitioned from $previousPath to $newPath (total switches: ${evaluator.pathSwitchCount})")
                 if (newPath == "adm") {
                     stopOwnAudioRecord()
                 } else if (isRunning) {
@@ -351,6 +392,8 @@ open class VoxEngine @Inject constructor(
         preferCommunicationInput(record)
     }
 
+    private var lastRoutedInputDeviceId: Int? = null
+
     private fun preferCommunicationInput(record: AudioRecord) {
         val am = audioManager ?: return
         try {
@@ -372,6 +415,11 @@ open class VoxEngine @Inject constructor(
                 }
             }
             val target = wantedType?.let { t -> inputs.firstOrNull { it.type == t } }
+            val targetId = target?.id
+            if (targetId != null && targetId == lastRoutedInputDeviceId) {
+                return // Route has not changed; avoid tearing down and recreating capture
+            }
+            lastRoutedInputDeviceId = targetId
             if (target != null) {
                 record.setPreferredDevice(target)
             } else {

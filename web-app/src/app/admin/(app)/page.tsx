@@ -1,8 +1,10 @@
+import { requireAdminPage } from "@/lib/auth/requireAdminPage";
 import { supabaseAdmin } from "@/utils/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
+  await requireAdminPage();
   const [, roomsCount, usersCount, inviteCount, rides] = await Promise.all([
     supabaseAdmin.from("RideSession").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("Room").select("id", { count: "exact", head: true }),

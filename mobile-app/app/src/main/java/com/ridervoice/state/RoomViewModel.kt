@@ -275,7 +275,7 @@ class RoomViewModel @Inject constructor(
                     tokenProvider = {
                         activeRideRepository.ensureFreshToken().getOrThrow()
                     },
-                    expectedLkRoomName = currentRide?.lkRoomName
+                    expectedLkRoomName = currentRide?.takeIf { it.roomId == effectiveRoomId }?.lkRoomName
                 )
             } catch (e: Exception) {
                 val msg = UiMessageMapper.map(500, fallback = "Connection error: ${e.message}")

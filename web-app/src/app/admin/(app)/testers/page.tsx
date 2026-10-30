@@ -1,9 +1,11 @@
+import { requireAdminPage } from "@/lib/auth/requireAdminPage";
 import { supabaseAdmin } from "@/utils/supabase/admin";
 import TestersTable, { TesterApplicationRow } from "./TestersTable";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminTestersPage() {
+  await requireAdminPage();
   let applications: TesterApplicationRow[] = [];
   let tableMissing = false;
 

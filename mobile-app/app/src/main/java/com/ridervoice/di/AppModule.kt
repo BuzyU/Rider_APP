@@ -73,6 +73,11 @@ object AppModule {
                 // Phase 0 – P0.6: X-App-Version header for server-side client identification
                 requestBuilder.addHeader("X-App-Version", BuildConfig.VERSION_NAME)
 
+                // V3-6: Generate or propagate X-Request-Id for end-to-end tracing and user support
+                val existingReqId = chain.request().header("X-Request-Id")
+                val requestId = if (!existingReqId.isNullOrBlank()) existingReqId else java.util.UUID.randomUUID().toString()
+                requestBuilder.header("X-Request-Id", requestId)
+
                 // Part I3: X-Country header from EmergencyNumbers
                 val country = com.ridervoice.utils.EmergencyNumbers.resolve(context).countryIso ?: "IN"
                 requestBuilder.addHeader("X-Country", country)

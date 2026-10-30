@@ -7,9 +7,35 @@ class EmailService {
         this.transporter = null
         this.recentSends = new Map()
         this.SWEEP_INTERVAL_MS = 15 * 60 * 1000
+        this.consecutiveFailures = 0
+        this.circuitBreakerUntil = 0
+        this.CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000
         
         const sweepTimer = setInterval(() => this.sweepRecentSends(), this.SWEEP_INTERVAL_MS)
         if (sweepTimer.unref) sweepTimer.unref()
+    }
+
+    isEmailDisabled() {
+        return process.env.EMAIL_ENABLED === 'false' || process.env.EMAIL_NOTIFICATIONS_ENABLED === 'false'
+    }
+
+    isCircuitOpen() {
+        if (!this.circuitBreakerUntil) return false
+        if (Date.now() < this.circuitBreakerUntil) return true
+        return false
+    }
+
+    recordSuccess() {
+        this.consecutiveFailures = 0
+        this.circuitBreakerUntil = 0
+    }
+
+    recordFailure(err) {
+        this.consecutiveFailures++
+        if (this.consecutiveFailures >= 3) {
+            this.circuitBreakerUntil = Date.now() + this.CIRCUIT_BREAKER_COOLDOWN_MS
+            console.warn(`[EmailService] Circuit breaker tripped after ${this.consecutiveFailures} consecutive failures (${err?.message || 'unknown'}). Email sending paused for 5 minutes.`)
+        }
     }
 
     sweepRecentSends() {
@@ -63,10 +89,10 @@ class EmailService {
             pool: true,
             maxConnections: 3,
             maxMessages: 100,
-            idleTimeout: 30000,
-            connectionTimeout: 10000,
-            greetingTimeout: 7500,
-            socketTimeout: 15000,
+            idleTimeout: 10000,
+            connectionTimeout: 3000,
+            greetingTimeout: 2500,
+            socketTimeout: 5000,
             tls: {
                 rejectUnauthorized: true,
                 minVersion: 'TLSv1.2'
@@ -76,14 +102,31 @@ class EmailService {
     }
 
     async sendMailWithRetry(mailOptions) {
+        if (this.isEmailDisabled()) {
+            return { messageId: 'disabled', response: 'Email disabled by configuration' }
+        }
+        if (this.isCircuitOpen()) {
+            return { messageId: 'circuit-open', response: 'Circuit breaker active: email skipped' }
+        }
+
         let transporter = this.getTransporter()
         try {
-            return await transporter.sendMail(mailOptions)
+            const res = await transporter.sendMail(mailOptions)
+            this.recordSuccess()
+            return res
         } catch (error) {
-            if (process.env.NODE_ENV !== 'test') {
+            this.recordFailure(error)
+            if (process.env.NODE_ENV !== 'test' && !this.isCircuitOpen()) {
                 this.transporter = null
-                transporter = this.getTransporter()
-                return await transporter.sendMail(mailOptions)
+                try {
+                    transporter = this.getTransporter()
+                    const retryRes = await transporter.sendMail(mailOptions)
+                    this.recordSuccess()
+                    return retryRes
+                } catch (retryError) {
+                    this.recordFailure(retryError)
+                    throw retryError
+                }
             }
             throw error
         }

@@ -343,6 +343,15 @@ fun LobbyScreen(
                             color = TextSecondary,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
+                        if (!failed.requestId.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(RvSpacing.xs))
+                            Text(
+                                text = "Request ID: ${failed.requestId}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
                         Spacer(modifier = Modifier.height(RvSpacing.xl))
                         if (failed.isRetryable) {
                             PrimaryButton(
@@ -437,6 +446,13 @@ fun LobbyScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextSecondary
                                 )
+                                if (!failed.requestId.isNullOrBlank()) {
+                                    Text(
+                                        text = "Request ID: ${failed.requestId}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = TextSecondary
+                                    )
+                                }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(RvSpacing.sm)

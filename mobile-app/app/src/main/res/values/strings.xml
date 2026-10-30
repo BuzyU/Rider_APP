@@ -135,4 +135,86 @@
     <string name="notif_active_speaker_nobody">Nobody</string>
     <string name="notif_active_speaker_collapsed">Active: %1$s</string>
     <string name="notif_active_speaker_expanded">Active Speaker: %1$s</string>
+
+    <!-- Update Dialog -->
+    <string name="update_checking_title">Checking for updates</string>
+    <string name="update_checking_desc">Querying official release channel...</string>
+    <string name="update_uptodate_title">Up to date</string>
+    <string name="update_uptodate_desc">You are currently running the latest version of RiderVoice (v%1$s). No updates are required.</string>
+    <string name="update_available_badge">Firmware Upgrade</string>
+    <string name="update_available_title">New Version Available</string>
+    <string name="update_current_label">CURRENT</string>
+    <string name="update_newest_label">NEWEST (%1$s)</string>
+    <string name="update_whats_new">WHAT\'S NEW</string>
+    <string name="update_safety_note">The update will be downloaded directly to your device and verified before installation.</string>
+    <string name="update_action_download_now">Download now</string>
+    <string name="update_action_later">Later</string>
+    <string name="update_confirm_title">Confirm download</string>
+    <string name="update_confirm_body">Download RiderVoice v%1$s (%2$s)?</string>
+    <string name="update_confirm_storage_note">The APK will be streamed securely over HTTPS and stored in app-internal cache. Storage space has been verified.</string>
+    <string name="update_downloading_badge">OTA Transmission</string>
+    <string name="update_downloading_title">Downloading update</string>
+    <string name="update_verifying_title">Verifying package</string>
+    <string name="update_install_ready_title">Ready to install</string>
+    <string name="update_install_ready_desc">RiderVoice v%1$s has been downloaded and verified.</string>
+    <string name="update_action_install_now">Install update</string>
+    <string name="update_failed_title">Update failed</string>
+
+    <!-- Route Planner -->
+    <string name="route_planner_title">Route Planner</string>
+    <string name="route_planner_waypoint_badge">Waypoint Plotter</string>
+    <string name="route_origin_placeholder">Origin / Starting Point</string>
+    <string name="route_dest_placeholder">Destination / Mountain Pass</string>
+    <string name="route_routing_characteristic">Routing Characteristic</string>
+    <string name="route_radar_view">Radar View</string>
+    <string name="route_mapbox_sat">Mapbox Sat</string>
+    <string name="route_switch_mapbox">Switch to Mapbox View</string>
+    <string name="route_switch_radar">Switch to Radar View</string>
+    <string name="route_configure_mapbox">Configure Mapbox Key</string>
+    <string name="route_export_gpx">Export GPX Track</string>
+    <string name="route_invert_swap">Invert Route (Swap)</string>
+    <string name="route_clear">Clear Route</string>
+    <string name="route_nearby_riders_simulated">Nearby Riders (Simulated Preview)</string>
+
+    <!-- Post Ride Summary -->
+    <string name="summary_ride_complete">Ride Complete</string>
+    <string name="summary_ride_summary">Ride Summary</string>
+    <string name="summary_stat_time">TIME</string>
+    <string name="summary_stat_distance">DISTANCE</string>
+    <string name="summary_stat_top_speed">TOP SPEED</string>
+    <string name="summary_diagnostics_title">Ride Diagnostics</string>
+    <string name="summary_excel_exported">Exported to %1$s in Excel (.xlsx) format</string>
+
+    <!-- Account Screen -->
+    <string name="account_operator_badge">Transceiver Operator</string>
+    <string name="account_title">Rider Account</string>
+    <string name="account_loading_dossier">Retrieving operator dossier...</string>
+    <string name="account_edit_profile">Edit Profile</string>
+
+    <!-- Diagnostics Dialog -->
+    <string name="diagnostics_dialog_title">Ride Diagnostics</string>
+    <string name="diagnostics_monitoring_active">Monitoring Active — %1$d Samples Logged</string>
+    <string name="diagnostics_auto_export_desc">Auto-exported to %1$s in multi-sheet Excel (.xlsx) on ride conclusion.</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_headset_setup_title">Bluetooth &amp; Headset Setup</string>
+    <string name="settings_headset_setup_subtitle">Configure intercom, mic routing and SCO audio</string>
+    <string name="settings_noise_cancellation">Noise Cancellation</string>
+    <string name="settings_hardware_ptt">Hardware PTT (Helmet Button)</string>
+    <string name="settings_hybrid_vox">Hybrid VOX + PTT Mode</string>
+    <string name="settings_section_voice_tx">Voice Transmission</string>
+    <string name="settings_voice_activation">Voice activation (VOX)</string>
+
+    <!-- Register Screen -->
+    <string name="register_operator_badge">New Transceiver Operator</string>
+    <string name="register_callsign_title">Register Callsign</string>
+    <string name="register_callsign_desc">Provision your station profile and join squad frequencies.</string>
+
+    <!-- Join Room Screen -->
+    <string name="join_room_title">Join Ride</string>
+    <string name="join_connecting">Connecting to ride...</string>
+    <string name="join_verifying">Verifying ride invite...</string>
+    <string name="join_failed_title">Could not join ride</string>
+    <string name="join_callsign_label">Your Callsign / Name</string>
+    <string name="join_action_enter_code">Enter code</string>
 </resources>

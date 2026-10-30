@@ -38,6 +38,12 @@ jobs:
         working-directory: mobile-app
         run: ./gradlew assembleDebug
 
+      - name: Run Release Signing Verification Tests
+        run: |
+          chmod +x .github/scripts/verify-release-apk.sh
+          chmod +x .github/scripts/verify-release-apk.test.sh
+          ./.github/scripts/verify-release-apk.test.sh
+
   validate-backend:
     name: Backend Lint & Typecheck
     runs-on: ubuntu-latest
@@ -59,12 +65,16 @@ jobs:
       - name: Install Backend Dependencies & Generate Prisma
         working-directory: backend
         run: |
-          npm ci || npm install
+          npm ci
           npx prisma generate
 
       - name: Validate Backend Syntax
         working-directory: backend
         run: node -c src/server.js
+
+      - name: Lint Backend Code
+        working-directory: backend
+        run: npm run lint
 
       - name: Validate Prisma Schema
         working-directory: backend
@@ -91,7 +101,7 @@ jobs:
 
       - name: Install Web App Dependencies
         working-directory: web-app
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Build Web App
         working-directory: web-app

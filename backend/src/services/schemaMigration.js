@@ -447,13 +447,9 @@ async function ensureDbSchema(prisma) {
         let lockRes = null
         try {
             lockRes = await tx.$queryRawUnsafe(`SELECT pg_try_advisory_xact_lock(${ADVISORY_LOCK_ID}) AS locked`)
-        } catch (_) {
-            try {
-                lockRes = await tx.$queryRawUnsafe(`SELECT pg_try_advisory_lock(${ADVISORY_LOCK_ID}) AS locked`)
-            } catch (err) {
-                console.warn(`[DB] Advisory lock acquisition failed (${err.message}). Refusing to run DDL without lock.`)
-                return { valid: false, structuralOk: false, repaired: false, lockError: err.message, missing }
-            }
+        } catch (err) {
+            console.warn(`[DB] Advisory transaction lock acquisition failed (${err.message}). Refusing to run DDL without lock.`)
+            return { valid: false, structuralOk: false, repaired: false, lockError: err.message, missing }
         }
 
         if (!lockRes || !lockRes[0] || lockRes[0].locked !== true) {
@@ -494,20 +490,36 @@ async function ensureDbSchema(prisma) {
                 continue
             }
 
-            const useSavepoint = typeof prisma.$transaction === 'function'
+            const savepointName = `stmt_${i}`
             try {
-                if (useSavepoint) {
-                    await tx.$executeRawUnsafe(`SAVEPOINT stmt_${i}`).catch(() => {})
-                }
+                await tx.$executeRawUnsafe(`SAVEPOINT ${savepointName}`)
+            } catch (spErr) {
+                console.error(`[DB Schema] Failed to create SAVEPOINT ${savepointName}: ${spErr.message}. Aborting repair run.`)
+                failed++
+                failedStatements.push({
+                    index: i,
+                    sql: sql.trim().substring(0, 60),
+                    error: `Savepoint failed: ${spErr.message}`
+                })
+                break
+            }
+
+            try {
                 await tx.$executeRawUnsafe(sql)
-                if (useSavepoint) {
-                    await tx.$executeRawUnsafe(`RELEASE SAVEPOINT stmt_${i}`).catch(() => {})
+                try {
+                    await tx.$executeRawUnsafe(`RELEASE SAVEPOINT ${savepointName}`)
+                } catch (relErr) {
+                    console.error(`[DB Schema] Failed to release SAVEPOINT ${savepointName}: ${relErr.message}. Aborting repair run.`)
+                    failed++
+                    failedStatements.push({
+                        index: i,
+                        sql: sql.trim().substring(0, 60),
+                        error: `Release savepoint failed: ${relErr.message}`
+                    })
+                    break
                 }
                 applied++
             } catch (err) {
-                if (useSavepoint) {
-                    await tx.$executeRawUnsafe(`ROLLBACK TO SAVEPOINT stmt_${i}`).catch(() => {})
-                }
                 failed++
                 failedStatements.push({
                     index: i,
@@ -515,6 +527,17 @@ async function ensureDbSchema(prisma) {
                     error: err.message
                 })
                 console.warn(`[DB] Migration statement #${i} notice:`, err.message)
+                try {
+                    await tx.$executeRawUnsafe(`ROLLBACK TO SAVEPOINT ${savepointName}`)
+                } catch (rbErr) {
+                    console.error(`[DB Schema] Failed to ROLLBACK TO SAVEPOINT ${savepointName}: ${rbErr.message}. Aborting repair run.`)
+                    failedStatements.push({
+                        index: i,
+                        sql: sql.trim().substring(0, 60),
+                        error: `Rollback to savepoint failed: ${rbErr.message}`
+                    })
+                    break
+                }
             }
         }
 

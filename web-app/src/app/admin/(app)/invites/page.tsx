@@ -1,8 +1,10 @@
+import { requireAdminPage } from "@/lib/auth/requireAdminPage";
 import { supabaseAdmin } from "@/utils/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminInvitesPage() {
+  await requireAdminPage();
   const { data: invites } = await supabaseAdmin
     .from("RideInvite")
     .select("id, inviterId, inviteeId, status, createdAt, roomId")

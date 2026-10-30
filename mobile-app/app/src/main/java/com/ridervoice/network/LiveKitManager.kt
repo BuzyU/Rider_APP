@@ -9,6 +9,8 @@ import com.ridervoice.audio.RouteType
 import com.ridervoice.audio.RouterState
 import com.ridervoice.audio.VoxEngine
 import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.annotation.VisibleForTesting
+import io.livekit.android.ConnectOptions
 import io.livekit.android.LiveKit
 import io.livekit.android.LiveKitOverrides
 import io.livekit.android.audio.NoAudioHandler
@@ -18,6 +20,7 @@ import io.livekit.android.room.Room
 import io.livekit.android.room.track.LocalAudioTrack
 import io.livekit.android.room.track.LocalAudioTrackOptions
 import io.livekit.android.room.track.RemoteAudioTrack
+import io.livekit.android.room.track.RemoteTrackPublication
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.participant.AudioTrackPublishOptions
 import io.livekit.android.room.track.DataPublishReliability
@@ -152,7 +155,18 @@ class LiveKitManager @Inject constructor(
         }
     }
 
+    @Volatile private var currentAudioDevice: AudioDevice? = null
+
     @Volatile var noiseSuppressionEnabled: Boolean = true
+        set(value) {
+            val changed = field != value
+            field = value
+            if (changed) {
+                currentAudioDevice?.let { dev ->
+                    applyRouteOptions(dev)
+                }
+            }
+        }
 
     private val micMutex = Mutex()
     private val publishMutex = Mutex()
@@ -185,12 +199,22 @@ class LiveKitManager @Inject constructor(
 
     private val gson = Gson()
 
+    @VisibleForTesting
+    internal var roomFactory: (Context, LiveKitOverrides) -> Room = { ctx, overrides ->
+        LiveKit.create(appContext = ctx, overrides = overrides)
+    }
+
     suspend fun connect(
         url: String,
         roomId: String,
         tokenProvider: suspend () -> String,
         expectedLkRoomName: String? = null
     ) {
+        if (roomId.isBlank()) {
+            com.ridervoice.utils.RvLog.e(TAG, "Cannot connect with blank roomId")
+            return
+        }
+
         when {
             _connectionState.value in setOf(ConnectionState.CONNECTED, ConnectionState.CONNECTING) && currentRoomId == roomId -> return
             _connectionState.value in setOf(ConnectionState.CONNECTED, ConnectionState.CONNECTING, ConnectionState.RECONNECTING) -> disconnect()
@@ -199,7 +223,8 @@ class LiveKitManager @Inject constructor(
         val sessionId = sessionCounter.incrementAndGet()
         currentSessionId = sessionId
         currentRoomId = roomId
-        this.expectedLkRoomName = expectedLkRoomName ?: activeRideRepository.state.value?.lkRoomName
+        this.expectedLkRoomName = expectedLkRoomName?.takeIf { it.isNotBlank() }
+            ?: activeRideRepository.state.value?.takeIf { it.roomId == roomId }?.lkRoomName?.takeIf { it.isNotBlank() }
         this.tokenProvider = tokenProvider
         lastUrl = url
         reconnectAttempts = 0
@@ -207,66 +232,105 @@ class LiveKitManager @Inject constructor(
         _convoyEnded.value = false
         _removedFromConvoy.value = false
 
-        val token = tokenProvider()
+        val token = try {
+            tokenProvider()
+        } catch (e: Exception) {
+            com.ridervoice.utils.RvLog.e(TAG, "Failed to retrieve token: ${e.message}")
+            if (sessionId == currentSessionId) {
+                abortConnection(
+                    sessionId = sessionId,
+                    fault = com.ridervoice.state.RoomFault.TransientNetwork(
+                        message = "Failed to retrieve token: ${e.message}",
+                        cause = e
+                    )
+                )
+            }
+            return
+        }
+        if (sessionId != currentSessionId) return
         lastToken = token
         connectInternal(url, token, sessionId)
-    }
-
-    @Deprecated("Use connect(url, roomId, tokenProvider, expectedLkRoomName) for verified room identity")
-    fun connect(url: String, token: String) {
-        val extractedRoom = com.ridervoice.utils.JwtRoomClaimDecoder.extractRoomName(token) ?: "unknown"
-        scope.launch {
-            connect(
-                url = url,
-                roomId = extractedRoom,
-                tokenProvider = { token },
-                expectedLkRoomName = extractedRoom
-            )
-        }
     }
 
     @OptIn(FlowPreview::class)
     private suspend fun connectInternal(url: String, token: String, sessionId: Long) {
         if (sessionId != currentSessionId) return
+        val currRoomId = currentRoomId ?: return
+
+        var expected = expectedLkRoomName?.takeIf { it.isNotBlank() }
+            ?: activeRideRepository.state.value?.takeIf { it.roomId == currRoomId }?.lkRoomName?.takeIf { it.isNotBlank() }
+
+        // If expected is missing and currRoomId is present, query getLobbyStatus to resolve canonical lkRoomName
+        if (expected.isNullOrBlank()) {
+            val maxRetries = 2
+            for (attempt in 0..maxRetries) {
+                if (sessionId != currentSessionId) return
+                try {
+                    val statusRes = apiService.getLobbyStatus(currRoomId)
+                    if (statusRes.isSuccessful) {
+                        val body = statusRes.body()
+                        val lkName = body?.lkRoomName
+                        if (!lkName.isNullOrBlank()) {
+                            expected = lkName
+                            this.expectedLkRoomName = expected
+                            break
+                        }
+                    }
+                } catch (e: Exception) {
+                    com.ridervoice.utils.RvLog.w(TAG, "getLobbyStatus attempt $attempt failed: ${e.message}")
+                }
+                if (attempt < maxRetries) {
+                    delay(250L * (attempt + 1))
+                }
+            }
+        }
+
+        // P0-A: Fail-closed if expected canonical identity cannot be verified
+        if (expected.isNullOrBlank()) {
+            com.ridervoice.utils.RvLog.e(TAG, "Cannot verify room identity: unable to resolve canonical lkRoomName for roomId '$currRoomId'")
+            abortConnection(
+                sessionId = sessionId,
+                fault = com.ridervoice.state.RoomFault.ConfirmedRoomMismatch(
+                    intendedRoomId = currRoomId,
+                    expectedLkRoomName = null,
+                    actualRoomName = null,
+                    reason = "Unable to resolve canonical room identity for roomId '$currRoomId'"
+                )
+            )
+            return
+        }
 
         // P1-A (RV-004): Pre-connect verification against token JWT room claim
         val jwtRoom = com.ridervoice.utils.JwtRoomClaimDecoder.extractRoomName(token)
-        var expected = expectedLkRoomName ?: activeRideRepository.state.value?.lkRoomName
-
-        // If expected is missing and currentRoomId is present, query getLobbyStatus to resolve canonical lkRoomName
-        val currRoomId = currentRoomId
-        if (expected.isNullOrBlank() && !currRoomId.isNullOrBlank()) {
-            try {
-                val statusRes = apiService.getLobbyStatus(currRoomId)
-                if (statusRes.isSuccessful) {
-                    val body = statusRes.body()
-                    if (body?.lkRoomName != null && body.lkRoomName.isNotBlank()) {
-                        expected = body.lkRoomName
-                        this.expectedLkRoomName = expected
-                    }
-                }
-            } catch (e: Exception) {
-                com.ridervoice.utils.RvLog.w("LK", "Failed to resolve lobby status before connect: ${e.message}")
-            }
-        }
-
-        if (!expected.isNullOrBlank()) {
-            if (jwtRoom != null && jwtRoom != expected) {
-                com.ridervoice.utils.RvLog.e("LK", "PRE-CONNECT ROOM IDENTITY MISMATCH! expected=$expected jwtRoom=$jwtRoom roomId=$currentRoomId")
-                abortConnection(
-                    sessionId = sessionId,
-                    fault = com.ridervoice.state.RoomFault.ConfirmedRoomMismatch(
-                        intendedRoomId = currentRoomId ?: "",
-                        expectedLkRoomName = expected,
-                        actualRoomName = jwtRoom,
-                        reason = "Token room '$jwtRoom' does not match expected canonical room '$expected'"
-                    )
+        if (jwtRoom.isNullOrBlank()) {
+            com.ridervoice.utils.RvLog.e(TAG, "PRE-CONNECT TOKEN ERROR: Token lacks a verifiable room claim for roomId $currRoomId")
+            abortConnection(
+                sessionId = sessionId,
+                fault = com.ridervoice.state.RoomFault.ConfirmedRoomMismatch(
+                    intendedRoomId = currRoomId,
+                    expectedLkRoomName = expected,
+                    actualRoomName = null,
+                    reason = "Token has missing, malformed, or undecodable room claim"
                 )
-                return
-            }
-        } else {
-            com.ridervoice.utils.RvLog.w("LK", "legacy_identity_unverified: jwtRoom=$jwtRoom")
+            )
+            return
         }
+
+        if (jwtRoom != expected) {
+            com.ridervoice.utils.RvLog.e(TAG, "PRE-CONNECT ROOM IDENTITY MISMATCH! expected=$expected jwtRoom=$jwtRoom roomId=$currRoomId")
+            abortConnection(
+                sessionId = sessionId,
+                fault = com.ridervoice.state.RoomFault.ConfirmedRoomMismatch(
+                    intendedRoomId = currRoomId,
+                    expectedLkRoomName = expected,
+                    actualRoomName = jwtRoom,
+                    reason = "Token room '$jwtRoom' does not match expected canonical room '$expected'"
+                )
+            )
+            return
+        }
+
+        if (sessionId != currentSessionId) return
 
         _connectionState.value = ConnectionState.CONNECTING
 
@@ -304,9 +368,9 @@ class LiveKitManager @Inject constructor(
         }
 
         try {
-            val newRoom = LiveKit.create(
-                appContext = context,
-                overrides = LiveKitOverrides(
+            val newRoom = roomFactory(
+                context,
+                LiveKitOverrides(
                     audioOptions = AudioOptions(
                         audioHandler = NoAudioHandler(),
                         javaAudioDeviceModuleCustomizer = { builder ->
@@ -330,7 +394,12 @@ class LiveKitManager @Inject constructor(
             room = newRoom
             eventsJob = scope.launch { newRoom.events.collect { event -> handleEvent(event) } }
 
-            newRoom.connect(url = url, token = token)
+            // Connect with autoSubscribe = false (Prompt 4.D)
+            newRoom.connect(
+                url = url,
+                token = token,
+                options = ConnectOptions(autoSubscribe = false)
+            )
 
             if (sessionId != currentSessionId) {
                 runCatching { newRoom.disconnect() }
@@ -340,15 +409,8 @@ class LiveKitManager @Inject constructor(
 
             // P0-B: Verify connected room name before declaring CONNECTED or publishing audio
             val actualRoomName = newRoom.name
-            val verified = if (!expected.isNullOrBlank()) {
-                actualRoomName == expected
-            } else {
-                com.ridervoice.utils.RvLog.e("LK", "Cannot verify room identity: expectedLkRoomName is null. Token's own claim cannot self-verify.")
-                false
-            }
-
-            if (!verified) {
-                com.ridervoice.utils.RvLog.e("LK", "ROOM IDENTITY MISMATCH! expected=$expected actual=$actualRoomName roomId=$currentRoomId")
+            if (actualRoomName != expected) {
+                com.ridervoice.utils.RvLog.e(TAG, "ROOM IDENTITY MISMATCH! expected=$expected actual=$actualRoomName roomId=$currentRoomId")
                 abortConnection(
                     sessionId = sessionId,
                     fault = com.ridervoice.state.RoomFault.ConfirmedRoomMismatch(
@@ -361,6 +423,12 @@ class LiveKitManager @Inject constructor(
                 return
             }
 
+            if (sessionId != currentSessionId) {
+                runCatching { newRoom.disconnect() }
+                runCatching { newRoom.release() }
+                return
+            }
+
             withTimeoutOrNull(5000) {
                 while (audioDeviceRouter.routerState.value != RouterState.ACTIVE &&
                        audioDeviceRouter.routerState.value != RouterState.FAILED) {
@@ -368,7 +436,19 @@ class LiveKitManager @Inject constructor(
                 }
             }
 
+            if (sessionId != currentSessionId) {
+                runCatching { newRoom.disconnect() }
+                runCatching { newRoom.release() }
+                return
+            }
+
             publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
+
+            if (sessionId != currentSessionId) {
+                runCatching { newRoom.disconnect() }
+                runCatching { newRoom.release() }
+                return
+            }
 
             _connectionState.value = ConnectionState.CONNECTED
             reconnectAttempts = 0
@@ -432,6 +512,7 @@ class LiveKitManager @Inject constructor(
     }
 
     private suspend fun publishAudioTrack(device: AudioDevice, force: Boolean = false) {
+        currentAudioDevice = device
         val published = publishMutex.withLock {
             val lp = room?.localParticipant ?: return@withLock false
             val opts = buildAudioTrackOptions(device)
@@ -505,6 +586,7 @@ class LiveKitManager @Inject constructor(
     @Volatile private var lastPublishTime = 0L
 
     fun applyRouteOptions(device: AudioDevice) {
+        currentAudioDevice = device
         val newOptions = buildAudioTrackOptions(device)
         val currentTrack = localAudioTrack
         val now = System.currentTimeMillis()
@@ -537,9 +619,15 @@ class LiveKitManager @Inject constructor(
     }
 
     private fun ensureRemoteAudioTracksEnabled() {
+        if (_connectionState.value != ConnectionState.CONNECTED) return
         val v = if (_deafened.value) 0.0 else 1.0
         room?.remoteParticipants?.values?.forEach { p ->
-            p.audioTrackPublications.forEach { (_, track) ->
+            p.audioTrackPublications.forEach { (pub, track) ->
+                (pub as? RemoteTrackPublication)?.let { remotePub ->
+                    if (!remotePub.subscribed) {
+                        remotePub.setSubscribed(true)
+                    }
+                }
                 (track as? RemoteAudioTrack)?.let { remoteTrack ->
                     remoteTrack.enabled = true
                     remoteTrack.setVolume(v)
@@ -552,7 +640,9 @@ class LiveKitManager @Inject constructor(
         ensureRemoteAudioTracksEnabled()
     }
 
-    private fun handleEvent(event: RoomEvent) {
+    @VisibleForTesting
+    internal fun handleEvent(event: RoomEvent) {
+        if (event.room != this.room) return
         when (event) {
             is RoomEvent.ParticipantConnected -> {
                 updateParticipantList()
@@ -570,6 +660,13 @@ class LiveKitManager @Inject constructor(
                 updateParticipantList()
             }
             is RoomEvent.TrackPublished -> {
+                if (_connectionState.value == ConnectionState.CONNECTED) {
+                    (event.publication as? RemoteTrackPublication)?.let { remotePub ->
+                        if (remotePub.kind == Track.Kind.AUDIO && !remotePub.subscribed) {
+                            remotePub.setSubscribed(true)
+                        }
+                    }
+                }
                 ensureRemoteAudioTracksEnabled()
             }
             is RoomEvent.Reconnecting -> {
@@ -991,8 +1088,12 @@ class LiveKitManager @Inject constructor(
         // Emit RoomFault for client-side containment and notification
         _roomFault.tryEmit(fault)
 
-        // Clear local active ride state only (local teardown only)
-        activeRideRepository.clear(ActiveRideRepository.ClearReason.NOT_FOUND)
+        // Clear local active ride state only if the active ride matches this aborted session's room (local teardown only)
+        val activeRide = activeRideRepository.state.value
+        val failedRoom = (fault as? com.ridervoice.state.RoomFault.ConfirmedRoomMismatch)?.intendedRoomId ?: currentRoomId
+        if (activeRide != null && !failedRoom.isNullOrBlank() && activeRide.roomId == failedRoom) {
+            activeRideRepository.clear(ActiveRideRepository.ClearReason.NOT_FOUND)
+        }
     }
 
     fun broadcastSos(alertId: String, lat: Double?, lng: Double?, callsign: String) {

@@ -1,0 +1,143 @@
+package com.ridervoice.mesh.link
+
+import com.ridervoice.mesh.MeshConfig
+import com.ridervoice.mesh.OfflineMeshGate
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.NetworkInterface
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
+/**
+ * UDP implementation of [MeshLink] over a shared local subnet.
+ * Never opens sockets if [gateAllowed] returns false.
+ */
+class UdpMeshLink(
+    override val linkId: String = "udp-subnet",
+    private val bindPort: Int = MeshConfig.AUDIO_PORT,
+    private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+) : MeshLink {
+
+    private val _state = MutableStateFlow(MeshLinkState.STOPPED)
+    override val state: StateFlow<MeshLinkState> = _state.asStateFlow()
+
+    private val _incomingFrames = MutableSharedFlow<MeshFrame>(extraBufferCapacity = 256)
+    override val incomingFrames: Flow<MeshFrame> = _incomingFrames.asSharedFlow()
+
+    private val knownEndpoints = ConcurrentHashMap.newKeySet<MeshEndpoint>()
+
+    @Volatile
+    private var socket: DatagramSocket? = null
+    private var scope: CoroutineScope? = null
+    private var receiveJob: Job? = null
+
+    override suspend fun start() {
+        if (!gateAllowed()) {
+            _state.value = MeshLinkState.STOPPED
+            return
+        }
+        if (_state.value == MeshLinkState.RUNNING || _state.value == MeshLinkState.STARTING) return
+        _state.value = MeshLinkState.STARTING
+
+        try {
+            val sock = DatagramSocket(null).apply {
+                reuseAddress = true
+                broadcast = true
+                bind(InetSocketAddress(bindPort))
+            }
+            socket = sock
+            val newScope = CoroutineScope(SupervisorJob() + dispatcher)
+            scope = newScope
+            _state.value = MeshLinkState.RUNNING
+
+            receiveJob = newScope.launch {
+                val buf = ByteArray(2048)
+                while (isActive && _state.value == MeshLinkState.RUNNING) {
+                    try {
+                        val packet = DatagramPacket(buf, buf.size)
+                        sock.receive(packet)
+                        val host = packet.address?.hostAddress ?: continue
+                        val from = MeshEndpoint(host, packet.port)
+                        knownEndpoints.add(from)
+                        val copy = packet.data.copyOfRange(packet.offset, packet.offset + packet.length)
+                        _incomingFrames.tryEmit(MeshFrame(from, copy))
+                    } catch (_: Exception) {
+                        if (!isActive || _state.value != MeshLinkState.RUNNING) break
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            _state.value = MeshLinkState.FAILED
+            closeSocket()
+        }
+    }
+
+    override suspend fun stop() {
+        _state.value = MeshLinkState.STOPPED
+        receiveJob?.cancel()
+        receiveJob = null
+        scope = null
+        closeSocket()
+        knownEndpoints.clear()
+    }
+
+    override fun send(endpoint: MeshEndpoint, payload: ByteArray): Boolean {
+        if (!gateAllowed() || _state.value != MeshLinkState.RUNNING) return false
+        val sock = socket ?: return false
+        return try {
+            val addr = InetAddress.getByName(endpoint.host)
+            val pkt = DatagramPacket(payload, payload.size, addr, endpoint.port)
+            sock.send(pkt)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    override fun endpoints(): Set<MeshEndpoint> = knownEndpoints.toSet()
+
+    fun registerEndpoint(endpoint: MeshEndpoint) {
+        knownEndpoints.add(endpoint)
+    }
+
+    private fun closeSocket() {
+        runCatching { socket?.close() }
+        socket = null
+    }
+
+    companion object {
+        fun discoverBroadcastEndpoints(port: Int = MeshConfig.DISCOVERY_PORT): List<MeshEndpoint> {
+            return runCatching {
+                NetworkInterface.getNetworkInterfaces()?.asSequence()
+                    ?.filter { it.isUp && !it.isLoopback && !it.isVirtual }
+                    ?.flatMap { nif ->
+                        nif.interfaceAddresses.asSequence()
+                            .filter { it.address is Inet4Address }
+                            .mapNotNull { it.broadcast?.hostAddress }
+                    }
+                    ?.distinct()
+                    ?.map { MeshEndpoint(it, port) }
+                    ?.toList()
+                    .orEmpty()
+            }.getOrDefault(emptyList())
+                .ifEmpty { listOf(MeshEndpoint("255.255.255.255", port)) }
+        }
+    }
+}
+

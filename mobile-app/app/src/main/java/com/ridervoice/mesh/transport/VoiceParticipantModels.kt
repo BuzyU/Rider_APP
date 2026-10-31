@@ -1,0 +1,103 @@
+package com.ridervoice.mesh.transport
+
+import com.ridervoice.mesh.graph.MeshGraphSnapshot
+import com.ridervoice.mesh.routing.RouteEntry
+
+enum class PeerTransportKind {
+    ONLINE_LIVEKIT,
+    OFFLINE_MESH
+}
+
+/**
+ * Distinct model for an online LiveKit participant.
+ */
+data class OnlineParticipant(
+    val identity: String,
+    val displayName: String,
+    val isSpeaking: Boolean,
+    val isConnected: Boolean = true
+)
+
+/**
+ * Distinct model for an offline mesh device. Never conflated with a LiveKit participant.
+ */
+data class OfflineMeshDevice(
+    val deviceId: String,
+    val displayName: String,
+    val reachable: Boolean,
+    val direct: Boolean,
+    val hopCount: Int,
+    val nextHopDeviceId: String?,
+    val routeExpiresAt: Long,
+    val isSpeaking: Boolean
+)
+
+/**
+ * UI projection model combining online/offline peer metadata while preserving transport semantics.
+ */
+data class UnifiedVoicePeer(
+    val id: String,
+    val name: String,
+    val isOnline: Boolean,
+    val transport: PeerTransportKind,
+    val hopCount: Int,
+    val nextHopId: String?,
+    val isDirect: Boolean,
+    val isRelayed: Boolean,
+    val routeAgeMs: Long,
+    val isSpeaking: Boolean
+) {
+    companion object {
+        fun fromOnline(p: OnlineParticipant): UnifiedVoicePeer = UnifiedVoicePeer(
+            id = p.identity,
+            name = p.displayName,
+            isOnline = p.isConnected,
+            transport = PeerTransportKind.ONLINE_LIVEKIT,
+            hopCount = 1,
+            nextHopId = null,
+            isDirect = true,
+            isRelayed = false,
+            routeAgeMs = 0L,
+            isSpeaking = p.isSpeaking
+        )
+
+        fun fromOffline(device: OfflineMeshDevice, now: Long): UnifiedVoicePeer = UnifiedVoicePeer(
+            id = device.deviceId,
+            name = device.displayName,
+            isOnline = device.reachable,
+            transport = PeerTransportKind.OFFLINE_MESH,
+            hopCount = device.hopCount,
+            nextHopId = device.nextHopDeviceId,
+            isDirect = device.direct,
+            isRelayed = device.reachable && !device.direct && device.hopCount > 1,
+            routeAgeMs = (device.routeExpiresAt - now).coerceAtLeast(0L),
+            isSpeaking = device.isSpeaking
+        )
+
+        fun projectMeshGraph(
+            graph: MeshGraphSnapshot,
+            routes: Map<String, RouteEntry>,
+            speakingIds: Set<String>,
+            now: Long
+        ): List<OfflineMeshDevice> {
+            return graph.nodes.values
+                .filter { it.deviceId != graph.selfId }
+                .sortedBy { it.deviceId }
+                .map { node ->
+                    val route = routes[node.deviceId]
+                    val validRoute = route != null && route.expiresAt > now
+                    OfflineMeshDevice(
+                        deviceId = node.deviceId,
+                        displayName = node.displayName,
+                        reachable = validRoute,
+                        direct = validRoute && route?.direct == true,
+                        hopCount = if (validRoute && route != null) route.hopCount else 0,
+                        nextHopDeviceId = if (validRoute && route != null) route.nextHop else null,
+                        routeExpiresAt = if (validRoute && route != null) route.expiresAt else 0L,
+                        isSpeaking = node.deviceId in speakingIds
+                    )
+                }
+        }
+    }
+}
+

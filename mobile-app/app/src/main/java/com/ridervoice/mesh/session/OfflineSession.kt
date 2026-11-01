@@ -1,22 +1,20 @@
 package com.ridervoice.mesh.session
 
 import com.ridervoice.mesh.MeshConfig
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
 import java.security.SecureRandom
-import java.util.UUID
 
 /**
  * Standalone offline session. No backend, Firebase, Internet or LiveKit involvement.
  *
- * The sessionId and the authentication key are both derived from the pairing code, so a joining
- * device needs only the code (typed or via QR). The code is 10 characters from a 32-symbol alphabet
- * (50 bits) rather than a 6-digit code: the code is also the HMAC secret, and 6 digits could be
- * brute-forced offline from a single captured packet.
+ * The sessionId, authentication key, and payload encryption key are all derived from the pairing
+ * code via PBKDF2-HMAC-SHA256 (SessionKdf). The code is 16 characters from Crockford Base32 (80 bits)
+ * formatted in groups of 4 (e.g. K7QX-M2PA-9TDE-4WZH).
  */
-data class OfflineSession(
+class OfflineSession private constructor(
     val sessionId: String,
     val pairingCode: String,
+    private val key: ByteArray,
+    private val pKey: ByteArray,
     val createdAt: Long,
     val expiresAt: Long,
     val maxDevices: Int = MeshConfig.MAX_DEVICES
@@ -24,44 +22,69 @@ data class OfflineSession(
     fun isExpired(now: Long): Boolean = now >= expiresAt
 
     /** 32-byte HMAC key derived from the pairing code. Never sent over the wire. */
-    fun authKey(): ByteArray = deriveKey(pairingCode)
+    fun authKey(): ByteArray = key.copyOf()
+
+    /** 32-byte AES-256 payload encryption key derived from the pairing code. Never sent over the wire. */
+    fun payloadKey(): ByteArray = pKey.copyOf()
+
+    override fun toString(): String =
+        "OfflineSession(id=$sessionId, expiresAt=$expiresAt)"
+
+    override fun equals(other: Any?): Boolean =
+        other is OfflineSession &&
+            sessionId == other.sessionId &&
+            pairingCode == other.pairingCode &&
+            key.contentEquals(other.key) &&
+            pKey.contentEquals(other.pKey) &&
+            createdAt == other.createdAt &&
+            expiresAt == other.expiresAt &&
+            maxDevices == other.maxDevices
+
+    override fun hashCode(): Int = sessionId.hashCode()
 
     companion object {
-        private const val ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789!"  // 32 symbols, no 0/O/1/I/L
-        const val CODE_LENGTH = 10
+        private const val ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"  // 32 symbols Crockford Base32
+        const val CODE_LENGTH = 16
 
-        fun create(now: Long, random: SecureRandom = SecureRandom()): OfflineSession {
+        fun create(
+            now: Long,
+            random: SecureRandom = SecureRandom(),
+            iterations: Int = SessionKdf.DEFAULT_ITERATIONS
+        ): OfflineSession {
             val code = buildString { repeat(CODE_LENGTH) { append(ALPHABET[random.nextInt(ALPHABET.length)]) } }
-            return fromCode(code, now) ?: OfflineSession(
-                sessionId = sessionIdFor(code),
-                pairingCode = code,
-                createdAt = now,
-                expiresAt = now + MeshConfig.SESSION_LIFETIME_MS
-            )
+            return fromCode(code, now, iterations) ?: error("Failed to create session from generated code")
         }
 
         /** Returns null if the code is malformed. Local expiry is relative to when this device joined. */
-        fun fromCode(rawCode: String, now: Long): OfflineSession? {
+        fun fromCode(
+            rawCode: String,
+            now: Long,
+            iterations: Int = SessionKdf.DEFAULT_ITERATIONS
+        ): OfflineSession? {
             val code = normalize(rawCode) ?: return null
+            val derived = SessionKdf.derive(code, iterations)
             return OfflineSession(
-                sessionId = sessionIdFor(code),
+                sessionId = derived.sessionId,
                 pairingCode = code,
+                key = derived.authKey,
+                pKey = derived.payloadKey,
                 createdAt = now,
                 expiresAt = now + MeshConfig.SESSION_LIFETIME_MS
             )
         }
 
         fun normalize(raw: String): String? {
-            val code = raw.trim().uppercase().replace("-", "").replace(" ", "")
+            val code = raw.trim().uppercase()
+                .replace("-", "")
+                .replace(" ", "")
+                .replace('O', '0')
+                .replace('I', '1')
+                .replace('L', '1')
             if (code.length != CODE_LENGTH) return null
             return if (code.all { it in ALPHABET }) code else null
         }
 
-        fun sessionIdFor(code: String): String =
-            UUID.nameUUIDFromBytes("rvmesh:session:$code".toByteArray(StandardCharsets.UTF_8)).toString()
-
-        fun deriveKey(code: String): ByteArray =
-            MessageDigest.getInstance("SHA-256").digest("rvmesh:key:$code".toByteArray(StandardCharsets.UTF_8))
+        fun format(code: String): String = code.chunked(4).joinToString("-")
     }
 }
 
@@ -113,4 +136,3 @@ class SessionManager(
         }
     }
 }
-

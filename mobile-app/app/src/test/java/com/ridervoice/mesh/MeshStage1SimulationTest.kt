@@ -21,6 +21,7 @@ import com.ridervoice.mesh.protocol.DuplicatePacketCache
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
+import com.ridervoice.mesh.protocol.PayloadCrypto
 import com.ridervoice.mesh.routing.RouteCalculator
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
@@ -79,14 +80,15 @@ class MeshStage1SimulationTest {
     @Test
     fun `offline session pairing code normalization, 6-device cap and 7th rejection`() {
         var now = 1_000_000L
-        val created = OfflineSession.create(now)
-        val formatted = "${created.pairingCode.substring(0, 5)}-${created.pairingCode.substring(5)}"
-        val joined = OfflineSession.fromCode(formatted, now)
+        val created = OfflineSession.create(now, iterations = 100)
+        val formatted = OfflineSession.format(created.pairingCode)
+        val joined = OfflineSession.fromCode(formatted, now, iterations = 100)
         assertNotNull(joined)
         assertEquals(created.sessionId, joined!!.sessionId)
         assertArrayEquals(created.authKey(), joined.authKey())
+        assertArrayEquals(created.payloadKey(), joined.payloadKey())
 
-        assertNull(OfflineSession.fromCode("INVALID", now))
+        assertNull(OfflineSession.fromCode("INVALID", now, iterations = 100))
 
         val hostId = uuidFor("A")
         val mgr = SessionManager(created, hostId) { now }
@@ -424,6 +426,9 @@ class MeshStage1SimulationTest {
 
         // Inject a 7th device G connected to F with the valid session key -> rejected by 6-device cap
         val gId = uuidFor("G")
+        val gAad = PayloadCrypto.aad(session.sessionId, gId, MeshPacketType.VOICE.code, 0, 1, net.now, AudioFormatId.PCM16_16K_MONO)
+        val gNonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code)
+        val gSealed = PayloadCrypto.seal(session.payloadKey(), gNonce, gAad, pcm)
         val gPkt = MeshPacket(
             type = MeshPacketType.VOICE,
             sessionId = session.sessionId,
@@ -433,7 +438,7 @@ class MeshStage1SimulationTest {
             ttl = MeshConfig.DEFAULT_TTL,
             hopCount = 0,
             previousHopId = gId,
-            payload = pcm
+            payload = gSealed
         )
         val gWire = MeshPacketCodec.encode(gPkt, session.authKey())
         val outcome = f.engine.onIncomingFrame(MeshFrame(MeshEndpoint("10.0.0.77", 45454), gWire))
@@ -453,6 +458,9 @@ class MeshStage1SimulationTest {
         net.convergeDiscovery(rounds = 2)
 
         val pcm = ByteArray(MeshConfig.BYTES_PER_FRAME) { 0x33 }
+        val aad = PayloadCrypto.aad(session.sessionId, a.id, MeshPacketType.VOICE.code, 0, 99, net.now, AudioFormatId.PCM16_16K_MONO)
+        val nonce = PayloadCrypto.nonce(0, 99, MeshPacketType.VOICE.code)
+        val sealed = PayloadCrypto.seal(session.payloadKey(), nonce, aad, pcm)
         val pkt = MeshPacket(
             type = MeshPacketType.VOICE,
             sessionId = session.sessionId,
@@ -462,7 +470,7 @@ class MeshStage1SimulationTest {
             ttl = 1, // TTL=1: B accepts & plays locally, but does NOT forward
             hopCount = 0,
             previousHopId = a.id,
-            payload = pcm
+            payload = sealed
         )
         val wire = MeshPacketCodec.encode(pkt, session.authKey())
         val first = b.engine.onIncomingFrame(MeshFrame(a.endpoint, wire))

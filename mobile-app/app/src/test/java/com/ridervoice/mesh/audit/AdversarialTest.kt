@@ -13,11 +13,13 @@ import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
+import com.ridervoice.mesh.protocol.AudioFormatId
 import com.ridervoice.mesh.protocol.DecodeResult
 import com.ridervoice.mesh.protocol.DuplicatePacketCache
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
+import com.ridervoice.mesh.protocol.PayloadCrypto
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionManager
@@ -131,6 +133,9 @@ class AdversarialTest {
         a.sessionMgr.admit(cId)
 
         val helloPayload = HelloCodec.encode(HelloPayload(name = "B", graphVersion = 1, neighborIds = emptyList()))
+        val aad = PayloadCrypto.aad(s.sessionId, bId, MeshPacketType.HELLO.code, 0, 1, t, AudioFormatId.PCM16_16K_MONO)
+        val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.HELLO.code)
+        val sealedHello = PayloadCrypto.seal(s.payloadKey(), nonce, aad, helloPayload)
 
         val relayedHello = MeshPacket(
             type = MeshPacketType.HELLO,
@@ -141,7 +146,7 @@ class AdversarialTest {
             ttl = 3,
             hopCount = 1,
             previousHopId = cId,
-            payload = helloPayload
+            payload = sealedHello
         )
         val frameFromC = MeshFrame(MeshEndpoint("10.0.0.3", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(relayedHello, s.authKey()))
         val outcomeRelayed = a.engine.onIncomingFrame(frameFromC)
@@ -158,7 +163,7 @@ class AdversarialTest {
             ttl = MeshConfig.HELLO_TTL,
             hopCount = 0,
             previousHopId = bId,
-            payload = helloPayload
+            payload = sealedHello
         )
         val frameFromB = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(directHello, s.authKey()))
         val outcomeDirect = a.engine.onIncomingFrame(frameFromB)

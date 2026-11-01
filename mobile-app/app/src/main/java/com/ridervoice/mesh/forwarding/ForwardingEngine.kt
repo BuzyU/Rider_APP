@@ -13,8 +13,10 @@ import com.ridervoice.mesh.protocol.DuplicatePacketCache
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
+import com.ridervoice.mesh.protocol.PayloadCrypto
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.SessionManager
+import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -48,9 +50,10 @@ sealed class ReceiveOutcome {
  *
  * Guarantees:
  * - Original [MeshPacket.sourceId] is NEVER modified when relaying.
- * - Duplicates are suppressed via [DuplicatePacketCache] keyed by sessionId + sourceId + sequence.
+ * - Duplicates are suppressed via [DuplicatePacketCache] keyed by sessionId + sourceId + epoch + kind + sequence.
  * - Packets are never sent back to [MeshPacket.previousHopId] or [MeshPacket.sourceId].
  * - Only non-expired direct neighbors with valid routes receive forwarded packets.
+ * - Payloads are sealed end-to-end with AES-256-GCM via [PayloadCrypto]. Relays never re-encrypt.
  */
 class ForwardingEngine(
     private val selfId: String,
@@ -62,11 +65,13 @@ class ForwardingEngine(
     private val ttlPolicy: TtlPolicy,
     private val link: MeshLink,
     private val clock: () -> Long,
-    private val onLocalVoicePacket: (MeshPacket) -> Unit = {}
+    private val onLocalVoicePacket: (MeshPacket) -> Unit = {},
+    private val localEpoch: Int = SecureRandom().nextInt()
 ) {
     private val voiceSeqGen = AtomicInteger(0)
     private val controlSeqGen = AtomicInteger(0)
     private val authKey: ByteArray = sessionManager.session.authKey()
+    private val payloadKey: ByteArray = sessionManager.session.payloadKey()
     private val sessionId: String = sessionManager.session.sessionId
 
     companion object {
@@ -94,6 +99,17 @@ class ForwardingEngine(
         val now = clock()
         if (sessionManager.session.isExpired(now)) return null
         val seq = voiceSeqGen.incrementAndGet()
+        val aad = PayloadCrypto.aad(
+            sessionId = sessionId,
+            sourceId = selfId,
+            typeCode = MeshPacketType.VOICE.code,
+            epoch = localEpoch,
+            sequence = seq,
+            captureTimestamp = now,
+            audioFormat = AudioFormatId.PCM16_16K_MONO
+        )
+        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.VOICE.code)
+        val sealed = PayloadCrypto.seal(payloadKey, nonce, aad, pcmPayload)
         val packet = MeshPacket(
             type = MeshPacketType.VOICE,
             sessionId = sessionId,
@@ -104,9 +120,10 @@ class ForwardingEngine(
             hopCount = 0,
             previousHopId = selfId,
             audioFormat = AudioFormatId.PCM16_16K_MONO,
-            payload = pcmPayload
+            epoch = localEpoch,
+            payload = sealed
         )
-        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet))
+        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet), localEpoch)
         val wire = MeshPacketCodec.encode(packet, authKey)
         graphRepository.expire()
         val targets = graphRepository.directNeighbors()
@@ -132,6 +149,18 @@ class ForwardingEngine(
             graphVersion = snapshot.version.toInt(),
             neighborIds = graphRepository.directNeighborIds()
         )
+        val plainHello = HelloCodec.encode(hello)
+        val aad = PayloadCrypto.aad(
+            sessionId = sessionId,
+            sourceId = selfId,
+            typeCode = MeshPacketType.HELLO.code,
+            epoch = localEpoch,
+            sequence = seq,
+            captureTimestamp = now,
+            audioFormat = AudioFormatId.PCM16_16K_MONO
+        )
+        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.HELLO.code)
+        val sealed = PayloadCrypto.seal(payloadKey, nonce, aad, plainHello)
         val packet = MeshPacket(
             type = MeshPacketType.HELLO,
             sessionId = sessionId,
@@ -141,9 +170,11 @@ class ForwardingEngine(
             ttl = MeshConfig.HELLO_TTL,
             hopCount = 0,
             previousHopId = selfId,
-            payload = HelloCodec.encode(hello)
+            audioFormat = AudioFormatId.PCM16_16K_MONO,
+            epoch = localEpoch,
+            payload = sealed
         )
-        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet))
+        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet), localEpoch)
         val wire = MeshPacketCodec.encode(packet, authKey)
         val endpoints = LinkedHashSet<MeshEndpoint>()
         graphRepository.directNeighbors().forEach { endpoints.add(it.endpoint) }
@@ -161,6 +192,17 @@ class ForwardingEngine(
     fun originateBye(): MeshPacket {
         val now = clock()
         val seq = controlSeqGen.incrementAndGet()
+        val aad = PayloadCrypto.aad(
+            sessionId = sessionId,
+            sourceId = selfId,
+            typeCode = MeshPacketType.BYE.code,
+            epoch = localEpoch,
+            sequence = seq,
+            captureTimestamp = now,
+            audioFormat = AudioFormatId.PCM16_16K_MONO
+        )
+        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.BYE.code)
+        val sealed = PayloadCrypto.seal(payloadKey, nonce, aad, ByteArray(0))
         val packet = MeshPacket(
             type = MeshPacketType.BYE,
             sessionId = sessionId,
@@ -169,9 +211,12 @@ class ForwardingEngine(
             captureTimestamp = now,
             ttl = MeshConfig.HELLO_TTL,
             hopCount = 0,
-            previousHopId = selfId
+            previousHopId = selfId,
+            audioFormat = AudioFormatId.PCM16_16K_MONO,
+            epoch = localEpoch,
+            payload = sealed
         )
-        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet))
+        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet), localEpoch)
         val wire = MeshPacketCodec.encode(packet, authKey)
         for (neighbor in graphRepository.directNeighbors()) {
             link.send(neighbor.endpoint, wire)
@@ -222,11 +267,11 @@ class ForwardingEngine(
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.STALE_TIMESTAMP)
         }
 
-        // 5 (strict). Payload size must match the packet type exactly, not merely be "<= max".
+        // 5 (strict). Payload size must match the packet type exactly, taking into account the 16-byte GCM tag.
         val payloadOk = when (decoded.type) {
-            MeshPacketType.VOICE -> decoded.payload.size == MeshConfig.BYTES_PER_FRAME
-            MeshPacketType.BYE -> decoded.payload.isEmpty()
-            MeshPacketType.HELLO -> true // bounded and structurally validated by HelloCodec
+            MeshPacketType.VOICE -> decoded.payload.size == MeshConfig.ENCRYPTED_VOICE_PAYLOAD_BYTES
+            MeshPacketType.BYE -> decoded.payload.size == PayloadCrypto.TAG_LEN
+            MeshPacketType.HELLO -> decoded.payload.size >= PayloadCrypto.TAG_LEN
         }
         if (!payloadOk) {
             droppedInvalidCount++
@@ -264,7 +309,7 @@ class ForwardingEngine(
         }
 
         // 9-11. Check duplicate cache, drop duplicates, add new packet to cache
-        if (!duplicateCache.markIfNew(decoded.sessionId, decoded.sourceId, decoded.sequence, dedupKind(decoded))) {
+        if (!duplicateCache.markIfNew(decoded.sessionId, decoded.sourceId, decoded.sequence, dedupKind(decoded), decoded.epoch)) {
             droppedDuplicateCount++
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DUPLICATE)
         }
@@ -274,10 +319,26 @@ class ForwardingEngine(
             routingTable.recompute(graphRepository.currentSnapshot(), now)
         }
 
-        // 12. Local delivery (Play audio locally / update graph)
+        // 12. Local delivery: Decrypt payload and dispatch locally
+        val aad = PayloadCrypto.aad(
+            sessionId = decoded.sessionId,
+            sourceId = decoded.sourceId,
+            typeCode = decoded.type.code,
+            epoch = decoded.epoch,
+            sequence = decoded.sequence,
+            captureTimestamp = decoded.captureTimestamp,
+            audioFormat = decoded.audioFormat
+        )
+        val nonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code)
+        val plain = PayloadCrypto.open(payloadKey, nonce, aad, decoded.payload)
+        if (plain == null) {
+            droppedInvalidCount++
+            return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
+        }
+
         when (decoded.type) {
             MeshPacketType.HELLO -> {
-                val hello = HelloCodec.decode(decoded.payload)
+                val hello = HelloCodec.decode(plain)
                     ?: run {
                         droppedInvalidCount++
                         return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.MALFORMED_HELLO)
@@ -294,15 +355,23 @@ class ForwardingEngine(
                 }
             }
             MeshPacketType.BYE -> {
+                if (plain.isNotEmpty()) {
+                    droppedInvalidCount++
+                    return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
+                }
                 sessionManager.remove(decoded.sourceId)
                 if (graphRepository.onBye(decoded.sourceId)) {
                     routingTable.recompute(graphRepository.currentSnapshot(), now)
                 }
             }
             MeshPacketType.VOICE -> {
+                if (plain.size != MeshConfig.BYTES_PER_FRAME) {
+                    droppedInvalidCount++
+                    return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
+                }
                 receivedVoiceCount++
                 sessionManager.touch(decoded.sourceId)
-                onLocalVoicePacket(decoded)
+                onLocalVoicePacket(decoded.copy(payload = plain))
             }
         }
 
@@ -311,7 +380,7 @@ class ForwardingEngine(
         if (ttlPolicy.canForwardAfterReceive(decoded.ttl) &&
             ttlPolicy.tryConsumeForwardBudget(decoded.sourceId)
         ) {
-            val forwardedPacket = decoded.forwardedBy(selfId) // preserves originalSourceDeviceId
+            val forwardedPacket = decoded.forwardedBy(selfId) // preserves originalSourceDeviceId and epoch
             val wire = MeshPacketCodec.encode(forwardedPacket, authKey)
 
             val candidateNeighbors = selectForwardNeighbors(
@@ -355,15 +424,16 @@ class ForwardingEngine(
         }
         if (liveDirect.isEmpty()) return emptyList()
 
-        val activeRoutes = routingTable.routes.value.values.filter { route ->
-            route.destination != sourceId &&
-                route.destination != previousHopId &&
-                route.expiresAt > now
-        }
-        val neededNextHops = activeRoutes.map { it.nextHop }.toSet()
-        return if (neededNextHops.isNotEmpty()) {
-            liveDirect.filter { it.deviceId in neededNextHops }
+        // BFS-derived next-hop destinations
+        val candidateNextHops = routingTable.routes.value.values
+            .map { it.nextHop }
+            .toSet()
+
+        val matching = liveDirect.filter { it.deviceId in candidateNextHops }
+        return if (matching.isNotEmpty()) {
+            matching
         } else {
+            // Topology knowledge is still converging; fall back to all live direct neighbors
             liveDirect
         }
     }

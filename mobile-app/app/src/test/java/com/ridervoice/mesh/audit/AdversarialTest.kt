@@ -3,7 +3,10 @@ package com.ridervoice.mesh.audit
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.audio.PlayoutFrame
 import com.ridervoice.mesh.audio.SourceJitterBuffer
+import com.ridervoice.mesh.discovery.HelloCodec
+import com.ridervoice.mesh.discovery.HelloPayload
 import com.ridervoice.mesh.forwarding.ForwardingEngine
+import com.ridervoice.mesh.forwarding.ReceiveOutcome
 import com.ridervoice.mesh.forwarding.TtlPolicy
 import com.ridervoice.mesh.graph.MeshGraphRepository
 import com.ridervoice.mesh.link.MeshEndpoint
@@ -113,6 +116,54 @@ class AdversarialTest {
         }
         assertEquals("spurious PLC frames", 0L, concealed.toLong())
         assertTrue("audio frames played=$audio", audio >= 70)
+    }
+
+    @Test
+    fun relayedHelloArrivingFirstMustNotHideTheDirectNeighbor() {
+        val t = 1_000L
+        val clock = { t }
+        val s = OfflineSession.create(t)
+        val aId = UUID.randomUUID().toString()
+        val bId = UUID.randomUUID().toString()
+        val cId = UUID.randomUUID().toString()
+        val a = Node(aId, "10.0.0.1", s, clock)
+        a.sessionMgr.admit(bId)
+        a.sessionMgr.admit(cId)
+
+        val helloPayload = HelloCodec.encode(HelloPayload(name = "B", graphVersion = 1, neighborIds = emptyList()))
+
+        val relayedHello = MeshPacket(
+            type = MeshPacketType.HELLO,
+            sessionId = s.sessionId,
+            sourceId = bId,
+            sequence = 1,
+            captureTimestamp = t,
+            ttl = 3,
+            hopCount = 1,
+            previousHopId = cId,
+            payload = helloPayload
+        )
+        val frameFromC = MeshFrame(MeshEndpoint("10.0.0.3", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(relayedHello, s.authKey()))
+        val outcomeRelayed = a.engine.onIncomingFrame(frameFromC)
+        assertTrue(outcomeRelayed is ReceiveOutcome.Accepted)
+
+        assertTrue(a.graph.directNeighborIds().isEmpty())
+
+        val directHello = MeshPacket(
+            type = MeshPacketType.HELLO,
+            sessionId = s.sessionId,
+            sourceId = bId,
+            sequence = 1,
+            captureTimestamp = t,
+            ttl = MeshConfig.HELLO_TTL,
+            hopCount = 0,
+            previousHopId = bId,
+            payload = helloPayload
+        )
+        val frameFromB = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(directHello, s.authKey()))
+        val outcomeDirect = a.engine.onIncomingFrame(frameFromB)
+        assertTrue("Direct HELLO was dropped: $outcomeDirect", outcomeDirect is ReceiveOutcome.Accepted)
+        assertTrue("Direct neighbor B should be registered", a.graph.directNeighborIds().contains(bId))
     }
 }
 

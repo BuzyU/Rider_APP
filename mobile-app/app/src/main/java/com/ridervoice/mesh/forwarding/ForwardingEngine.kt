@@ -353,7 +353,8 @@ class ForwardingEngine(
                     name = hello.name,
                     hopCount = decoded.hopCount,
                     endpoint = frame.from,
-                    neighborIds = hello.neighborIds
+                    neighborIds = hello.neighborIds,
+                    sequence = decoded.sequence
                 )
                 if (changed) {
                     routingTable.recompute(graphRepository.currentSnapshot(), now)

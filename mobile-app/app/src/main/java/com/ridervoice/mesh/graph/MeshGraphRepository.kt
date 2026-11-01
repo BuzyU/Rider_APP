@@ -41,7 +41,7 @@ class MeshGraphRepository(
     private val clock: () -> Long
 ) {
     private class Neighbor(var name: String, var endpoint: MeshEndpoint, var lastSeen: Long)
-    private class Report(var name: String, var neighbors: Set<String>, var lastSeen: Long)
+    private class Report(var name: String, var neighbors: Set<String>, var lastSeen: Long, var sequence: Int = 0)
 
     private val neighbors = LinkedHashMap<String, Neighbor>()
     private val reports = HashMap<String, Report>()
@@ -61,7 +61,8 @@ class MeshGraphRepository(
         name: String,
         hopCount: Int,
         endpoint: MeshEndpoint,
-        neighborIds: Collection<String>
+        neighborIds: Collection<String>,
+        sequence: Int = 0
     ): Boolean {
         if (sourceId == selfId) return false
         val now = clock()
@@ -77,8 +78,19 @@ class MeshGraphRepository(
         }
         val set = neighborIds.filter { it != sourceId }.toSet()
         val r = reports[sourceId]
-        if (r == null) { reports[sourceId] = Report(name, set, now); changed = true }
-        else { if (r.neighbors != set || r.name != name) changed = true; r.neighbors = set; r.name = name; r.lastSeen = now }
+        if (r == null) {
+            reports[sourceId] = Report(name, set, now, sequence)
+            changed = true
+        } else {
+            val isStale = sequence != 0 && r.sequence != 0 && (sequence - r.sequence) < 0
+            if (!isStale) {
+                if (r.neighbors != set || r.name != name) changed = true
+                r.neighbors = set
+                r.name = name
+                r.lastSeen = now
+                if (sequence != 0) r.sequence = sequence
+            }
+        }
         if (changed) publish()
         return changed
     }

@@ -11,7 +11,8 @@ data class RouteEntry(
     val nextHop: String,
     val path: List<String>,
     val direct: Boolean,
-    val expiresAt: Long
+    val expiresAt: Long,
+    val since: Long = 0L
 )
 
 /**
@@ -65,8 +66,21 @@ object RouteCalculator {
 class RoutingTable {
     private val _routes = MutableStateFlow<Map<String, RouteEntry>>(emptyMap())
     val routes: StateFlow<Map<String, RouteEntry>> = _routes.asStateFlow()
+    private val sinceByKey = HashMap<Triple<String, String, Int>, Long>()
 
-    fun recompute(snapshot: MeshGraphSnapshot, now: Long) { _routes.value = RouteCalculator.compute(snapshot, now) }
+    fun recompute(snapshot: MeshGraphSnapshot, now: Long) {
+        val fresh = RouteCalculator.compute(snapshot, now)
+        val keep = HashMap<Triple<String, String, Int>, Long>()
+        val out = fresh.mapValues { (_, r) ->
+            val k = Triple(r.destination, r.nextHop, r.hopCount)
+            val s = sinceByKey[k] ?: now
+            keep[k] = s
+            r.copy(since = s)
+        }
+        sinceByKey.clear()
+        sinceByKey.putAll(keep)
+        _routes.value = out
+    }
     fun routeTo(id: String): RouteEntry? = _routes.value[id]
     fun hasAnyRoute(): Boolean = _routes.value.isNotEmpty()
 }

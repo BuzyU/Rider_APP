@@ -1,5 +1,8 @@
 package com.ridervoice.mesh.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -42,12 +45,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.mesh.diagnostics.MeshDiagnosticsRepository
 import com.ridervoice.mesh.diagnostics.MeshDiagnosticsSnapshot
+import com.ridervoice.mesh.transport.MicState
+import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.UnifiedVoicePeer
 import com.ridervoice.mesh.transport.VoiceTransport
 import kotlinx.coroutines.launch
@@ -64,10 +71,11 @@ fun OfflineRoomScreen(
     val transportState by transport.state.collectAsState()
     val peers by transport.participants.collectAsState()
     val activeSpeakers by transport.activeSpeakers.collectAsState()
-    val diagSnapshot = diagnosticsRepo?.snapshot?.collectAsState()?.value
+    val micState by transport.micState.collectAsState()
+    val diagSnapshot = ((transport as? OfflineMeshVoiceTransport)?.diagnostics ?: diagnosticsRepo?.snapshot)?.collectAsState()?.value
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
-    var isMicEnabled by remember { mutableStateOf(false) }
     var isDeafened by remember { mutableStateOf(false) }
     var showDiagDialog by remember { mutableStateOf(false) }
 
@@ -88,12 +96,12 @@ fun OfflineRoomScreen(
             )
         },
         bottomBar = {
+            val isMicOn = micState == MicState.ON || micState == MicState.STARTING
             MeshBottomBar(
-                isMicEnabled = isMicEnabled,
+                isMicEnabled = isMicOn,
                 isDeafened = isDeafened,
                 onToggleMic = {
-                    val next = !isMicEnabled
-                    isMicEnabled = next
+                    val next = !isMicOn
                     coroutineScope.launch {
                         transport.setMicrophoneEnabled(next)
                     }
@@ -117,6 +125,47 @@ fun OfflineRoomScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
+            if (micState == MicState.PERMISSION_DENIED) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF7F1D1D)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "Microphone permission required for mesh voice",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        TextButton(
+                            onClick = {
+                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.fromParts("package", context.packageName, null)
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                                context.startActivity(intent)
+                            }
+                        ) {
+                            Text("Open settings", color = Color(0xFFFCA5A5), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else if (micState == MicState.HARDWARE_BUSY) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF78350F)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                ) {
+                    Text(
+                        text = "Microphone is unavailable or busy",
+                        color = Color(0xFFFDE68A),
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
             // Mesh Topology Health Header
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),

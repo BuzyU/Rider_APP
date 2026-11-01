@@ -57,6 +57,9 @@ class LiveKitVoiceTransport(
 
     override val audioOwner: StateFlow<AudioOwner> = audioOwnershipArbiter.owner
 
+    private val _micState = MutableStateFlow(MicState.OFF)
+    override val micState: StateFlow<MicState> = _micState.asStateFlow()
+
     private var userMicEnabled = true
     private var pausedByCoordinator = false
 
@@ -118,23 +121,27 @@ class LiveKitVoiceTransport(
         pausedByCoordinator = false
         liveKitPort.disconnect()
         audioOwnershipArbiter.release(AudioOwner.LIVEKIT)
+        _micState.value = MicState.OFF
         _state.value = VoiceTransportState.STOPPED
     }
 
     override suspend fun pause() {
         if (pausedByCoordinator) return
         pausedByCoordinator = true
+        _micState.value = MicState.MUTED
         liveKitPort.setUserMuted(true)
     }
 
     override suspend fun resume() {
         if (!pausedByCoordinator) return
         pausedByCoordinator = false
+        _micState.value = if (userMicEnabled) MicState.ON else MicState.OFF
         liveKitPort.setUserMuted(!userMicEnabled)
     }
 
     override suspend fun setMicrophoneEnabled(enabled: Boolean) {
         userMicEnabled = enabled
+        _micState.value = if (enabled) MicState.ON else MicState.OFF
         if (!pausedByCoordinator) {
             liveKitPort.setUserMuted(!enabled)
         }

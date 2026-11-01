@@ -5,6 +5,7 @@ import com.ridervoice.mesh.transport.AudioOwner
 import com.ridervoice.mesh.transport.AudioOwnershipArbiter
 import com.ridervoice.mesh.transport.AudioRoute
 import com.ridervoice.mesh.transport.MeshControl
+import com.ridervoice.mesh.transport.MicState
 import com.ridervoice.mesh.transport.PeerTransportKind
 import com.ridervoice.mesh.transport.UnifiedVoicePeer
 import com.ridervoice.mesh.transport.VoiceSession
@@ -31,6 +32,7 @@ class VoiceSessionCoordinatorTest {
         override val participants: StateFlow<List<UnifiedVoicePeer>> = MutableStateFlow(emptyList())
         override val activeSpeakers: StateFlow<Set<String>> = MutableStateFlow(emptySet())
         override val audioOwner: StateFlow<AudioOwner> = MutableStateFlow(AudioOwner.NONE)
+        override val micState: StateFlow<MicState> = MutableStateFlow(MicState.OFF)
 
         var startedSessions = mutableListOf<VoiceSession>()
         var stoppedCount = 0
@@ -63,6 +65,7 @@ class VoiceSessionCoordinatorTest {
         override val participants: StateFlow<List<UnifiedVoicePeer>> = MutableStateFlow(emptyList())
         override val activeSpeakers: StateFlow<Set<String>> = MutableStateFlow(emptySet())
         override val audioOwner: StateFlow<AudioOwner> = MutableStateFlow(AudioOwner.NONE)
+        override val micState: StateFlow<MicState> = MutableStateFlow(MicState.OFF)
 
         val _hasValidRoute = MutableStateFlow(false)
         override val hasValidRoute: StateFlow<Boolean> = _hasValidRoute.asStateFlow()

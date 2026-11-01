@@ -29,7 +29,8 @@ data class OfflineMeshDevice(
     val hopCount: Int,
     val nextHopDeviceId: String?,
     val routeExpiresAt: Long,
-    val isSpeaking: Boolean
+    val isSpeaking: Boolean,
+    val routeSince: Long = 0L
 )
 
 /**
@@ -45,7 +46,8 @@ data class UnifiedVoicePeer(
     val isDirect: Boolean,
     val isRelayed: Boolean,
     val routeAgeMs: Long,
-    val isSpeaking: Boolean
+    val isSpeaking: Boolean,
+    val routeTtlRemainingMs: Long = 0L
 ) {
     companion object {
         fun fromOnline(p: OnlineParticipant): UnifiedVoicePeer = UnifiedVoicePeer(
@@ -58,7 +60,8 @@ data class UnifiedVoicePeer(
             isDirect = true,
             isRelayed = false,
             routeAgeMs = 0L,
-            isSpeaking = p.isSpeaking
+            isSpeaking = p.isSpeaking,
+            routeTtlRemainingMs = 0L
         )
 
         fun fromOffline(device: OfflineMeshDevice, now: Long): UnifiedVoicePeer = UnifiedVoicePeer(
@@ -70,8 +73,9 @@ data class UnifiedVoicePeer(
             nextHopId = device.nextHopDeviceId,
             isDirect = device.direct,
             isRelayed = device.reachable && !device.direct && device.hopCount > 1,
-            routeAgeMs = (device.routeExpiresAt - now).coerceAtLeast(0L),
-            isSpeaking = device.isSpeaking
+            routeAgeMs = if (device.reachable && device.routeSince > 0L) (now - device.routeSince).coerceAtLeast(0L) else 0L,
+            isSpeaking = device.isSpeaking,
+            routeTtlRemainingMs = (device.routeExpiresAt - now).coerceAtLeast(0L)
         )
 
         fun projectMeshGraph(
@@ -94,7 +98,8 @@ data class UnifiedVoicePeer(
                         hopCount = if (validRoute && route != null) route.hopCount else 0,
                         nextHopDeviceId = if (validRoute && route != null) route.nextHop else null,
                         routeExpiresAt = if (validRoute && route != null) route.expiresAt else 0L,
-                        isSpeaking = node.deviceId in speakingIds
+                        isSpeaking = node.deviceId in speakingIds,
+                        routeSince = if (validRoute && route != null) route.since else 0L
                     )
                 }
         }

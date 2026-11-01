@@ -18,6 +18,7 @@ import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.SessionManager
 import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Outcome of processing an incoming frame through the 18-step daisy-hop pipeline.
@@ -81,16 +82,20 @@ class ForwardingEngine(
     private fun dedupKind(packet: MeshPacket): Int =
         if (packet.type == MeshPacketType.HELLO && packet.hopCount == 0) DIRECT_HELLO_KIND else packet.type.code
 
-    var receivedVoiceCount: Long = 0L
-        private set
-    var forwardedVoiceCount: Long = 0L
-        private set
-    var droppedDuplicateCount: Long = 0L
-        private set
-    var droppedInvalidCount: Long = 0L
-        private set
-    var droppedTtlCount: Long = 0L
-        private set
+    private val receivedVoice = AtomicLong(0L)
+    private val forwardedVoice = AtomicLong(0L)
+    private val droppedDup = AtomicLong(0L)
+    private val droppedInvalid = AtomicLong(0L)
+    private val droppedTtl = AtomicLong(0L)
+
+    val receivedVoiceCount: Long get() = receivedVoice.get()
+    val forwardedVoiceCount: Long get() = forwardedVoice.get()
+    val droppedDuplicateCount: Long get() = droppedDup.get()
+    val droppedInvalidCount: Long get() = droppedInvalid.get()
+    val droppedTtlCount: Long get() = droppedTtl.get()
+
+    data class Counters(val received: Long, val forwarded: Long, val dup: Long, val invalid: Long, val ttl: Long)
+    fun counters() = Counters(receivedVoice.get(), forwardedVoice.get(), droppedDup.get(), droppedInvalid.get(), droppedTtl.get())
 
     /**
      * Originates a new local voice frame from this device and sends it to all direct neighbors.
@@ -232,19 +237,19 @@ class ForwardingEngine(
         val decoded = when (val res = MeshPacketCodec.decode(frame.data, authKey)) {
             is DecodeResult.Ok -> res.packet
             is DecodeResult.Invalid -> {
-                droppedInvalidCount++
+                droppedInvalid.incrementAndGet()
                 return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DECODE_FAILED)
             }
         }
 
         // 3. Validate session ID
         if (decoded.sessionId != sessionId) {
-            droppedInvalidCount++
+            droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.SESSION_MISMATCH)
         }
         val now = clock()
         if (sessionManager.session.isExpired(now)) {
-            droppedInvalidCount++
+            droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.SESSION_EXPIRED)
         }
 
@@ -253,17 +258,17 @@ class ForwardingEngine(
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.SELF_ORIGINATED)
         }
         if (decoded.previousHopId == selfId || decoded.previousHopId.isBlank()) {
-            droppedInvalidCount++
+            droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID)
         }
         if (decoded.hopCount == 0 && decoded.previousHopId != decoded.sourceId) {
-            droppedInvalidCount++
+            droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID)
         }
 
         // 6. Validate packet timestamp
         if (!ttlPolicy.isTimestampFresh(decoded.captureTimestamp)) {
-            droppedInvalidCount++
+            droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.STALE_TIMESTAMP)
         }
 
@@ -274,13 +279,13 @@ class ForwardingEngine(
             MeshPacketType.HELLO -> decoded.payload.size >= PayloadCrypto.TAG_LEN
         }
         if (!payloadOk) {
-            droppedInvalidCount++
+            droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
         }
 
         // 8. Check TTL > 0
         if (!ttlPolicy.isTtlValidOnReceive(decoded.ttl)) {
-            droppedTtlCount++
+            droppedTtl.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.TTL_EXHAUSTED)
         }
 
@@ -289,11 +294,11 @@ class ForwardingEngine(
             SessionManager.Admission.ADMITTED,
             SessionManager.Admission.ALREADY_MEMBER -> Unit
             SessionManager.Admission.REJECTED_FULL -> {
-                droppedInvalidCount++
+                droppedInvalid.incrementAndGet()
                 return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.SESSION_FULL)
             }
             SessionManager.Admission.REJECTED_EXPIRED -> {
-                droppedInvalidCount++
+                droppedInvalid.incrementAndGet()
                 return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.SESSION_EXPIRED)
             }
         }
@@ -303,14 +308,14 @@ class ForwardingEngine(
             if (relayAdmission == SessionManager.Admission.REJECTED_FULL ||
                 relayAdmission == SessionManager.Admission.REJECTED_EXPIRED
             ) {
-                droppedInvalidCount++
+                droppedInvalid.incrementAndGet()
                 return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.SESSION_FULL)
             }
         }
 
         // 9-11. Check duplicate cache, drop duplicates, add new packet to cache
         if (!duplicateCache.markIfNew(decoded.sessionId, decoded.sourceId, decoded.sequence, dedupKind(decoded), decoded.epoch)) {
-            droppedDuplicateCount++
+            droppedDup.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DUPLICATE)
         }
 
@@ -332,7 +337,7 @@ class ForwardingEngine(
         val nonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code)
         val plain = PayloadCrypto.open(payloadKey, nonce, aad, decoded.payload)
         if (plain == null) {
-            droppedInvalidCount++
+            droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
         }
 
@@ -340,7 +345,7 @@ class ForwardingEngine(
             MeshPacketType.HELLO -> {
                 val hello = HelloCodec.decode(plain)
                     ?: run {
-                        droppedInvalidCount++
+                        droppedInvalid.incrementAndGet()
                         return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.MALFORMED_HELLO)
                     }
                 val changed = graphRepository.onHello(
@@ -356,7 +361,7 @@ class ForwardingEngine(
             }
             MeshPacketType.BYE -> {
                 if (plain.isNotEmpty()) {
-                    droppedInvalidCount++
+                    droppedInvalid.incrementAndGet()
                     return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
                 }
                 sessionManager.remove(decoded.sourceId)
@@ -366,10 +371,10 @@ class ForwardingEngine(
             }
             MeshPacketType.VOICE -> {
                 if (plain.size != MeshConfig.BYTES_PER_FRAME) {
-                    droppedInvalidCount++
+                    droppedInvalid.incrementAndGet()
                     return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
                 }
-                receivedVoiceCount++
+                receivedVoice.incrementAndGet()
                 sessionManager.touch(decoded.sourceId)
                 onLocalVoicePacket(decoded.copy(payload = plain))
             }
@@ -394,7 +399,7 @@ class ForwardingEngine(
                 }
             }
             if (decoded.type == MeshPacketType.VOICE && forwardedTo.isNotEmpty()) {
-                forwardedVoiceCount++
+                forwardedVoice.incrementAndGet()
             }
         }
 

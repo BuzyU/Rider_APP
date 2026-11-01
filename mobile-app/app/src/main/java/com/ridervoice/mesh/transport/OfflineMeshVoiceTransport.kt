@@ -2,9 +2,13 @@ package com.ridervoice.mesh.transport
 
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.OfflineMeshGate
+import com.ridervoice.mesh.audio.AudioRecordSource
+import com.ridervoice.mesh.audio.CaptureStart
 import com.ridervoice.mesh.audio.MultiSourceJitterBufferManager
 import com.ridervoice.mesh.audio.OfflineAudioCapture
 import com.ridervoice.mesh.audio.OfflineAudioPlayback
+import com.ridervoice.mesh.diagnostics.MeshDiagnosticsRepository
+import com.ridervoice.mesh.diagnostics.MeshDiagnosticsSnapshot
 import com.ridervoice.mesh.forwarding.ForwardingEngine
 import com.ridervoice.mesh.forwarding.TtlPolicy
 import com.ridervoice.mesh.graph.MeshGraphRepository
@@ -56,13 +60,21 @@ class OfflineMeshVoiceTransport(
     private val locks: NetworkLocks = NoNetworkLocks,
     private val broadcastProvider: () -> List<MeshEndpoint> = {
         UdpMeshLink.discoverBroadcastEndpoints(MeshConfig.AUDIO_PORT)
-    }
+    },
+    private val hasMicPermission: () -> Boolean = { true },
+    private val audioRecordFactory: (() -> AudioRecordSource?)? = null
 ) : VoiceTransport, MeshControl {
 
     private val startMutex = Mutex()
     private var locksHeld = false
     private val _state = MutableStateFlow(VoiceTransportState.STOPPED)
     override val state: StateFlow<VoiceTransportState> = _state.asStateFlow()
+
+    private val diagnosticsRepo = MeshDiagnosticsRepository()
+    val diagnostics: StateFlow<MeshDiagnosticsSnapshot> = diagnosticsRepo.snapshot
+
+    private val _micState = MutableStateFlow(MicState.OFF)
+    override val micState: StateFlow<MicState> = _micState.asStateFlow()
 
     private val _participants = MutableStateFlow<List<UnifiedVoicePeer>>(emptyList())
     override val participants: StateFlow<List<UnifiedVoicePeer>> = _participants.asStateFlow()
@@ -188,6 +200,21 @@ class OfflineMeshVoiceTransport(
 
                 val offlineDevices = UnifiedVoicePeer.projectMeshGraph(snapshot, routes, speakers, now)
                 _participants.value = offlineDevices.map { UnifiedVoicePeer.fromOffline(it, now) }
+
+                val cnt = fEngine.counters()
+                diagnosticsRepo.update(
+                    selfDeviceId = identity.deviceId,
+                    sessionId = sManager.session.sessionId,
+                    memberCount = sManager.members().size,
+                    graph = snapshot,
+                    routes = routes,
+                    receivedVoiceFrames = cnt.received,
+                    forwardedVoiceFrames = cnt.forwarded,
+                    droppedDuplicates = cnt.dup,
+                    droppedInvalid = cnt.invalid,
+                    droppedTtl = cnt.ttl
+                )
+
                 delay(500L)
             }
         }
@@ -219,20 +246,39 @@ class OfflineMeshVoiceTransport(
         val aCapture = OfflineAudioCapture(
             gateAllowed = gateAllowed,
             canClaimAudio = { audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH },
+            hasMicPermission = hasMicPermission,
+            onHardwareBusy = {
+                _micState.value = MicState.HARDWARE_BUSY
+                audioCapture?.stop()
+                audioCapture = null
+                transportScope?.launch {
+                    audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
+                }
+            },
             dispatcher = dispatcher,
+            audioRecordFactory = audioRecordFactory,
             onPcmFrame = { pcm ->
                 fEngine.originateVoice(pcm)
             }
         )
         audioCapture = aCapture
         if (micWanted) {
-            aCapture.start()
+            _micState.value = MicState.STARTING
+            val res = aCapture.start()
+            _micState.value = when (res) {
+                CaptureStart.Started -> MicState.ON
+                CaptureStart.NoPermission -> MicState.PERMISSION_DENIED
+                CaptureStart.NotOwner -> MicState.OWNERSHIP_DENIED
+                CaptureStart.HardwareFailed -> MicState.HARDWARE_BUSY
+                CaptureStart.GateClosed -> MicState.OFF
+            }
         }
     }
 
     override suspend fun disableAudio() = startMutex.withLock {
         audioCapture?.stop()
         audioCapture = null
+        _micState.value = MicState.OFF
 
         audioPlayback?.stop()
         audioPlayback = null
@@ -283,6 +329,8 @@ class OfflineMeshVoiceTransport(
         _hasValidRoute.value = false
         _participants.value = emptyList()
         _activeSpeakers.value = emptySet()
+        diagnosticsRepo.reset()
+        _micState.value = MicState.OFF
         if (locksHeld) {
             locks.release()
             locksHeld = false
@@ -296,6 +344,7 @@ class OfflineMeshVoiceTransport(
     override suspend fun pause() {
         if (paused || _state.value != VoiceTransportState.CONNECTED) return
         paused = true
+        _micState.value = MicState.MUTED
         audioCapture?.stop()
         audioPlayback?.stop()
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
@@ -306,18 +355,40 @@ class OfflineMeshVoiceTransport(
         if (!audioOwnershipArbiter.tryClaimOfflineMesh()) return
         paused = false
         audioPlayback?.start()
-        if (micWanted) audioCapture?.start()
+        if (micWanted) {
+            val res = audioCapture?.start()
+            _micState.value = when (res) {
+                CaptureStart.Started -> MicState.ON
+                CaptureStart.NoPermission -> MicState.PERMISSION_DENIED
+                CaptureStart.NotOwner -> MicState.OWNERSHIP_DENIED
+                CaptureStart.HardwareFailed -> MicState.HARDWARE_BUSY
+                CaptureStart.GateClosed, null -> MicState.OFF
+            }
+        }
     }
 
-    override suspend fun setMicrophoneEnabled(enabled: Boolean) {
+    override suspend fun setMicrophoneEnabled(enabled: Boolean) = startMutex.withLock {
         micWanted = enabled
-        if (paused) return
-        val capture = audioCapture ?: return
+        if (paused) return@withLock
+        val capture = audioCapture
+        if (capture == null) {
+            _micState.value = if (enabled) MicState.STARTING else MicState.OFF
+            return@withLock
+        }
         capture.setMicEnabled(enabled)
         if (enabled) {
-            capture.start()
+            _micState.value = MicState.STARTING
+            val res = capture.start()
+            _micState.value = when (res) {
+                CaptureStart.Started -> MicState.ON
+                CaptureStart.NoPermission -> MicState.PERMISSION_DENIED
+                CaptureStart.NotOwner -> MicState.OWNERSHIP_DENIED
+                CaptureStart.HardwareFailed -> MicState.HARDWARE_BUSY
+                CaptureStart.GateClosed -> MicState.OFF
+            }
         } else {
             capture.stop()
+            _micState.value = MicState.OFF
         }
     }
 

@@ -5,6 +5,7 @@ import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.transport.AudioOwner
 import com.ridervoice.mesh.transport.AudioOwnershipArbiter
 import com.ridervoice.mesh.transport.AudioRoute
+import com.ridervoice.mesh.transport.MicState
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.PeerTransportKind
 import com.ridervoice.mesh.transport.UnifiedVoicePeer
@@ -109,6 +110,7 @@ class Stage2IntegrationTest {
         override val participants: StateFlow<List<UnifiedVoicePeer>> = MutableStateFlow(emptyList())
         override val activeSpeakers: StateFlow<Set<String>> = MutableStateFlow(emptySet())
         override val audioOwner: StateFlow<AudioOwner> = MutableStateFlow(AudioOwner.NONE)
+        override val micState: StateFlow<MicState> = MutableStateFlow(MicState.OFF)
 
         override suspend fun start(session: VoiceSession) {
             isStarted = true

@@ -18,6 +18,16 @@ enum class AudioRoute {
     EARPIECE
 }
 
+enum class MicState {
+    OFF,
+    STARTING,
+    ON,
+    MUTED,
+    PERMISSION_DENIED,
+    OWNERSHIP_DENIED,
+    HARDWARE_BUSY
+}
+
 sealed class VoiceSession {
     data class Online(
         val url: String,
@@ -36,6 +46,7 @@ interface VoiceTransport {
     val participants: StateFlow<List<UnifiedVoicePeer>>
     val activeSpeakers: StateFlow<Set<String>>
     val audioOwner: StateFlow<AudioOwner>
+    val micState: StateFlow<MicState>
 
     suspend fun start(session: VoiceSession)
     suspend fun stop()

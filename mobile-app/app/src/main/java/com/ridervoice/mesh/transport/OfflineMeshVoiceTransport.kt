@@ -19,23 +19,22 @@ import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionManager
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Full offline mesh implementation of [VoiceTransport].
+ * Full offline mesh implementation of [VoiceTransport] and [MeshControl].
  * Manages the mesh network lifecycle, forwarding engine, jitter buffer, and audio capture/playback.
  */
 class OfflineMeshVoiceTransport(
@@ -52,7 +51,7 @@ class OfflineMeshVoiceTransport(
             dispatcher = dispatcher
         )
     }
-) : VoiceTransport {
+) : VoiceTransport, MeshControl {
 
     private val startMutex = Mutex()
     private val _state = MutableStateFlow(VoiceTransportState.STOPPED)
@@ -65,6 +64,9 @@ class OfflineMeshVoiceTransport(
     override val activeSpeakers: StateFlow<Set<String>> = _activeSpeakers.asStateFlow()
 
     override val audioOwner: StateFlow<AudioOwner> = audioOwnershipArbiter.owner
+
+    private val _hasValidRoute = MutableStateFlow(false)
+    override val hasValidRoute: StateFlow<Boolean> = _hasValidRoute.asStateFlow()
 
     private var transportScope: CoroutineScope? = null
     private var heartbeatJob: Job? = null
@@ -82,27 +84,18 @@ class OfflineMeshVoiceTransport(
 
     private var currentSession: OfflineSession? = null
 
-    override suspend fun start(session: VoiceSession) = startMutex.withLock {
+    override suspend fun startDiscoveryOnly(session: OfflineSession) = startMutex.withLock {
         if (_state.value == VoiceTransportState.CONNECTED || _state.value == VoiceTransportState.STARTING) return@withLock
-        val offlineSession = when (session) {
-            is VoiceSession.Offline -> session.session
-            is VoiceSession.Online -> throw IllegalArgumentException("OfflineMeshVoiceTransport cannot start online session")
-        }
 
         if (!gateAllowed()) {
             _state.value = VoiceTransportState.FAILED
             return@withLock
         }
 
-        if (!audioOwnershipArbiter.tryClaimOfflineMesh()) {
-            _state.value = VoiceTransportState.FAILED
-            return@withLock
-        }
-
         _state.value = VoiceTransportState.STARTING
-        currentSession = offlineSession
+        currentSession = session
 
-        val sManager = SessionManager(offlineSession, identity.deviceId, clock)
+        val sManager = SessionManager(session, identity.deviceId, clock)
         sessionManager = sManager
 
         val gRepo = MeshGraphRepository(identity.deviceId, identity.displayName, clock)
@@ -136,28 +129,11 @@ class OfflineMeshVoiceTransport(
         )
         forwardingEngine = fEngine
 
-        val aCapture = OfflineAudioCapture(
-            gateAllowed = gateAllowed,
-            canClaimAudio = { audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH },
-            dispatcher = dispatcher,
-            onPcmFrame = { pcm ->
-                fEngine.originateVoice(pcm)
-            }
-        )
-        audioCapture = aCapture
-
-        val aPlayback = OfflineAudioPlayback(
-            jitterManager = jManager,
-            gateAllowed = gateAllowed,
-            dispatcher = dispatcher
-        )
-        audioPlayback = aPlayback
-
         val scope = CoroutineScope(SupervisorJob() + dispatcher)
         transportScope = scope
 
-        // Start incoming frame listener BEFORE starting link (D6: subscribe before start)
-        frameListenerJob = scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+        // Start incoming frame listener BEFORE starting link (D6)
+        frameListenerJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             uLink.incomingFrames.collect { frame: MeshFrame ->
                 fEngine.onIncomingFrame(frame)
             }
@@ -165,21 +141,16 @@ class OfflineMeshVoiceTransport(
 
         uLink.start()
         if (uLink.state.value != com.ridervoice.mesh.link.MeshLinkState.RUNNING) {
-            aPlayback.stop()
-            aCapture.stop()
             frameListenerJob?.cancel()
             frameListenerJob = null
             scope.cancel()
             transportScope = null
             link = null
-            audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
             _state.value = VoiceTransportState.FAILED
             return@withLock
         }
 
-        aPlayback.start()
-
-        // Start periodic discovery / heartbeat job (every 1.5s)
+        // Periodic discovery / heartbeat job (every 1.5s)
         heartbeatJob = scope.launch {
             val broadcastEndpoints = UdpMeshLink.discoverBroadcastEndpoints(MeshConfig.AUDIO_PORT)
             while (isActive) {
@@ -188,13 +159,15 @@ class OfflineMeshVoiceTransport(
             }
         }
 
-        // Project mesh peers to UnifiedVoicePeer flow
+        // Project mesh peers to UnifiedVoicePeer flow and monitor route availability
         peerProjectorJob = scope.launch {
             while (isActive) {
                 val now = clock()
                 val snapshot = gRepo.currentSnapshot()
                 val routes = rTable.routes.value
-                val speakers = aPlayback.activeSpeakers.value
+                _hasValidRoute.value = routes.isNotEmpty()
+
+                val speakers = audioPlayback?.activeSpeakers?.value ?: emptySet()
                 _activeSpeakers.value = speakers
 
                 val offlineDevices = UnifiedVoicePeer.projectMeshGraph(snapshot, routes, speakers, now)
@@ -204,6 +177,62 @@ class OfflineMeshVoiceTransport(
         }
 
         _state.value = VoiceTransportState.CONNECTED
+    }
+
+    override suspend fun enableAudio() = startMutex.withLock {
+        if (_state.value != VoiceTransportState.CONNECTED) {
+            throw IllegalStateException("Mesh transport must be in discovery/CONNECTED state before enabling audio")
+        }
+        if (audioPlayback != null) return@withLock // Already enabled
+
+        if (!audioOwnershipArbiter.tryClaimOfflineMesh()) {
+            throw IllegalStateException("Cannot claim OFFLINE_MESH ownership from arbiter")
+        }
+
+        val jManager = jitterManager ?: throw IllegalStateException("JitterManager not initialized")
+        val fEngine = forwardingEngine ?: throw IllegalStateException("ForwardingEngine not initialized")
+
+        val aPlayback = OfflineAudioPlayback(
+            jitterManager = jManager,
+            gateAllowed = gateAllowed,
+            dispatcher = dispatcher
+        )
+        audioPlayback = aPlayback
+        aPlayback.start()
+
+        val aCapture = OfflineAudioCapture(
+            gateAllowed = gateAllowed,
+            canClaimAudio = { audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH },
+            dispatcher = dispatcher,
+            onPcmFrame = { pcm ->
+                fEngine.originateVoice(pcm)
+            }
+        )
+        audioCapture = aCapture
+        if (micWanted) {
+            aCapture.start()
+        }
+    }
+
+    override suspend fun disableAudio() = startMutex.withLock {
+        audioCapture?.stop()
+        audioCapture = null
+
+        audioPlayback?.stop()
+        audioPlayback = null
+
+        audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
+    }
+
+    override suspend fun start(session: VoiceSession) {
+        val offlineSession = when (session) {
+            is VoiceSession.Offline -> session.session
+            is VoiceSession.Online -> throw IllegalArgumentException("OfflineMeshVoiceTransport cannot start online session")
+        }
+        startDiscoveryOnly(offlineSession)
+        if (_state.value == VoiceTransportState.CONNECTED) {
+            enableAudio()
+        }
     }
 
     override suspend fun stop() = startMutex.withLock {
@@ -235,6 +264,7 @@ class OfflineMeshVoiceTransport(
         jitterManager = null
         currentSession = null
 
+        _hasValidRoute.value = false
         _participants.value = emptyList()
         _activeSpeakers.value = emptySet()
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
@@ -282,4 +312,3 @@ class OfflineMeshVoiceTransport(
     fun isCapturing(): Boolean = audioCapture?.isCapturing?.value == true
     fun isPlaying(): Boolean = audioPlayback?.isPlaying?.value == true
 }
-

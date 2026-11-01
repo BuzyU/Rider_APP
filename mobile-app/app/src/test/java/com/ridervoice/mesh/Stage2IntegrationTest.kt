@@ -34,7 +34,7 @@ import org.junit.Test
 class Stage2IntegrationTest {
 
     @Test
-    fun `audio ownership arbiter guarantees strict mutual exclusion`() {
+    fun `audio ownership arbiter guarantees strict mutual exclusion`() = runTest {
         val arbiter = AudioOwnershipArbiter()
         assertEquals(AudioOwner.NONE, arbiter.owner.value)
 

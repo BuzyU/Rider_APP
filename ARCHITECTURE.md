@@ -149,6 +149,13 @@ flowchart TD
     RoomScreen -->|"leave ride"| Home
     RoomScreen --> SOS([SosScreen])
     RoomScreen --> PostRide([PostRideSummaryScreen])
+
+    subgraph "OFFLINE MESH PATH"
+        Settings -->|"offline mesh enabled"| OfflineLobby([OfflineMeshLobbyScreen\nPeer Pairing])
+        OfflineLobby -->|"session ready"| OfflineHUD([OfflineRoomScreen\nActive Mesh HUD])
+        RoomScreen -.->|"cellular loss (auto-switch)"| OfflineHUD
+        OfflineHUD -.->|"cellular recovered (handback)"| RoomScreen
+    end
 ```
 
 ---
@@ -230,12 +237,12 @@ flowchart LR
     VoxEngine -->|"audio stream"| LKManager["LiveKitManager\n(WebRTC track)"]
 
     subgraph Fallback["Connectivity Fallback"]
-        Handoff["NetworkHandoffManager\n(cellular ↔ Wi-Fi)"]
-        Mesh["LocalMeshVoiceEngine\n(Wi-Fi Direct P2P)"]
+        Handoff["AutomaticSwitchStateMachine\n(cellular ↔ offline fallback)"]
+        Mesh["OfflineMeshVoiceTransport\n(ad-hoc Wi-Fi / UDP mesh)"]
     end
 
-    LKManager -->|"no internet"| Handoff
-    Handoff -->|"no cellular"| Mesh
+    LKManager -->|"poor / lost connectivity"| Handoff
+    Handoff -->|"offline active"| Mesh
 ```
 
 ---
@@ -371,7 +378,7 @@ erDiagram
 | **Room database for ride recording** | Rides are recorded locally first (works offline); can be synced to backend later |
 | **Audio device abstraction** | `AudioDeviceRouter` decouples audio source selection from the PTT/VAD engine, making it easier to add new device types |
 | **Foreground service for voice** | Keeps the audio session alive when the screen is off or the app is in the background |
-| **Wi-Fi Direct fallback** | `LocalMeshVoiceEngine` allows local P2P audio if internet connectivity drops during a ride |
+| **Offline mesh voice intercom** | `OfflineMeshVoiceTransport` and `AutomaticSwitchStateMachine` provide zero-infrastructure ad-hoc Wi-Fi/UDP multi-hop voice mesh with mutual-exclusion Audio HAL management (`AudioOwnershipArbiter`) when internet connectivity drops |
 | **In-App OTA updater & bypass** | `UpdateManager` delivers seamless updates with weak-reference foreground `Activity` dispatch, avoiding Android 10–14 OEM background launch drops, with smart APK caching and dynamic `FileProvider` URI permission grants |
 | **Regional SOS emergency resolution** | `EmergencyNumbers` dynamically detects cellular roaming ISO, SIM ISO, and device locale to resolve local emergency dispatch (e.g. 911 in US/CA, 112 in EU/India, 999 in UK, 000 in AU) instead of hardcoding 911 |
 | **Offline tactical radar HUD** | `TacticalRadarCanvas` provides a zero-dependency aviation/military HUD canvas with 360° radar sweep and waypoint vectors, serving as a crash-proof fallback when Mapbox tokens or cellular coverage are missing |

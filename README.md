@@ -4,13 +4,14 @@
 
 RiderVoice is a Jetpack Compose Android application designed for motorcycle convoys. It enables hands-free push-to-talk (PTT) communication over WebRTC, squad coordination, active ride telemetry, and over-the-air (OTA) application updates. It is backed by a Node.js Express REST API, Prisma PostgreSQL (Supabase), and LiveKit for real-time audio.
 
-> **Latest Release:** [**v0.0.3.19 (Latest APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.19)  
+> **Latest Release:** [**v0.0.3.20 (Offline Mesh Intercom Engine v2.0)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.20) | [**v0.0.3.19 (APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.19)  
 > For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md).
 
 ---
 
 ## 🚀 Key Features
 
+- **Offline Mesh Intercom Engine v2.0 (v0.0.3.20)** – Zero-infrastructure peer-to-peer ad-hoc Wi-Fi/UDP multi-hop voice mesh for motorcycle convoys outside cellular coverage. Includes a 9-state deterministic `AutomaticSwitchStateMachine` with recovery deadlock prevention (D25) for seamless transitions between LiveKit WebRTC and local mesh, daisy-hop packet forwarding with duplicate suppression (cache + bloom filter) and TTL decay, route-aware relay pruning to suppress broadcast storms (D26), Audio HAL mutual-exclusion via `AudioOwnershipArbiter` preventing hardware lock contention, Slow-KDF PBKDF2/AES-256-GCM authenticated payload encryption with sliding-window replay rejection (D8, D19), battery-efficient adaptive heartbeats, and dedicated diagnostics HUD. *(Note: `FeatureFlags.OFFLINE_MESH_ENABLED = false` by default in release builds).*
 - **Lobby Reliability, Missing Column Resilience & SOS Protection (v0.0.3.19)** – Resolved convoy creation lobby hang with bounded exponential backoff and immediate local shell rendering; fixed unhandled `ReferenceError: riderCallsign` 500 error; added dynamic probing and runtime Prisma `P2022` fallback resilience for `lastEmptyAt`; guaranteed write circuit-breaker exemptions for emergency SOS alerts and webhooks; hardened transaction-scoped advisory locks; and completely eliminated `TelephonyManager` to clear Google Play Protect flags.
 - **Staged Room Identity, Create Idempotency & Webhook Defense (v0.0.3.18)** – Per-ride persisted LiveKit room identity migration layer with legacy room fallback, database-backed atomic ride create idempotency (`clientRequestId`), race-condition-safe room termination, retryable sweeper cleanup queue, readiness health probe with webhook enforcement, and APK signing certificate validation on OTA updates.
 - **Google Play Protect Heuristic Clean-up & Production Keystore (v0.0.3.17)** – Replaced telephony carrier inspection with non-intrusive locale region detection in emergency SOS routing, eliminating false-positive toll-fraud heuristic flags from Google Play Protect on sideloaded updates. Added dedicated production release keystore infrastructure.
@@ -109,6 +110,8 @@ Rider_APP/
 | `SquadScreen`         | `Routes.SQUAD`           | Friends list, pending invitations, and call-sign search                        |
 | `RideStatsScreen`     | `Routes.RIDE_STATS`      | Ride logbook telemetry and historical ride replay                              |
 | `SosScreen`           | `Routes.SOS`             | Emergency alert broadcast interface                                            |
+| `OfflineMeshLobbyScreen` | `Routes.OFFLINE_MESH_LOBBY` | Offline peer discovery, Wi-Fi Direct / Local Hotspot link setup, and squad pairing |
+| `OfflineRoomScreen`   | `Routes.OFFLINE_MESH_HUD` | Active offline mesh intercom HUD with multi-hop topology, signal quality metrics, and PTT controls |
 
 ---
 

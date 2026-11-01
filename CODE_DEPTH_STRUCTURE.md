@@ -42,6 +42,26 @@ Rider_APP/
 │   ├── gradle.properties                 Gradle flags and JVM properties
 │   ├── gradlew / gradlew.bat             Gradle wrapper entry points
 │   └── app/                              Android application module
+│       └── src/main/java/com/ridervoice/
+│           ├── audio/                    Audio routing, focus, and VOX engine
+│           ├── data/                     Room local database and repositories
+│           ├── mesh/                     Offline mesh voice intercom engine (v2.0)
+│           │   ├── audio/                Hardware mutual exclusion, jitter buffer, capture/playback
+│           │   ├── diagnostics/          Mesh diagnostics snapshot & repository
+│           │   ├── forwarding/           Daisy-hop forwarding engine & TTL policy
+│           │   ├── graph/                Mesh topology graph & distance-vector routing
+│           │   ├── identity/             Hardware-backed mesh node identity
+│           │   ├── link/                 UDP mesh transport, socket lifecycle, and network locks
+│           │   ├── protocol/             Wire packet codec, encryption (SlowKdf/AES-GCM), deduplication
+│           │   ├── routing/              Routing table & next-hop resolution
+│           │   ├── service/              MeshForegroundService lifecycle & notification
+│           │   ├── session/              Offline session crypto & key derivation
+│           │   ├── switching/            AutomaticSwitchStateMachine (9 states) & health signals
+│           │   ├── transport/            OfflineMeshVoiceTransport & VoiceTransport abstraction
+│           │   └── ui/                   OfflineMeshLobbyScreen & OfflineRoomScreen Compose UI
+│           ├── network/                  LiveKit WebRTC, Retrofit, resilience managers
+│           ├── services/                 VoiceForegroundService, LocationService, RideRecorder
+│           └── ui/                       Jetpack Compose screens, ViewModels, theme, and HUD
 └── web-app/                              Next.js public site and admin console
 ```
 
@@ -213,7 +233,7 @@ flowchart LR
     Vox[VoxEngine]
     Focus[AudioFocusManager]
     LK[LiveKitManager]
-    Fallback[NetworkHandoffManager / LocalMeshVoiceEngine]
+    Fallback[AutomaticSwitchStateMachine / OfflineMeshVoiceTransport]
 
     Input --> Router
     Router --> Vox
@@ -226,8 +246,8 @@ flowchart LR
 - `audio/AudioFocusManager.kt`: coordinates Android audio focus.
 - `audio/HardwarePTTManager.kt`: handles physical push-to-talk controls.
 - `audio/VoxEngine.kt`: voice activation/PTT decision logic.
-- `audio/NetworkHandoffManager.kt`: handles connectivity transitions.
-- `audio/LocalMeshVoiceEngine.kt` and `WifiDirectManager.kt`: local fallback transport support.
+- `mesh/switching/AutomaticSwitchStateMachine.kt`: 9-state deterministic finite state machine governing automatic transitions between LiveKit WebRTC and local offline mesh.
+- `mesh/transport/OfflineMeshVoiceTransport.kt`: manages UDP link socket lifecycle, forwarding, jitter buffer, and audio capture/playback with AudioOwnershipArbiter mutual exclusion.
 
 ### 5.5 Connectivity, services, and recovery
 
@@ -251,6 +271,47 @@ flowchart LR
 - `update/UpdateManager.kt`: checks updates, enforces local APK cache hit (bypassing 55MB network downloads), streams and validates SHA-256 digests, tracks foreground `Activity` via weak references to dispatch intents without background launch restriction blocks, dynamically grants `FileProvider` URI read permissions across candidate package installers via `queryIntentActivities`, and seamlessly resumes upon return from Settings.
 - `ui/viewmodels/UpdateViewModel.kt` and `ui/components/UpdateDialog.kt`: expose update state to the UI with progress bar, transfer rate metrics, and interactive "Retry Installer" controls.
 - `mobile-app/app/src/test/java/com/ridervoice/update/AppVersionTest.kt`: semantic version comparison unit tests including `v0.0.3.4` bump test.
+
+
+
+### 5.7 Offline Mesh Engine Depth (com.ridervoice.mesh)
+
+The offline mesh subsystem provides an autonomous, multi-hop peer-to-peer voice network over local Wi-Fi / UDP when cellular connectivity is unavailable.
+
+- **Audio Subsystem (`mesh/audio/`)**:
+  - `AudioOwnershipArbiter.kt`: Thread-safe concurrency arbiter enforcing strict mutual exclusion between LiveKit WebRTC audio capture/playback and offline mesh `AudioRecord`/`AudioTrack`. Prevents Android Audio HAL hardware contention crashes.
+  - `MultiSourceJitterBufferManager.kt`: Per-peer adaptive jitter buffer managing packet reordering, loss concealment, and smooth playout ticks.
+  - `OfflineAudioCapture.kt`: Captures 16kHz 16-bit mono PCM frames using an interruptible event-driven loop (D24 fix).
+  - `OfflineAudioPlayback.kt`: Streams decoded PCM audio into Android `AudioTrack` with underflow/overflow protection.
+
+- **Forwarding & Flooding Control (`mesh/forwarding/`)**:
+  - `ForwardingEngine.kt`: 18-step packet forwarding pipeline. Enforces TTL decrements, hop bounds (<=4 hops), route tie-breaking, and relay suppression (D26) to prevent 5x packet storm amplification in dense clusters.
+  - `TtlPolicy.kt`: Defines time-to-live limits for voice frames (`VOICE_TTL = 3`) and discovery announcements (`HELLO_TTL = 4`).
+
+- **Graph & Distance-Vector Routing (`mesh/graph/`, `mesh/routing/`)**:
+  - `MeshGraphRepository.kt`: Dynamic graph repository computing shortest paths using distance-vector metrics, deterministic tie-breaking on lowest node ID, and symmetric edge tracking.
+  - `RoutingTable.kt`: Maintains active routes to all known nodes in the mesh and purges stale neighbors (D23).
+
+- **Identity & Transport Link (`mesh/identity/`, `mesh/link/`)**:
+  - `MeshIdentity.kt`: Hardware-backed unique node identifier generated from cryptographically secure entropy.
+  - `UdpMeshLink.kt`: Non-blocking DatagramSocket transport binding to UDP port 4242. Handles frame ingestion, endpoint validation (D22), and subnet broadcast.
+  - `NetworkLocks.kt`: Manages Android `WifiManager.WifiLock` and `MulticastLock` with symmetric acquire/release lifecycle to keep radio interfaces active.
+
+- **Wire Protocol & Cryptography (`mesh/protocol/`, `mesh/session/`)**:
+  - `MeshPacketCodec.kt`: Encodes and decodes the 727-byte wire packet v2 layout, validating magic bytes (`0x52, 0x56`), protocol version (`0x02`), and packet size bounds (D21).
+  - `SlowKdf.kt`: Memory-hard PBKDF2-HMAC-SHA256 (60,000 iterations) and HKDF-SHA256 key derivation (D19) generating 256-bit AES-GCM session keys from 6-digit room codes.
+  - `DuplicatePacketCache.kt`: Sliding-window deduplication filter combining an LRU cache and Bloom filter to reject replays beyond cache TTL (D8).
+  - `SessionManager.kt`: Coordinates cryptographic session establishment, key ratcheting, and peer authentication.
+
+- **Automatic Handoff State Machine (`mesh/switching/`)**:
+  - `AutomaticSwitchStateMachine.kt`: 9-state deterministic finite state machine (`ONLINE_LIVEKIT_ACTIVE`, `STARTING_OFFLINE_MESH`, `OFFLINE_ACTIVE`, `HANDING_BACK_TO_LIVEKIT`, etc.) managing failover and recovery. Includes recovery deadlock prevention (D25) by tracking Internet health even when LiveKit was disconnected by handoff.
+  - `LocalHealthSignals.kt`: Ingests packet loss, RTT spikes, and cellular outage signals to trigger automatic handoff.
+
+- **UI & Presentation (`mesh/ui/`)**:
+  - `OfflineMeshLobbyScreen.kt` & `OfflineMeshLobbyViewModel.kt`: Local hotspot setup, peer discovery list, group code entry, and session pairing.
+  - `OfflineRoomScreen.kt` & `OfflineRoomViewModel.kt`: Active offline intercom HUD displaying mesh topology, hop counts, signal quality, and PTT controls.
+  - `di/MeshModule.kt`: Dagger Hilt module wiring the offline mesh singleton graph.
+  - `service/MeshForegroundService.kt`: Persistent foreground service maintaining network locks and audio loops when the app is backgrounded.
 
 ## 6. Web App Depth
 

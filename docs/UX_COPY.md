@@ -63,3 +63,24 @@ This document serves as the single source of truth for all user-facing copy, ter
 | WAYPOINT PLOTTER / ROUTING CHARACTERISTIC | Plan a route / Route type | Route planning preview |
 | AUTOMATIC BROADCAST / CONNECTED ON SQUAD NET | Auto share / Connected | Status indicators |
 | "Tactical Notes / Bio" | About me | User profile bio |
+
+
+---
+
+## 3. Offline Mesh Intercom Terminology & Copy
+
+| Context / Element | User-Facing Copy | Description / Intent |
+|---|---|---|
+| Settings Toggle | Offline mesh intercom (beta) | Primary feature gate toggle in Settings |
+| Settings Sub-toggle | Auto-switch when cellular drops | Enables automatic failover to local mesh |
+| Mesh Lobby Title | Offline Group | Lobby screen title for offline pairing |
+| Mesh Lobby Action | Create offline group | Initiates local Wi-Fi Hotspot mesh group |
+| Mesh Lobby Join | Join offline group | Prompts for 6-digit group code to connect |
+| Active HUD Header | Offline Mesh Intercom | Title on active HUD when running on mesh |
+| Active HUD Signal | Nearby riders (n) | Number of active peer riders in mesh range |
+| Hop Count Badge | Direct / (n) hops away | Multi-hop distance indicator |
+| Status Pill: Online | LiveKit Online | Connected to central cellular WebRTC SFU |
+| Status Pill: Offline | Offline Mesh | Connected via ad-hoc local Wi-Fi / UDP |
+| Status Pill: Switching | Switching... | Debounced transition between transports |
+| Error: No Network | Wi-Fi or Hotspot required | Instructs user to enable local Wi-Fi/Hotspot |
+| Warning: Mic Collision | Mic in use by another app | Indicates Audio HAL hardware conflict |

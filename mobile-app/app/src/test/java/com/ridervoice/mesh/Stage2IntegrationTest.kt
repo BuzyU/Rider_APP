@@ -120,6 +120,9 @@ class Stage2IntegrationTest {
             _state.value = VoiceTransportState.STOPPED
         }
 
+        override suspend fun pause() {}
+        override suspend fun resume() {}
+
         override suspend fun setMicrophoneEnabled(enabled: Boolean) {}
         override suspend fun setDeafened(deafened: Boolean) {}
         override suspend fun setAudioRoute(route: AudioRoute) {}

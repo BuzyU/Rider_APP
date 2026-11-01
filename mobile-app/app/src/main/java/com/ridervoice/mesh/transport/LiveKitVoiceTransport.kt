@@ -12,6 +12,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+class LiveKitManagerPort(private val m: LiveKitManager) : LiveKitPort {
+    override val connectionState: StateFlow<ConnectionState> get() = m.connectionState
+    override val activeSpeaker: StateFlow<String?> get() = m.activeSpeaker
+    override val participants: StateFlow<List<Participant>> get() = m.participants
+    override suspend fun connect(url: String, roomId: String, tokenProvider: suspend () -> String, expectedLkRoomName: String?) =
+        m.connect(url = url, roomId = roomId, tokenProvider = tokenProvider, expectedLkRoomName = expectedLkRoomName)
+    override fun disconnect() = m.disconnect()
+    override fun setUserMuted(muted: Boolean) = m.setUserMuted(muted)
+    override fun setDeafened(deafened: Boolean) = m.setDeafened(deafened)
+}
+
 /**
  * Stage 2 Adapter wrapping [LiveKitManager] behind the generic [VoiceTransport] contract.
  *
@@ -20,11 +31,18 @@ import kotlinx.coroutines.launch
  * Delegates 100% of online operations directly to LiveKitManager.
  */
 class LiveKitVoiceTransport(
-    private val liveKitManager: LiveKitManager,
+    private val liveKitPort: LiveKitPort,
     private val audioOwnershipArbiter: AudioOwnershipArbiter,
     private val onAudioRouteChanged: (AudioRoute) -> Unit = {},
     dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
 ) : VoiceTransport {
+
+    constructor(
+        liveKitManager: LiveKitManager,
+        audioOwnershipArbiter: AudioOwnershipArbiter,
+        onAudioRouteChanged: (AudioRoute) -> Unit = {},
+        dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
+    ) : this(LiveKitManagerPort(liveKitManager), audioOwnershipArbiter, onAudioRouteChanged, dispatcher)
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
 
@@ -39,10 +57,13 @@ class LiveKitVoiceTransport(
 
     override val audioOwner: StateFlow<AudioOwner> = audioOwnershipArbiter.owner
 
+    private var userMicEnabled = true
+    private var pausedByCoordinator = false
+
     init {
         // Observe connection state
         scope.launch {
-            liveKitManager.connectionState.collectLatest { conn ->
+            liveKitPort.connectionState.collectLatest { conn ->
                 _state.value = when (conn) {
                     ConnectionState.CONNECTED -> VoiceTransportState.CONNECTED
                     ConnectionState.CONNECTING -> VoiceTransportState.STARTING
@@ -55,15 +76,15 @@ class LiveKitVoiceTransport(
 
         // Observe active speaker
         scope.launch {
-            liveKitManager.activeSpeaker.collectLatest { speaker ->
+            liveKitPort.activeSpeaker.collectLatest { speaker ->
                 _activeSpeakers.value = if (speaker != null) setOf(speaker) else emptySet()
             }
         }
 
         // Observe participants and project to UnifiedVoicePeer
         scope.launch {
-            liveKitManager.participants.collectLatest { lkParticipants ->
-                val speaker = liveKitManager.activeSpeaker.value
+            liveKitPort.participants.collectLatest { lkParticipants ->
+                val speaker = liveKitPort.activeSpeaker.value
                 _participants.value = lkParticipants.map { p ->
                     UnifiedVoicePeer.fromOnline(
                         OnlineParticipant(
@@ -85,7 +106,7 @@ class LiveKitVoiceTransport(
         }
 
         audioOwnershipArbiter.claimLiveKit()
-        liveKitManager.connect(
+        liveKitPort.connect(
             url = onlineSession.url,
             roomId = onlineSession.roomId,
             tokenProvider = onlineSession.tokenProvider,
@@ -94,17 +115,33 @@ class LiveKitVoiceTransport(
     }
 
     override suspend fun stop() {
-        liveKitManager.disconnect()
+        pausedByCoordinator = false
+        liveKitPort.disconnect()
         audioOwnershipArbiter.release(AudioOwner.LIVEKIT)
         _state.value = VoiceTransportState.STOPPED
     }
 
+    override suspend fun pause() {
+        if (pausedByCoordinator) return
+        pausedByCoordinator = true
+        liveKitPort.setUserMuted(true)
+    }
+
+    override suspend fun resume() {
+        if (!pausedByCoordinator) return
+        pausedByCoordinator = false
+        liveKitPort.setUserMuted(!userMicEnabled)
+    }
+
     override suspend fun setMicrophoneEnabled(enabled: Boolean) {
-        liveKitManager.setUserMuted(!enabled)
+        userMicEnabled = enabled
+        if (!pausedByCoordinator) {
+            liveKitPort.setUserMuted(!enabled)
+        }
     }
 
     override suspend fun setDeafened(deafened: Boolean) {
-        liveKitManager.setDeafened(deafened)
+        liveKitPort.setDeafened(deafened)
     }
 
     override suspend fun setAudioRoute(route: AudioRoute) {

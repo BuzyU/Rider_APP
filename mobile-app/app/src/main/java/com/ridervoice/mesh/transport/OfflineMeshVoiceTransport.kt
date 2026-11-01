@@ -240,7 +240,28 @@ class OfflineMeshVoiceTransport(
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
     }
 
+    private var micWanted = false
+    private var paused = false
+
+    override suspend fun pause() {
+        if (paused || _state.value != VoiceTransportState.CONNECTED) return
+        paused = true
+        audioCapture?.stop()
+        audioPlayback?.stop()
+        audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
+    }
+
+    override suspend fun resume() {
+        if (!paused) return
+        if (!audioOwnershipArbiter.tryClaimOfflineMesh()) return
+        paused = false
+        audioPlayback?.start()
+        if (micWanted) audioCapture?.start()
+    }
+
     override suspend fun setMicrophoneEnabled(enabled: Boolean) {
+        micWanted = enabled
+        if (paused) return
         val capture = audioCapture ?: return
         capture.setMicEnabled(enabled)
         if (enabled) {

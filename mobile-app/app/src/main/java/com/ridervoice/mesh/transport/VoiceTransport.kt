@@ -39,6 +39,8 @@ interface VoiceTransport {
 
     suspend fun start(session: VoiceSession)
     suspend fun stop()
+    suspend fun pause()
+    suspend fun resume()
 
     suspend fun setMicrophoneEnabled(enabled: Boolean)
     suspend fun setDeafened(deafened: Boolean)

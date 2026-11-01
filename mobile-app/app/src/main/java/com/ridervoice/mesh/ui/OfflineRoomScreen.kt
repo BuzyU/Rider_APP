@@ -51,6 +51,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.ridervoice.R
 import com.ridervoice.mesh.diagnostics.MeshDiagnosticsRepository
 import com.ridervoice.mesh.diagnostics.MeshDiagnosticsSnapshot
 import com.ridervoice.mesh.transport.MicState
@@ -133,7 +138,7 @@ fun OfflineRoomScreen(
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = "Microphone permission required for mesh voice",
+                            text = stringResource(R.string.mesh_mic_permission_needed),
                             color = Color.White,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
@@ -148,7 +153,7 @@ fun OfflineRoomScreen(
                                 context.startActivity(intent)
                             }
                         ) {
-                            Text("Open settings", color = Color(0xFFFCA5A5), fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.mesh_mic_open_settings), color = Color(0xFFFCA5A5), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -159,7 +164,7 @@ fun OfflineRoomScreen(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                 ) {
                     Text(
-                        text = "Microphone is unavailable or busy",
+                        text = stringResource(R.string.mesh_mic_busy),
                         color = Color(0xFFFDE68A),
                         fontSize = 13.sp,
                         modifier = Modifier.padding(12.dp)
@@ -181,14 +186,14 @@ fun OfflineRoomScreen(
                 ) {
                     Column {
                         Text(
-                            text = "OFFLINE MULTI-HOP MESH",
+                            text = stringResource(R.string.mesh_title),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF38BDF8),
                             fontFamily = FontFamily.Monospace
                         )
                         Text(
-                            text = "${peers.count { it.isOnline }} Active / ${peers.size} Discovered",
+                            text = stringResource(R.string.mesh_active_discovered, peers.count { it.isOnline }, peers.size),
                             fontSize = 14.sp,
                             color = Color.White
                         )
@@ -199,7 +204,7 @@ fun OfflineRoomScreen(
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
-                            text = "MAX HOPS: $maxHops",
+                            text = stringResource(R.string.mesh_max_hops, maxHops),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFFA5B4FC),
@@ -214,7 +219,7 @@ fun OfflineRoomScreen(
 
             // Peer List
             Text(
-                text = "MESH PEERS",
+                text = stringResource(R.string.mesh_peers_header),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF94A3B8),
@@ -232,7 +237,7 @@ fun OfflineRoomScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Searching for nearby mesh riders...\nMake sure peers share the code: $sessionCode",
+                        text = stringResource(R.string.mesh_peers_searching, sessionCode),
                         color = Color(0xFF64748B),
                         fontSize = 14.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -264,16 +269,16 @@ private fun MeshDiagnosticsDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Mesh Telemetry",
+                text = stringResource(R.string.mesh_diag_title),
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
         },
         text = {
             if (snapshot == null) {
-                Text("No telemetry available yet", color = Color(0xFF94A3B8))
+                Text(stringResource(R.string.mesh_diag_empty), color = Color(0xFF94A3B8))
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     DiagRow("Device ID", snapshot.selfDeviceId.take(8))
                     DiagRow("Session ID", snapshot.sessionId.take(8))
                     DiagRow("Active Members", "${snapshot.memberCount}")
@@ -291,7 +296,7 @@ private fun MeshDiagnosticsDialog(
         },
         confirmButton = {
             androidx.compose.material3.TextButton(onClick = onDismiss) {
-                Text("CLOSE", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.mesh_close), color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
             }
         },
         containerColor = Color(0xFF1E293B)
@@ -354,7 +359,7 @@ private fun MeshPeerCard(
                     if (isSpeaking) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "SPEAKING",
+                            text = stringResource(R.string.mesh_speaking),
                             color = Color(0xFF10B981),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -400,14 +405,14 @@ private fun MeshTopBar(
         ) {
             Column {
                 Text(
-                    text = "CODE: $sessionCode",
+                    text = stringResource(R.string.mesh_code_label, sessionCode),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
                     fontFamily = FontFamily.Monospace
                 )
                 Text(
-                    text = "STATUS: $stateText · $peerCount PEERS",
+                    text = stringResource(R.string.mesh_status_summary, stateText, peerCount),
                     fontSize = 11.sp,
                     color = Color(0xFF94A3B8),
                     fontFamily = FontFamily.Monospace
@@ -416,7 +421,7 @@ private fun MeshTopBar(
             IconButton(onClick = onInfoClick) {
                 Icon(
                     imageVector = Icons.Default.Info,
-                    contentDescription = "Diagnostics",
+                    contentDescription = stringResource(R.string.mesh_cd_diagnostics),
                     tint = Color(0xFF38BDF8)
                 )
             }
@@ -455,7 +460,7 @@ private fun MeshBottomBar(
             ) {
                 Icon(
                     imageVector = if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
-                    contentDescription = "Toggle Mic",
+                    contentDescription = stringResource(R.string.mesh_cd_toggle_mic),
                     tint = Color.White
                 )
             }
@@ -470,7 +475,7 @@ private fun MeshBottomBar(
             ) {
                 Icon(
                     imageVector = if (isDeafened) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                    contentDescription = "Toggle Deafen",
+                    contentDescription = stringResource(R.string.mesh_cd_toggle_deafen),
                     tint = Color.White
                 )
             }
@@ -482,7 +487,7 @@ private fun MeshBottomBar(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
-                    text = "LEAVE",
+                    text = stringResource(R.string.mesh_leave),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,

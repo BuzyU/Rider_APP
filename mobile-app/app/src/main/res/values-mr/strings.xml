@@ -216,4 +216,52 @@
     <string name="join_failed_title">राइडमध्ये सामील होऊ शकले नाही</string>
     <string name="join_callsign_label">तुमचे कॉलसाइन / नाव</string>
     <string name="join_action_enter_code">कोड टाका</string>
+    <!-- TODO native review -->
+    <!-- Offline Mesh Intercom (D15) -->
+    <string name="mesh_title">ऑफलाइन मेश इंटरकॉम</string>
+    <string name="mesh_status_summary">स्थिती: %1$s, %2$d सहकारी</string>
+    <string name="mesh_peers_header">मेश सहकारी</string>
+    <string name="mesh_peers_searching">जवळच्या रायडर्सचा शोध घेत आहे. हा कोड शेअर करा: %1$s</string>
+    <string name="mesh_active_discovered">%1$d सक्रिय / %2$d शोधलेले</string>
+    <string name="mesh_max_hops">कमाल हॉप्‍स: %1$d</string>
+    <string name="mesh_speaking">बोलत आहेत</string>
+    <string name="mesh_leave">बाहेर पडा</string>
+    <string name="mesh_close">बंद करा</string>
+    <string name="mesh_diag_title">मेश टेलिमेट्री</string>
+    <string name="mesh_diag_empty">अद्याप कोणतीही टेलिमेट्री उपलब्ध नाही</string>
+    <string name="mesh_code_label">कोड: %1$s</string>
+    <string name="mesh_mic_permission_needed">बोलण्यासाठी मायक्रोफोन परवानगी आवश्यक आहे</string>
+    <string name="mesh_mic_open_settings">सेटिंग्ज उघडा</string>
+    <string name="mesh_mic_busy">मायक्रोफोन इतर ॲपद्वारे वापरला जात आहे</string>
+    <string name="mesh_state_discovering">रायडर्स शोधत आहे</string>
+    <string name="mesh_state_connected">कनेक्ट झाले</string>
+    <string name="mesh_state_unavailable">ऑफलाइन मेश अनुपलब्ध</string>
+    <string name="mesh_lobby_header">रणनीतिक इंटरकॉम</string>
+    <string name="mesh_lobby_title">ऑफलाइन मेश लॉबी</string>
+    <string name="mesh_lobby_description">इंटरनेट किंवा सेल्युलर डेटाशिवाय स्थानिक वाय-फायवर जवळच्या रायडर्सशी थेट कनेक्ट व्हा. सर्व ऑडिओ एंड-टू-एंड एनक्रिप्टेड आहे.</string>
+    <string name="mesh_lobby_create_title">मेश सत्र तयार करा</string>
+    <string name="mesh_lobby_create_subtitle">नवीन इंटरकॉम चॅनेल तयार करा आणि आपल्या ग्रुपसोबत 16-अक्षरी कोड शेअर करा.</string>
+    <string name="mesh_lobby_generate_code">पेअरिंग कोड तयार करा</string>
+    <string name="mesh_lobby_channel_code_header">चॅनेल पेअरिंग कोड</string>
+    <string name="mesh_lobby_copy_code">कॉपी करा</string>
+    <string name="mesh_lobby_enter_room">रूममध्ये प्रवेश करा</string>
+    <string name="mesh_lobby_join_title">अस्तित्वात असलेल्या सत्रात सामील व्हा</string>
+    <string name="mesh_lobby_join_subtitle">आपल्या ग्रुपमधील इतर रायडरने दिलेला 16-अक्षरी कोड टाका.</string>
+    <string name="mesh_lobby_pairing_code_label">पेअरिंग कोड</string>
+    <string name="mesh_lobby_pairing_code_placeholder">XXXX-XXXX-XXXX-XXXX</string>
+    <string name="mesh_lobby_join_button">चॅनेलमध्ये सामील व्हा</string>
+    <string name="mesh_lobby_invalid_code_error">अमान्य पेअरिंग कोड. कोड 16 अक्षरांचा असावा.</string>
+    <string name="mesh_lobby_code_copied">पेअरिंग कोड कॉपी केला!</string>
+    <string name="mesh_cd_back">मागे</string>
+    <string name="mesh_cd_copy">कॉपी</string>
+    <string name="mesh_cd_error">त्रुटी</string>
+    <string name="mesh_cd_diagnostics">डायग्नोस्टिक्स</string>
+    <string name="mesh_cd_toggle_mic">माइक टॉगल करा</string>
+    <string name="mesh_cd_toggle_deafen">म्यूट टॉगल करा</string>
+    <string name="mesh_cd_wifi_tethering">मेश इंटरकॉम</string>
+    <string name="mesh_cd_group_add">सत्रात सामील व्हा</string>
+    <plurals name="mesh_peer_count">
+        <item quantity="one">%1$d सहकारी</item>
+        <item quantity="other">%1$d सहकारी</item>
+    </plurals>
 </resources>

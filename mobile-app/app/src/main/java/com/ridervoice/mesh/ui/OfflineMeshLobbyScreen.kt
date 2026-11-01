@@ -56,6 +56,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.ridervoice.R
 import com.ridervoice.mesh.session.OfflineSession
 
 private val GraphiteBase = Color(0xFF0F1012)
@@ -104,20 +106,20 @@ fun OfflineMeshLobbyScreen(
                 IconButton(onClick = onBackClick) {
                     Icon(
                         imageVector = Icons.Default.ArrowBackIosNew,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.mesh_cd_back),
                         tint = TextPrimary
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "TACTICAL INTERCOM",
+                        text = stringResource(R.string.mesh_lobby_header),
                         style = MaterialTheme.typography.labelSmall,
                         color = NeonOrange,
                         letterSpacing = 1.5.sp
                     )
                     Text(
-                        text = "Offline Mesh Lobby",
+                        text = stringResource(R.string.mesh_lobby_title),
                         style = MaterialTheme.typography.titleLarge,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -126,7 +128,7 @@ fun OfflineMeshLobbyScreen(
             }
 
             Text(
-                text = "Connect directly with nearby riders over local Wi-Fi without internet or cellular data. All audio is end-to-end encrypted.",
+                text = stringResource(R.string.mesh_lobby_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
                 modifier = Modifier.padding(bottom = 24.dp)
@@ -149,7 +151,7 @@ fun OfflineMeshLobbyScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Create Mesh Session",
+                            text = stringResource(R.string.mesh_lobby_create_title),
                             style = MaterialTheme.typography.titleMedium,
                             color = TextPrimary,
                             fontWeight = FontWeight.SemiBold
@@ -158,7 +160,7 @@ fun OfflineMeshLobbyScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Host a new intercom channel and share the 16-character code with your squad.",
+                        text = stringResource(R.string.mesh_lobby_create_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -175,7 +177,7 @@ fun OfflineMeshLobbyScreen(
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Generate Pairing Code", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.mesh_lobby_generate_code), color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     } else {
                         val session = createdSession!!
@@ -189,7 +191,7 @@ fun OfflineMeshLobbyScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "CHANNEL PAIRING CODE",
+                                text = stringResource(R.string.mesh_lobby_channel_code_header),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = TextSecondary,
                                 letterSpacing = 1.sp
@@ -215,15 +217,15 @@ fun OfflineMeshLobbyScreen(
                             OutlinedButton(
                                 onClick = {
                                     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    cm.setPrimaryClip(ClipData.newPlainText("Mesh Pairing Code", formattedCode))
-                                    Toast.makeText(context, "Pairing code copied!", Toast.LENGTH_SHORT).show()
+                                    cm.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.mesh_lobby_channel_code_header), formattedCode))
+                                    Toast.makeText(context, context.getString(R.string.mesh_lobby_code_copied), Toast.LENGTH_SHORT).show()
                                 },
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = TextPrimary)
+                                Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.mesh_cd_copy), tint = TextPrimary)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Copy", color = TextPrimary)
+                                Text(stringResource(R.string.mesh_lobby_copy_code), color = TextPrimary)
                             }
 
                             Button(
@@ -234,7 +236,7 @@ fun OfflineMeshLobbyScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.weight(1.5f)
                             ) {
-                                Text("Enter Room", color = Color.Black, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.mesh_lobby_enter_room), color = Color.Black, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -260,7 +262,7 @@ fun OfflineMeshLobbyScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Join Existing Session",
+                            text = stringResource(R.string.mesh_lobby_join_title),
                             style = MaterialTheme.typography.titleMedium,
                             color = TextPrimary,
                             fontWeight = FontWeight.SemiBold
@@ -269,7 +271,7 @@ fun OfflineMeshLobbyScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Enter the 16-character code from another rider in your group.",
+                        text = stringResource(R.string.mesh_lobby_join_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -282,8 +284,8 @@ fun OfflineMeshLobbyScreen(
                             joinCodeInput = it.uppercase()
                             joinError = null
                         },
-                        label = { Text("Pairing Code") },
-                        placeholder = { Text("XXXX-XXXX-XXXX-XXXX") },
+                        label = { Text(stringResource(R.string.mesh_lobby_pairing_code_label)) },
+                        placeholder = { Text(stringResource(R.string.mesh_lobby_pairing_code_placeholder)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Characters,
@@ -294,7 +296,7 @@ fun OfflineMeshLobbyScreen(
                                 keyboardController?.hide()
                                 val session = OfflineSession.fromCode(joinCodeInput, System.currentTimeMillis())
                                 if (session == null) {
-                                    joinError = "Invalid pairing code. Code must be 16 alphanumeric characters."
+                                    joinError = context.getString(R.string.mesh_lobby_invalid_code_error)
                                 } else {
                                     onEnterSession(session.pairingCode)
                                 }
@@ -313,7 +315,7 @@ fun OfflineMeshLobbyScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.ErrorOutline,
-                                contentDescription = "Error",
+                                contentDescription = stringResource(R.string.mesh_cd_error),
                                 tint = AlertRed
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -332,7 +334,7 @@ fun OfflineMeshLobbyScreen(
                             keyboardController?.hide()
                             val session = OfflineSession.fromCode(joinCodeInput, System.currentTimeMillis())
                             if (session == null) {
-                                joinError = "Invalid pairing code. Code must be 16 alphanumeric characters."
+                                joinError = context.getString(R.string.mesh_lobby_invalid_code_error)
                             } else {
                                 onEnterSession(session.pairingCode)
                             }
@@ -341,7 +343,7 @@ fun OfflineMeshLobbyScreen(
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Join Channel", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.mesh_lobby_join_button), color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }

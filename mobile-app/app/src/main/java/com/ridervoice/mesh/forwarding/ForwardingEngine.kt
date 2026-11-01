@@ -345,9 +345,12 @@ class ForwardingEngine(
         previousHopId: String,
         now: Long
     ): List<com.ridervoice.mesh.graph.DirectNeighbor> {
+        val alreadyCovered: Set<String> =
+            if (MeshConfig.SUPPRESS_REDUNDANT_RELAYS) coveredByDirectHearing(sourceId, previousHopId, now) else emptySet()
         val liveDirect = graphRepository.directNeighbors().filter { neighbor ->
             neighbor.deviceId != previousHopId &&
                 neighbor.deviceId != sourceId &&
+                neighbor.deviceId !in alreadyCovered &&
                 (now - neighbor.lastSeen) <= MeshConfig.NEIGHBOR_TIMEOUT_MS
         }
         if (liveDirect.isEmpty()) return emptyList()
@@ -363,5 +366,21 @@ class ForwardingEngine(
         } else {
             liveDirect
         }
+    }
+
+    /**
+     * Devices that are fresh, bidirectional radio neighbors of the previous hop or of the original source.
+     * They already heard this packet first-hand, so relaying it to them again only burns airtime, battery and
+     * HMAC verifications. Only edges confirmed by BOTH ends are trusted, so an asymmetric or stale report can
+     * never suppress a relay that is actually needed.
+     */
+    private fun coveredByDirectHearing(sourceId: String, previousHopId: String, now: Long): Set<String> {
+        val covered = HashSet<String>()
+        for (e in graphRepository.currentSnapshot().edges) {
+            if (!e.bidirectional || e.expiresAt <= now) continue
+            if (e.from == sourceId || e.from == previousHopId) covered.add(e.to)
+            if (e.to == sourceId || e.to == previousHopId) covered.add(e.from)
+        }
+        return covered
     }
 }

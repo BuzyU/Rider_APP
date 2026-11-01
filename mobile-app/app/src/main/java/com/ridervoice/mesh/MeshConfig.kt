@@ -13,6 +13,13 @@ object MeshConfig {
     const val MEMBER_TIMEOUT_MS = 30_000L
 
     /** Number of times a packet may still be forwarded. 5 reaches 6 hops, the max chain for 6 devices. */
+    /**
+     * When true, a relay does not forward a packet to a neighbor that is already a (fresh, bidirectional) radio
+     * neighbor of the previous hop or of the original source: that neighbor heard the packet directly.
+     * Without this, 6 fully connected devices produced 25 datagrams per voice frame instead of 5.
+     * Trade-off: removes accidental redundancy, so measure packet loss on real hardware (device scenario 13/35).
+     */
+    const val SUPPRESS_REDUNDANT_RELAYS = true
     const val DEFAULT_TTL = 5
     /** HELLO floods are kept shorter than audio. */
     const val HELLO_TTL = 4

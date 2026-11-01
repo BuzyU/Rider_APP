@@ -165,5 +165,86 @@ class AdversarialTest {
         assertTrue("Direct HELLO was dropped: $outcomeDirect", outcomeDirect is ReceiveOutcome.Accepted)
         assertTrue("Direct neighbor B should be registered", a.graph.directNeighborIds().contains(bId))
     }
+
+    @Test
+    fun oversizedVoicePayloadMustBeDropped() {
+        val t = 1_000L
+        val clock = { t }
+        val s = OfflineSession.create(t)
+        val aId = UUID.randomUUID().toString()
+        val bId = UUID.randomUUID().toString()
+        val a = Node(aId, "10.0.0.1", s, clock)
+        a.sessionMgr.admit(bId)
+
+        val oversizedVoice = MeshPacket(
+            type = MeshPacketType.VOICE,
+            sessionId = s.sessionId,
+            sourceId = bId,
+            sequence = 1,
+            captureTimestamp = t,
+            ttl = MeshConfig.DEFAULT_TTL,
+            hopCount = 0,
+            previousHopId = bId,
+            payload = ByteArray(1200) { 1 }
+        )
+        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(oversizedVoice, s.authKey()))
+        val outcome = a.engine.onIncomingFrame(frame)
+        assertTrue("Oversized voice should be dropped: $outcome", outcome is ReceiveOutcome.Dropped)
+        assertEquals(ReceiveOutcome.DropReason.BAD_PAYLOAD, (outcome as ReceiveOutcome.Dropped).reason)
+    }
+
+    @Test
+    fun zeroLengthVoicePayloadMustBeDropped() {
+        val t = 1_000L
+        val clock = { t }
+        val s = OfflineSession.create(t)
+        val aId = UUID.randomUUID().toString()
+        val bId = UUID.randomUUID().toString()
+        val a = Node(aId, "10.0.0.1", s, clock)
+        a.sessionMgr.admit(bId)
+
+        val emptyVoice = MeshPacket(
+            type = MeshPacketType.VOICE,
+            sessionId = s.sessionId,
+            sourceId = bId,
+            sequence = 1,
+            captureTimestamp = t,
+            ttl = MeshConfig.DEFAULT_TTL,
+            hopCount = 0,
+            previousHopId = bId,
+            payload = ByteArray(0)
+        )
+        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(emptyVoice, s.authKey()))
+        val outcome = a.engine.onIncomingFrame(frame)
+        assertTrue("Zero-length voice should be dropped: $outcome", outcome is ReceiveOutcome.Dropped)
+        assertEquals(ReceiveOutcome.DropReason.BAD_PAYLOAD, (outcome as ReceiveOutcome.Dropped).reason)
+    }
+
+    @Test
+    fun byeWithBodyMustBeDropped() {
+        val t = 1_000L
+        val clock = { t }
+        val s = OfflineSession.create(t)
+        val aId = UUID.randomUUID().toString()
+        val bId = UUID.randomUUID().toString()
+        val a = Node(aId, "10.0.0.1", s, clock)
+        a.sessionMgr.admit(bId)
+
+        val byeWithBody = MeshPacket(
+            type = MeshPacketType.BYE,
+            sessionId = s.sessionId,
+            sourceId = bId,
+            sequence = 1,
+            captureTimestamp = t,
+            ttl = MeshConfig.DEFAULT_TTL,
+            hopCount = 0,
+            previousHopId = bId,
+            payload = ByteArray(10) { 1 }
+        )
+        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(byeWithBody, s.authKey()))
+        val outcome = a.engine.onIncomingFrame(frame)
+        assertTrue("BYE with body should be dropped: $outcome", outcome is ReceiveOutcome.Dropped)
+        assertEquals(ReceiveOutcome.DropReason.BAD_PAYLOAD, (outcome as ReceiveOutcome.Dropped).reason)
+    }
 }
 

@@ -38,7 +38,8 @@ sealed class ReceiveOutcome {
         STALE_TIMESTAMP,
         TTL_EXHAUSTED,
         DUPLICATE,
-        MALFORMED_HELLO
+        MALFORMED_HELLO,
+        BAD_PAYLOAD
     }
 }
 
@@ -219,6 +220,17 @@ class ForwardingEngine(
         if (!ttlPolicy.isTimestampFresh(decoded.captureTimestamp)) {
             droppedInvalidCount++
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.STALE_TIMESTAMP)
+        }
+
+        // 5 (strict). Payload size must match the packet type exactly, not merely be "<= max".
+        val payloadOk = when (decoded.type) {
+            MeshPacketType.VOICE -> decoded.payload.size == MeshConfig.BYTES_PER_FRAME
+            MeshPacketType.BYE -> decoded.payload.isEmpty()
+            MeshPacketType.HELLO -> true // bounded and structurally validated by HelloCodec
+        }
+        if (!payloadOk) {
+            droppedInvalidCount++
+            return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
         }
 
         // 8. Check TTL > 0

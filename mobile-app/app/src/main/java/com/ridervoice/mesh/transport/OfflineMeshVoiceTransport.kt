@@ -10,6 +10,8 @@ import com.ridervoice.mesh.forwarding.TtlPolicy
 import com.ridervoice.mesh.graph.MeshGraphRepository
 import com.ridervoice.mesh.identity.MeshIdentity
 import com.ridervoice.mesh.link.MeshEndpoint
+import com.ridervoice.mesh.link.MeshFrame
+import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.UdpMeshLink
 import com.ridervoice.mesh.protocol.DuplicatePacketCache
 import com.ridervoice.mesh.routing.RoutingTable
@@ -28,6 +30,10 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
 /**
  * Full offline mesh implementation of [VoiceTransport].
  * Manages the mesh network lifecycle, forwarding engine, jitter buffer, and audio capture/playback.
@@ -37,9 +43,18 @@ class OfflineMeshVoiceTransport(
     private val audioOwnershipArbiter: AudioOwnershipArbiter,
     private val onAudioRouteChanged: (AudioRoute) -> Unit = {},
     private val clock: () -> Long = { System.currentTimeMillis() },
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
+    private val linkFactory: () -> MeshLink = {
+        UdpMeshLink(
+            bindPort = MeshConfig.AUDIO_PORT,
+            gateAllowed = gateAllowed,
+            dispatcher = dispatcher
+        )
+    }
 ) : VoiceTransport {
 
+    private val startMutex = Mutex()
     private val _state = MutableStateFlow(VoiceTransportState.STOPPED)
     override val state: StateFlow<VoiceTransportState> = _state.asStateFlow()
 
@@ -57,7 +72,7 @@ class OfflineMeshVoiceTransport(
     private var peerProjectorJob: Job? = null
 
     private var sessionManager: SessionManager? = null
-    private var link: UdpMeshLink? = null
+    private var link: MeshLink? = null
     private var graphRepository: MeshGraphRepository? = null
     private var routingTable: RoutingTable? = null
     private var forwardingEngine: ForwardingEngine? = null
@@ -67,20 +82,21 @@ class OfflineMeshVoiceTransport(
 
     private var currentSession: OfflineSession? = null
 
-    override suspend fun start(session: VoiceSession) {
+    override suspend fun start(session: VoiceSession) = startMutex.withLock {
+        if (_state.value == VoiceTransportState.CONNECTED || _state.value == VoiceTransportState.STARTING) return@withLock
         val offlineSession = when (session) {
             is VoiceSession.Offline -> session.session
             is VoiceSession.Online -> throw IllegalArgumentException("OfflineMeshVoiceTransport cannot start online session")
         }
 
-        if (!OfflineMeshGate.isOfflineAllowed()) {
+        if (!gateAllowed()) {
             _state.value = VoiceTransportState.FAILED
-            return
+            return@withLock
         }
 
         if (!audioOwnershipArbiter.tryClaimOfflineMesh()) {
             _state.value = VoiceTransportState.FAILED
-            return
+            return@withLock
         }
 
         _state.value = VoiceTransportState.STARTING
@@ -101,11 +117,7 @@ class OfflineMeshVoiceTransport(
         val jManager = MultiSourceJitterBufferManager(clock = clock)
         jitterManager = jManager
 
-        val uLink = UdpMeshLink(
-            bindPort = MeshConfig.AUDIO_PORT,
-            gateAllowed = { OfflineMeshGate.isOfflineAllowed() },
-            dispatcher = dispatcher
-        )
+        val uLink = linkFactory()
         link = uLink
 
         val fEngine = ForwardingEngine(
@@ -125,7 +137,7 @@ class OfflineMeshVoiceTransport(
         forwardingEngine = fEngine
 
         val aCapture = OfflineAudioCapture(
-            gateAllowed = { OfflineMeshGate.isOfflineAllowed() },
+            gateAllowed = gateAllowed,
             canClaimAudio = { audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH },
             dispatcher = dispatcher,
             onPcmFrame = { pcm ->
@@ -136,23 +148,36 @@ class OfflineMeshVoiceTransport(
 
         val aPlayback = OfflineAudioPlayback(
             jitterManager = jManager,
-            gateAllowed = { OfflineMeshGate.isOfflineAllowed() },
+            gateAllowed = gateAllowed,
             dispatcher = dispatcher
         )
         audioPlayback = aPlayback
 
-        uLink.start()
-        aPlayback.start()
-
         val scope = CoroutineScope(SupervisorJob() + dispatcher)
         transportScope = scope
 
-        // Start incoming frame listener
-        frameListenerJob = scope.launch {
-            uLink.incomingFrames.collect { frame ->
+        // Start incoming frame listener BEFORE starting link (D6: subscribe before start)
+        frameListenerJob = scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+            uLink.incomingFrames.collect { frame: MeshFrame ->
                 fEngine.onIncomingFrame(frame)
             }
         }
+
+        uLink.start()
+        if (uLink.state.value != com.ridervoice.mesh.link.MeshLinkState.RUNNING) {
+            aPlayback.stop()
+            aCapture.stop()
+            frameListenerJob?.cancel()
+            frameListenerJob = null
+            scope.cancel()
+            transportScope = null
+            link = null
+            audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
+            _state.value = VoiceTransportState.FAILED
+            return@withLock
+        }
+
+        aPlayback.start()
 
         // Start periodic discovery / heartbeat job (every 1.5s)
         heartbeatJob = scope.launch {
@@ -181,7 +206,7 @@ class OfflineMeshVoiceTransport(
         _state.value = VoiceTransportState.CONNECTED
     }
 
-    override suspend fun stop() {
+    override suspend fun stop() = startMutex.withLock {
         _state.value = VoiceTransportState.STOPPED
         runCatching { forwardingEngine?.originateBye() }
 
@@ -201,6 +226,7 @@ class OfflineMeshVoiceTransport(
         link?.stop()
         link = null
 
+        transportScope?.cancel()
         transportScope = null
         sessionManager = null
         graphRepository = null

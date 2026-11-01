@@ -4,6 +4,8 @@ import android.media.AudioRecord
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.audio.AudioRecordSource
 import com.ridervoice.mesh.audio.OfflineAudioCapture
+import com.ridervoice.mesh.audio.PlayoutFrame
+import com.ridervoice.mesh.audio.SourceJitterBuffer
 import com.ridervoice.mesh.graph.MeshGraphRepository
 import com.ridervoice.mesh.graph.MeshGraphSnapshot
 import com.ridervoice.mesh.identity.MeshIdentity
@@ -293,6 +295,35 @@ class HonestStateTest {
             now
         )
         assertEquals("Route age must reset to 0 on next hop change", 0L, peer2.routeAgeMs)
+    }
+
+    @Test
+    fun t27_sourceJitterBufferOrderingAcrossSequenceWrap() {
+        val clock = { 1_000L }
+        val buffer = SourceJitterBuffer(sourceId = "nodeA", targetDelayFrames = 2, maxQueueFrames = 10, clock = clock)
+        val pcm1 = ByteArray(MeshConfig.BYTES_PER_FRAME) { 1 }
+        val pcm2 = ByteArray(MeshConfig.BYTES_PER_FRAME) { 2 }
+        val pcm3 = ByteArray(MeshConfig.BYTES_PER_FRAME) { 3 }
+
+        val seq1 = Int.MAX_VALUE - 1
+        val seq2 = Int.MAX_VALUE
+        val seq3 = Int.MIN_VALUE // wrapped sequence
+
+        buffer.enqueue(seq1, pcm1)
+        buffer.enqueue(seq2, pcm2)
+        assertTrue(buffer.isPrimed())
+
+        buffer.enqueue(seq3, pcm3)
+        assertEquals(0L, buffer.lateDroppedCount)
+
+        val frame1 = buffer.pollFrame() as PlayoutFrame.Audio
+        assertEquals(seq1, frame1.sequence)
+
+        val frame2 = buffer.pollFrame() as PlayoutFrame.Audio
+        assertEquals(seq2, frame2.sequence)
+
+        val frame3 = buffer.pollFrame() as PlayoutFrame.Audio
+        assertEquals(seq3, frame3.sequence)
     }
 }
 

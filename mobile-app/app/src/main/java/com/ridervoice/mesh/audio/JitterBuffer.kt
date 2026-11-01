@@ -28,7 +28,7 @@ class SourceJitterBuffer(
     private val frameBytes: Int = MeshConfig.BYTES_PER_FRAME,
     private val clock: () -> Long
 ) {
-    private val queue = TreeMap<Int, ByteArray>()
+    private val queue = TreeMap<Int, ByteArray> { a, b -> (a - b).compareTo(0) }
     private var primed = false
     private var nextExpectedSeq: Int = 0
     private var consecutiveMissing: Int = 0
@@ -48,7 +48,7 @@ class SourceJitterBuffer(
     @Synchronized
     fun enqueue(sequence: Int, pcmBytes: ByteArray) {
         lastEnqueueTimeMs = clock()
-        if (primed && sequence < nextExpectedSeq) {
+        if (primed && (sequence - nextExpectedSeq) < 0) {
             lateDroppedCount++
             return
         }
@@ -62,7 +62,7 @@ class SourceJitterBuffer(
             val droppedKey = queue.firstKey()
             queue.remove(droppedKey)
             overflowDroppedCount++
-            if (primed && nextExpectedSeq <= droppedKey) {
+            if (primed && (nextExpectedSeq - droppedKey) <= 0) {
                 nextExpectedSeq = (queue.firstKey() ?: (droppedKey + 1))
             }
         }

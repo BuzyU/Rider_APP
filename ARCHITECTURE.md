@@ -82,8 +82,8 @@ graph TB
         VoxEngine["VoxEngine\n(VAD + 300Hz HPF + PTT logic)"]
         PTT["HardwarePTTManager\n(headset button)"]
         AudioFocus["AudioFocusManager"]
-        Mesh["LocalMeshVoiceEngine\n(Wi-Fi Direct fallback)"]
-        Handoff["NetworkHandoffManager\n(cellular ↔ Wi-Fi)"]
+        Mesh["OfflineMeshVoiceTransport\n(Wi-Fi Direct / Local UDP mesh)"]
+        Handoff["AutomaticSwitchStateMachine\n(cellular ↔ offline fallback)"]
     end
 
     subgraph NavHUD["Tactical Navigation"]

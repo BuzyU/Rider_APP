@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +32,8 @@ class UdpMeshLink(
     override val linkId: String = "udp-subnet",
     private val bindPort: Int = MeshConfig.AUDIO_PORT,
     private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val networkBinder: (DatagramSocket) -> Unit = {}
 ) : MeshLink {
 
     private val _state = MutableStateFlow(MeshLinkState.STOPPED)
@@ -59,6 +61,7 @@ class UdpMeshLink(
             val sock = DatagramSocket(null).apply {
                 reuseAddress = true
                 broadcast = true
+                networkBinder(this)
                 bind(InetSocketAddress(bindPort))
             }
             socket = sock
@@ -68,17 +71,24 @@ class UdpMeshLink(
 
             receiveJob = newScope.launch {
                 val buf = ByteArray(2048)
+                var backoffMs = 20L
                 while (isActive && _state.value == MeshLinkState.RUNNING) {
                     try {
                         val packet = DatagramPacket(buf, buf.size)
                         sock.receive(packet)
+                        backoffMs = 20L
                         val host = packet.address?.hostAddress ?: continue
                         val from = MeshEndpoint(host, packet.port)
-                        knownEndpoints.add(from)
                         val copy = packet.data.copyOfRange(packet.offset, packet.offset + packet.length)
                         _incomingFrames.tryEmit(MeshFrame(from, copy))
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
                         if (!isActive || _state.value != MeshLinkState.RUNNING) break
+                        if (sock.isClosed) {
+                            _state.value = MeshLinkState.FAILED
+                            break
+                        }
+                        delay(backoffMs)
+                        backoffMs = (backoffMs * 2).coerceAtMost(1_000L)
                     }
                 }
             }

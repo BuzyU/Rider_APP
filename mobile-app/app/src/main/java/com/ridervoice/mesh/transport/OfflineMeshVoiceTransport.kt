@@ -12,6 +12,8 @@ import com.ridervoice.mesh.identity.MeshIdentity
 import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
+import com.ridervoice.mesh.link.NetworkLocks
+import com.ridervoice.mesh.link.NoNetworkLocks
 import com.ridervoice.mesh.link.UdpMeshLink
 import com.ridervoice.mesh.protocol.DuplicatePacketCache
 import com.ridervoice.mesh.routing.RoutingTable
@@ -50,10 +52,15 @@ class OfflineMeshVoiceTransport(
             gateAllowed = gateAllowed,
             dispatcher = dispatcher
         )
+    },
+    private val locks: NetworkLocks = NoNetworkLocks,
+    private val broadcastProvider: () -> List<MeshEndpoint> = {
+        UdpMeshLink.discoverBroadcastEndpoints(MeshConfig.AUDIO_PORT)
     }
 ) : VoiceTransport, MeshControl {
 
     private val startMutex = Mutex()
+    private var locksHeld = false
     private val _state = MutableStateFlow(VoiceTransportState.STOPPED)
     override val state: StateFlow<VoiceTransportState> = _state.asStateFlow()
 
@@ -147,13 +154,22 @@ class OfflineMeshVoiceTransport(
             transportScope = null
             link = null
             _state.value = VoiceTransportState.FAILED
+            if (locksHeld) {
+                locks.release()
+                locksHeld = false
+            }
             return@withLock
+        }
+
+        if (!locksHeld) {
+            locks.acquire()
+            locksHeld = true
         }
 
         // Periodic discovery / heartbeat job (every 1.5s)
         heartbeatJob = scope.launch {
-            val broadcastEndpoints = UdpMeshLink.discoverBroadcastEndpoints(MeshConfig.AUDIO_PORT)
             while (isActive) {
+                val broadcastEndpoints = broadcastProvider()
                 fEngine.originateHello(broadcastEndpoints)
                 delay(MeshConfig.HELLO_INTERVAL_MS)
             }
@@ -267,6 +283,10 @@ class OfflineMeshVoiceTransport(
         _hasValidRoute.value = false
         _participants.value = emptyList()
         _activeSpeakers.value = emptySet()
+        if (locksHeld) {
+            locks.release()
+            locksHeld = false
+        }
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
     }
 

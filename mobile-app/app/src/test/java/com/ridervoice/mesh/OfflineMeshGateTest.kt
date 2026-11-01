@@ -9,6 +9,8 @@ class OfflineMeshGateTest {
 
     @After
     fun tearDown() {
+        FeatureFlags.remoteKillSwitch = false
+        FeatureFlags.localOverride = null
         OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
     }
 
@@ -31,7 +33,68 @@ class OfflineMeshGateTest {
 
     @Test
     fun buildFlagShipsDisabled() {
-        assertFalse(FeatureFlags.OFFLINE_MESH_ENABLED)
+        // Assert per-build-type value (debug true in test runner, release false)
+        assertEquals(com.ridervoice.BuildConfig.OFFLINE_MESH_BUILD_ENABLED, FeatureFlags.OFFLINE_MESH_ENABLED)
+    }
+
+    @Test
+    fun remoteKillSwitchAndLocalOverrideControlFlag() {
+        try {
+            FeatureFlags.remoteKillSwitch = true
+            assertFalse(FeatureFlags.OFFLINE_MESH_ENABLED)
+            assertFalse(OfflineMeshGate.isBuildGateOpen())
+
+            FeatureFlags.remoteKillSwitch = false
+
+            FeatureFlags.localOverride = true
+            assertTrue(FeatureFlags.OFFLINE_MESH_ENABLED)
+            FeatureFlags.localOverride = false
+            assertFalse(FeatureFlags.OFFLINE_MESH_ENABLED)
+        } finally {
+            FeatureFlags.remoteKillSwitch = false
+            FeatureFlags.localOverride = null
+        }
+    }
+
+    @Test
+    fun gateMatrixUsingProductionDefaultsWithoutParameterOverride() {
+        try {
+            // Production default: AllOff installed
+            OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
+            assertFalse(OfflineMeshGate.isOfflineAllowed())
+            assertFalse(OfflineMeshGate.isAutomaticFallbackAllowed())
+            assertFalse(OfflineMeshGate.isWarmStandbyAllowed())
+
+            // User enables offline mesh only
+            OfflineMeshGate.install(object : MeshRuntimeSettings {
+                override val offlineMeshEnabled = true
+                override val automaticFallbackEnabled = false
+                override val warmStandbyEnabled = false
+            })
+            assertEquals(com.ridervoice.BuildConfig.OFFLINE_MESH_BUILD_ENABLED, OfflineMeshGate.isOfflineAllowed())
+            assertFalse(OfflineMeshGate.isAutomaticFallbackAllowed())
+            assertFalse(OfflineMeshGate.isWarmStandbyAllowed())
+
+            // User enables all
+            OfflineMeshGate.install(object : MeshRuntimeSettings {
+                override val offlineMeshEnabled = true
+                override val automaticFallbackEnabled = true
+                override val warmStandbyEnabled = true
+            })
+            assertEquals(com.ridervoice.BuildConfig.OFFLINE_MESH_BUILD_ENABLED, OfflineMeshGate.isOfflineAllowed())
+            assertEquals(com.ridervoice.BuildConfig.OFFLINE_MESH_BUILD_ENABLED, OfflineMeshGate.isAutomaticFallbackAllowed())
+            assertEquals(com.ridervoice.BuildConfig.OFFLINE_MESH_BUILD_ENABLED, OfflineMeshGate.isWarmStandbyAllowed())
+
+            // Remote kill switch active overrides user settings
+            FeatureFlags.remoteKillSwitch = true
+            assertFalse(OfflineMeshGate.isOfflineAllowed())
+            assertFalse(OfflineMeshGate.isAutomaticFallbackAllowed())
+            assertFalse(OfflineMeshGate.isWarmStandbyAllowed())
+        } finally {
+            FeatureFlags.remoteKillSwitch = false
+            FeatureFlags.localOverride = null
+            OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
+        }
     }
 
     @Test

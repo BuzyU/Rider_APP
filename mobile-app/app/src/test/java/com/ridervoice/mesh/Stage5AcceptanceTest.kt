@@ -331,8 +331,23 @@ class Stage5AcceptanceTest {
 
     @Test
     fun `rollbackAcceptance_flagDisablingImmediatelyHaltsMesh`() {
-        // Assert build-time feature flag is disabled by default
-        assertFalse("Build flag must be false by default", FeatureFlags.OFFLINE_MESH_ENABLED)
+        // Assert per-build-type value (debug true in test runner, release false)
+        assertEquals(
+            "Build flag must match per-build-type value",
+            com.ridervoice.BuildConfig.OFFLINE_MESH_BUILD_ENABLED,
+            FeatureFlags.OFFLINE_MESH_ENABLED
+        )
+
+        // Remote kill switch forces flag to false even in debug builds
+        try {
+            FeatureFlags.remoteKillSwitch = true
+            assertFalse("Remote kill switch must disable OFFLINE_MESH_ENABLED", FeatureFlags.OFFLINE_MESH_ENABLED)
+            assertFalse(OfflineMeshGate.isBuildGateOpen())
+            assertFalse(OfflineMeshGate.isOfflineAllowed())
+        } finally {
+            FeatureFlags.remoteKillSwitch = false
+            FeatureFlags.localOverride = null
+        }
 
         // Offline mesh gate must refuse any execution when flag is false
         assertFalse(OfflineMeshGate.isOfflineAllowed(buildFlag = false, offlineMeshEnabled = true))

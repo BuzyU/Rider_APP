@@ -9,6 +9,9 @@ object OfflineMeshGate {
     @Volatile private var settings: MeshRuntimeSettings = MeshRuntimeSettings.AllOff
     fun install(s: MeshRuntimeSettings) { settings = s }
 
+    /** Returns whether the build-level gate allows offline mesh (independent of user preferences). */
+    fun isBuildGateOpen(): Boolean = FeatureFlags.OFFLINE_MESH_ENABLED
+
     /** Offline mesh may run only if both the build flag and the user setting are on. */
     fun isOfflineAllowed(
         buildFlag: Boolean = FeatureFlags.OFFLINE_MESH_ENABLED,
@@ -29,4 +32,3 @@ object OfflineMeshGate {
         warmStandbyEnabled: Boolean = settings.warmStandbyEnabled
     ): Boolean = isOfflineAllowed(buildFlag, offlineMeshEnabled) && warmStandbyEnabled
 }
-

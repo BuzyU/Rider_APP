@@ -359,6 +359,12 @@ fun NavGraph(
             )
         }
         composable(Routes.OFFLINE_MESH_LOBBY) {
+            if (!com.ridervoice.mesh.OfflineMeshGate.isOfflineAllowed()) {
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+                return@composable
+            }
             com.ridervoice.mesh.ui.OfflineMeshLobbyScreen(
                 onBackClick = { navController.popBackStack() },
                 onEnterSession = { sessionCode ->
@@ -371,6 +377,12 @@ fun NavGraph(
             route = Routes.OFFLINE_MESH_HUD,
             arguments = listOf(navArgument("sessionCode") { type = NavType.StringType })
         ) { backStackEntry ->
+            if (!com.ridervoice.mesh.OfflineMeshGate.isOfflineAllowed()) {
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+                return@composable
+            }
             val sessionCode = backStackEntry.arguments?.getString("sessionCode") ?: "offline"
             val context = LocalContext.current
             val session = androidx.compose.runtime.remember(sessionCode) {
@@ -390,7 +402,21 @@ fun NavGraph(
                     locks = locks
                 ).also {
                     com.ridervoice.services.MeshForegroundService.activeTransport = it
-                    com.ridervoice.services.MeshForegroundService.start(context, session.pairingCode)
+                }
+            }
+
+            LaunchedEffect(transport, session) {
+                transport.state.collect { state ->
+                    when (state) {
+                        com.ridervoice.mesh.transport.VoiceTransportState.CONNECTED -> {
+                            com.ridervoice.services.MeshForegroundService.start(context, session.pairingCode)
+                        }
+                        com.ridervoice.mesh.transport.VoiceTransportState.FAILED,
+                        com.ridervoice.mesh.transport.VoiceTransportState.STOPPED -> {
+                            com.ridervoice.services.MeshForegroundService.stop(context)
+                        }
+                        else -> {}
+                    }
                 }
             }
 

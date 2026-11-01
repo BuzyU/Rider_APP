@@ -13,7 +13,9 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.ridervoice.MainActivity
 import com.ridervoice.R
+import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
+import com.ridervoice.mesh.transport.VoiceTransportState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +34,7 @@ class MeshForegroundService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var observerJob: Job? = null
+    private var stateJob: Job? = null
 
     companion object {
         const val CHANNEL_ID = "CHANNEL_OFFLINE_MESH"
@@ -45,6 +48,13 @@ class MeshForegroundService : Service() {
             internal set
 
         fun start(context: Context, sessionCode: String) {
+            if (!OfflineMeshGate.isOfflineAllowed()) {
+                return
+            }
+            val transport = activeTransport
+            if (transport == null || transport.state.value != VoiceTransportState.CONNECTED) {
+                return
+            }
             val intent = Intent(context, MeshForegroundService::class.java).apply {
                 putExtra(EXTRA_SESSION_CODE, sessionCode)
             }
@@ -77,6 +87,17 @@ class MeshForegroundService : Service() {
             return START_NOT_STICKY
         }
 
+        if (!OfflineMeshGate.isOfflineAllowed()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        val transport = activeTransport
+        if (transport == null || transport.state.value != VoiceTransportState.CONNECTED) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         currentSessionCode = intent?.getStringExtra(EXTRA_SESSION_CODE) ?: "Active"
 
         val notification = buildNotification(currentSessionCode, currentPeerCount)
@@ -99,12 +120,22 @@ class MeshForegroundService : Service() {
             }
         }
 
-        return START_STICKY
+        stateJob?.cancel()
+        stateJob = serviceScope.launch {
+            activeTransport?.state?.collectLatest { state ->
+                if (state == VoiceTransportState.FAILED || state == VoiceTransportState.STOPPED) {
+                    stopSelf()
+                }
+            }
+        }
+
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
         super.onDestroy()
         observerJob?.cancel()
+        stateJob?.cancel()
         serviceScope.cancel()
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.cancel(NOTIFICATION_ID)
@@ -125,31 +156,37 @@ class MeshForegroundService : Service() {
     }
 
     private fun buildNotification(sessionCode: String, peerCount: Int): Notification {
-        val contentIntent = PendingIntent.getActivity(
+        val launchIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
             this,
             0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val stopIntent = PendingIntent.getService(
+        val stopIntent = Intent(this, MeshForegroundService::class.java).apply {
+            action = ACTION_STOP_SERVICE
+        }
+        val stopPendingIntent = PendingIntent.getService(
             this,
             1,
-            Intent(this, MeshForegroundService::class.java).apply { action = ACTION_STOP_SERVICE },
-            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+            stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val displayText = "Offline Mesh: $sessionCode | $peerCount peers"
+        val contentText = "Offline Mesh: $sessionCode | $peerCount peers"
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle("Offline Mesh Intercom Active")
-            .setContentText(displayText)
-            .setContentIntent(contentIntent)
+            .setContentText(contentText)
             .setOngoing(true)
-            .addAction(R.mipmap.ic_launcher, "Disconnect", stopIntent)
+            .setContentIntent(pendingIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Disconnect", stopPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .build()
     }
 }
-

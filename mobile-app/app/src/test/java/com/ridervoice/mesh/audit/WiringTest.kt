@@ -45,36 +45,98 @@ class WiringTest {
      */
     @Test
     fun t10_flagOffOpensNoSocketAndPortStaysBindable() = runTest {
-        // Ensure flag is OFF
-        assertFalse("Build flag must be off in test", FeatureFlags.OFFLINE_MESH_ENABLED)
-        OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
-
-        val fakeStore = InMemoryMeshKeyValueStore()
-        val identityRepo = MeshIdentityRepository(fakeStore, { "TestNode" }, { UUID.randomUUID().toString() })
-        val arbiter = AudioOwnershipArbiter()
-        val locks = NoNetworkLocks
-
-        val transport = OfflineMeshVoiceTransport(
-            identity = identityRepo.get(),
-            audioOwnershipArbiter = arbiter,
-            locks = locks,
-            gateAllowed = { OfflineMeshGate.isOfflineAllowed() }
+        // Assert per-build-type value (debug true in test runner, release false)
+        assertEquals(
+            "Build flag must match per-build-type value",
+            com.ridervoice.BuildConfig.OFFLINE_MESH_BUILD_ENABLED,
+            FeatureFlags.OFFLINE_MESH_ENABLED
         )
 
-        // Starting transport when gate is false must abort immediately
-        val session = OfflineSession.create(System.currentTimeMillis())
-        transport.start(com.ridervoice.mesh.transport.VoiceSession.Offline(session))
-
-        assertEquals(VoiceTransportState.FAILED, transport.state.value)
-
-        // Verify that port 45454 was NEVER bound and is freely bindable
-        var socket: DatagramSocket? = null
+        // Ensure flag is OFF via localOverride
+        FeatureFlags.localOverride = false
         try {
-            socket = DatagramSocket(MeshConfig.AUDIO_PORT)
-            assertTrue("Socket bound successfully on AUDIO_PORT", socket.isBound)
+            assertFalse("Build flag must be off when overridden", FeatureFlags.OFFLINE_MESH_ENABLED)
+            OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
+
+            val fakeStore = InMemoryMeshKeyValueStore()
+            val identityRepo = MeshIdentityRepository(fakeStore, { "TestNode" }, { UUID.randomUUID().toString() })
+            val arbiter = AudioOwnershipArbiter()
+            val locks = NoNetworkLocks
+
+            val transport = OfflineMeshVoiceTransport(
+                identity = identityRepo.get(),
+                audioOwnershipArbiter = arbiter,
+                locks = locks,
+                gateAllowed = { OfflineMeshGate.isOfflineAllowed() }
+            )
+
+            // Starting transport when gate is false must abort immediately
+            val session = OfflineSession.create(System.currentTimeMillis())
+            transport.start(com.ridervoice.mesh.transport.VoiceSession.Offline(session))
+
+            assertEquals(VoiceTransportState.FAILED, transport.state.value)
+
+            // Verify that port 45454 was NEVER bound and is freely bindable
+            var socket: DatagramSocket? = null
+            try {
+                socket = DatagramSocket(MeshConfig.AUDIO_PORT)
+                assertTrue("Socket bound successfully on AUDIO_PORT", socket.isBound)
+            } finally {
+                socket?.close()
+                transport.stop()
+            }
         } finally {
-            socket?.close()
-            transport.stop()
+            FeatureFlags.localOverride = null
+        }
+    }
+
+    /**
+     * Verifies that when OfflineMeshGate is closed:
+     * 1. Transport refuses to open sockets, leaving port 45454 unbound.
+     * 2. MeshForegroundService start attempts abort without invoking Android service start
+     *    or posting any notification.
+     */
+    @Test
+    fun closedGateOpensNoSocketAndPostsNoNotification() = runTest {
+        FeatureFlags.localOverride = false
+        try {
+            assertFalse(OfflineMeshGate.isOfflineAllowed())
+
+            // 1. Transport opens no socket
+            val fakeStore = InMemoryMeshKeyValueStore()
+            val identityRepo = MeshIdentityRepository(fakeStore, { "GateNode" }, { "node-gate" })
+            val transport = OfflineMeshVoiceTransport(
+                identity = identityRepo.get(),
+                audioOwnershipArbiter = AudioOwnershipArbiter(),
+                locks = NoNetworkLocks,
+                gateAllowed = { OfflineMeshGate.isOfflineAllowed() }
+            )
+            val session = OfflineSession.create(System.currentTimeMillis())
+            transport.start(com.ridervoice.mesh.transport.VoiceSession.Offline(session))
+
+            assertEquals(VoiceTransportState.FAILED, transport.state.value)
+
+            var socket: DatagramSocket? = null
+            try {
+                socket = DatagramSocket(MeshConfig.AUDIO_PORT)
+                assertTrue("AUDIO_PORT remains bindable", socket.isBound)
+            } finally {
+                socket?.close()
+                transport.stop()
+            }
+
+            // 2. MeshForegroundService.start aborts and posts no notification
+            val mockContext = io.mockk.mockk<android.content.Context>(relaxed = false)
+            // If the gate check passes, it would attempt to create an Intent with context or call startService
+            // With gate closed, start returns immediately without interacting with mockContext
+            com.ridervoice.services.MeshForegroundService.start(mockContext, "PAIR123")
+            io.mockk.verify(exactly = 0) {
+                mockContext.startService(any())
+                mockContext.startForegroundService(any())
+            }
+        } finally {
+            FeatureFlags.localOverride = null
+            OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
         }
     }
 

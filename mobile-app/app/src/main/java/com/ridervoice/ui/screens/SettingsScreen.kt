@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -169,6 +170,7 @@ fun SettingsScreen(
                     val meshPrefs = remember { com.ridervoice.mesh.PrefsMeshRuntimeSettings(context) }
                     var isMeshEnabled by remember { mutableStateOf(meshPrefs.offlineMeshEnabled) }
                     var isAutoFallbackEnabled by remember { mutableStateOf(meshPrefs.automaticFallbackEnabled) }
+                    val isBuildGateOpen = remember { com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen() }
 
                     val wifiPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
                         contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
@@ -184,9 +186,17 @@ fun SettingsScreen(
                     SettingsItemToggle(
                         label = "Offline mesh intercom",
                         icon = Icons.Default.Podcasts,
-                        checked = isMeshEnabled,
-                        subtitle = if (isMeshEnabled) "Peer-to-peer Wi-Fi mesh intercom enabled" else "Disabled",
+                        checked = isBuildGateOpen && isMeshEnabled,
+                        enabled = isBuildGateOpen,
+                        subtitle = if (!isBuildGateOpen) {
+                            stringResource(R.string.mesh_disabled_in_build)
+                        } else if (isMeshEnabled) {
+                            "Peer-to-peer Wi-Fi mesh intercom enabled"
+                        } else {
+                            "Disabled"
+                        },
                         onCheckedChange = { enable ->
+                            if (!isBuildGateOpen) return@SettingsItemToggle
                             if (enable) {
                                 val perms = mutableListOf(android.Manifest.permission.RECORD_AUDIO)
                                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -209,17 +219,26 @@ fun SettingsScreen(
                     SettingsItemToggle(
                         label = "Automatic fallback",
                         icon = Icons.Default.NetworkCheck,
-                        checked = isMeshEnabled && isAutoFallbackEnabled,
-                        subtitle = if (!isMeshEnabled) "Enable offline mesh intercom first" else if (isAutoFallbackEnabled) "Switches to mesh automatically on internet loss" else "Disabled",
+                        checked = isBuildGateOpen && isMeshEnabled && isAutoFallbackEnabled,
+                        enabled = isBuildGateOpen && isMeshEnabled,
+                        subtitle = if (!isBuildGateOpen) {
+                            stringResource(R.string.mesh_disabled_in_build)
+                        } else if (!isMeshEnabled) {
+                            "Enable offline mesh intercom first"
+                        } else if (isAutoFallbackEnabled) {
+                            "Switches to mesh automatically on internet loss"
+                        } else {
+                            "Disabled"
+                        },
                         onCheckedChange = { enable ->
-                            if (isMeshEnabled) {
+                            if (isBuildGateOpen && isMeshEnabled) {
                                 meshPrefs.setAutomaticFallbackEnabled(enable)
                                 isAutoFallbackEnabled = enable
                             }
                         }
                     )
 
-                    if (isMeshEnabled) {
+                    if (isBuildGateOpen && isMeshEnabled) {
                         SettingsItemAction(
                             label = "Open Offline Mesh Lobby",
                             subtitle = "Host or join a peer-to-peer mesh intercom channel",
@@ -632,6 +651,7 @@ fun SettingsItemToggle(
     label: String,
     icon: ImageVector = Icons.Default.Tune,
     checked: Boolean,
+    enabled: Boolean = true,
     subtitle: String? = null,
     onCheckedChange: (Boolean) -> Unit
 ) {
@@ -644,10 +664,12 @@ fun SettingsItemToggle(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 4.dp)
-            .clickable { onCheckedChange(!checked) }
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .alpha(if (enabled) 1f else 0.45f),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -681,7 +703,8 @@ fun SettingsItemToggle(
             }
             Switch(
                 checked = checked,
-                onCheckedChange = onCheckedChange,
+                enabled = enabled,
+                onCheckedChange = if (enabled) onCheckedChange else null,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = if (isDark) Color.Black else Color.White,
                     checkedTrackColor = TechGreen,

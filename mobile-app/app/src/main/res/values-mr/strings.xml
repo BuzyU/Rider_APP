@@ -219,6 +219,7 @@
     <!-- TODO native review -->
     <!-- Offline Mesh Intercom (D15) -->
     <string name="mesh_title">ऑफलाइन मेश इंटरकॉम</string>
+    <string name="mesh_disabled_in_build">या बिल्डमध्ये ऑफलाइन मेश अक्षम आहे</string>
     <string name="mesh_status_summary">स्थिती: %1$s, %2$d सहकारी</string>
     <string name="mesh_peers_header">मेश सहकारी</string>
     <string name="mesh_peers_searching">जवळच्या रायडर्सचा शोध घेत आहे. हा कोड शेअर करा: %1$s</string>

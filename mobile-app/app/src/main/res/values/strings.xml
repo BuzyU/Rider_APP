@@ -219,6 +219,7 @@
     <string name="join_action_enter_code">Enter code</string>
     <!-- Offline Mesh Intercom (D15) -->
     <string name="mesh_title">Offline mesh intercom</string>
+    <string name="mesh_disabled_in_build">Offline mesh is disabled in this build</string>
     <string name="mesh_status_summary">Status: %1$s, %2$d peers</string>
     <string name="mesh_peers_header">Mesh peers</string>
     <string name="mesh_peers_searching">Searching for nearby riders. Share this code: %1$s</string>

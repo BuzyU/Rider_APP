@@ -23,6 +23,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
 import com.ridervoice.ui.viewmodels.SettingsViewModel
@@ -39,7 +40,8 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
     onNavigateToAccount: () -> Unit = {},
     onDeviceSetupClick: () -> Unit = {},
-    onSignOutSuccess: () -> Unit = {}
+    onSignOutSuccess: () -> Unit = {},
+    onNavigateToOfflineMeshLobby: () -> Unit = {}
 ) {
     val settingsState by settingsViewModel.settingsState.collectAsState()
 
@@ -159,6 +161,72 @@ fun SettingsScreen(
                         checked = settingsState.openMic,
                         onCheckedChange = { settingsViewModel.toggleOpenMic() }
                     )
+                }
+
+                item {
+                    val context = LocalContext.current
+                    val scope = rememberCoroutineScope()
+                    val meshPrefs = remember { com.ridervoice.mesh.PrefsMeshRuntimeSettings(context) }
+                    var isMeshEnabled by remember { mutableStateOf(meshPrefs.offlineMeshEnabled) }
+                    var isAutoFallbackEnabled by remember { mutableStateOf(meshPrefs.automaticFallbackEnabled) }
+
+                    val wifiPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+                    ) { permissions ->
+                        val granted = permissions.values.all { it }
+                        if (granted) {
+                            meshPrefs.setOfflineMeshEnabled(true)
+                            isMeshEnabled = true
+                        }
+                    }
+
+                    SettingsSectionHeader("OFFLINE MESH INTERCOM")
+                    SettingsItemToggle(
+                        label = "Offline mesh intercom",
+                        icon = Icons.Default.Podcasts,
+                        checked = isMeshEnabled,
+                        subtitle = if (isMeshEnabled) "Peer-to-peer Wi-Fi mesh intercom enabled" else "Disabled",
+                        onCheckedChange = { enable ->
+                            if (enable) {
+                                val perms = mutableListOf(android.Manifest.permission.RECORD_AUDIO)
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                    perms.add(android.Manifest.permission.NEARBY_WIFI_DEVICES)
+                                }
+                                wifiPermLauncher.launch(perms.toTypedArray())
+                            } else {
+                                meshPrefs.setOfflineMeshEnabled(false)
+                                meshPrefs.setAutomaticFallbackEnabled(false)
+                                isMeshEnabled = false
+                                isAutoFallbackEnabled = false
+                                com.ridervoice.services.MeshForegroundService.activeTransport?.let { t ->
+                                    scope.launch(kotlinx.coroutines.Dispatchers.IO) { t.stop() }
+                                }
+                                com.ridervoice.services.MeshForegroundService.stop(context)
+                            }
+                        }
+                    )
+
+                    SettingsItemToggle(
+                        label = "Automatic fallback",
+                        icon = Icons.Default.NetworkCheck,
+                        checked = isMeshEnabled && isAutoFallbackEnabled,
+                        subtitle = if (!isMeshEnabled) "Enable offline mesh intercom first" else if (isAutoFallbackEnabled) "Switches to mesh automatically on internet loss" else "Disabled",
+                        onCheckedChange = { enable ->
+                            if (isMeshEnabled) {
+                                meshPrefs.setAutomaticFallbackEnabled(enable)
+                                isAutoFallbackEnabled = enable
+                            }
+                        }
+                    )
+
+                    if (isMeshEnabled) {
+                        SettingsItemAction(
+                            label = "Open Offline Mesh Lobby",
+                            subtitle = "Host or join a peer-to-peer mesh intercom channel",
+                            icon = Icons.Default.Group,
+                            onClick = onNavigateToOfflineMeshLobby
+                        )
+                    }
                 }
 
                 item {

@@ -24,14 +24,38 @@ class ImportIsolationTest {
         file.readLines().map { it.trim() }.filter { it.startsWith("import ") }
 
     private val meshDir = File(srcRoot, "mesh")
+    private val meshImportAllowlist = setOf(
+        "App.kt",
+        "MeshModule.kt",
+        "NavGraph.kt",
+        "Routes.kt",
+        "SettingsScreen.kt",
+        "MeshForegroundService.kt"
+    )
 
     @Test
     fun onlineCodeDoesNotImportMesh() {
         val offenders = kotlinFiles(srcRoot)
-            .filter { !it.startsWith(meshDir) }
+            .filter { !it.startsWith(meshDir) && it.name !in meshImportAllowlist }
             .filter { f -> importsOf(f).any { it.startsWith("import com.ridervoice.mesh") } }
             .map { it.relativeTo(srcRoot).path }
-        assertTrue("Online files import mesh code: $offenders", offenders.isEmpty())
+        assertTrue("Unreviewed files import mesh: $offenders", offenders.isEmpty())
+    }
+
+    @Test
+    fun frozenOnlineFilesNeverImportMesh() {
+        val frozen = listOf(
+            "network/LiveKitManager.kt",
+            "state/RoomViewModel.kt",
+            "services/VoiceForegroundService.kt",
+            "ui/screens/RoomScreen.kt"
+        )
+        frozen.forEach { rel ->
+            val f = File(srcRoot, rel)
+            if (f.exists()) {
+                assertTrue("$rel must not import mesh", importsOf(f).none { it.startsWith("import com.ridervoice.mesh") })
+            }
+        }
     }
 
     @Test

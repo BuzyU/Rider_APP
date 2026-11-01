@@ -45,6 +45,7 @@ class App : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        com.ridervoice.mesh.OfflineMeshGate.install(com.ridervoice.mesh.PrefsMeshRuntimeSettings(this))
         setupCrashHandler()
         createNotificationChannels()
         finalizeOrphanedDiagnosticSessions()

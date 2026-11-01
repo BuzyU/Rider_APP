@@ -41,5 +41,8 @@ object MeshConfig {
     const val ENCRYPTED_VOICE_PAYLOAD_BYTES = BYTES_PER_FRAME + GCM_TAG_BYTES // 656
 
     const val SESSION_LIFETIME_MS = 8L * 60 * 60 * 1000
+
+    /** Debug peer filter for test hooks / partition testing. Null by default. */
+    @Volatile var debugPeerFilter: ((String) -> Boolean)? = null
 }
 

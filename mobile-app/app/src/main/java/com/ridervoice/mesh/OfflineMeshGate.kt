@@ -6,25 +6,27 @@ package com.ridervoice.mesh
  * All inputs default to off.
  */
 object OfflineMeshGate {
+    @Volatile private var settings: MeshRuntimeSettings = MeshRuntimeSettings.AllOff
+    fun install(s: MeshRuntimeSettings) { settings = s }
 
     /** Offline mesh may run only if both the build flag and the user setting are on. */
     fun isOfflineAllowed(
         buildFlag: Boolean = FeatureFlags.OFFLINE_MESH_ENABLED,
-        offlineMeshEnabled: Boolean = false
+        offlineMeshEnabled: Boolean = settings.offlineMeshEnabled
     ): Boolean = buildFlag && offlineMeshEnabled
 
     /** Automatic online-to-offline fallback additionally requires its own setting. */
     fun isAutomaticFallbackAllowed(
         buildFlag: Boolean = FeatureFlags.OFFLINE_MESH_ENABLED,
-        offlineMeshEnabled: Boolean = false,
-        automaticFallbackEnabled: Boolean = false
+        offlineMeshEnabled: Boolean = settings.offlineMeshEnabled,
+        automaticFallbackEnabled: Boolean = settings.automaticFallbackEnabled
     ): Boolean = isOfflineAllowed(buildFlag, offlineMeshEnabled) && automaticFallbackEnabled
 
     /** Warm standby (discovery while online) additionally requires its own setting. */
     fun isWarmStandbyAllowed(
         buildFlag: Boolean = FeatureFlags.OFFLINE_MESH_ENABLED,
-        offlineMeshEnabled: Boolean = false,
-        warmStandbyEnabled: Boolean = false
+        offlineMeshEnabled: Boolean = settings.offlineMeshEnabled,
+        warmStandbyEnabled: Boolean = settings.warmStandbyEnabled
     ): Boolean = isOfflineAllowed(buildFlag, offlineMeshEnabled) && warmStandbyEnabled
 }
 

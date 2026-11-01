@@ -1,10 +1,33 @@
 package com.ridervoice.mesh
 
+import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OfflineMeshGateTest {
+
+    @After
+    fun tearDown() {
+        OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
+    }
+
+    @Test
+    fun installedSettingsControlGateWhenNoParameterPassed() {
+        OfflineMeshGate.install(object : MeshRuntimeSettings {
+            override val offlineMeshEnabled = true
+            override val automaticFallbackEnabled = true
+            override val warmStandbyEnabled = true
+        })
+        assertTrue(OfflineMeshGate.isOfflineAllowed(buildFlag = true))
+        assertTrue(OfflineMeshGate.isAutomaticFallbackAllowed(buildFlag = true))
+        assertTrue(OfflineMeshGate.isWarmStandbyAllowed(buildFlag = true))
+
+        OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
+        assertFalse(OfflineMeshGate.isOfflineAllowed(buildFlag = true))
+        assertFalse(OfflineMeshGate.isAutomaticFallbackAllowed(buildFlag = true))
+        assertFalse(OfflineMeshGate.isWarmStandbyAllowed(buildFlag = true))
+    }
 
     @Test
     fun buildFlagShipsDisabled() {

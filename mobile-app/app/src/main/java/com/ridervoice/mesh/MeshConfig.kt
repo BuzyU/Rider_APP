@@ -25,10 +25,10 @@ object MeshConfig {
     const val HELLO_TTL = 4
     const val MAX_NEIGHBORS_IN_HELLO = 5
 
-    const val DUP_CACHE_MAX_ENTRIES = 1_000
-    const val DUP_CACHE_TTL_MS = 10_000L
     /** Sanity bound only: offline phones may have skewed clocks, so this is deliberately loose. */
     const val MAX_CLOCK_SKEW_MS = 60_000L
+    const val DUP_CACHE_MAX_ENTRIES = 32_000
+    const val DUP_CACHE_TTL_MS = 2 * MAX_CLOCK_SKEW_MS + 5_000L
     const val MAX_PAYLOAD_BYTES = 1_200
     /** Per-source forwarding budget (packets per 1s window). 20 ms frames = 50/s, plus headroom. */
     const val FORWARD_BUDGET_PER_SEC = 120

@@ -251,5 +251,48 @@ class AdversarialTest {
         assertTrue("BYE with body should be dropped: $outcome", outcome is ReceiveOutcome.Dropped)
         assertEquals(ReceiveOutcome.DropReason.BAD_PAYLOAD, (outcome as ReceiveOutcome.Dropped).reason)
     }
+
+    @Test
+    fun replayedPacketAfterDupCacheTtlMustBeRejected() {
+        var t = 100_000L
+        val clock = { t }
+        val s = OfflineSession.create(t)
+        val aId = UUID.randomUUID().toString()
+        val bId = UUID.randomUUID().toString()
+        val a = Node(aId, "10.0.0.1", s, clock)
+        a.sessionMgr.admit(bId)
+
+        val aad = PayloadCrypto.aad(s.sessionId, bId, MeshPacketType.VOICE.code, 0, 1, t, AudioFormatId.PCM16_16K_MONO)
+        val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code)
+        val sealed = PayloadCrypto.seal(s.payloadKey(), nonce, aad, ByteArray(640))
+        val voicePacket = MeshPacket(
+            type = MeshPacketType.VOICE,
+            sessionId = s.sessionId,
+            sourceId = bId,
+            sequence = 1,
+            captureTimestamp = t,
+            ttl = MeshConfig.DEFAULT_TTL,
+            hopCount = 0,
+            previousHopId = bId,
+            payload = sealed
+        )
+        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(voicePacket, s.authKey()))
+
+        // 1. Initial receive at t=100s
+        val outcome1 = a.engine.onIncomingFrame(frame)
+        assertTrue("First arrival should be accepted: $outcome1", outcome1 is ReceiveOutcome.Accepted)
+
+        // 2. Replay at t=115s (15s later, after original 10s TTL, but within clock skew)
+        t = 115_000L
+        val outcome2 = a.engine.onIncomingFrame(frame)
+        assertTrue("Replay at 115s must be dropped: $outcome2", outcome2 is ReceiveOutcome.Dropped)
+        assertEquals(ReceiveOutcome.DropReason.DUPLICATE, (outcome2 as ReceiveOutcome.Dropped).reason)
+
+        // 3. Replay at t=230s (130s later, outside clock skew)
+        t = 230_000L
+        val outcome3 = a.engine.onIncomingFrame(frame)
+        assertTrue("Replay at 230s must be dropped: $outcome3", outcome3 is ReceiveOutcome.Dropped)
+        assertEquals(ReceiveOutcome.DropReason.STALE_TIMESTAMP, (outcome3 as ReceiveOutcome.Dropped).reason)
+    }
 }
 

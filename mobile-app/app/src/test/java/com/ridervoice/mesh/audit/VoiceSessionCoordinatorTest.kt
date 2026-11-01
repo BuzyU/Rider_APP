@@ -225,3 +225,4 @@ class VoiceSessionCoordinatorTest {
         assertEquals(PeerTransportKind.OFFLINE_MESH, coordinator.activeKind.value)
     }
 }
+

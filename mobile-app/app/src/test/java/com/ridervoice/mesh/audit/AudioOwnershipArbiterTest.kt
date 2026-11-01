@@ -77,3 +77,4 @@ class AudioOwnershipArbiterTest {
         deferreds.awaitAll()
     }
 }
+

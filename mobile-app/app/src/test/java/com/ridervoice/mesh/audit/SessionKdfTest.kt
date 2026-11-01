@@ -117,3 +117,4 @@ class SessionKdfTest {
         assertEquals(DecodeResult.Invalid(DecodeResult.Reason.BAD_TAG), decodeResult)
     }
 }
+

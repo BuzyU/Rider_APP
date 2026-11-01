@@ -1,29 +1,39 @@
 package com.ridervoice.mesh
 
+import androidx.annotation.VisibleForTesting
 import com.ridervoice.BuildConfig
 
 /**
  * Feature switch for the offline mesh intercom.
  *
  * Driven by [BuildConfig.OFFLINE_MESH_BUILD_ENABLED] (true in debug, false in release builds),
- * combined with a remote kill switch and local debug override for testing/emergency control.
+ * combined with an in-app emergency kill switch [localKillSwitch] and an internal debug/test override [localOverride].
+ *
+ * In release builds, [localOverride] is ignored and the feature is unconditionally false.
  *
  * While this evaluates to `false`, the offline subsystem must not open sockets, start discovery,
  * build a graph, create AudioRecord/AudioTrack, request offline permissions, or start foreground services.
  */
 object FeatureFlags {
-    /** Remote kill switch to shut down mesh fleet-wide regardless of build type. */
+    /** Emergency in-app kill switch (not remote yet; in-app/diagnostic control). Defaults to false (fail-open for offline riders). */
     @Volatile
-    var remoteKillSwitch: Boolean = false
+    var localKillSwitch: Boolean = false
 
-    /** Local override for testing or emergency runtime diagnostics. Null means use BuildConfig default. */
+    /**
+     * Local override for testing and debug diagnostics.
+     * Internal and only respected in debug builds; release builds unconditionally ignore it.
+     */
     @Volatile
-    var localOverride: Boolean? = null
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal var localOverride: Boolean? = null
 
     val OFFLINE_MESH_ENABLED: Boolean
-        get() = if (remoteKillSwitch) {
-            false
-        } else {
-            localOverride ?: BuildConfig.OFFLINE_MESH_BUILD_ENABLED
+        get() {
+            if (localKillSwitch) return false
+            // In release builds, localOverride is ignored; mesh is hard disabled
+            if (!BuildConfig.DEBUG && !BuildConfig.OFFLINE_MESH_BUILD_ENABLED) {
+                return false
+            }
+            return localOverride ?: BuildConfig.OFFLINE_MESH_BUILD_ENABLED
         }
 }

@@ -102,7 +102,7 @@ Total Skipped: 0
 
 ### A. `git grep -n OFFLINE_MESH_ENABLED`
 ```text
-README.md:14:- **Offline Mesh Intercom Engine v2.0 (v0.0.3.20)** â€“ Zero-infrastructure peer-to-peer ad-hoc Wi-Fi/UDP multi-hop voice mesh for motorcycle convoys outside cellular coverage. Includes a 9-state deterministic `AutomaticSwitchStateMachine` with recovery deadlock prevention (D25) for seamless transitions between LiveKit WebRTC and local mesh, daisy-hop packet forwarding with duplicate suppression (cache + bloom filter) and TTL decay, route-aware relay pruning to suppress broadcast storms (D26), Audio HAL mutual-exclusion via `AudioOwnershipArbiter` preventing hardware lock contention, Slow-KDF PBKDF2/AES-256-GCM authenticated payload encryption with sliding-window replay rejection (D8, D19), battery-efficient adaptive heartbeats, and dedicated diagnostics HUD. *(Note: `FeatureFlags.OFFLINE_MESH_ENABLED = false` by default in release builds).*
+README.md:14:- **Offline Mesh Intercom Engine v2.0 (v0.0.3.20)** - Zero-infrastructure peer-to-peer ad-hoc Wi-Fi/UDP multi-hop voice mesh for motorcycle convoys outside cellular coverage. Includes a 9-state deterministic `AutomaticSwitchStateMachine` with recovery deadlock prevention (D25) for seamless transitions between LiveKit WebRTC and local mesh, daisy-hop packet forwarding with duplicate suppression (cache + bloom filter) and TTL decay, route-aware relay pruning to suppress broadcast storms (D26), Audio HAL mutual-exclusion via `AudioOwnershipArbiter` preventing hardware lock contention, Slow-KDF PBKDF2/AES-256-GCM authenticated payload encryption with sliding-window replay rejection (D8, D19), battery-efficient adaptive heartbeats, and dedicated diagnostics HUD. *(Note: `FeatureFlags.OFFLINE_MESH_ENABLED = false` by default in release builds).*
 RIDERVOICE_SYSTEM_EXPLANATION.md:368:*(Note: Feature flag `FeatureFlags.OFFLINE_MESH_ENABLED = false` by default in release builds).*
 mobile-app/app/src/main/java/com/ridervoice/mesh/FeatureFlags.kt:11:    const val OFFLINE_MESH_ENABLED: Boolean = false
 mobile-app/app/src/main/java/com/ridervoice/mesh/OfflineMeshGate.kt:14:        buildFlag: Boolean = FeatureFlags.OFFLINE_MESH_ENABLED,
@@ -115,20 +115,20 @@ mobile-app/app/src/test/java/com/ridervoice/mesh/audit/WiringTest.kt:49:        
 
 ### B. `git grep -n AutomaticSwitchStateMachine`
 ```text
-ARCHITECTURE.md:86:        Handoff["AutomaticSwitchStateMachine\n(cellular â†” offline fallback)"]
-ARCHITECTURE.md:240:        Handoff["AutomaticSwitchStateMachine\n(cellular â†” offline fallback)"]
+ARCHITECTURE.md:86:        Handoff["AutomaticSwitchStateMachine\n(cellular ->" offline fallback)"]
+ARCHITECTURE.md:240:        Handoff["AutomaticSwitchStateMachine\n(cellular ->" offline fallback)"]
 ARCHITECTURE.md:381:| **Offline mesh voice intercom** | `OfflineMeshVoiceTransport` and `AutomaticSwitchStateMachine` provide zero-infrastructure ad-hoc Wi-Fi/UDP multi-hop voice mesh with mutual-exclusion Audio HAL management (`AudioOwnershipArbiter`) when internet connectivity drops |
-CODE_DEPTH_STRUCTURE.md:59:â”‚           â”‚   â”œâ”€â”€ switching/            AutomaticSwitchStateMachine (9 states) & health signals
+CODE_DEPTH_STRUCTURE.md:59:|           |   |-- switching/            AutomaticSwitchStateMachine (9 states) & health signals
 CODE_DEPTH_STRUCTURE.md:236:    Fallback[AutomaticSwitchStateMachine / OfflineMeshVoiceTransport]
 CODE_DEPTH_STRUCTURE.md:249:- `mesh/switching/AutomaticSwitchStateMachine.kt`: 9-state deterministic finite state machine governing automatic transitions between LiveKit WebRTC and local offline mesh.
 CODE_DEPTH_STRUCTURE.md:307:  - `AutomaticSwitchStateMachine.kt`: 9-state deterministic finite state machine (`ONLINE_LIVEKIT_ACTIVE`, `STARTING_OFFLINE_MESH`, `OFFLINE_ACTIVE`, `HANDING_BACK_TO_LIVEKIT`, etc.) managing failover and recovery. Includes recovery deadlock prevention (D25) by tracking Internet health even when LiveKit was disconnected by handoff.
-README.md:14:- **Offline Mesh Intercom Engine v2.0 (v0.0.3.20)** â€“ Zero-infrastructure peer-to-peer ad-hoc Wi-Fi/UDP multi-hop voice mesh for motorcycle convoys outside cellular coverage. Includes a 9-state deterministic `AutomaticSwitchStateMachine` with recovery deadlock prevention (D25) for seamless transitions between LiveKit WebRTC and local mesh, daisy-hop packet forwarding with duplicate suppression (cache + bloom filter) and TTL decay, route-aware relay pruning to suppress broadcast storms (D26), Audio HAL mutual-exclusion via `AudioOwnershipArbiter` preventing hardware lock contention, Slow-KDF PBKDF2/AES-256-GCM authenticated payload encryption with sliding-window replay rejection (D8, D19), battery-efficient adaptive heartbeats, and dedicated diagnostics HUD. *(Note: `FeatureFlags.OFFLINE_MESH_ENABLED = false` by default in release builds).*
+README.md:14:- **Offline Mesh Intercom Engine v2.0 (v0.0.3.20)** - Zero-infrastructure peer-to-peer ad-hoc Wi-Fi/UDP multi-hop voice mesh for motorcycle convoys outside cellular coverage. Includes a 9-state deterministic `AutomaticSwitchStateMachine` with recovery deadlock prevention (D25) for seamless transitions between LiveKit WebRTC and local mesh, daisy-hop packet forwarding with duplicate suppression (cache + bloom filter) and TTL decay, route-aware relay pruning to suppress broadcast storms (D26), Audio HAL mutual-exclusion via `AudioOwnershipArbiter` preventing hardware lock contention, Slow-KDF PBKDF2/AES-256-GCM authenticated payload encryption with sliding-window replay rejection (D8, D19), battery-efficient adaptive heartbeats, and dedicated diagnostics HUD. *(Note: `FeatureFlags.OFFLINE_MESH_ENABLED = false` by default in release builds).*
 RELEASE_NOTES.md:22:- **9-State Deterministic State Machine (`AutomaticSwitchStateMachine`)**: Implemented complete state lifecycle with debounced handoff/handback triggers.
 RIDERVOICE_SYSTEM_EXPLANATION.md:365:4. **Deterministic 9-State Switching & Deadlock Prevention (D25):** The `AutomaticSwitchStateMachine` evaluates network health (`LocalHealthSignals`) across debounced windows. Crucially, when cellular coverage drops and LiveKit is disconnected, the state machine continues evaluating independent network reachability signals so the convoy seamlessly hands back to LiveKit when connectivity returns.
 RIDERVOICE_SYSTEM_EXPLANATION.md:428:- [AutomaticSwitchStateMachine.kt](./mobile-app/app/src/main/java/com/ridervoice/mesh/switching/AutomaticSwitchStateMachine.kt): Deterministic 9-state finite state machine orchestrating automatic handoff between LiveKit WebRTC and offline mesh.
 RIDERVOICE_SYSTEM_EXPLANATION.md:502:  - `AutomaticSwitchStateMachine.kt`: 9-state automatic handoff machine with recovery deadlock fix (D25).
 docs/SETTINGS_CONTRACT.md:24:| **Auto Fallback to Mesh** | `offline_mesh_auto_fallback` | `true` | `true`, `false` | `AutomaticSwitchStateMachine`, `SettingsViewModel` | **Live** | `offline_mesh_enabled == true` | **No** (Preserved across logout) | `AutomaticSwitchStateMachineTest` |
-docs/implementation/mesh/README.md:42:â”‚   â”œâ”€â”€ AutomaticSwitchStateMachine.kt # 9-state finite state machine governing automatic failover between LiveKit and Mesh
+docs/implementation/mesh/README.md:42:|   |-- AutomaticSwitchStateMachine.kt # 9-state finite state machine governing automatic failover between LiveKit and Mesh
 docs/implementation/mesh/README.md:108:4. **State Machine:** `AutomaticSwitchStateMachine` runs evaluation loops within structured coroutine scopes, emitting state updates via immutable `StateFlow`.
 docs/implementation/mesh/state-machine.md:3:**Target:** `com.ridervoice.mesh.switching.AutomaticSwitchStateMachine`  
 mobile-app/app/src/main/java/com/ridervoice/mesh/switching/AutomaticSwitchStateMachine.kt:20:class AutomaticSwitchStateMachine(
@@ -156,7 +156,7 @@ mobile-app/app/src/test/java/com/ridervoice/mesh/audit/WiringTest.kt:151:       
 
 ### C. `git grep -n LocalHealthSignalsProvider`
 ```text
-docs/implementation/mesh/README.md:44:â”‚   â””â”€â”€ LocalHealthSignalsProvider.kt  # Polling and reactive sensor sampling health signals for state machine
+docs/implementation/mesh/README.md:44:|   `-- LocalHealthSignalsProvider.kt  # Polling and reactive sensor sampling health signals for state machine
 mobile-app/app/src/main/java/com/ridervoice/mesh/switching/LocalHealthSignalsProvider.kt:33:class LocalHealthSignalsProvider(
 mobile-app/app/src/test/java/com/ridervoice/mesh/audit/WiringTest.kt:15:import com.ridervoice.mesh.switching.LocalHealthSignalsProvider
 mobile-app/app/src/test/java/com/ridervoice/mesh/audit/WiringTest.kt:90:     * Verify LocalHealthSignalsProvider accurately samples local health conditions.
@@ -167,7 +167,7 @@ mobile-app/app/src/test/java/com/ridervoice/mesh/audit/WiringTest.kt:145:       
 
 ### D. `git grep -n VoiceSessionCoordinator`
 ```text
-docs/implementation/mesh/README.md:49:â”‚   â”œâ”€â”€ VoiceSessionCoordinator.kt     # Option B coordinator handling switching between LiveKit and Offline Mesh
+docs/implementation/mesh/README.md:49:|   |-- VoiceSessionCoordinator.kt     # Option B coordinator handling switching between LiveKit and Offline Mesh
 docs/testing/mesh-test-plan.md:29:| `VoiceSessionCoordinatorTest` | Architecture | 4 | Option B coordination, foreground service delegation |
 mobile-app/app/src/main/java/com/ridervoice/di/MeshModule.kt:14:import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 mobile-app/app/src/main/java/com/ridervoice/di/MeshModule.kt:74:    fun provideVoiceSessionCoordinator(

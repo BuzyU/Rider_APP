@@ -338,14 +338,14 @@ class Stage5AcceptanceTest {
             FeatureFlags.OFFLINE_MESH_ENABLED
         )
 
-        // Remote kill switch forces flag to false even in debug builds
+        // Local emergency kill switch forces flag to false even in debug builds
         try {
-            FeatureFlags.remoteKillSwitch = true
-            assertFalse("Remote kill switch must disable OFFLINE_MESH_ENABLED", FeatureFlags.OFFLINE_MESH_ENABLED)
+            FeatureFlags.localKillSwitch = true
+            assertFalse("Local emergency kill switch must disable OFFLINE_MESH_ENABLED", FeatureFlags.OFFLINE_MESH_ENABLED)
             assertFalse(OfflineMeshGate.isBuildGateOpen())
             assertFalse(OfflineMeshGate.isOfflineAllowed())
         } finally {
-            FeatureFlags.remoteKillSwitch = false
+            FeatureFlags.localKillSwitch = false
             FeatureFlags.localOverride = null
         }
 

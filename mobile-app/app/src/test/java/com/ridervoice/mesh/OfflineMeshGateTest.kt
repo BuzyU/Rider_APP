@@ -9,7 +9,7 @@ class OfflineMeshGateTest {
 
     @After
     fun tearDown() {
-        FeatureFlags.remoteKillSwitch = false
+        FeatureFlags.localKillSwitch = false
         FeatureFlags.localOverride = null
         OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
     }
@@ -32,26 +32,56 @@ class OfflineMeshGateTest {
     }
 
     @Test
-    fun buildFlagShipsDisabled() {
-        // Assert per-build-type value (debug true in test runner, release false)
-        assertEquals(com.ridervoice.BuildConfig.OFFLINE_MESH_BUILD_ENABLED, FeatureFlags.OFFLINE_MESH_ENABLED)
+    fun releaseBuildConfigurationGuardsOfflineMeshDisabled() {
+        // Assert that the release build configuration explicitly enforces OFFLINE_MESH_BUILD_ENABLED = false.
+        val buildGradle = listOf(
+            java.io.File("build.gradle"),
+            java.io.File("app/build.gradle"),
+            java.io.File("../app/build.gradle"),
+            java.io.File("mobile-app/app/build.gradle")
+        ).firstOrNull { it.exists() }
+        assertTrue("build.gradle must be accessible to verify release build configuration", buildGradle != null)
+        val content = buildGradle!!.readText()
+
+        val buildTypesIdx = content.indexOf("buildTypes {")
+        assertTrue("buildTypes block must exist in build.gradle", buildTypesIdx != -1)
+        val releaseIdx = content.indexOf("release {", buildTypesIdx)
+        assertTrue("release block must exist in buildTypes", releaseIdx != -1)
+        val releaseBlock = content.substring(releaseIdx, content.indexOf("signingConfig", releaseIdx))
+        assertTrue(
+            "release build type must explicitly configure OFFLINE_MESH_BUILD_ENABLED = false",
+            releaseBlock.contains("""buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "false"""")
+        )
+
+        // Also assert that the generated release BuildConfig (if compiled) has OFFLINE_MESH_BUILD_ENABLED = false
+        val generatedReleaseConfig = listOf(
+            java.io.File("build/generated/source/buildConfig/release/com/ridervoice/BuildConfig.java"),
+            java.io.File("app/build/generated/source/buildConfig/release/com/ridervoice/BuildConfig.java"),
+            java.io.File("mobile-app/app/build/generated/source/buildConfig/release/com/ridervoice/BuildConfig.java")
+        ).firstOrNull { it.exists() }
+        generatedReleaseConfig?.let { file ->
+            assertTrue(
+                "Generated release BuildConfig.java must have OFFLINE_MESH_BUILD_ENABLED = false",
+                file.readText().contains("public static final boolean OFFLINE_MESH_BUILD_ENABLED = false;")
+            )
+        }
     }
 
     @Test
-    fun remoteKillSwitchAndLocalOverrideControlFlag() {
+    fun localKillSwitchAndLocalOverrideControlFlag() {
         try {
-            FeatureFlags.remoteKillSwitch = true
+            FeatureFlags.localKillSwitch = true
             assertFalse(FeatureFlags.OFFLINE_MESH_ENABLED)
             assertFalse(OfflineMeshGate.isBuildGateOpen())
 
-            FeatureFlags.remoteKillSwitch = false
+            FeatureFlags.localKillSwitch = false
 
             FeatureFlags.localOverride = true
             assertTrue(FeatureFlags.OFFLINE_MESH_ENABLED)
             FeatureFlags.localOverride = false
             assertFalse(FeatureFlags.OFFLINE_MESH_ENABLED)
         } finally {
-            FeatureFlags.remoteKillSwitch = false
+            FeatureFlags.localKillSwitch = false
             FeatureFlags.localOverride = null
         }
     }
@@ -86,12 +116,12 @@ class OfflineMeshGateTest {
             assertEquals(com.ridervoice.BuildConfig.OFFLINE_MESH_BUILD_ENABLED, OfflineMeshGate.isWarmStandbyAllowed())
 
             // Remote kill switch active overrides user settings
-            FeatureFlags.remoteKillSwitch = true
+            FeatureFlags.localKillSwitch = true
             assertFalse(OfflineMeshGate.isOfflineAllowed())
             assertFalse(OfflineMeshGate.isAutomaticFallbackAllowed())
             assertFalse(OfflineMeshGate.isWarmStandbyAllowed())
         } finally {
-            FeatureFlags.remoteKillSwitch = false
+            FeatureFlags.localKillSwitch = false
             FeatureFlags.localOverride = null
             OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
         }

@@ -30,6 +30,13 @@ data class LocalHealthSignals(
     /** True if local online transport is confirmed healthy. */
     fun isOnlineHealthy(): Boolean =
         isValidatedInternet && isLiveKitConnected && isHealthProbeSuccessful
+
+    /**
+     * True if local online transport can be recovered. LiveKit may be disconnected while on mesh,
+     * so recovery depends on internet connectivity and the active health probe, not LiveKit connection state.
+     */
+    fun isOnlineRecoverable(): Boolean =
+        isValidatedInternet && isHealthProbeSuccessful
 }
 
 /**

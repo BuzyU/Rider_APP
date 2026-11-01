@@ -1,0 +1,118 @@
+package com.ridervoice.mesh.audit
+
+import com.ridervoice.mesh.MeshConfig
+import com.ridervoice.mesh.audio.PlayoutFrame
+import com.ridervoice.mesh.audio.SourceJitterBuffer
+import com.ridervoice.mesh.forwarding.ForwardingEngine
+import com.ridervoice.mesh.forwarding.TtlPolicy
+import com.ridervoice.mesh.graph.MeshGraphRepository
+import com.ridervoice.mesh.link.MeshEndpoint
+import com.ridervoice.mesh.link.MeshFrame
+import com.ridervoice.mesh.link.MeshLink
+import com.ridervoice.mesh.link.MeshLinkState
+import com.ridervoice.mesh.protocol.DecodeResult
+import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.MeshPacket
+import com.ridervoice.mesh.protocol.MeshPacketCodec
+import com.ridervoice.mesh.protocol.MeshPacketType
+import com.ridervoice.mesh.routing.RoutingTable
+import com.ridervoice.mesh.session.OfflineSession
+import com.ridervoice.mesh.session.SessionManager
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.util.UUID
+
+class AdversarialTest {
+
+    private class FakeLink : MeshLink {
+        override val linkId: String = "fake"
+        override val state: StateFlow<MeshLinkState> = MutableStateFlow(MeshLinkState.RUNNING)
+        override val incomingFrames: SharedFlow<MeshFrame> = MutableSharedFlow()
+        val sent = mutableListOf<Pair<MeshEndpoint, ByteArray>>()
+        override fun send(to: MeshEndpoint, packetBytes: ByteArray): Boolean {
+            sent += to to packetBytes.copyOf()
+            return true
+        }
+        override fun endpoints(): Set<MeshEndpoint> = emptySet()
+        override suspend fun start() {}
+        override suspend fun stop() {}
+    }
+
+    private class Node(
+        val id: String,
+        val host: String,
+        val session: OfflineSession,
+        val clock: () -> Long
+    ) {
+        val ep = MeshEndpoint(host, MeshConfig.AUDIO_PORT)
+        val link = FakeLink()
+        val graph = MeshGraphRepository(selfId = id, selfName = id, clock = clock)
+        val routing = RoutingTable()
+        val sessionMgr = SessionManager(session = session, selfId = id, clock = clock).apply { admit(id) }
+        val engine = ForwardingEngine(
+            selfId = id,
+            selfName = id,
+            sessionManager = sessionMgr,
+            graphRepository = graph,
+            routingTable = routing,
+            duplicateCache = DuplicatePacketCache(clock = clock),
+            ttlPolicy = TtlPolicy(clock = clock),
+            link = link,
+            clock = clock
+        )
+    }
+
+    @Test
+    fun voiceSequenceMustBeContiguousEvenWhenHelloIsInterleaved() {
+        var t = 1_000L
+        val clock = { t }
+        val s = OfflineSession.create(t)
+        val a = Node(UUID.randomUUID().toString(), "10.0.0.1", s, clock)
+        val b = Node(UUID.randomUUID().toString(), "10.0.0.2", s, clock)
+        a.graph.onHello(b.id, "b", 0, b.ep, emptyList())
+        a.engine.originateVoice(ByteArray(640))
+        a.engine.originateHello()
+        a.engine.originateVoice(ByteArray(640))
+        val voiceSeqs = a.link.sent
+            .map { (MeshPacketCodec.decode(it.second, s.authKey()) as DecodeResult.Ok).packet }
+            .filter { it.type == MeshPacketType.VOICE }
+            .map { it.sequence }
+        assertEquals(listOf(1, 2), voiceSeqs)
+    }
+
+    @Test
+    fun noConcealedFramesWhenHeartbeatsAreInterleavedIntoTalkBurst() {
+        var t = 1_000L
+        val clock = { t }
+        val s = OfflineSession.create(t)
+        val a = Node(UUID.randomUUID().toString(), "10.0.0.1", s, clock)
+        val b = Node(UUID.randomUUID().toString(), "10.0.0.2", s, clock)
+        a.graph.onHello(b.id, "b", 0, b.ep, emptyList())
+        val jb = SourceJitterBuffer("a", clock = { t })
+        repeat(75) { i ->
+            if (i % 25 == 0) a.engine.originateHello()
+            a.engine.originateVoice(ByteArray(640))
+        }
+        val voice = a.link.sent.map { (MeshPacketCodec.decode(it.second, s.authKey()) as DecodeResult.Ok).packet }
+            .filter { it.type == MeshPacketType.VOICE }
+        var audio = 0
+        var concealed = 0
+        for (pk in voice) {
+            t += 20
+            jb.enqueue(pk.sequence, pk.payload)
+            when (jb.pollFrame()) {
+                is PlayoutFrame.Audio -> audio++
+                is PlayoutFrame.Concealed -> concealed++
+                else -> {}
+            }
+        }
+        assertEquals("spurious PLC frames", 0L, concealed.toLong())
+        assertTrue("audio frames played=$audio", audio >= 70)
+    }
+}
+

@@ -16,10 +16,10 @@ class DuplicatePacketCache(
 
     /** Returns true if the packet is new (and records it), false if it is a duplicate. */
     @Synchronized
-    fun markIfNew(sessionId: String, sourceId: String, sequence: Int): Boolean {
+    fun markIfNew(sessionId: String, sourceId: String, sequence: Int, kind: Int = 0): Boolean {
         val now = clock()
         purgeExpired(now)
-        val key = "$sessionId|$sourceId|$sequence"
+        val key = "$sessionId|$sourceId|$kind|$sequence"
         if (entries.containsKey(key)) return false
         entries[key] = now
         while (entries.size > maxEntries) {

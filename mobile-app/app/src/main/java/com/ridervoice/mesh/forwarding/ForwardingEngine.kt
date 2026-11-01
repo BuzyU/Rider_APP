@@ -63,9 +63,17 @@ class ForwardingEngine(
     private val clock: () -> Long,
     private val onLocalVoicePacket: (MeshPacket) -> Unit = {}
 ) {
-    private val sequenceGen = AtomicInteger(0)
+    private val voiceSeqGen = AtomicInteger(0)
+    private val controlSeqGen = AtomicInteger(0)
     private val authKey: ByteArray = sessionManager.session.authKey()
     private val sessionId: String = sessionManager.session.sessionId
+
+    companion object {
+        const val DIRECT_HELLO_KIND = 100
+    }
+
+    private fun dedupKind(packet: MeshPacket): Int =
+        if (packet.type == MeshPacketType.HELLO && packet.hopCount == 0) DIRECT_HELLO_KIND else packet.type.code
 
     var receivedVoiceCount: Long = 0L
         private set
@@ -84,7 +92,7 @@ class ForwardingEngine(
     fun originateVoice(pcmPayload: ByteArray): MeshPacket? {
         val now = clock()
         if (sessionManager.session.isExpired(now)) return null
-        val seq = sequenceGen.incrementAndGet()
+        val seq = voiceSeqGen.incrementAndGet()
         val packet = MeshPacket(
             type = MeshPacketType.VOICE,
             sessionId = sessionId,
@@ -97,7 +105,7 @@ class ForwardingEngine(
             audioFormat = AudioFormatId.PCM16_16K_MONO,
             payload = pcmPayload
         )
-        duplicateCache.markIfNew(sessionId, selfId, seq)
+        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet))
         val wire = MeshPacketCodec.encode(packet, authKey)
         graphRepository.expire()
         val targets = graphRepository.directNeighbors()
@@ -117,7 +125,7 @@ class ForwardingEngine(
         val snapshot = graphRepository.currentSnapshot()
         routingTable.recompute(snapshot, now)
 
-        val seq = sequenceGen.incrementAndGet()
+        val seq = controlSeqGen.incrementAndGet()
         val hello = HelloPayload(
             name = selfName,
             graphVersion = snapshot.version.toInt(),
@@ -134,7 +142,7 @@ class ForwardingEngine(
             previousHopId = selfId,
             payload = HelloCodec.encode(hello)
         )
-        duplicateCache.markIfNew(sessionId, selfId, seq)
+        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet))
         val wire = MeshPacketCodec.encode(packet, authKey)
         val endpoints = LinkedHashSet<MeshEndpoint>()
         graphRepository.directNeighbors().forEach { endpoints.add(it.endpoint) }
@@ -151,7 +159,7 @@ class ForwardingEngine(
      */
     fun originateBye(): MeshPacket {
         val now = clock()
-        val seq = sequenceGen.incrementAndGet()
+        val seq = controlSeqGen.incrementAndGet()
         val packet = MeshPacket(
             type = MeshPacketType.BYE,
             sessionId = sessionId,
@@ -162,7 +170,7 @@ class ForwardingEngine(
             hopCount = 0,
             previousHopId = selfId
         )
-        duplicateCache.markIfNew(sessionId, selfId, seq)
+        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet))
         val wire = MeshPacketCodec.encode(packet, authKey)
         for (neighbor in graphRepository.directNeighbors()) {
             link.send(neighbor.endpoint, wire)
@@ -244,7 +252,7 @@ class ForwardingEngine(
         }
 
         // 9-11. Check duplicate cache, drop duplicates, add new packet to cache
-        if (!duplicateCache.markIfNew(decoded.sessionId, decoded.sourceId, decoded.sequence)) {
+        if (!duplicateCache.markIfNew(decoded.sessionId, decoded.sourceId, decoded.sequence, dedupKind(decoded))) {
             droppedDuplicateCount++
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DUPLICATE)
         }

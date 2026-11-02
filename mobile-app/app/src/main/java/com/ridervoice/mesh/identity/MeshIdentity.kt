@@ -12,6 +12,10 @@ data class MeshIdentity(
     val displayName: String
 )
 
+fun interface RiderNameProvider {
+    fun currentName(): String
+}
+
 /** Minimal key-value abstraction so identity logic is testable on the JVM. */
 interface MeshKeyValueStore {
     fun getString(key: String): String?
@@ -37,15 +41,21 @@ class SharedPrefsMeshKeyValueStore(context: Context) : MeshKeyValueStore {
 
 class MeshIdentityRepository(
     private val store: MeshKeyValueStore,
-    private val defaultDisplayName: () -> String,
+    private val riderNameProvider: RiderNameProvider,
     private val idGenerator: () -> String = { UUID.randomUUID().toString() }
 ) {
+    constructor(
+        store: MeshKeyValueStore,
+        defaultDisplayName: () -> String,
+        idGenerator: () -> String = { UUID.randomUUID().toString() }
+    ) : this(store, RiderNameProvider { defaultDisplayName() }, idGenerator)
+
     /** Returns the persisted identity, generating the device id exactly once. */
     fun get(): MeshIdentity {
         val id = store.getString(KEY_DEVICE_ID)?.takeIf { isValidDeviceId(it) }
             ?: idGenerator().also { store.putString(KEY_DEVICE_ID, it) }
         val name = store.getString(KEY_DISPLAY_NAME)?.takeIf { it.isNotBlank() }
-            ?: sanitizeName(defaultDisplayName())
+            ?: sanitizeName(riderNameProvider.currentName())
         return MeshIdentity(id, name)
     }
 
@@ -66,4 +76,3 @@ class MeshIdentityRepository(
         }
     }
 }
-

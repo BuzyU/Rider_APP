@@ -1,6 +1,10 @@
 package com.ridervoice.mesh.transport
 
+import com.ridervoice.mesh.OfflineMeshGate
+import com.ridervoice.mesh.session.NullOfflineSecretProvider
+import com.ridervoice.mesh.session.OfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSession
+import com.ridervoice.mesh.switching.OfflineAvailability
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,11 +33,22 @@ class VoiceSessionCoordinator(
     val liveKitTransport: VoiceTransport,
     val meshTransport: VoiceTransport,
     val audioOwnershipArbiter: AudioOwnershipArbiter,
+    val secretProvider: OfflineSecretProvider = NullOfflineSecretProvider(),
     dispatcher: CoroutineDispatcher = Dispatchers.Default
 ) {
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val switchMutex = Mutex()
     @Volatile private var lastOnlineSession: VoiceSession.Online? = null
+
+    private val _offlineAvailability = MutableStateFlow(computeAvailability())
+    val offlineAvailability: StateFlow<OfflineAvailability> = _offlineAvailability.asStateFlow()
+
+    private fun computeAvailability(): OfflineAvailability {
+        if (!OfflineMeshGate.isOfflineAllowed()) return OfflineAvailability.DISABLED
+        val roomId = lastOnlineSession?.roomId
+        val secret = if (roomId != null) secretProvider.getSecretForOnlineRide(roomId) else null
+        return if (secret != null) OfflineAvailability.AVAILABLE else OfflineAvailability.NO_SHARED_SECRET
+    }
 
     private val _activeKind = MutableStateFlow(PeerTransportKind.ONLINE_LIVEKIT)
     val activeKind: StateFlow<PeerTransportKind> = _activeKind.asStateFlow()
@@ -69,6 +84,7 @@ class VoiceSessionCoordinator(
 
     fun setOnlineSession(session: VoiceSession.Online?) {
         lastOnlineSession = session
+        _offlineAvailability.value = computeAvailability()
     }
 
     suspend fun ensureWarmStandbyDiscovery(session: OfflineSession) {
@@ -99,6 +115,7 @@ class VoiceSessionCoordinator(
         _activeTransport.value = next
         if (newSession is VoiceSession.Online) {
             lastOnlineSession = newSession
+            _offlineAvailability.value = computeAvailability()
         }
         next.start(newSession)
     }

@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.util.Log
 import java.net.DatagramSocket
 
 /**
@@ -14,27 +15,37 @@ import java.net.DatagramSocket
 interface NetworkLocks {
     fun acquire()
     fun release()
-    fun bindSocketToWifi(socket: DatagramSocket) {}
+    fun bindSocketToWifi(socket: DatagramSocket): Boolean = false
 }
 
 object NoNetworkLocks : NetworkLocks {
     override fun acquire() {}
     override fun release() {}
-    override fun bindSocketToWifi(socket: DatagramSocket) {}
+    override fun bindSocketToWifi(socket: DatagramSocket): Boolean = false
 }
 
 class AndroidNetworkLocks(private val context: Context) : NetworkLocks {
     private val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
     private var multicast: WifiManager.MulticastLock? = null
     private var wifi: WifiManager.WifiLock? = null
+    private var loggedNoWifiClient = false
 
-    override fun bindSocketToWifi(socket: DatagramSocket) {
+    override fun bindSocketToWifi(socket: DatagramSocket): Boolean {
         val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         val wifiNetwork = cm?.allNetworks?.firstOrNull { net ->
             cm.getNetworkCapabilities(net)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
         }
-        if (wifiNetwork != null) {
-            runCatching { wifiNetwork.bindSocket(socket) }
+        return if (wifiNetwork != null) {
+            runCatching {
+                wifiNetwork.bindSocket(socket)
+                true
+            }.getOrDefault(false)
+        } else {
+            if (!loggedNoWifiClient) {
+                loggedNoWifiClient = true
+                Log.d("NetworkLocks", "No Wi-Fi client network available to bind socket; continuing unbound (e.g. hotspot host)")
+            }
+            false
         }
     }
 

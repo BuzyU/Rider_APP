@@ -3,23 +3,36 @@ package com.ridervoice.di
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.core.content.ContextCompat
 import com.google.firebase.auth.FirebaseAuth
+import com.ridervoice.audio.HardwarePTTManager
 import com.ridervoice.audio.VoxEngine
+import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.MeshRuntimeSettings
+import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.PrefsMeshRuntimeSettings
+import com.ridervoice.mesh.audio.AndroidAudioManagerPort
+import com.ridervoice.mesh.audio.AndroidHardwarePttPort
+import com.ridervoice.mesh.audio.HardwarePttPort
+import com.ridervoice.mesh.audio.MeshAudioRouteController
 import com.ridervoice.mesh.identity.MeshIdentityRepository
+import com.ridervoice.mesh.identity.RiderNameProvider
 import com.ridervoice.mesh.identity.SharedPrefsMeshKeyValueStore
 import com.ridervoice.mesh.link.AndroidNetworkLocks
 import com.ridervoice.mesh.link.NetworkLocks
+import com.ridervoice.mesh.link.UdpMeshLink
+import com.ridervoice.mesh.session.NullOfflineSecretProvider
+import com.ridervoice.mesh.session.OfflineSecretProvider
+import com.ridervoice.mesh.switching.AutomaticSwitchStateMachine
 import com.ridervoice.mesh.switching.LocalHealthSignalsProvider
+import com.ridervoice.mesh.switching.MeshAutoSwitchManager
 import com.ridervoice.mesh.transport.AudioOwnershipArbiter
 import com.ridervoice.mesh.transport.LiveKitVoiceTransport
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import com.ridervoice.network.LiveKitManager
 import com.ridervoice.network.NetworkObserver
+import com.ridervoice.state.ActiveRideRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -55,29 +68,72 @@ object MeshModule {
 
     @Provides
     @Singleton
-    fun provideMeshIdentityRepository(
+    fun provideRiderNameProvider(
         @ApplicationContext context: Context
-    ): MeshIdentityRepository {
-        val initialName = runCatching {
+    ): RiderNameProvider = RiderNameProvider {
+        val firebaseName = runCatching {
             FirebaseAuth.getInstance().currentUser?.displayName
-        }.getOrNull()?.takeIf { it.isNotBlank() } ?: Build.MODEL ?: "Rider"
+        }.getOrNull()?.takeIf { it.isNotBlank() }
 
-        return MeshIdentityRepository(
-            store = SharedPrefsMeshKeyValueStore(context),
-            defaultDisplayName = { initialName }
-        )
+        if (firebaseName != null) return@RiderNameProvider firebaseName
+
+        val securePrefs = runCatching {
+            com.ridervoice.security.SecurePreferences(context)
+        }.getOrNull()
+
+        val prefName = runCatching {
+            context.getSharedPreferences("user_profile", Context.MODE_PRIVATE)
+                .getString("display_name", null)
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+        if (prefName != null) return@RiderNameProvider prefName
+
+        val emailPrefix = runCatching {
+            FirebaseAuth.getInstance().currentUser?.email?.substringBefore("@")
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+
+        emailPrefix ?: "Rider"
     }
+
+    @Provides
+    @Singleton
+    fun provideMeshIdentityRepository(
+        @ApplicationContext context: Context,
+        riderNameProvider: RiderNameProvider
+    ): MeshIdentityRepository = MeshIdentityRepository(
+        store = SharedPrefsMeshKeyValueStore(context),
+        riderNameProvider = riderNameProvider
+    )
+
+    @Provides
+    @Singleton
+    fun provideHardwarePttPort(
+        hardwarePTTManager: HardwarePTTManager
+    ): HardwarePttPort = AndroidHardwarePttPort(hardwarePTTManager)
+
+    @Provides
+    @Singleton
+    fun provideMeshAudioRouteController(
+        @ApplicationContext context: Context,
+        arbiter: AudioOwnershipArbiter
+    ): MeshAudioRouteController = MeshAudioRouteController(
+        port = AndroidAudioManagerPort(context),
+        arbiter = arbiter
+    )
+
+    @Provides
+    @Singleton
+    fun provideOfflineSecretProvider(): OfflineSecretProvider = NullOfflineSecretProvider()
 
     @Provides
     @Singleton
     fun provideLiveKitVoiceTransport(
         liveKitManager: LiveKitManager,
         arbiter: AudioOwnershipArbiter,
-        voxEngine: VoxEngine? = null
+        voxEngine: VoxEngine
     ): LiveKitVoiceTransport = LiveKitVoiceTransport(
         liveKitManager = liveKitManager,
         audioOwnershipArbiter = arbiter,
-        voxStopper = { voxEngine?.stop() }
+        voxStopper = { voxEngine.stop() }
     )
 
     @Provides
@@ -86,18 +142,29 @@ object MeshModule {
         identityRepo: MeshIdentityRepository,
         arbiter: AudioOwnershipArbiter,
         locks: NetworkLocks,
-        @ApplicationContext context: Context? = null
+        routeController: MeshAudioRouteController,
+        hardwarePttPort: HardwarePttPort,
+        @ApplicationContext context: Context
     ): OfflineMeshVoiceTransport = OfflineMeshVoiceTransport(
         identity = identityRepo.get(),
         audioOwnershipArbiter = arbiter,
         locks = locks,
+        routeController = routeController,
+        hardwarePttPort = hardwarePttPort,
+        linkFactory = {
+            UdpMeshLink(
+                bindPort = MeshConfig.AUDIO_PORT,
+                gateAllowed = { OfflineMeshGate.isOfflineAllowed() },
+                networkBinder = { socket ->
+                    locks.bindSocketToWifi(socket)
+                }
+            )
+        },
         hasMicPermission = {
-            if (context != null) {
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.RECORD_AUDIO
-                ) == PackageManager.PERMISSION_GRANTED
-            } else true
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
         }
     )
 
@@ -106,11 +173,13 @@ object MeshModule {
     fun provideVoiceSessionCoordinator(
         liveKitTransport: LiveKitVoiceTransport,
         meshTransport: OfflineMeshVoiceTransport,
-        arbiter: AudioOwnershipArbiter
+        arbiter: AudioOwnershipArbiter,
+        secretProvider: OfflineSecretProvider
     ): VoiceSessionCoordinator = VoiceSessionCoordinator(
         liveKitTransport = liveKitTransport,
         meshTransport = meshTransport,
-        audioOwnershipArbiter = arbiter
+        audioOwnershipArbiter = arbiter,
+        secretProvider = secretProvider
     )
 
     @Provides
@@ -124,4 +193,32 @@ object MeshModule {
         liveKitConnectionState = liveKitManager.connectionState,
         meshControl = meshTransport
     )
+
+    @Provides
+    @Singleton
+    fun provideMeshAutoSwitchManager(
+        activeRideRepository: ActiveRideRepository,
+        liveKitManager: LiveKitManager,
+        networkObserver: NetworkObserver,
+        coordinator: VoiceSessionCoordinator,
+        meshTransport: OfflineMeshVoiceTransport,
+        identityRepo: MeshIdentityRepository,
+        healthSignalsProvider: LocalHealthSignalsProvider,
+        secretProvider: OfflineSecretProvider
+    ): MeshAutoSwitchManager = MeshAutoSwitchManager(
+        activeRideRepository = activeRideRepository,
+        liveKitManager = liveKitManager,
+        networkObserver = networkObserver,
+        coordinator = coordinator,
+        meshTransport = meshTransport,
+        identityRepo = identityRepo,
+        healthSignalsProvider = healthSignalsProvider,
+        secretProvider = secretProvider
+    )
+
+    @Provides
+    @Singleton
+    fun provideAutomaticSwitchStateMachine(
+        autoSwitchManager: MeshAutoSwitchManager
+    ): AutomaticSwitchStateMachine = autoSwitchManager.stateMachine
 }

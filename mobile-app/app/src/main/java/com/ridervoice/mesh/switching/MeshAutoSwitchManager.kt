@@ -2,6 +2,8 @@ package com.ridervoice.mesh.switching
 
 import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.identity.MeshIdentityRepository
+import com.ridervoice.mesh.session.NullOfflineSecretProvider
+import com.ridervoice.mesh.session.OfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.transport.LiveKitVoiceTransport
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
@@ -24,7 +26,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,6 +38,7 @@ class MeshAutoSwitchManager(
     private val meshTransport: OfflineMeshVoiceTransport,
     private val identityRepo: MeshIdentityRepository,
     private val healthSignalsProvider: LocalHealthSignalsProvider,
+    private val secretProvider: OfflineSecretProvider = NullOfflineSecretProvider(),
     dispatcher: CoroutineDispatcher = Dispatchers.Default
 ) {
 
@@ -48,7 +50,8 @@ class MeshAutoSwitchManager(
         coordinator: VoiceSessionCoordinator,
         meshTransport: OfflineMeshVoiceTransport,
         identityRepo: MeshIdentityRepository,
-        healthSignalsProvider: LocalHealthSignalsProvider
+        healthSignalsProvider: LocalHealthSignalsProvider,
+        secretProvider: OfflineSecretProvider
     ) : this(
         activeRideRepository,
         liveKitManager,
@@ -57,6 +60,7 @@ class MeshAutoSwitchManager(
         meshTransport,
         identityRepo,
         healthSignalsProvider,
+        secretProvider,
         Dispatchers.Default
     )
 
@@ -68,6 +72,8 @@ class MeshAutoSwitchManager(
     private val _groupStatus = MutableStateFlow(GroupConnectivityStatus.ENTIRE_GROUP_ONLINE)
     val groupStatus: StateFlow<GroupConnectivityStatus> = _groupStatus.asStateFlow()
 
+    val offlineAvailability: StateFlow<OfflineAvailability> = coordinator.offlineAvailability
+
     val stateMachine: AutomaticSwitchStateMachine = LocalHealthSignalsProvider.createMachine(
         coordinator = coordinator,
         onEmitTransitionDiagnostic = { from, to, reason ->
@@ -75,13 +81,8 @@ class MeshAutoSwitchManager(
         },
         onProbeMesh = {
             val ride = activeRideRepository.state.value ?: return@createMachine
-            val canonicalKey = ride.lkRoomName?.takeIf { it.isNotBlank() } ?: ride.roomId
-            val companionSession = withContext(Dispatchers.Default) {
-                OfflineSession.fromOnlineRoom(canonicalKey, System.currentTimeMillis())
-            }
-            if (companionSession != null) {
-                coordinator.ensureWarmStandbyDiscovery(companionSession)
-            }
+            val secret = secretProvider.getSecretForOnlineRide(ride.roomId) ?: return@createMachine
+            // No companion session derived without shared secret
         }
     )
 
@@ -90,6 +91,7 @@ class MeshAutoSwitchManager(
     private var drivingJob: Job? = null
 
     fun start() {
+        if (OfflineMeshGate.decision() != com.ridervoice.mesh.GateDecision.ENABLED) return
         if (drivingJob != null) return
 
         drivingJob = scope.launch {
@@ -99,10 +101,6 @@ class MeshAutoSwitchManager(
                     coordinator.setOnlineSession(null)
                     _groupStatus.value = GroupConnectivityStatus.ENTIRE_GROUP_ONLINE
                 } else {
-                    if (ride.displayName.isNotBlank()) {
-                        identityRepo.setDisplayName(ride.displayName)
-                    }
-
                     coordinator.setOnlineSession(
                         VoiceSession.Online(
                             url = ride.livekitUrl?.takeIf { it.isNotBlank() } ?: Constants.LIVEKIT_URL,
@@ -112,10 +110,7 @@ class MeshAutoSwitchManager(
                         )
                     )
 
-                    val canonicalKey = ride.lkRoomName?.takeIf { it.isNotBlank() } ?: ride.roomId
-                    val companionSession = withContext(Dispatchers.Default) {
-                        OfflineSession.fromOnlineRoom(canonicalKey, System.currentTimeMillis())
-                    }
+                    val companionSession: OfflineSession? = null
 
                     while (isActive && activeRideRepository.state.value != null) {
                         if ((OfflineMeshGate.isWarmStandbyAllowed() || OfflineMeshGate.isAutomaticFallbackAllowed()) &&

@@ -45,7 +45,6 @@ class OfflineSession private constructor(
     companion object {
         private const val ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"  // 32 symbols Crockford Base32
         const val CODE_LENGTH = 16
-        private val BOOTSTRAP_KEY = "rvmesh/v2/online-room-bootstrap".toByteArray(Charsets.UTF_8)
 
         fun create(
             now: Long,
@@ -72,36 +71,6 @@ class OfflineSession private constructor(
                 createdAt = now,
                 expiresAt = now + MeshConfig.SESSION_LIFETIME_MS
             )
-        }
-
-        /**
-         * Deterministically derives a shared 16-character pairing code and [OfflineSession]
-         * from an online convoy's canonical room identifier (e.g. lkRoomName or roomId).
-         */
-        fun fromOnlineRoom(
-            canonicalRoomKey: String,
-            now: Long,
-            iterations: Int = SessionKdf.DEFAULT_ITERATIONS
-        ): OfflineSession? {
-            val clean = canonicalRoomKey.trim().lowercase()
-            if (clean.isBlank()) return null
-            val mac = javax.crypto.Mac.getInstance("HmacSHA256")
-            mac.init(javax.crypto.spec.SecretKeySpec(BOOTSTRAP_KEY, "HmacSHA256"))
-            val digest = mac.doFinal(clean.toByteArray(Charsets.UTF_8))
-            // Encode first 80 bits (10 bytes) into 16 Crockford Base32 chars (5 bits each)
-            var buffer = 0L
-            var bitsLeft = 0
-            val sb = StringBuilder(CODE_LENGTH)
-            for (i in 0 until 10) {
-                buffer = (buffer shl 8) or (digest[i].toInt() and 0xFF).toLong()
-                bitsLeft += 8
-                while (bitsLeft >= 5 && sb.length < CODE_LENGTH) {
-                    bitsLeft -= 5
-                    val idx = ((buffer ushr bitsLeft) and 0x1FL).toInt()
-                    sb.append(ALPHABET[idx])
-                }
-            }
-            return fromCode(sb.toString(), now, iterations)
         }
 
         fun normalize(raw: String): String? {

@@ -11,6 +11,12 @@ enum class AutoSwitchState {
     SESSION_ENDED
 }
 
+enum class OfflineAvailability {
+    AVAILABLE,
+    NO_SHARED_SECRET,
+    DISABLED
+}
+
 /** Group connectivity status required by Stage 3.5. */
 enum class GroupConnectivityStatus {
     ENTIRE_GROUP_ONLINE,

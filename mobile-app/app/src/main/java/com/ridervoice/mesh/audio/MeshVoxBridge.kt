@@ -1,6 +1,5 @@
 package com.ridervoice.mesh.audio
 
-import com.ridervoice.audio.HardwarePTTManager
 import com.ridervoice.audio.VoxDetector
 import com.ridervoice.audio.VoxEngine
 import com.ridervoice.mesh.transport.VoiceTransport
@@ -23,18 +22,23 @@ import java.nio.ByteOrder
 /**
  * Stage 2 Bridge connecting audio input events (PTT button, VOX speech gate) to the active mesh transport.
  *
- * Subscribes to hardware PTT events and VoxEngine speech detection, delegating to [VoiceTransport.setMicrophoneEnabled].
+ * Subscribes to hardware PTT events via [HardwarePttPort] and VoxEngine speech detection,
+ * delegating to [VoiceTransport.setMicrophoneEnabled].
  * Also provides single-AudioRecord frame gating via [shouldTransmitPcmFrame] with built-in [VoxDetector].
  */
 class MeshVoxBridge(
     private val transport: VoiceTransport,
-    private val hardwarePttManager: HardwarePTTManager? = null,
+    private val hardwarePttPort: HardwarePttPort? = null,
     private val voxEngine: VoxEngine? = null,
     dispatcher: CoroutineDispatcher = Dispatchers.Main
 ) : AutoCloseable {
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutex = Mutex()
+
+    @Volatile
+    var isMicToggledOn: Boolean = false
+        private set
 
     @Volatile
     var isPttHeld: Boolean = false
@@ -59,14 +63,13 @@ class MeshVoxBridge(
     private var previousPttCallback: ((Boolean) -> Unit)? = null
 
     init {
-        // Wire Hardware PTT manager
-        hardwarePttManager?.let { ptt ->
-            previousPttCallback = ptt.onMicToggleRequest
-            ptt.onMicToggleRequest = { open ->
+        // Wire Hardware PTT port
+        hardwarePttPort?.let { port ->
+            previousPttCallback = port.onMicToggleRequest
+            port.onMicToggleRequest = { open ->
                 scope.launch {
                     mutex.withLock {
-                        isPttHeld = open
-                        _isPttActive.value = open
+                        isMicToggledOn = open
                         updateMicState()
                     }
                 }
@@ -97,12 +100,21 @@ class MeshVoxBridge(
         }
     }
 
+    /** Toggle microphone state. */
+    fun setMicToggled(toggled: Boolean) {
+        isMicToggledOn = toggled
+        scope.launch {
+            mutex.withLock {
+                updateMicState()
+            }
+        }
+    }
+
     /** Set whether VOX gate detection is enabled. */
     fun setVoxEnabled(enabled: Boolean) {
         _voxEnabled.value = enabled
         if (!enabled) {
             isVoxSpeechActive = false
-            _isGateOpen.value = isPttHeld
             scope.launch {
                 mutex.withLock {
                     updateMicState()
@@ -127,7 +139,7 @@ class MeshVoxBridge(
      */
     @Synchronized
     fun shouldTransmitPcmFrame(pcmBytes: ByteArray, nowMs: Long = System.currentTimeMillis()): Boolean {
-        if (isPttHeld) {
+        if (isMicToggledOn || isPttHeld) {
             _isGateOpen.value = true
             return true
         }
@@ -143,23 +155,24 @@ class MeshVoxBridge(
             VoxDetector.Decision.CLOSE -> isVoxSpeechActive = false
             VoxDetector.Decision.NONE -> {}
         }
-        val open = isPttHeld || isVoxSpeechActive
+        val open = isMicToggledOn || isPttHeld || isVoxSpeechActive
         _isGateOpen.value = open
         return open
     }
 
     private suspend fun updateMicState() {
-        val shouldOpen = isPttHeld || isVoxSpeechActive
+        val shouldOpen = isMicToggledOn || isPttHeld || (_voxEnabled.value && isVoxSpeechActive)
         _isGateOpen.value = shouldOpen
         transport.setMicrophoneEnabled(shouldOpen)
     }
 
     override fun close() {
-        hardwarePttManager?.let { ptt ->
-            if (ptt.onMicToggleRequest != null) {
-                ptt.onMicToggleRequest = previousPttCallback
+        hardwarePttPort?.let { port ->
+            if (port.onMicToggleRequest != null) {
+                port.onMicToggleRequest = previousPttCallback
             }
         }
+        previousPttCallback = null
         voxJob?.cancel()
         scope.cancel()
     }

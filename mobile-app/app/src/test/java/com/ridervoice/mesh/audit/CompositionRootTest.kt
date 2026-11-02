@@ -36,10 +36,14 @@ class CompositionRootTest {
         val arbiter = MeshModule.provideAudioOwnershipArbiter()
         val locks = MeshModule.provideNetworkLocks(mockContext)
         val identityRepo = MeshIdentityRepository(InMemoryMeshKeyValueStore(), { "TestRider" }, { UUID.randomUUID().toString() })
-        val meshTransport = MeshModule.provideOfflineMeshVoiceTransport(identityRepo, arbiter, locks)
+        val routeController = MeshModule.provideMeshAudioRouteController(mockContext, arbiter)
+        val hardwarePttPort = mockk<com.ridervoice.mesh.audio.HardwarePttPort>(relaxed = true)
+        val meshTransport = MeshModule.provideOfflineMeshVoiceTransport(identityRepo, arbiter, locks, routeController, hardwarePttPort, mockContext)
         val liveKitManager = mockk<LiveKitManager>(relaxed = true)
-        val lkTransport = MeshModule.provideLiveKitVoiceTransport(liveKitManager, arbiter)
-        val coordinator = MeshModule.provideVoiceSessionCoordinator(lkTransport, meshTransport, arbiter)
+        val voxEngine = mockk<com.ridervoice.audio.VoxEngine>(relaxed = true)
+        val lkTransport = MeshModule.provideLiveKitVoiceTransport(liveKitManager, arbiter, voxEngine)
+        val secretProvider = MeshModule.provideOfflineSecretProvider()
+        val coordinator = MeshModule.provideVoiceSessionCoordinator(lkTransport, meshTransport, arbiter, secretProvider)
 
         // Single shared arbiter
         assertSame("LiveKitVoiceTransport must share the singleton arbiter", arbiter, lkTransport.audioOwnershipArbiter)

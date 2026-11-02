@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.transport
 
+import com.ridervoice.mesh.audio.HardwarePttPort
 import com.ridervoice.mesh.audio.MeshAudioRouteController
 import com.ridervoice.mesh.audio.MeshVoxBridge
 
@@ -66,7 +67,8 @@ class OfflineMeshVoiceTransport(
     },
     private val hasMicPermission: () -> Boolean = { true },
     private val audioRecordFactory: (() -> AudioRecordSource?)? = null,
-    val routeController: MeshAudioRouteController? = null
+    val routeController: MeshAudioRouteController? = null,
+    val hardwarePttPort: HardwarePttPort? = null
 ) : VoiceTransport, MeshControl {
 
     private val startMutex = Mutex()
@@ -80,7 +82,7 @@ class OfflineMeshVoiceTransport(
     private val _audioRoute = MutableStateFlow(AudioRoute.SPEAKER)
     val audioRoute: StateFlow<AudioRoute> = routeController?.activeRoute ?: _audioRoute.asStateFlow()
 
-    val voxBridge: MeshVoxBridge = MeshVoxBridge(this, dispatcher = dispatcher)
+    val voxBridge: MeshVoxBridge = MeshVoxBridge(this, hardwarePttPort = hardwarePttPort, dispatcher = dispatcher)
 
     private val _micState = MutableStateFlow(MicState.OFF)
     override val micState: StateFlow<MicState> = _micState.asStateFlow()

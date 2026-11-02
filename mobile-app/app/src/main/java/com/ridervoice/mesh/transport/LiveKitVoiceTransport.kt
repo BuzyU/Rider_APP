@@ -1,6 +1,8 @@
 package com.ridervoice.mesh.transport
 
 import com.ridervoice.models.Participant
+import com.ridervoice.mesh.GateDecision
+import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.network.ConnectionState
 import com.ridervoice.network.LiveKitManager
 import kotlinx.coroutines.CoroutineScope
@@ -43,6 +45,7 @@ class LiveKitVoiceTransport(
     private val liveKitPort: LiveKitPort,
     val audioOwnershipArbiter: AudioOwnershipArbiter,
     private val onAudioRouteChanged: (AudioRoute) -> Unit = {},
+    private val gateAllowed: () -> Boolean = { OfflineMeshGate.isBuildGateOpen() },
     dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
 ) : VoiceTransport {
 
@@ -51,15 +54,17 @@ class LiveKitVoiceTransport(
         audioOwnershipArbiter: AudioOwnershipArbiter,
         voxStopper: () -> Unit = {},
         onAudioRouteChanged: (AudioRoute) -> Unit = {},
+        gateAllowed: () -> Boolean = { OfflineMeshGate.isBuildGateOpen() },
         dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
-    ) : this(LiveKitManagerPort(liveKitManager, voxStopper), audioOwnershipArbiter, onAudioRouteChanged, dispatcher)
+    ) : this(LiveKitManagerPort(liveKitManager, voxStopper), audioOwnershipArbiter, onAudioRouteChanged, gateAllowed, dispatcher)
 
     constructor(
         liveKitManager: LiveKitManager,
         audioOwnershipArbiter: AudioOwnershipArbiter,
         onAudioRouteChanged: (AudioRoute) -> Unit = {},
+        gateAllowed: () -> Boolean = { OfflineMeshGate.isBuildGateOpen() },
         dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
-    ) : this(LiveKitManagerPort(liveKitManager), audioOwnershipArbiter, onAudioRouteChanged, dispatcher)
+    ) : this(LiveKitManagerPort(liveKitManager), audioOwnershipArbiter, onAudioRouteChanged, gateAllowed, dispatcher)
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
 
@@ -85,6 +90,12 @@ class LiveKitVoiceTransport(
         private set
 
     init {
+        if (gateAllowed()) {
+            attachCollectors()
+        }
+    }
+
+    private fun attachCollectors() {
         // Observe connection state
         scope.launch {
             liveKitPort.connectionState.collectLatest { conn ->

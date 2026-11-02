@@ -226,7 +226,7 @@ class WiringTest {
             meshControl = object : com.ridervoice.mesh.transport.MeshControl {
                 override val hasValidRoute: StateFlow<Boolean> = MutableStateFlow(validRoute)
                 override suspend fun startDiscoveryOnly(session: OfflineSession) {}
-                override suspend fun enableAudio() {}
+                override suspend fun enableAudio(): com.ridervoice.mesh.transport.EnableAudioResult = com.ridervoice.mesh.transport.EnableAudioResult.Success
                 override suspend fun disableAudio() {}
             },
             healthProbe = { probeSuccessful },

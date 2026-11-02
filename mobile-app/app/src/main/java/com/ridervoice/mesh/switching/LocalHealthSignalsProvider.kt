@@ -41,6 +41,8 @@ class LocalHealthSignalsProvider(
     private val clock: Clock = SystemClock,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
+    private val probeDispatcher: CoroutineDispatcher = dispatcher
+
     constructor(
         networkObserver: NetworkObserver? = null,
         liveKitConnectionState: StateFlow<ConnectionState>? = null,
@@ -84,7 +86,7 @@ class LocalHealthSignalsProvider(
         val now = clock.nowMs()
 
         // Rule 5:
-        // - Probe on probeDispatcher (dispatcher) only.
+        // - Probe on probeDispatcher (Dispatchers.IO) only.
         // - Probe at most once per 5000 ms.
         // - Do not probe when internet + LiveKit are healthy; stop probing when recovered.
         val probeOk: Boolean = if (validatedInternet && isLkConnected) {
@@ -93,7 +95,7 @@ class LocalHealthSignalsProvider(
         } else {
             if (now - lastProbeTimeMs >= 5_000L || lastProbeTimeMs == 0L) {
                 lastProbeTimeMs = now
-                val result = withContext(dispatcher) {
+                val result = withContext(probeDispatcher) {
                     healthProbe?.invoke() ?: executeActiveProbe()
                 }
                 lastProbeResult = result
@@ -132,7 +134,7 @@ class LocalHealthSignalsProvider(
     fun startDriving(
         machine: AutomaticSwitchStateMachine,
         isRideActive: StateFlow<Boolean>,
-        scope: CoroutineScope = CoroutineScope(SupervisorJob() + dispatcher),
+        scope: CoroutineScope = CoroutineScope(SupervisorJob() + probeDispatcher),
         pollIntervalMs: Long = 1_000L
     ): Job = scope.launch {
         isRideActive.collectLatest { active ->

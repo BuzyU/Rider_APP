@@ -5,6 +5,7 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.OfflineMeshGate
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,12 +21,14 @@ import kotlinx.coroutines.launch
 /**
  * Offline 16 kHz mono 16-bit PCM playback driven by [MultiSourceJitterBufferManager] at 20 ms ticks.
  *
- * Strictly gated: never creates an [AudioTrack] when [gateAllowed] is false.
+ * Playout thread runs at [android.os.Process.THREAD_PRIORITY_URGENT_AUDIO].
+ * Handles AudioTrack initialization failures and underruns gracefully.
  */
 class OfflineAudioPlayback(
     private val jitterManager: MultiSourceJitterBufferManager,
     private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val onUnderrun: (Long) -> Unit = {}
 ) {
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -37,6 +40,7 @@ class OfflineAudioPlayback(
     private var deafened: Boolean = false
     private var playJob: Job? = null
     private var audioTrack: AudioTrack? = null
+    private var underrunCount: Long = 0L
 
     fun setDeafened(deafened: Boolean) {
         this.deafened = deafened
@@ -72,7 +76,7 @@ class OfflineAudioPlayback(
                 .setBufferSizeInBytes((minBuf * 2).coerceAtLeast(MeshConfig.BYTES_PER_FRAME * 4))
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
-        } catch (_: Throwable) {
+        } catch (e: Exception) {
             return false
         }
 
@@ -85,6 +89,10 @@ class OfflineAudioPlayback(
         _isPlaying.value = true
         val scope = CoroutineScope(SupervisorJob() + dispatcher)
         playJob = scope.launch {
+            runCatching {
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
+            }
+            val silenceBuf = ByteArray(MeshConfig.BYTES_PER_FRAME)
             try {
                 track.play()
                 while (isActive && gateAllowed()) {
@@ -93,11 +101,19 @@ class OfflineAudioPlayback(
                     if (mixed != null && !deafened) {
                         track.write(mixed, 0, mixed.size)
                     } else {
+                        // Insert silence to keep AudioTrack buffer from starving
+                        track.write(silenceBuf, 0, silenceBuf.size)
+                        underrunCount++
+                        onUnderrun(underrunCount)
                         delay(MeshConfig.FRAME_MS.toLong())
                     }
                 }
-            } catch (_: Throwable) {
-                // Handled in finally
+            } catch (e: java.io.IOException) {
+                // AudioTrack write I/O error
+            } catch (e: IllegalStateException) {
+                // AudioTrack released or stopped
+            } catch (ce: CancellationException) {
+                throw ce
             } finally {
                 releaseInternal(track)
             }
@@ -122,4 +138,3 @@ class OfflineAudioPlayback(
         runCatching { track.release() }
     }
 }
-

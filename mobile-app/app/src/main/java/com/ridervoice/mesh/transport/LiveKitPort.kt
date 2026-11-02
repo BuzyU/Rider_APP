@@ -11,6 +11,8 @@ interface LiveKitPort {
     val participants: StateFlow<List<Participant>>
     val isUserMuted: StateFlow<Boolean> get() = MutableStateFlow(false)
     val deafened: StateFlow<Boolean> get() = MutableStateFlow(false)
+    val isVoxRunning: Boolean get() = false
+
     suspend fun connect(url: String, roomId: String, tokenProvider: suspend () -> String, expectedLkRoomName: String?)
     fun disconnect()
     fun setUserMuted(muted: Boolean)
@@ -18,4 +20,5 @@ interface LiveKitPort {
     fun onVoiceGate(open: Boolean) {}
     fun onNetworkRestored() {}
     fun stopVox() {}
+    fun restartVoxIfPreviouslyRunning() {}
 }

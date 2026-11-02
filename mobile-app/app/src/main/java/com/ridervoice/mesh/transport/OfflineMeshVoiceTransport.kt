@@ -233,18 +233,18 @@ class OfflineMeshVoiceTransport(
         _state.value = VoiceTransportState.CONNECTED
     }
 
-    override suspend fun enableAudio() = startMutex.withLock {
+    override suspend fun enableAudio(): EnableAudioResult = startMutex.withLock {
         if (_state.value != VoiceTransportState.CONNECTED) {
-            throw IllegalStateException("Mesh transport must be in discovery/CONNECTED state before enabling audio")
+            return@withLock EnableAudioResult.Failure("Mesh transport must be in discovery/CONNECTED state before enabling audio")
         }
-        if (audioPlayback != null) return@withLock // Already enabled
+        if (audioPlayback != null) return@withLock EnableAudioResult.Success // Already enabled
 
         if (!audioOwnershipArbiter.tryClaimOfflineMesh()) {
-            throw IllegalStateException("Cannot claim OFFLINE_MESH ownership from arbiter")
+            return@withLock EnableAudioResult.Failure.OwnershipDenied
         }
 
-        val jManager = jitterManager ?: throw IllegalStateException("JitterManager not initialized")
-        val fEngine = forwardingEngine ?: throw IllegalStateException("ForwardingEngine not initialized")
+        val jManager = jitterManager ?: return@withLock EnableAudioResult.Failure("JitterManager not initialized")
+        val fEngine = forwardingEngine ?: return@withLock EnableAudioResult.Failure("ForwardingEngine not initialized")
 
         val aPlayback = OfflineAudioPlayback(
             jitterManager = jManager,
@@ -276,6 +276,8 @@ class OfflineMeshVoiceTransport(
         )
         aCapture.frameGate = { pcm: ByteArray -> voxBridge.shouldTransmitPcmFrame(pcm) }
         audioCapture = aCapture
+        aCapture.setMicEnabled(micWanted)
+
         if (micWanted) {
             _micState.value = MicState.STARTING
             val res = aCapture.start()
@@ -286,7 +288,20 @@ class OfflineMeshVoiceTransport(
                 CaptureStart.HardwareFailed -> MicState.HARDWARE_BUSY
                 CaptureStart.GateClosed -> MicState.OFF
             }
+            if (res == CaptureStart.HardwareFailed) {
+                return@withLock EnableAudioResult.Failure.HardwareBusy
+            }
+            if (res == CaptureStart.GateClosed) {
+                return@withLock EnableAudioResult.Failure.GateClosed
+            }
+            if (res == CaptureStart.NoPermission) {
+                return@withLock EnableAudioResult.Failure("NO_PERMISSION")
+            }
+            if (res == CaptureStart.NotOwner) {
+                return@withLock EnableAudioResult.Failure.OwnershipDenied
+            }
         }
+        EnableAudioResult.Success
     }
 
     override suspend fun disableAudio() = startMutex.withLock {

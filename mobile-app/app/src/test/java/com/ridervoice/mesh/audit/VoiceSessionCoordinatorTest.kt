@@ -4,6 +4,7 @@ import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.transport.AudioOwner
 import com.ridervoice.mesh.transport.AudioOwnershipArbiter
 import com.ridervoice.mesh.transport.AudioRoute
+import com.ridervoice.mesh.transport.EnableAudioResult
 import com.ridervoice.mesh.transport.MeshControl
 import com.ridervoice.mesh.transport.MicState
 import com.ridervoice.mesh.transport.PeerTransportKind
@@ -80,11 +81,12 @@ class VoiceSessionCoordinatorTest {
             _state.value = VoiceTransportState.CONNECTED
         }
 
-        override suspend fun enableAudio() {
+        override suspend fun enableAudio(): EnableAudioResult {
             if (failOnEnableAudio) {
-                throw RuntimeException("Simulated mesh enableAudio hardware failure")
+                return EnableAudioResult.Failure.HardwareBusy
             }
             audioEnabled = true
+            return EnableAudioResult.Success
         }
 
         override suspend fun disableAudio() {
@@ -151,7 +153,7 @@ class VoiceSessionCoordinatorTest {
         // 1. Mesh audio was not left enabled
         assertFalse(mesh.audioEnabled)
         // 2. Arbiter does not retain OFFLINE_MESH ownership
-        assertEquals(AudioOwner.NONE, arbiter.owner.value)
+        assertEquals(AudioOwner.LIVEKIT, arbiter.owner.value)
         // 3. LiveKit was restarted as part of rollback
         assertEquals(2, liveKit.startedSessions.size)
         assertEquals(onlineSession, liveKit.startedSessions.last())
@@ -173,7 +175,7 @@ class VoiceSessionCoordinatorTest {
         val fallbackResult = coordinator.fallbackToMesh()
         assertTrue(fallbackResult)
 
-        assertEquals(1, liveKit.stoppedCount)
+        assertEquals("LiveKit must be paused, not stopped, during fallback (D3)", 0, liveKit.stoppedCount)
         assertTrue(mesh.audioEnabled)
         assertEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
         assertEquals(PeerTransportKind.OFFLINE_MESH, coordinator.activeKind.value)
@@ -217,6 +219,7 @@ class VoiceSessionCoordinatorTest {
         assertTrue(mesh.audioEnabled)
 
         // Inject LiveKit failure on reconnect
+        liveKit._state.value = VoiceTransportState.FAILED
         liveKit.failOnStart = true
         val recoverResult = coordinator.recoverToLiveKit()
         assertFalse("Recovery must return false when LiveKit fails to connect", recoverResult)

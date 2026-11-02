@@ -8,7 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,12 +25,13 @@ import java.nio.ByteOrder
  * Subscribes to hardware PTT events via [HardwarePttPort] and VoxEngine speech detection,
  * delegating to [VoiceTransport.setMicrophoneEnabled].
  * Also provides single-AudioRecord frame gating via [shouldTransmitPcmFrame] with built-in [VoxDetector].
+ * Scope is recreated / refreshed per session so close() does not permanently disable the bridge.
  */
 class MeshVoxBridge(
     private val transport: VoiceTransport,
     private val hardwarePttPort: HardwarePttPort? = null,
     private val voxEngine: VoxEngine? = null,
-    dispatcher: CoroutineDispatcher = Dispatchers.Main
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : AutoCloseable {
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -63,13 +64,18 @@ class MeshVoxBridge(
     private var previousPttCallback: ((Boolean) -> Unit)? = null
 
     init {
+        attachListeners()
+    }
+
+    private fun attachListeners() {
         // Wire Hardware PTT port
         hardwarePttPort?.let { port ->
             previousPttCallback = port.onMicToggleRequest
-            port.onMicToggleRequest = { open ->
+            port.onMicToggleRequest = { _ ->
                 scope.launch {
                     mutex.withLock {
-                        isMicToggledOn = open
+                        // Helmet PTT key acts as a toggle flip
+                        isMicToggledOn = !isMicToggledOn
                         updateMicState()
                     }
                 }
@@ -166,6 +172,10 @@ class MeshVoxBridge(
         transport.setMicrophoneEnabled(shouldOpen)
     }
 
+    /**
+     * Closes the bridge for the active session, restoring previous callbacks.
+     * Uses cancelChildren() so the supervisor scope remains available for later sessions.
+     */
     override fun close() {
         hardwarePttPort?.let { port ->
             if (port.onMicToggleRequest != null) {
@@ -174,6 +184,7 @@ class MeshVoxBridge(
         }
         previousPttCallback = null
         voxJob?.cancel()
-        scope.cancel()
+        voxJob = null
+        scope.coroutineContext.cancelChildren()
     }
 }

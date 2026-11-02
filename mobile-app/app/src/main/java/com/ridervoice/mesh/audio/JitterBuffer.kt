@@ -18,18 +18,27 @@ sealed class PlayoutFrame {
 }
 
 /**
- * Single-source adaptive/bounded jitter buffer with sequence reordering, target playout delay,
- * late packet dropping, missing-packet detection, and packet-loss concealment (PLC).
+ * Single-source jitter buffer with fixed 3-frame target playout delay (60 ms),
+ * sequence reordering with 32-bit wrap-around support, late packet dropping,
+ * missing-packet detection, and packet-loss concealment (PLC).
  */
 class SourceJitterBuffer(
     val sourceId: String,
-    private val targetDelayFrames: Int = 3, // 3 * 20ms = 60ms within 40-120ms target window
+    private val targetDelayFrames: Int = 3, // Fixed 3-frame target (3 * 20ms = 60ms)
     private val maxQueueFrames: Int = 16,   // 320ms max queue bound
     private val frameBytes: Int = MeshConfig.BYTES_PER_FRAME,
     val epoch: Int = 0,
     private val clock: () -> Long
 ) {
-    private val queue = TreeMap<Int, ByteArray> { a, b -> (a - b).compareTo(0) }
+    // 32-bit circular sequence comparison for wrap-around handling
+    private val queue = TreeMap<Int, ByteArray> { a, b ->
+        val diff = a - b
+        when {
+            diff < 0 -> -1
+            diff > 0 -> 1
+            else -> 0
+        }
+    }
     private var primed = false
     private var nextExpectedSeq: Int = 0
     private var consecutiveMissing: Int = 0
@@ -49,7 +58,8 @@ class SourceJitterBuffer(
     @Synchronized
     fun enqueue(sequence: Int, pcmBytes: ByteArray) {
         lastEnqueueTimeMs = clock()
-        if (primed && (sequence - nextExpectedSeq) < 0) {
+        val diff = sequence - nextExpectedSeq
+        if (primed && diff < 0) {
             lateDroppedCount++
             return
         }
@@ -178,28 +188,33 @@ class MultiSourceJitterBufferManager(
     @Synchronized
     fun pollMixedFrame(): Pair<ByteArray?, Set<String>> {
         evictExpiredSources()
-        if (buffers.isEmpty()) return null to emptySet()
+        if (buffers.isEmpty()) {
+            return Pair(null, emptySet())
+        }
 
-        val activeFrames = ArrayList<ByteArray>()
-        val speakingSources = LinkedHashSet<String>()
+        val activeContributingSpeakers = mutableSetOf<String>()
+        val framesToMix = mutableListOf<ByteArray>()
 
-        for ((sourceId, buf) in buffers) {
-            when (val f = buf.pollFrame()) {
+        for ((sourceId, buffer) in buffers) {
+            when (val frame = buffer.pollFrame()) {
                 is PlayoutFrame.Audio -> {
-                    activeFrames.add(f.pcmBytes)
-                    speakingSources.add(sourceId)
+                    framesToMix.add(frame.pcmBytes)
+                    activeContributingSpeakers.add(sourceId)
                 }
                 is PlayoutFrame.Concealed -> {
-                    activeFrames.add(f.pcmBytes)
+                    framesToMix.add(frame.pcmBytes)
                 }
-                PlayoutFrame.Buffering -> Unit
+                is PlayoutFrame.Buffering -> {
+                    // Still buffering initial delay or idle
+                }
             }
         }
 
-        if (activeFrames.isEmpty()) return null to emptySet()
-        if (activeFrames.size == 1) return activeFrames[0] to speakingSources
-
-        return mixPcm16Frames(activeFrames) to speakingSources
+        return when {
+            framesToMix.isEmpty() -> Pair(null, emptySet())
+            framesToMix.size == 1 -> Pair(framesToMix[0], activeContributingSpeakers)
+            else -> Pair(mixPcm16Frames(framesToMix), activeContributingSpeakers)
+        }
     }
 
     @Synchronized
@@ -209,41 +224,61 @@ class MultiSourceJitterBufferManager(
     }
 
     @Synchronized
-    fun bufferFor(sourceId: String): SourceJitterBuffer? = buffers[sourceId]
+    fun clear() {
+        buffers.clear()
+    }
 
     @Synchronized
-    fun clear() = buffers.clear()
+    fun getBufferStats(sourceId: String): JitterBufferStats? {
+        val buf = buffers[sourceId] ?: return null
+        return JitterBufferStats(
+            sourceId = buf.sourceId,
+            bufferedFrames = buf.bufferedFrameCount(),
+            isPrimed = buf.isPrimed(),
+            lateDropped = buf.lateDroppedCount,
+            overflowDropped = buf.overflowDroppedCount,
+            concealed = buf.concealedCount,
+            delivered = buf.deliveredCount
+        )
+    }
 
-    @Synchronized
-    fun evictExpiredSources(): List<String> {
+    private fun evictExpiredSources() {
         val now = clock()
-        val removed = ArrayList<String>()
         val it = buffers.entries.iterator()
         while (it.hasNext()) {
             val entry = it.next()
             if (now - entry.value.lastEnqueueTimeMs > sourceTimeoutMs) {
-                removed.add(entry.key)
                 it.remove()
             }
         }
-        return removed
     }
 
-    companion object {
-        fun mixPcm16Frames(frames: List<ByteArray>, frameBytes: Int = MeshConfig.BYTES_PER_FRAME): ByteArray {
-            val out = ByteArray(frameBytes)
-            val outBuf = ByteBuffer.wrap(out).order(ByteOrder.LITTLE_ENDIAN)
-            val inBufs = frames.map { ByteBuffer.wrap(it).order(ByteOrder.LITTLE_ENDIAN) }
-            val samples = frameBytes / 2
-            for (i in 0 until samples) {
-                var acc = 0
-                for (b in inBufs) {
-                    if (b.remaining() >= 2) acc += b.short.toInt()
-                }
-                val clamped = acc.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-                outBuf.putShort(clamped)
+    private fun mixPcm16Frames(frames: List<ByteArray>): ByteArray {
+        val frameBytes = MeshConfig.BYTES_PER_FRAME
+        val numSamples = frameBytes / 2
+        val mixedOut = ByteArray(frameBytes)
+        val outBuf = ByteBuffer.wrap(mixedOut).order(ByteOrder.LITTLE_ENDIAN)
+
+        val inBuffers = frames.map { ByteBuffer.wrap(it).order(ByteOrder.LITTLE_ENDIAN) }
+
+        for (i in 0 until numSamples) {
+            var sum = 0
+            for (buf in inBuffers) {
+                sum += buf.short
             }
-            return out
+            val clamped = sum.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            outBuf.putShort(clamped)
         }
+        return mixedOut
     }
 }
+
+data class JitterBufferStats(
+    val sourceId: String,
+    val bufferedFrames: Int,
+    val isPrimed: Boolean,
+    val lateDropped: Long,
+    val overflowDropped: Long,
+    val concealed: Long,
+    val delivered: Long
+)

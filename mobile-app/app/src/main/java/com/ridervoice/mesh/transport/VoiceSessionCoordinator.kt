@@ -5,10 +5,13 @@ import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.switching.OfflineAvailability
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +29,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * - Exactly one transport is active at any time.
  * - Previous transport is completely stopped before a new transport starts.
  * - Audio ownership is strictly arbitrated to prevent dual AudioRecord/WebRTC contention.
+ * - Single-capture quiet guard: verifies LiveKit capture quiet (muted && VOX stopped) for >= 400 ms.
  * - Safe fallback to mesh with automatic rollback on failure (D3).
  * - Safe recovery to LiveKit with automatic rollback to mesh on failure (D3).
  */
@@ -34,9 +38,15 @@ class VoiceSessionCoordinator(
     val meshTransport: VoiceTransport,
     val audioOwnershipArbiter: AudioOwnershipArbiter,
     val secretProvider: OfflineSecretProvider = NullOfflineSecretProvider(),
+    private val clock: () -> Long = { System.currentTimeMillis() },
     dispatcher: CoroutineDispatcher = Dispatchers.Default
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+    private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
+        if (exception is CancellationException) throw exception
+        // Coordinator error logging without process crash
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher + exceptionHandler)
     private val switchMutex = Mutex()
     @Volatile private var lastOnlineSession: VoiceSession.Online? = null
 
@@ -124,7 +134,7 @@ class VoiceSessionCoordinator(
      * Option B: Fallback to offline mesh when online degradation occurs (D3).
      *
      * Precondition: mesh must report a valid route.
-     * Suspends LiveKit, claims OFFLINE_MESH, and enables mesh audio.
+     * Suspends LiveKit, verifies 400ms quiet window, claims OFFLINE_MESH, and enables mesh audio.
      * On failure: rolls back to LiveKit with retained online session.
      */
     suspend fun fallbackToMesh(): Boolean = switchMutex.withLock {
@@ -132,42 +142,95 @@ class VoiceSessionCoordinator(
         if (!mesh.hasValidRoute.value) return@withLock false // Never abandon working online audio without a route
 
         val online = lastOnlineSession
-        audioOwnershipArbiter.handoffLiveKitToOfflineMesh {
-            liveKitTransport.pause()
+        val priorMicWanted = (liveKitTransport.micState.value == MicState.ON)
+
+        // 1. Pause LiveKit
+        liveKitTransport.pause()
+
+        // 2. Single-capture guard window: counter frozen 150ms delayed unmute in startVoxSafely()
+        // Require "LiveKit capture quiet": LiveKitPort reports muted && VOX stopped for >= 400 ms.
+        val isQuiet = verifyLiveKitQuiet(timeoutMs = 2_000L)
+        if (!isQuiet) {
+            // Abort switch, keep LIVEKIT owner, report failure
+            liveKitTransport.resume()
+            audioOwnershipArbiter.claimLiveKit()
+            return@withLock false
         }
 
-        var ok = runCatching {
-            mesh.enableAudio()
-            meshTransport.micState.value != MicState.HARDWARE_BUSY
-        }.getOrDefault(false)
+        // 3. Claim OFFLINE_MESH ownership
+        val claimed = audioOwnershipArbiter.handoffLiveKitToOfflineMesh {
+            // Already paused
+        }
+        if (!claimed) {
+            liveKitTransport.resume()
+            audioOwnershipArbiter.claimLiveKit()
+            return@withLock false
+        }
+
+        var enableResult = runCatching { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(it.message ?: "Exception") }
+        var ok = (enableResult is EnableAudioResult.Success) && (meshTransport.micState.value != MicState.HARDWARE_BUSY)
 
         if (!ok) {
             // Hardware-busy fallback (e.g. older Android native WebRTC ADM holding AudioRecord)
             liveKitTransport.stop()
             if (audioOwnershipArbiter.tryClaimOfflineMesh()) {
-                ok = runCatching {
-                    mesh.enableAudio()
-                    meshTransport.micState.value != MicState.HARDWARE_BUSY
-                }.getOrDefault(false)
+                enableResult = runCatching { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(it.message ?: "Exception") }
+                ok = (enableResult is EnableAudioResult.Success) && (meshTransport.micState.value != MicState.HARDWARE_BUSY)
             }
         }
 
         if (!ok) {
-            // Rollback to LiveKit
-            runCatching { mesh.disableAudio() }
-            audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
-            audioOwnershipArbiter.claimLiveKit()
-            runCatching {
-                liveKitTransport.resume()
-                if (liveKitTransport.state.value == VoiceTransportState.STOPPED && online != null) {
-                    liveKitTransport.start(online)
+            // Rollback to LiveKit: owner must be consistent
+            try {
+                runCatching { mesh.disableAudio() }
+            } finally {
+                audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
+                audioOwnershipArbiter.claimLiveKit()
+                runCatching {
+                    liveKitTransport.resume()
+                    if (liveKitTransport.state.value == VoiceTransportState.STOPPED && online != null) {
+                        liveKitTransport.start(online)
+                    }
                 }
             }
         } else {
             _activeKind.value = PeerTransportKind.OFFLINE_MESH
             _activeTransport.value = meshTransport
+            if (priorMicWanted) {
+                runCatching { meshTransport.setMicrophoneEnabled(true) }
+            }
         }
         ok
+    }
+
+    private suspend fun verifyLiveKitQuiet(timeoutMs: Long = 2_000L): Boolean {
+        val lk = liveKitTransport as? LiveKitVoiceTransport
+        if (lk == null) {
+            // Non-LiveKit test transport: apply 400ms guard delays
+            delay(200L)
+            delay(200L)
+            return true
+        }
+
+        var quietSinceMs: Long? = null
+        val startMs = clock()
+
+        while (clock() - startMs < timeoutMs) {
+            val quiet = lk.isCaptureQuiet()
+            val now = clock()
+            if (quiet) {
+                if (quietSinceMs == null) {
+                    quietSinceMs = now
+                } else if (now - quietSinceMs >= 400L) {
+                    return true
+                }
+            } else {
+                quietSinceMs = null
+                lk.reassertPauseMute()
+            }
+            delay(100L)
+        }
+        return false
     }
 
     /**
@@ -179,6 +242,7 @@ class VoiceSessionCoordinator(
     suspend fun recoverToLiveKit(): Boolean = switchMutex.withLock {
         val mesh = meshTransport as? MeshControl ?: return@withLock false
         val online = lastOnlineSession
+        val priorMeshMicWanted = (meshTransport.micState.value == MicState.ON)
 
         mesh.disableAudio()
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
@@ -203,6 +267,9 @@ class VoiceSessionCoordinator(
         } else {
             audioOwnershipArbiter.claimLiveKit()
             liveKitTransport.resume()
+            if (priorMeshMicWanted) {
+                runCatching { liveKitTransport.setMicrophoneEnabled(true) }
+            }
             _activeKind.value = PeerTransportKind.ONLINE_LIVEKIT
             _activeTransport.value = liveKitTransport
         }

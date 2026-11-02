@@ -133,7 +133,8 @@ object MeshModule {
     ): LiveKitVoiceTransport = LiveKitVoiceTransport(
         liveKitManager = liveKitManager,
         audioOwnershipArbiter = arbiter,
-        voxStopper = { voxEngine.stop() }
+        voxStopper = { voxEngine.stop() },
+        voxRestarter = { voxEngine.start() }
     )
 
     @Provides

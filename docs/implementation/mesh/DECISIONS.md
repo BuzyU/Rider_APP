@@ -15,4 +15,6 @@ Format: `WP-NN | situation | decision | reason`
 | Owner Q8 | AudioRecord warm capture vs delay | Keep capture warm only while `micToggleOn \|\| voxEnabled`. Accept first-syllable delay for PTT-only use. | Mandated owner decision Q8. Minimizes battery drain and eliminates continuous Android microphone privacy indicator. |
 | Owner Q9 | Stage 4 continuity client stubs | Retain client stubs in repository. Label as "NOT IMPLEMENTED - client stubs only, no backend, unreferenced in production". | Mandated owner decision Q9. Retains interface stubs for future backend work without claiming functionality. |
 | Owner Q10 | Frozen files & permissions invariant | Exact 0 diff against commit a37ef09. Zero backend changes. Zero Android permissions added. | Mandated owner decision Q10 & Rule R1. Preserves operational stability of production online ride infrastructure. |
+| WP-28 | LiveKit quiet guard and enableAudio return type | 400ms guard window before claiming OFFLINE_MESH owner; enableAudio returns EnableAudioResult sealed interface | Avoids throwing exceptions across coordinator boundaries; ensures LiveKit mic is completely quiet before mesh starts AudioRecord |
+
 

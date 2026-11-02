@@ -9,6 +9,7 @@ import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.OfflineMeshGate
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,12 +54,14 @@ sealed interface CaptureStart {
  *
  * Strictly gated: never creates an [AudioRecord] unless gateAllowed, canClaimAudio,
  * and hasMicPermission all return true.
+ * Manages AEC, NS, and AGC effects lifecycle, releasing them on stop.
  */
 class OfflineAudioCapture(
     private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
     private val canClaimAudio: () -> Boolean = { true },
     private val hasMicPermission: () -> Boolean = { true },
     private val onHardwareBusy: () -> Unit = {},
+    private val onCaptureError: (String) -> Unit = {},
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val audioRecordFactory: (() -> AudioRecordSource?)? = null,
     private val onPcmFrame: (ByteArray) -> Unit
@@ -71,6 +74,11 @@ class OfflineAudioCapture(
     private var recordJob: Job? = null
     private var audioRecordSource: AudioRecordSource? = null
     var frameGate: ((ByteArray) -> Boolean)? = null
+
+    // Audio effects handles
+    private var aec: AcousticEchoCanceler? = null
+    private var ns: NoiseSuppressor? = null
+    private var agc: AutomaticGainControl? = null
 
     fun setMicEnabled(enabled: Boolean) {
         micEnabled = enabled
@@ -106,25 +114,34 @@ class OfflineAudioCapture(
                     AudioFormat.ENCODING_PCM_16BIT,
                     (minBuf * 2).coerceAtLeast(MeshConfig.BYTES_PER_FRAME * 4)
                 )
-            } catch (_: Throwable) {
+            } catch (e: Exception) {
+                onCaptureError("AudioRecord creation failed: ${e.message}")
                 return CaptureStart.HardwareFailed
             }
 
             if (rec.state != AudioRecord.STATE_INITIALIZED) {
                 runCatching { rec.release() }
+                onCaptureError("AudioRecord uninitialized")
                 return CaptureStart.HardwareFailed
             }
 
             runCatching {
-                if (AcousticEchoCanceler.isAvailable()) AcousticEchoCanceler.create(rec.audioSessionId)?.enabled = true
-                if (NoiseSuppressor.isAvailable()) NoiseSuppressor.create(rec.audioSessionId)?.enabled = true
-                if (AutomaticGainControl.isAvailable()) AutomaticGainControl.create(rec.audioSessionId)?.enabled = true
+                if (AcousticEchoCanceler.isAvailable()) {
+                    aec = AcousticEchoCanceler.create(rec.audioSessionId)?.apply { enabled = true }
+                }
+                if (NoiseSuppressor.isAvailable()) {
+                    ns = NoiseSuppressor.create(rec.audioSessionId)?.apply { enabled = true }
+                }
+                if (AutomaticGainControl.isAvailable()) {
+                    agc = AutomaticGainControl.create(rec.audioSessionId)?.apply { enabled = true }
+                }
             }
             AndroidAudioRecordSource(rec)
         }
 
         if (recSource.state != AudioRecord.STATE_INITIALIZED) {
             runCatching { recSource.release() }
+            onCaptureError("recSource state not initialized")
             return CaptureStart.HardwareFailed
         }
 
@@ -143,11 +160,13 @@ class OfflineAudioCapture(
                         val read = recSource.read(frameBuf, offset, frameBuf.size - offset)
                         if (read < 0) {
                             errorEncountered = true
+                            onCaptureError("AudioRecord.read returned error code $read")
                             break
                         } else if (read == 0) {
                             emptyReadCount++
                             if (emptyReadCount >= 50) {
                                 errorEncountered = true
+                                onCaptureError("AudioRecord.read returned 0 bytes 50 consecutive times")
                                 break
                             }
                             delay(10L)
@@ -168,8 +187,17 @@ class OfflineAudioCapture(
                         }
                     }
                 }
-            } catch (_: Throwable) {
-                // Handled in finally
+            } catch (e: java.io.IOException) {
+                onCaptureError("IOException in capture loop: ${e.message}")
+                onHardwareBusy()
+            } catch (e: IllegalStateException) {
+                onCaptureError("IllegalStateException in capture loop: ${e.message}")
+                onHardwareBusy()
+            } catch (e: SecurityException) {
+                onCaptureError("SecurityException in capture loop: ${e.message}")
+                onHardwareBusy()
+            } catch (ce: CancellationException) {
+                throw ce
             } finally {
                 releaseInternal(recSource)
             }
@@ -184,10 +212,21 @@ class OfflineAudioCapture(
         recordJob = null
         audioRecordSource?.let { releaseInternal(it) }
         audioRecordSource = null
+        releaseEffects()
+    }
+
+    private fun releaseEffects() {
+        runCatching { aec?.release() }
+        runCatching { ns?.release() }
+        runCatching { agc?.release() }
+        aec = null
+        ns = null
+        agc = null
     }
 
     private fun releaseInternal(rec: AudioRecordSource) {
         _isCapturing.value = false
+        releaseEffects()
         runCatching { rec.stop() }
         runCatching { rec.release() }
     }

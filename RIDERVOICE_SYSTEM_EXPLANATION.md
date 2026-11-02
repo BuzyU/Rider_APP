@@ -41,7 +41,7 @@ Motorcycling presents severe technological challenges that ordinary consumer sma
 3. **Severe Flaws in Existing Solutions:**
    - **Bluetooth Helmet Intercoms (Sena, Cardo, Midland):**
      - *Range limitation:* Rely on local radio frequencies (Bluetooth/DMC Mesh) with a real-world range of 0.5 to 1.2 km line-of-sight. When riders separate around mountain bends, behind hills, or in dense city traffic, connection is immediately severed.
-     - *Proprietary Lock-in:* A Sena user cannot seamlessly mesh with a Cardo or Lexin user without clumsy Bluetooth universal pairing bridges that degrade audio quality.
+     - *Proprietary Lock-in:* A Sena user cannot directly mesh with a Cardo or Lexin user without clumsy Bluetooth universal pairing bridges that degrade audio quality.
      - *High Cost:* Hardware units cost $300 to $500 per helmet.
    - **Discord / WhatsApp / Cellular Calls:**
      - *Lack of PTT/VOX:* Open-mic broadcasts engine and wind roar.
@@ -177,7 +177,7 @@ Furthermore, once transmission starts, local `AudioRecord` capture must stop so 
 4. **Hysteresis & 900ms Hold Time:**
    - To prevent clipping the ends of words or sentences when a rider pauses to breathe, the closing threshold is lower than the opening threshold (hysteresis).
    - Once RMS drops below the closing threshold, `VoxEngine` holds the channel open for **900 ms**.
-   - If the rider speaks again within 900 ms, transmission continues seamlessly without stutter.
+   - If the rider speaks again within 900 ms, transmission continues without stutter.
    - If 900 ms elapses without speech, `track.setEnabled(false)` is invoked and `AudioRecord` monitoring resumes.
 5. **Hardware PTT Mode:**
    - [HardwarePTTManager.kt](./mobile-app/app/src/main/java/com/ridervoice/audio/HardwarePTTManager.kt) listens for hardware volume button long-presses or Bluetooth headset media button events.
@@ -305,7 +305,7 @@ flowchart TD
 ---
 
 ### 3.6 Loop-Proof In-App OTA Updater
-Riders installing releases from GitHub APKs without the Play Store need a seamless update mechanism that avoids OS-level installation loops.
+Riders installing releases from GitHub APKs without the Play Store need an update mechanism that avoids OS-level installation loops.
 
 ```mermaid
 flowchart TD
@@ -362,7 +362,7 @@ flowchart TD
 1. **Zero-Infrastructure Ad-Hoc Radio Mesh:** Operates entirely over local Wi-Fi / Wi-Fi Direct / Local Hotspot networks on UDP port 45454 without requiring cellular data, internet gateways, or external routers.
 2. **Daisy-Hop Forwarding & Storm Suppression (D26):** Forwarding nodes decrement TTL (`VOICE_TTL = 3`, `HELLO_TTL = 4`). In dense peer clusters, naive broadcast flooding causes an exponential datagram storm ($N \times (N-1)$ datagrams). The forwarding engine implements route-aware relay pruning, guaranteeing exactly $N-1$ datagrams per frame while preserving multi-hop reachability in chain and tail topologies.
 3. **Audio HAL Mutual Exclusion (`AudioOwnershipArbiter`):** Android's Audio Hardware Abstraction Layer (HAL) crashes or throws `ERROR_INVALID_OPERATION` if two subsystems contend for exclusive mic hardware simultaneously. `AudioOwnershipArbiter` enforces strict concurrency mutual exclusion between WebRTC ADM capture and offline mesh `AudioRecord`.
-4. **Deterministic 8-State Switching & Deadlock Prevention (D25):** The `AutomaticSwitchStateMachine` evaluates network health (`LocalHealthSignals`) across debounced windows. Crucially, when cellular coverage drops and LiveKit is disconnected, the state machine continues evaluating independent network reachability signals so the convoy seamlessly hands back to LiveKit when connectivity returns.
+4. **Deterministic 8-State Switching & Deadlock Prevention (D25):** The `AutomaticSwitchStateMachine` evaluates network health (`LocalHealthSignals`) across debounced windows. Crucially, when cellular coverage drops and LiveKit is disconnected, the state machine continues evaluating independent network reachability signals so the convoy hands back to LiveKit when connectivity returns.
 5. **Slow-KDF & Authenticated Payload Encryption (D19):** Derives 256-bit AES-GCM encryption keys from 16-character pairing codes using PBKDF2-HMAC-SHA256 (120,000 iterations), protecting convoy voice traffic against eavesdropping.
 6. **Sliding-Window Replay Protection (D8):** Utilizes a sliding-window duplicate packet cache to detect and reject delayed replay packets beyond standard TTLs.
 *(Note: Feature flag `FeatureFlags.OFFLINE_MESH_ENABLED = false` by default in release builds).*

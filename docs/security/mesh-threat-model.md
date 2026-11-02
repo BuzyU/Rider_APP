@@ -80,3 +80,34 @@ All security controls were tested and verified under adversarial conditions:
 - **`AdversarialTest.kt`:** Verified rejection of tampered bytes, invalid HMAC, invalid magic, corrupted IV, bad sequence, and replayed packets.
 - **`SessionKdfTest.kt`:** Verified slow-KDF timing, Crockford Base32 normalization, and key derivation parity.
 - **Mutation Checks:** Verified that dropping HMAC checks, allowing replay in duplicate cache, or admitting beyond the 6-device cap fails automated unit test assertions.
+
+
+---
+
+## 5. Shared Secret Model & Remediation Decisions (Q4 & Q5)
+
+### 5.1 Single Shared Secret Model (Q4)
+- **Elimination of Room-Derived Secrets:** Deriving mesh encryption keys from online ride room names (which are observable over signaling networks or URLs) is insecure and has been completely removed (`SessionKdf.fromOnlineRoom` deprecated and eliminated).
+- **Out-of-Band Master Secret:** All sessions strictly use a 16-character Crockford Base32 pairing code established out-of-band by convoy members.
+- **Fail-Closed Fallback Invariant:** If an online ride experiences network loss, the automatic switch manager only enables mesh intercom if an authentic pre-shared offline session is loaded in `ActiveOfflineSessionHolder`. If none exists, it fail-closes to `AutoSwitchState.FALLBACK_UNAVAILABLE`.
+
+### 5.2 Deterministic Nonce Construction (Q5)
+- Voice payloads encrypted with AES-256-GCM / ChaCha20-Poly1305 utilize a 12-byte (96-bit) deterministic nonce:
+  ```
+  [0..3]   Epoch (sender reboot counter)
+  [4..7]   Monotonic Sequence Number
+  [8]      Packet Type Code (0x02 = VOICE)
+  [9..11]  Source Device UUID prefix (first 3 bytes)
+  ```
+- Combined with monotonic sequence tracking and epoch increments on restart, this guarantees zero IV reuse across the session lifetime.
+
+---
+
+## 6. Verification Status
+
+Automated unit tests verified cryptographic separation and secret hygiene in JVM:
+- `SessionHygieneTest.kt`: Verified zero room-derived secret leaks, argument-free navigation, and clean session clearing.
+- `AdversarialTest.kt`: Verified rejection of tampered bytes, invalid HMAC, invalid magic, corrupted IV, bad sequence, and replayed packets.
+- `SessionKdfTest.kt`: Verified slow-KDF timing, Crockford Base32 normalization, and key derivation parity.
+
+*Note: Multi-device RF and physical range testing are tracked in `docs/testing/PHYSICAL_TEST_CHECKLIST.md` as NOT EXECUTED.*

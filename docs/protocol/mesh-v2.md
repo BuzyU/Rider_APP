@@ -78,8 +78,8 @@ Every datagram transmitted on the network adheres to the binary big-endian layou
 | 22..37 | `Source ID` | 16 bytes | 128-bit UUID of the node originating the packet. Unmodified during relays. |
 | 38..41 | `Sequence` | int32 | Monotonically incrementing sequence number for the `(sourceId, packetType)` stream. |
 | 42..49 | `Capture Timestamp` | int64 | Milliseconds elapsed since Unix epoch on sender. Verified by clock guard. |
-| 50 | `TTL` | uint8 | Time-To-Live hop counter. Decremented at each relay step. Default = 5. |
-| 51 | `Hop Count` | uint8 | Number of hops traversed so far. Incremented at each relay step. |
+| 50 | `TTL` | uint8 | Time-To-Live hop counter. Decremented at each relay step. Default = 7 (`TtlPolicy.DEFAULT_TTL`). |
+| 51 | `Hop Count` | uint8 | Number of hops traversed so far. Incremented at each relay step. Max = 7 (`TtlPolicy.MAX_HOPS`). |
 | 52..67 | `Previous Hop ID` | 16 bytes | 128-bit UUID of the node that transmitted this specific datagram. |
 | 68 | `Audio Format` | uint8 | `0x01` = PCM 16kHz 16-bit Mono (640 bytes / 20ms). |
 | 69..72 | `Epoch` | int32 | Incremented on sender restart to defeat replay across sessions. |
@@ -112,19 +112,22 @@ Upon receiving a UDP packet on port 45454, every node executes the following det
     - If `BYE`: Immediately evict sender from neighbor list and routing table.
     - If `VOICE`: Proceed to audio decryption and local playout.
 13. **Voice Playout Decryption (VOICE only):** Decrypt sealed payload using AES-256-GCM with `payloadKey` and deterministic nonce. Unsealed PCM bytes are submitted to `MultiSourceJitterBufferManager` under `sourceId`.
-14. **TTL Decrement & Bound Check:** Check `ttl > 1`. If `ttl <= 1`, do not forward.
-15. **Hop Count Check:** Check `hopCount < 5`. If `hopCount >= 5`, do not forward.
-16. **Candidate Neighbor Selection:** Retrieve direct radio neighbors from `MeshGraphRepository`. Exclude:
+14. **TTL & Hop Count Policy Enforcement:** 
+    - Invariant: Drop and reject packet immediately if `ttl <= 0`, `hopCount > MAX_HOPS` (7), or `ttl + hopCount > DEFAULT_TTL` (7).
+    - Forwarding Stop Condition: If `ttl <= 1` or `hopCount >= MAX_HOPS` (7), do not relay further.
+15. **Candidate Neighbor Selection:** Retrieve direct radio neighbors from `MeshGraphRepository`. Exclude:
     - `previousHopId` (never bounce backward to the immediate transmitter).
     - `sourceId` (never send back to the original originator).
     - Expired neighbors.
-17. **Redundant Relay Suppression:** Determine nodes that directly heard this packet by checking bidirectional edges from `sourceId` and `previousHopId`. Suppress forwarding to any candidate already covered.
-18. **Header Re-Encoding & HMAC Recalculation:** Prepare forwarded packet:
+16. **Redundant Relay Suppression:** Determine nodes that directly heard this packet by checking bidirectional edges from `sourceId` and `previousHopId`. Suppress forwarding to any candidate already covered.
+17. **Header Re-Encoding & HMAC Recalculation:** Prepare forwarded packet:
     - `ttl = packet.ttl - 1`
     - `hopCount = packet.hopCount + 1`
     - `previousHopId = localDeviceId`
     - Retain original `sourceId`, `sequence`, `captureTimestamp`, `epoch`, and sealed `payload`.
-    - Recompute outer truncated HMAC-SHA256 with `authKey` over modified header and payload, and transmit datagram to candidate neighbor endpoints via UDP port 45454.
+    - Recompute outer truncated HMAC-SHA256 with `authKey` over modified header and payload, and transmit datagram to candidate neighbor endpoints via UDP unified port 45454 (`MeshConfig.MESH_PORT`).
+18. **Endpoint Learning Invariant (D22):** Inbound unauthenticated packets are NEVER learned into the active endpoint table. Endpoints are registered strictly upon successful wire HMAC-SHA256 verification or explicit verified registration.
+19. **Thread-Safe Routing Table:** `RoutingTable` employs `@Synchronized recompute` and atomic immutable snapshot swapping (`AtomicReference<RoutingSnapshot>`) so concurrent lookups and background graph updates never race or corrupt route states.
 
 ---
 

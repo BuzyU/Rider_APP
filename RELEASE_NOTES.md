@@ -20,7 +20,7 @@ RiderVoice **v0.0.3.20** delivers the complete **Offline Mesh Intercom Engine (v
 
 #### 2. Automatic Switching & Deadlock Prevention (D4, D25)
 - **8-State Deterministic State Machine (`AutomaticSwitchStateMachine`)**: Implemented complete state lifecycle with debounced handoff/handback triggers.
-- **Recovery Deadlock Fix (D25)**: Resolved critical issue where disconnecting LiveKit during handoff prevented reconnection evaluation. The state machine now tracks independent network reachability signals (`LocalHealthSignals`), enabling seamless recovery when cellular coverage returns.
+- **Recovery Deadlock Fix (D25)**: Resolved critical issue where disconnecting LiveKit during handoff prevented reconnection evaluation. The state machine now tracks independent network reachability signals (`LocalHealthSignals`), enabling debounced recovery when cellular coverage returns.
 - **State Transition Fault Tolerance (D4)**: Handled edge cases where handoff failure or exceptions left the state machine stranded in transient states.
 
 #### 3. Wire Protocol, Relay Storm Suppression & Routing (D2, D8, D19, D20, D21, D22, D23, D26)
@@ -85,7 +85,7 @@ RiderVoice **v0.0.3.18** introduces a staged LiveKit room identity migration lay
 
 ### 🛡️ Key Improvements & Fixes
 - **Durable Create Idempotency (RM-2, RM-3, SEC-3)**: Implemented atomic `RideCreateRequest` model with transactional deduplication, SHA-256 payload hash verification, 409 conflict detection on key reuse with different parameters, and mobile client single-flight state machine with offline-durable keys.
-- **Staged LiveKit Room Identity (RM-1)**: Introduced persisted `Room.lkRoomName` column with staged migration resolver. Existing legacy rooms seamlessly retain their identity while new rides acquire dedicated immutable LiveKit identities.
+- **Staged LiveKit Room Identity (RM-1)**: Introduced persisted `Room.lkRoomName` column with staged migration resolver. Existing legacy rooms retain their identity while new rides acquire dedicated immutable LiveKit identities.
 - **End/Token/Create Race Mitigation (RM-4, RM-6, RM-8)**: Atomic conditional `markRoomEnded` prevents duplicate broadcasts and cleanups; `issueRoomToken` re-verifies room state after LiveKit room creation and triggers compensating deletion if ended concurrently; 404 deletion is treated as success and transient errors enter an exponential backoff sweeper retry queue.
 - **Webhook Defense & Readiness Probe (RM-5, WEB-1)**: Differentiated 401 signature errors from 500 downstream processing errors; added `/api/health/ready` endpoint verifying LiveKit webhook configuration.
 - **Runtime Schema Assertion (DB-1, DB-2, DB-3)**: Replaced risky startup table mutations and record deletions with read-only `assertSchema` checks; extracted data reconciliation into a standalone dry-run script.
@@ -201,7 +201,7 @@ RiderVoice **v0.0.3.14** resolves OEM accessibility hover gesture crashes on And
 ## RiderVoice v0.0.3.13 Release Notes
 
 ### 🚀 Overview
-RiderVoice **v0.0.3.13** delivers seamless hands-free VOX auto-gate detection for motorcycle helmets, synchronized host end-ride termination and teardown across convoy members, resilient invite code & deep link URL resolution, and refined compiler hygiene.
+RiderVoice **v0.0.3.13** delivers hands-free VOX auto-gate detection for motorcycle helmets, synchronized host end-ride termination and teardown across convoy members, resilient invite code & deep link URL resolution, and refined compiler hygiene.
 
 | Attribute | Value |
 | :--- | :--- |
@@ -284,7 +284,7 @@ RiderVoice **v0.0.3.11** introduces automated convoy namespace disambiguation al
 ### 📧 SMTP Reliability & Connection Pooling
 - **Connection Pooling**: Integrated Nodemailer connection pooling (`maxConnections: 3`, `maxMessages: 100`, `idleTimeout: 30000`) preventing stale connections from timing out on successive email dispatches.
 - **Port 465 SSL Default**: Defaulted diagnostic and notification dispatchers to direct SSL on port 465 with explicit socket timeouts, bypassing cloud host port 587 timeouts.
-- **Auto-Recovery Reconnect**: Automatically purges stale pool sockets and provisions a fresh transporter with a seamless single retry on socket errors.
+- **Auto-Recovery Reconnect**: Automatically purges stale pool sockets and provisions a fresh transporter with an automated single retry on socket errors.
 
 ---
 
@@ -547,7 +547,7 @@ RiderVoice **v0.0.3.4** resolves an issue where the in-app OTA firmware updater 
 - **Explicit FileProvider URI Permission Granting**:
   - Explicitly grants `Intent.FLAG_GRANT_READ_URI_PERMISSION` to all package installer candidate packages via `PackageManager.queryIntentActivities(...)`, preventing `SecurityException: Permission Denial` during system APK parsing.
 - **Loop-Proof State Transitions**:
-  - Upon return from "Allow from this source" in Settings, immediately transitions to `ReadyToInstall` with a prominent **"INSTALL UPDATE"** button while seamlessly triggering the installer prompt.
+  - Upon return from "Allow from this source" in Settings, immediately transitions to `ReadyToInstall` with a prominent **"INSTALL UPDATE"** button while triggering the installer prompt.
   - Added a **"RETRY INSTALLER"** action button to [`UpdateDialog.kt`](mobile-app/app/src/main/java/com/ridervoice/ui/components/UpdateDialog.kt) so riders can re-trigger the installation prompt if accidentally dismissed without restarting the download.
 - **Smart APK Caching**:
   - `UpdateManager.checkForUpdates` now validates whether an update APK matching the release version and SHA-256 digest is already present in cache. If found, it immediately offers `ReadyToInstall` without re-downloading 55 MB of mobile data.
@@ -600,9 +600,9 @@ RiderVoice **v0.0.3.2** delivers mission-critical safety enhancements, an intuit
 
 ---
 
-### 📲 Seamless In-App APK Auto-Updater
+### 📲 In-App APK Auto-Updater
 - **Frictionless Unknown App Sources Installation**:
-  - Updated [`UpdateManager.kt`](mobile-app/app/src/main/java/com/ridervoice/update/UpdateManager.kt) to handle Android's `REQUEST_INSTALL_PACKAGES` permission seamlessly.
+  - Updated [`UpdateManager.kt`](mobile-app/app/src/main/java/com/ridervoice/update/UpdateManager.kt) to handle Android's `REQUEST_INSTALL_PACKAGES` permission reliably.
   - Automatically invokes the system package installer immediately upon successful SHA-256 checksum and package verification.
   - If "Install Unknown Apps" permission is not yet granted, securely stores the pending APK verification token and opens the specific Android Settings screen.
   - Employs `ActivityLifecycleCallbacks` to detect when the user resumes the RiderVoice application: once granted, immediately presents the system installer prompt without requiring the user to tap "Install" or re-download the APK.
@@ -639,7 +639,7 @@ RiderVoice **v0.0.3.2** delivers mission-critical safety enhancements, an intuit
 - **SOS Cancellation Ownership Check**:
   - Enforced that only the user who triggered an SOS (or an authorized admin) can resolve or cancel it in [`backend/src/routes/emergencyRoutes.js`](backend/src/routes/emergencyRoutes.js).
 - **Dual `@handle` and Email Search**:
-  - Enhanced squad member search in [`backend/src/routes/userRoutes.js`](backend/src/routes/userRoutes.js) to seamlessly handle searches with or without leading `@` symbols as well as full email lookups.
+  - Enhanced squad member search in [`backend/src/routes/userRoutes.js`](backend/src/routes/userRoutes.js) to handle searches with or without leading `@` symbols as well as full email lookups.
 
 ---
 

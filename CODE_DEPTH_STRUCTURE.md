@@ -268,7 +268,7 @@ flowchart LR
 
 - `update/AppVersion.kt`: parses and compares arbitrary semantic dot-separated versions.
 - `update/UpdateModels.kt`: update metadata models, download state machine, and `Installing` state holding cached APK and release info.
-- `update/UpdateManager.kt`: checks updates, enforces local APK cache hit (bypassing 55MB network downloads), streams and validates SHA-256 digests, tracks foreground `Activity` via weak references to dispatch intents without background launch restriction blocks, dynamically grants `FileProvider` URI read permissions across candidate package installers via `queryIntentActivities`, and seamlessly resumes upon return from Settings.
+- `update/UpdateManager.kt`: checks updates, enforces local APK cache hit (bypassing 55MB network downloads), streams and validates SHA-256 digests, tracks foreground `Activity` via weak references to dispatch intents without background launch restriction blocks, dynamically grants `FileProvider` URI read permissions across candidate package installers via `queryIntentActivities`, and resumes upon return from Settings.
 - `ui/viewmodels/UpdateViewModel.kt` and `ui/components/UpdateDialog.kt`: expose update state to the UI with progress bar, transfer rate metrics, and interactive "Retry Installer" controls.
 - `mobile-app/app/src/test/java/com/ridervoice/update/AppVersionTest.kt`: semantic version comparison unit tests including `v0.0.3.4` bump test.
 

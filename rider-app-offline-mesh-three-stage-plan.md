@@ -1087,3 +1087,38 @@ and:
 > When the local online voice path fails, the app attempts to continue voice through the offline mesh if and only if a valid local mesh path exists.
 
 A remote participant going offline must not incorrectly force every other device to switch transports.
+
+
+---
+
+## Amendments (Remediation Master Prompt v3)
+
+Following independent audit and remediation (WP-25 through WP-33), the following protocol, architecture, and implementation amendments are binding:
+
+### Amendment 1: Single Port Consolidation
+- All UDP traffic (voice frames, HELLO discovery beacons, and BYE messages) uses a single unified port: `45454` (`MeshConfig.MESH_PORT`).
+- `MeshConfig.AUDIO_PORT` is retained as an alias pointing directly to `MESH_PORT` for backward API compatibility.
+
+### Amendment 2: Cryptographic Secret Hygiene
+- Room-derived offline secrets (`SessionKdf.fromOnlineRoom`) have been eliminated.
+- Mesh intercom strictly derives its keys from an authentic out-of-band Crockford Base32 pairing code or pre-shared key via `SessionKdf.deriveKeys`.
+- If an online ride experiences connectivity loss, it can transition to offline mesh only if an authentic pre-shared key was configured. If absent, it fail-closes to `AutoSwitchState.FALLBACK_UNAVAILABLE`.
+
+### Amendment 3: Session Lifecycle & Phase Gating
+- `AutomaticSwitchStateMachine` evaluates network health and drives transitions only when in `Phase.LIVE`.
+- The session lifecycle is explicitly controlled via `beginSession()` (invoked when the ride starts) and `endSession()` (invoked when the ride terminates).
+- Local HTTP health probes are throttled to at least 5-second intervals, executing strictly on `Dispatchers.IO`.
+- Rule W-DEGRADED: `isTotalLoss()` strictly requires all three degradation signals: no packet received within threshold, zero active participants, and LiveKit connection state disconnected or reconnecting.
+
+### Amendment 4: Audio HAL Mutual Exclusion & Quiet Guard Window
+- Microphone capture hardware exclusivity is enforced by `AudioOwnershipArbiter` via a coroutine mutex.
+- A 400 ms quiet guard window is enforced after LiveKit releases capture ownership before offline mesh may acquire it.
+- `enableAudio()` returns a type-safe `EnableAudioResult` sealed hierarchy (`Success`, `Failure.OwnershipDenied`, `Failure.SocketError`, `Failure.AudioRecordError`, `Failure.SessionInvalid`) rather than throwing raw runtime exceptions.
+
+### Amendment 5: Forwarding, TTL Limits, and Endpoint Learning
+- Forwarding and hop count bounds: `TtlPolicy.MAX_HOPS = 7`, `TtlPolicy.DEFAULT_TTL = 7`. Packets are dropped immediately if `ttl <= 0`, `hopCount > MAX_HOPS`, or `ttl + hopCount > DEFAULT_TTL`.
+- UDP sockets enforce D22 invariant: unauthenticated packets are never registered into endpoint caches. Endpoints are registered solely after outer HMAC-SHA256 verification or explicit verified registration.
+- `RoutingTable` uses `@Synchronized` recomputation and atomic immutable snapshot swapping.
+
+### Amendment 6: Physical Testing Contract
+- All multi-device, radio propagation, Bluetooth SCO helmet headset, and physical vehicular field tests are cataloged in `docs/testing/PHYSICAL_TEST_CHECKLIST.md` and marked as **NOT EXECUTED**. Automated verification is strictly based on JVM unit test suites (358 tests).

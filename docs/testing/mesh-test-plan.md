@@ -29,8 +29,22 @@
 | `VoiceSessionCoordinatorTest` | Architecture | 4 | Option B coordination, foreground service delegation |
 | `WiringTest` | Integration | 4 | DI bindings, local health signal sampling, VOX bridge |
 | `LocalizationParityTest` | Localization | 2 | Zero hardcoded user strings in UI, complete string parity across EN/HI/MR |
+| ProductionWiringTest | Remediation v3 | 7 | Entry-point reachability, port wiring, gate verification, room secret removal |
+| SessionHygieneTest | Remediation v3 | 4 | Argument-free navigation, secret hygiene, active session holder, foreground service |
+| StateMachineLifecycleTest | Remediation v3 | 14 | Session lifecycle phase gating, probe throttling, Rule W-DEGRADED, group connectivity |
+| AudioHandoffRobustnessTest | Remediation v3 | 12 | Single-capture ownership, quiet guard window (400ms), EnableAudioResult sealed returns |
+| NetworkProtocolHardeningTest | Remediation v3 | 12 | Port consolidation (45454), TTL bounds (7), thread-safe routing, D22 endpoint learning |
+| StringsParityTest | Remediation v3 | 2 | 1:1 key parity across EN/HI/MR (97 keys), zero raw Color(0x) literals outside MeshColors |
 | *Baseline App Tests* | Online App | 185 | LiveKit, RoomViewModel, ActiveRideRepository, Admin API, UI components |
-| **Total** | | **280** | **All 280 tests PASSING** |
+| **Total** | | **358** | **All 358 tests PASSING** |
+
+---
+
+## 2. Physical & Hardware-in-the-Loop Testing Policy
+
+Per the honesty and evidence contract:
+- Automated tests run exclusively inside JVM test harnesses.
+- Physical device, multi-device radio, Bluetooth helmet, and real cellular blackout tests are tracked in [PHYSICAL_TEST_CHECKLIST.md](./PHYSICAL_TEST_CHECKLIST.md) as **NOT EXECUTED**.
 
 ---
 

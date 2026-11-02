@@ -34,22 +34,27 @@ jobs:
 
       - name: Verify Frozen Online Files Unchanged
         run: |
-          git diff --exit-code a37ef09 -- \
-            mobile-app/app/src/main/java/com/ridervoice/network/LiveKitManager.kt \
-            mobile-app/app/src/main/java/com/ridervoice/network/ConnectionState.kt \
-            mobile-app/app/src/main/java/com/ridervoice/network/NetworkResilienceManager.kt \
-            mobile-app/app/src/main/java/com/ridervoice/state/RoomViewModel.kt \
-            mobile-app/app/src/main/java/com/ridervoice/data/ActiveRideRepository.kt \
-            mobile-app/app/src/main/java/com/ridervoice/data/RoomFault.kt \
-            mobile-app/app/src/main/java/com/ridervoice/data/AppEvents.kt \
-            mobile-app/app/src/main/java/com/ridervoice/services/VoiceForegroundService.kt \
-            mobile-app/app/src/main/java/com/ridervoice/ui/screens/RoomScreen.kt \
-            mobile-app/app/src/main/java/com/ridervoice/ui/screens/room \
-            mobile-app/app/src/main/java/com/ridervoice/audio \
-            mobile-app/app/src/main/java/com/ridervoice/diagnostics \
-            backend \
-            web-app \
-            livekit-server
+          FROZEN_PATHS=(
+            "mobile-app/app/src/main/java/com/ridervoice/network/LiveKitManager.kt"
+            "mobile-app/app/src/main/java/com/ridervoice/network/ConnectionState.kt"
+            "mobile-app/app/src/main/java/com/ridervoice/network/NetworkResilienceManager.kt"
+            "mobile-app/app/src/main/java/com/ridervoice/state/RoomViewModel.kt"
+            "mobile-app/app/src/main/java/com/ridervoice/state/ActiveRideRepository.kt"
+            "mobile-app/app/src/main/java/com/ridervoice/state/RoomFault.kt"
+            "mobile-app/app/src/main/java/com/ridervoice/state/AppEvents.kt"
+            "mobile-app/app/src/main/java/com/ridervoice/services/VoiceForegroundService.kt"
+            "mobile-app/app/src/main/java/com/ridervoice/ui/screens/RoomScreen.kt"
+            "mobile-app/app/src/main/java/com/ridervoice/ui/screens/room"
+            "mobile-app/app/src/main/java/com/ridervoice/audio"
+            "mobile-app/app/src/main/java/com/ridervoice/diagnostics"
+            "backend"
+            "web-app"
+            "livekit-server"
+          )
+          for p in "${FROZEN_PATHS[@]}"; do
+            test -e "$p" || { echo "Frozen path missing: $p"; exit 1; }
+          done
+          git diff --exit-code a37ef09 -- "${FROZEN_PATHS[@]}"
 
       - name: Run Unit Tests
         working-directory: mobile-app

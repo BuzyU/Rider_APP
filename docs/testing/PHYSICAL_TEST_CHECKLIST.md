@@ -27,3 +27,4 @@ When executing physical test runs:
 2. Record `MeshDiagnosticsSnapshot` logs via adb bugreport.
 3. Measure round-trip audio latency using synchronized hardware clocks or acoustic chirp analysis.
 4. Record actual physical device model numbers, Android OS versions, and RF environment metrics.
+

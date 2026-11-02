@@ -82,7 +82,7 @@ fun OfflineAwareRoomHost(
     val isMeshGateOpen = remember { OfflineMeshGate.isOfflineAllowed() }
     val showTacticalBanner = isMeshGateOpen && (
         autoSwitchState != AutoSwitchState.ONLINE ||
-        groupStatus == GroupConnectivityStatus.LOCAL_ONLINE_SOME_PEERS_OFFLINE
+        groupStatus == GroupConnectivityStatus.MIXED
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -138,9 +138,10 @@ fun TacticalBanner(
     }
 
     val groupBadgeText = when (groupStatus) {
-        GroupConnectivityStatus.ENTIRE_GROUP_ONLINE -> stringResource(R.string.mesh_group_entire_online)
-        GroupConnectivityStatus.LOCAL_ONLINE_SOME_PEERS_OFFLINE -> stringResource(R.string.mesh_group_some_offline)
-        GroupConnectivityStatus.LOCAL_OFFLINE_MESH_ACTIVE -> stringResource(R.string.mesh_group_offline_active)
+        GroupConnectivityStatus.ONLINE_ALL -> stringResource(R.string.mesh_group_entire_online)
+        GroupConnectivityStatus.MIXED -> stringResource(R.string.mesh_group_some_offline)
+        GroupConnectivityStatus.OFFLINE_MESH_ONLY -> stringResource(R.string.mesh_group_offline_active)
+        GroupConnectivityStatus.ALONE -> stringResource(R.string.mesh_group_entire_online)
     }
 
     Card(
@@ -210,7 +211,7 @@ fun TacticalBanner(
             ) {
                 Text(
                     text = groupBadgeText,
-                    color = if (groupStatus == GroupConnectivityStatus.LOCAL_ONLINE_SOME_PEERS_OFFLINE) Color(0xFFFBBF24) else Color(0xFF94A3B8),
+                    color = if (groupStatus == GroupConnectivityStatus.MIXED) Color(0xFFFBBF24) else Color(0xFF94A3B8),
                     fontSize = 11.sp
                 )
                 if (state == AutoSwitchState.OFFLINE_ACTIVE) {

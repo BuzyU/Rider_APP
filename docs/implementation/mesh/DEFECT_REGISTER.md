@@ -4,9 +4,9 @@ Columns: `ID | Description | File:Line | Severity | Status | Fixing WP | Evidenc
 
 | ID | Description | File:Line | Severity | Status | Fixing WP | Evidence Snippet |
 |---|---|---|---|---|---|---|
-| **N1** | State machine lifecycle does not reset between rides | `mesh/switching/AutomaticSwitchStateMachine.kt:20`, `MeshAutoSwitchManager.kt:98` | HIGH | OPEN | WP-27 | `stateMachine.endSession()` does not clear suspect/recovery timers; no `beginSession()` |
+| **N1** | State machine lifecycle does not reset between rides | `mesh/switching/AutomaticSwitchStateMachine.kt:20`, `MeshAutoSwitchManager.kt:98` | HIGH | FIXED | WP-27 | Added `beginSession()` and comprehensive timer/history reset on session start/end |
 | **N2** | Online ride secret derived from room name | `mesh/session/OfflineSession.kt:81-105` | CRITICAL | FIXED | WP-25c | Deleted `fromOnlineRoom` and `BOOTSTRAP_KEY`. Bound `NullOfflineSecretProvider`. |
-| **N3** | Probes run continuously and key derivation repeated per tick | `mesh/switching/LocalHealthSignalsProvider.kt:65`, `MeshAutoSwitchManager.kt:116` | MEDIUM | OPEN | WP-27 | Probing throttling and hysteresis to be finalized in WP-27 |
+| **N3** | Probes run continuously and key derivation repeated per tick | `mesh/switching/LocalHealthSignalsProvider.kt:65`, `MeshAutoSwitchManager.kt:116` | MEDIUM | FIXED | WP-27 | 5s minimum probe throttling on IO dispatcher; no probes when healthy |
 | **N4** | Baseline compilation failure at `OfflineRoomScreen.kt:151` | `mesh/ui/OfflineRoomScreen.kt:151` | CRITICAL | FIXED | WP-25a | `voxBridge?.setPttHeld(held)` -> Unresolved reference: `setPttHeld` |
 | **N5** | LiveKit handoff does not restore VOX state on recovery | `mesh/transport/LiveKitVoiceTransport.kt:105-125` | HIGH | OPEN | WP-28 | `stopVox()` invoked without recording running state; `resume()` does not restart VOX |
 | **N6** | VOX bridge lifecycle terminal close and mic combination semantics | `mesh/audio/MeshVoxBridge.kt:90-115` | HIGH | OPEN | WP-28 | `close()` cancels supervisor scope permanently; PTT release forcibly closes mic |
@@ -21,8 +21,8 @@ Columns: `ID | Description | File:Line | Severity | Status | Fixing WP | Evidenc
 | **V2** | `RoutingTable` is not thread-safe under concurrent recomputes and reads | `mesh/routing/RouteCalculator.kt:24` | MEDIUM | OPEN | WP-29 | Mutable map mutated during compute while read from packet forwarding thread |
 | **V3** | `MeshAudioRouteController` never provided or injected in production | `di/MeshModule.kt:85`, `OfflineMeshVoiceTransport.kt:69` | HIGH | FIXED | WP-25c | `MeshAudioRouteController` provided and injected into transport |
 | **V4** | Missing `@Provides` dependencies and nullable parameters in `MeshModule.kt` | `di/MeshModule.kt:45-95` | MEDIUM | FIXED | WP-25c | All `@Provides` methods have non-null, non-defaulted parameters |
-| **V5** | Automatic switching evaluates during `Phase.LOBBY` and `Phase.ENDING` | `mesh/switching/MeshAutoSwitchManager.kt:96` | MEDIUM | OPEN | WP-27 | Does not filter `ActiveRideRepository.Phase.LIVE` strictly |
-| **V6** | `GroupConnectivityStatus` miscalculates mixed offline peer states | `mesh/switching/MeshAutoSwitchManager.kt:68` | LOW | OPEN | WP-27 | Does not map partial offline peers or LiveKit ghost participants correctly |
+| **V5** | Automatic switching evaluates during `Phase.LOBBY` and `Phase.ENDING` | `mesh/switching/MeshAutoSwitchManager.kt:96` | MEDIUM | FIXED | WP-27 | Gated evaluation loop strictly to `ActiveRideRepository.Phase.LIVE` |
+| **V6** | `GroupConnectivityStatus` miscalculates mixed offline peer states | `mesh/switching/MeshAutoSwitchManager.kt:68` | LOW | FIXED | WP-27 | Implemented `computeGroupConnectivity` with `ONLINE_ALL`, `MIXED`, `OFFLINE_MESH_ONLY`, `ALONE` |
 | **V7** | `LiveKitVoiceTransport` attaches collectors when offline mesh is disabled | `mesh/transport/LiveKitVoiceTransport.kt:87-155` | MEDIUM | FIXED | WP-25c | Coroutine collectors guarded by `gateAllowed()` |
 | **V8** | Wi-Fi lock holds low-latency mode during discovery; 500ms polling loop | `mesh/link/NetworkLocks.kt:35`, `OfflineMeshVoiceTransport.kt:200` | MEDIUM | OPEN | WP-28 / WP-29 | Discovery acquires `WIFI_MODE_FULL_LOW_LATENCY`; transport polls graph repository |
 | **V9** | Helmet PTT (`HardwarePTTManager`) toggle event not handled properly | `mesh/audio/MeshVoxBridge.kt:31` | MEDIUM | FIXED | WP-25c | `HardwarePttPort` interface wraps PTT toggle events cleanly |

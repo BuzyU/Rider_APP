@@ -1,5 +1,8 @@
 package com.ridervoice.mesh.switching
 
+import com.ridervoice.mesh.transport.PeerTransportKind
+import com.ridervoice.mesh.transport.UnifiedVoicePeer
+
 enum class AutoSwitchState {
     ONLINE,
     ONLINE_SUSPECT,
@@ -19,14 +22,66 @@ enum class OfflineAvailability {
 
 /** Group connectivity status required by Stage 3.5. */
 enum class GroupConnectivityStatus {
-    ENTIRE_GROUP_ONLINE,
-    LOCAL_ONLINE_SOME_PEERS_OFFLINE,
-    LOCAL_OFFLINE_MESH_ACTIVE
+    ONLINE_ALL,
+    MIXED,
+    OFFLINE_MESH_ONLY,
+    ALONE;
+
+    companion object {
+        val ENTIRE_GROUP_ONLINE get() = ONLINE_ALL
+        val LOCAL_ONLINE_SOME_PEERS_OFFLINE get() = MIXED
+        val LOCAL_OFFLINE_MESH_ACTIVE get() = OFFLINE_MESH_ONLY
+    }
+}
+
+/**
+ * Partial mesh peer representation for mixed group status computation (V6).
+ */
+data class PartialMeshPeer(
+    val id: String,
+    val displayName: String,
+    val isOnline: Boolean,
+    val isMeshReachable: Boolean
+)
+
+/**
+ * Pure function computing group connectivity status from unified participant list.
+ */
+fun computeGroupConnectivity(
+    isLocalOffline: Boolean,
+    peers: List<UnifiedVoicePeer>
+): GroupConnectivityStatus {
+    if (peers.isEmpty()) {
+        return GroupConnectivityStatus.ALONE
+    }
+    val onlineCount = peers.count { it.isOnline && it.transport == PeerTransportKind.ONLINE_LIVEKIT }
+    val meshCount = peers.count { it.isOnline && it.transport == PeerTransportKind.OFFLINE_MESH }
+    val offlineOrGhostCount = peers.count { !it.isOnline }
+
+    return when {
+        isLocalOffline -> {
+            if (onlineCount > 0) {
+                GroupConnectivityStatus.MIXED
+            } else if (meshCount > 0) {
+                GroupConnectivityStatus.OFFLINE_MESH_ONLY
+            } else {
+                GroupConnectivityStatus.ALONE
+            }
+        }
+        else -> {
+            if (meshCount > 0 || offlineOrGhostCount > 0) {
+                GroupConnectivityStatus.MIXED
+            } else {
+                GroupConnectivityStatus.ONLINE_ALL
+            }
+        }
+    }
 }
 
 /**
  * Health signals monitored exclusively on the LOCAL device.
  * Never switches because a remote device went offline.
+ * W-DEGRADED: High packet loss or high RTT alone must NEVER trigger online failing / suspect.
  */
 data class LocalHealthSignals(
     val isValidatedInternet: Boolean,
@@ -34,12 +89,25 @@ data class LocalHealthSignals(
     val isLiveKitReconnecting: Boolean,
     val liveKitReconnectAttempts: Int,
     val isHealthProbeSuccessful: Boolean,
-    val hasValidMeshRoute: Boolean
+    val hasValidMeshRoute: Boolean,
+    val packetLossPercent: Float = 0f,
+    val rttMs: Long = 0L,
+    val offlineAvailable: Boolean = true
 ) {
-    /** True if local online transport is failing. */
-    fun isOnlineFailing(): Boolean =
-        (!isValidatedInternet || isLiveKitReconnecting || liveKitReconnectAttempts >= 2) &&
-            !isLiveKitConnected && !isHealthProbeSuccessful
+    /**
+     * W-DEGRADED: True ONLY if confirmed total loss of online connectivity.
+     * Requires ALL of:
+     * - OS network not validated OR no route (!isValidatedInternet)
+     * - /health probe failing (!isHealthProbeSuccessful)
+     * - LiveKit not connected (!isLiveKitConnected)
+     *
+     * High loss or high RTT alone => stay online (false).
+     */
+    fun isTotalLoss(): Boolean =
+        !isValidatedInternet && !isLiveKitConnected && !isHealthProbeSuccessful
+
+    /** True if local online transport is failing and eligible for offline fallback. */
+    fun isOnlineFailing(): Boolean = isTotalLoss() && offlineAvailable
 
     /** True if local online transport is confirmed healthy. */
     fun isOnlineHealthy(): Boolean =

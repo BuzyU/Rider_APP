@@ -39,6 +39,7 @@ class MeshAutoSwitchManager(
     private val identityRepo: MeshIdentityRepository,
     private val healthSignalsProvider: LocalHealthSignalsProvider,
     private val secretProvider: OfflineSecretProvider = NullOfflineSecretProvider(),
+    private val clock: Clock = SystemClock,
     dispatcher: CoroutineDispatcher = Dispatchers.Default
 ) {
 
@@ -61,6 +62,7 @@ class MeshAutoSwitchManager(
         identityRepo,
         healthSignalsProvider,
         secretProvider,
+        SystemClock,
         Dispatchers.Default
     )
 
@@ -69,13 +71,14 @@ class MeshAutoSwitchManager(
     private val _lastTransitionReason = MutableStateFlow<String?>(null)
     val lastTransitionReason: StateFlow<String?> = _lastTransitionReason.asStateFlow()
 
-    private val _groupStatus = MutableStateFlow(GroupConnectivityStatus.ENTIRE_GROUP_ONLINE)
+    private val _groupStatus = MutableStateFlow(GroupConnectivityStatus.ONLINE_ALL)
     val groupStatus: StateFlow<GroupConnectivityStatus> = _groupStatus.asStateFlow()
 
     val offlineAvailability: StateFlow<OfflineAvailability> = coordinator.offlineAvailability
 
     val stateMachine: AutomaticSwitchStateMachine = LocalHealthSignalsProvider.createMachine(
         coordinator = coordinator,
+        clock = { clock.nowMs() },
         onEmitTransitionDiagnostic = { from, to, reason ->
             _lastTransitionReason.value = "$from -> $to ($reason)"
         },
@@ -95,55 +98,91 @@ class MeshAutoSwitchManager(
         if (drivingJob != null) return
 
         drivingJob = scope.launch {
+            var currentLiveRideId: String? = null
+
             activeRideRepository.state.collectLatest { ride ->
-                if (ride == null) {
-                    stateMachine.endSession()
-                    coordinator.setOnlineSession(null)
-                    _groupStatus.value = GroupConnectivityStatus.ENTIRE_GROUP_ONLINE
-                } else {
-                    coordinator.setOnlineSession(
-                        VoiceSession.Online(
-                            url = ride.livekitUrl?.takeIf { it.isNotBlank() } ?: Constants.LIVEKIT_URL,
-                            roomId = ride.roomId,
-                            tokenProvider = { activeRideRepository.ensureFreshToken().getOrThrow() },
-                            expectedLkRoomName = ride.lkRoomName
-                        )
-                    )
-
-                    val companionSession: OfflineSession? = null
-
-                    while (isActive && activeRideRepository.state.value != null) {
-                        if ((OfflineMeshGate.isWarmStandbyAllowed() || OfflineMeshGate.isAutomaticFallbackAllowed()) &&
-                            companionSession != null &&
-                            meshTransport.state.value == VoiceTransportState.STOPPED
-                        ) {
-                            coordinator.ensureWarmStandbyDiscovery(companionSession)
-                        }
-
-                        val signals = healthSignalsProvider.sampleSignals()
-
-                        if (stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE &&
-                            signals.shouldTriggerBackgroundReconnect()
-                        ) {
-                            (coordinator.liveKitTransport as? LiveKitVoiceTransport)?.triggerBackgroundReconnect()
-                        }
-
-                        stateMachine.evaluate(signals)
-
-                        _groupStatus.value = when {
-                            stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE ->
-                                GroupConnectivityStatus.LOCAL_OFFLINE_MESH_ACTIVE
-                            liveKitManager.participants.value.any { it.isGhost } ||
-                                meshTransport.participants.value.any { it.isOnline } ->
-                                GroupConnectivityStatus.LOCAL_ONLINE_SOME_PEERS_OFFLINE
-                            else -> GroupConnectivityStatus.ENTIRE_GROUP_ONLINE
-                        }
-
-                        delay(1_000L)
+                if (ride == null || ride.phase != ActiveRideRepository.Phase.LIVE) {
+                    // Phase.LOBBY / Phase.ENDING / null -> endSession, stop ticks, stop discovery, enable-nothing
+                    if (currentLiveRideId != null) {
+                        stateMachine.endSession()
+                        currentLiveRideId = null
                     }
+                    coordinator.setOnlineSession(null)
+                    _groupStatus.value = GroupConnectivityStatus.ONLINE_ALL
+                    return@collectLatest
+                }
+
+                // Phase.LIVE (new rideId) -> beginSession, start evaluation ticks
+                if (currentLiveRideId != ride.roomId) {
+                    currentLiveRideId = ride.roomId
+                    stateMachine.beginSession(ride.roomId, clock.nowMs())
+                }
+                // Phase.LIVE (same rideId) -> continue
+
+                coordinator.setOnlineSession(
+                    VoiceSession.Online(
+                        url = ride.livekitUrl?.takeIf { it.isNotBlank() } ?: Constants.LIVEKIT_URL,
+                        roomId = ride.roomId,
+                        tokenProvider = { activeRideRepository.ensureFreshToken().getOrThrow() },
+                        expectedLkRoomName = ride.lkRoomName
+                    )
+                )
+
+                val companionSession: OfflineSession? = null
+
+                while (isActive &&
+                    activeRideRepository.state.value?.roomId == ride.roomId &&
+                    activeRideRepository.state.value?.phase == ActiveRideRepository.Phase.LIVE
+                ) {
+                    if ((OfflineMeshGate.isWarmStandbyAllowed() || OfflineMeshGate.isAutomaticFallbackAllowed()) &&
+                        companionSession != null &&
+                        meshTransport.state.value == VoiceTransportState.STOPPED
+                    ) {
+                        coordinator.ensureWarmStandbyDiscovery(companionSession)
+                    }
+
+                    val signals = healthSignalsProvider.sampleSignals()
+
+                    if (stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE &&
+                        signals.shouldTriggerBackgroundReconnect()
+                    ) {
+                        (coordinator.liveKitTransport as? LiveKitVoiceTransport)?.triggerBackgroundReconnect()
+                    }
+
+                    val offlineAvailable = coordinator.offlineAvailability.value == OfflineAvailability.AVAILABLE
+                    stateMachine.evaluate(signals, offlineAvailable = offlineAvailable)
+
+                    val isLocalOffline = stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE
+                    val unifiedPeers = buildUnifiedParticipantList(isLocalOffline)
+                    _groupStatus.value = computeGroupConnectivity(isLocalOffline, unifiedPeers)
+
+                    delay(1_000L)
                 }
             }
         }
+    }
+
+    private fun buildUnifiedParticipantList(isLocalOffline: Boolean): List<com.ridervoice.mesh.transport.UnifiedVoicePeer> {
+        val meshPeers = meshTransport.participants.value
+        if (isLocalOffline) {
+            return meshPeers
+        }
+        val lkParticipants = liveKitManager.participants.value
+        val lkPeers = lkParticipants.map { p ->
+            com.ridervoice.mesh.transport.UnifiedVoicePeer(
+                id = p.identity,
+                name = p.displayName?.takeIf { it.isNotBlank() } ?: p.identity,
+                isOnline = !p.isGhost,
+                transport = com.ridervoice.mesh.transport.PeerTransportKind.ONLINE_LIVEKIT,
+                hopCount = 1,
+                nextHopId = null,
+                isDirect = true,
+                isRelayed = false,
+                routeAgeMs = 0L,
+                isSpeaking = false
+            )
+        }
+        return if (meshPeers.isEmpty()) lkPeers else lkPeers + meshPeers
     }
 
     fun stop() {

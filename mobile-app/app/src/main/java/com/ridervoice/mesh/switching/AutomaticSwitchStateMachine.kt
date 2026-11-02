@@ -16,6 +16,9 @@ import kotlinx.coroutines.sync.withLock
  * - Requires valid mesh path before declaring OFFLINE_ACTIVE (else FALLBACK_UNAVAILABLE).
  * - Requires recovery stability window (default 8s) before handing back to LiveKit.
  * - Enforces minimum dwell time (default 20s) and transition rate limits (max 3 per 2 mins).
+ * - W-DEGRADED: Degraded network alone (high packet loss / high RTT) NEVER triggers suspect / fallback.
+ *   Confirmed total loss of internet, health probe failure, and LiveKit disconnection required.
+ * - Session lifecycle: beginSession(rideId, nowMs) resets all state, timers, and hysteresis windows.
  */
 class AutomaticSwitchStateMachine(
     private val config: AntiFlappingConfig = AntiFlappingConfig(),
@@ -26,10 +29,29 @@ class AutomaticSwitchStateMachine(
     private val onEmitTransitionDiagnostic: (from: AutoSwitchState, to: AutoSwitchState, reason: String) -> Unit = { _, _, _ -> },
     private val onProbeMesh: (suspend () -> Unit)? = null
 ) {
+    constructor(
+        config: AntiFlappingConfig = AntiFlappingConfig(),
+        isGateAllowed: () -> Boolean = { OfflineMeshGate.isAutomaticFallbackAllowed() },
+        clock: Clock,
+        onHandoffToOffline: suspend () -> Boolean = { true },
+        onHandoffToOnline: suspend () -> Boolean = { true },
+        onEmitTransitionDiagnostic: (from: AutoSwitchState, to: AutoSwitchState, reason: String) -> Unit = { _, _, _ -> },
+        onProbeMesh: (suspend () -> Unit)? = null
+    ) : this(
+        config = config,
+        isGateAllowed = isGateAllowed,
+        clock = { clock.nowMs() },
+        onHandoffToOffline = onHandoffToOffline,
+        onHandoffToOnline = onHandoffToOnline,
+        onEmitTransitionDiagnostic = onEmitTransitionDiagnostic,
+        onProbeMesh = onProbeMesh
+    )
+
     private val mutex = Mutex()
     private val _state = MutableStateFlow(AutoSwitchState.ONLINE)
     val state: StateFlow<AutoSwitchState> = _state.asStateFlow()
 
+    private var activeRideId: String? = null
     private var suspectStartTimeMs: Long = 0L
     private var recoveryStartTimeMs: Long = 0L
     private var lastSwitchTimeMs: Long = 0L
@@ -41,11 +63,43 @@ class AutomaticSwitchStateMachine(
     private var backoffMultiplier: Int = 1
     private var recoveryBackoffMultiplier: Int = 1
 
-    suspend fun evaluate(signals: LocalHealthSignals) = mutex.withLock {
+    /**
+     * Explicit session lifecycle initialization.
+     * Clears all anti-flapping timers, backoff counters, and hysteresis windows.
+     * Sets state to ONLINE (stable online start). Never carries state between rides.
+     */
+    suspend fun beginSession(rideId: String, nowMs: Long = clock()) = mutex.withLock {
+        activeRideId = rideId
+        suspectStartTimeMs = 0L
+        recoveryStartTimeMs = 0L
+        lastSwitchTimeMs = 0L
+        startingSinceMs = 0L
+        handingBackSinceMs = 0L
+        lastRecoveryAttemptMs = 0L
+        switchHistory.clear()
+        backoffMultiplier = 1
+        recoveryBackoffMultiplier = 1
+        _state.value = AutoSwitchState.ONLINE
+    }
+
+    suspend fun evaluate(
+        signals: LocalHealthSignals,
+        offlineAvailable: Boolean = signals.offlineAvailable
+    ) = mutex.withLock {
         val now = clock()
         val current = _state.value
 
         if (current == AutoSwitchState.SESSION_ENDED) return
+
+        // Rule 3: Do not enter any fallback/standby transition when OfflineAvailability != AVAILABLE
+        if (!offlineAvailable) {
+            if (current == AutoSwitchState.ONLINE_SUSPECT || current == AutoSwitchState.FALLBACK_UNAVAILABLE) {
+                transitionTo(AutoSwitchState.ONLINE, "NO_SHARED_SECRET")
+            } else if (current == AutoSwitchState.ONLINE && signals.isTotalLoss()) {
+                onEmitTransitionDiagnostic(AutoSwitchState.ONLINE, AutoSwitchState.ONLINE, "NO_SHARED_SECRET")
+            }
+            return
+        }
 
         when (current) {
             AutoSwitchState.ONLINE -> {
@@ -167,6 +221,16 @@ class AutomaticSwitchStateMachine(
     }
 
     suspend fun endSession() = mutex.withLock {
+        activeRideId = null
+        suspectStartTimeMs = 0L
+        recoveryStartTimeMs = 0L
+        lastSwitchTimeMs = 0L
+        startingSinceMs = 0L
+        handingBackSinceMs = 0L
+        lastRecoveryAttemptMs = 0L
+        switchHistory.clear()
+        backoffMultiplier = 1
+        recoveryBackoffMultiplier = 1
         transitionTo(AutoSwitchState.SESSION_ENDED, "Session ended")
     }
 
@@ -194,4 +258,3 @@ class AutomaticSwitchStateMachine(
         }
     }
 }
-

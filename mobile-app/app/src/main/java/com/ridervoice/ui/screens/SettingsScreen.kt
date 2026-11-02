@@ -274,7 +274,6 @@ fun SettingsScreen(
                 }
 
                 item {
-                    val diagStatus by settingsViewModel.diagnosticStatusText.collectAsState()
                     SettingsSectionHeader("DIAGNOSTICS")
                     SettingsItemToggle(
                         label = "Share diagnostics when a host enables it",

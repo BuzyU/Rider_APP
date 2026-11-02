@@ -77,10 +77,6 @@ object MeshModule {
 
         if (firebaseName != null) return@RiderNameProvider firebaseName
 
-        val securePrefs = runCatching {
-            com.ridervoice.security.SecurePreferences(context)
-        }.getOrNull()
-
         val prefName = runCatching {
             context.getSharedPreferences("user_profile", Context.MODE_PRIVATE)
                 .getString("display_name", null)

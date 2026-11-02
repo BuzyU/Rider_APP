@@ -85,7 +85,7 @@ class MeshAutoSwitchManager(
         },
         onProbeMesh = {
             val ride = activeRideRepository.state.value ?: return@createMachine
-            val secret = secretProvider.getSecretForOnlineRide(ride.roomId) ?: return@createMachine
+            secretProvider.getSecretForOnlineRide(ride.roomId) ?: return@createMachine
             // No companion session derived without shared secret
         }
     )

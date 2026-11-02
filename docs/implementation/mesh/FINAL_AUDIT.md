@@ -142,3 +142,4 @@ $ git diff --stat a37ef09 -- \
 Per Section B0 and Rule R4 of the master remediation specification:
 - No claim of real physical-device, multi-device radio, Bluetooth helmet, or vehicular field testing is made.
 - All physical test cases are formally cataloged in [`docs/testing/PHYSICAL_TEST_CHECKLIST.md`](../testing/PHYSICAL_TEST_CHECKLIST.md) and explicitly designated as **NOT EXECUTED**.
+

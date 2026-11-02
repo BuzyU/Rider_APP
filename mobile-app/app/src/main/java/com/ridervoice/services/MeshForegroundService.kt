@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import com.ridervoice.MainActivity
 import com.ridervoice.R
 import com.ridervoice.mesh.OfflineMeshGate
+import com.ridervoice.mesh.session.OfflineSessionHolder
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceTransportState
 import dagger.hilt.android.AndroidEntryPoint
@@ -43,14 +44,17 @@ class MeshForegroundService : Service() {
         const val CHANNEL_ID = "CHANNEL_OFFLINE_MESH"
         const val NOTIFICATION_ID = 45454
         const val ACTION_STOP_SERVICE = "com.ridervoice.mesh.ACTION_STOP"
-        const val EXTRA_SESSION_CODE = "extra_session_code"
 
         /** Shared reference to active mesh transport for HUD and service */
         @Volatile
         var activeTransport: OfflineMeshVoiceTransport? = null
             internal set
 
-        fun start(context: Context, sessionCode: String) {
+        fun start(context: Context) {
+            start(context, null)
+        }
+
+        fun start(context: Context, sessionCode: String? = null) {
             if (!OfflineMeshGate.isOfflineAllowed()) {
                 return
             }
@@ -58,9 +62,7 @@ class MeshForegroundService : Service() {
             if (transport == null || transport.state.value != VoiceTransportState.CONNECTED) {
                 return
             }
-            val intent = Intent(context, MeshForegroundService::class.java).apply {
-                putExtra(EXTRA_SESSION_CODE, sessionCode)
-            }
+            val intent = Intent(context, MeshForegroundService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
@@ -74,7 +76,6 @@ class MeshForegroundService : Service() {
         }
     }
 
-    private var currentSessionCode: String = "Active"
     private var currentPeerCount: Int = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -82,14 +83,6 @@ class MeshForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-    }
-
-    private fun maskSessionCode(code: String): String {
-        return if (code.length >= 8) {
-            "${code.take(4)}-••••-••••-${code.takeLast(4)}"
-        } else {
-            "••••"
-        }
     }
 
     private fun ensureStartedForeground(notification: Notification) {
@@ -113,8 +106,9 @@ class MeshForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        currentSessionCode = intent?.getStringExtra(EXTRA_SESSION_CODE) ?: currentSessionCode
-        val notification = buildNotification(currentSessionCode, currentPeerCount)
+        val session = OfflineSessionHolder.currentSession
+        val sessionDisplay = session?.let { "ID: ${it.sessionId.take(8)}" } ?: "Active"
+        val notification = buildNotification(sessionDisplay, currentPeerCount)
         ensureStartedForeground(notification)
 
         if (intent?.action == ACTION_STOP_SERVICE) {
@@ -139,7 +133,7 @@ class MeshForegroundService : Service() {
                 val onlineCount = peers.count { it.isOnline }
                 if (onlineCount != currentPeerCount) {
                     currentPeerCount = onlineCount
-                    val updated = buildNotification(currentSessionCode, currentPeerCount)
+                    val updated = buildNotification(sessionDisplay, currentPeerCount)
                     val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                     nm.notify(NOTIFICATION_ID, updated)
                 }
@@ -181,7 +175,7 @@ class MeshForegroundService : Service() {
         }
     }
 
-    private fun buildNotification(sessionCode: String, peerCount: Int): Notification {
+    private fun buildNotification(sessionDisplay: String, peerCount: Int): Notification {
         val launchIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -202,7 +196,7 @@ class MeshForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val contentText = getString(R.string.mesh_notif_content, maskSessionCode(sessionCode), peerCount)
+        val contentText = getString(R.string.mesh_notif_content, sessionDisplay, peerCount)
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)

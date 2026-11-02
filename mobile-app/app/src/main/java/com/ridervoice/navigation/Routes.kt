@@ -25,7 +25,7 @@ object Routes {
     const val JOIN_VIA_TOKEN  = "join_via_token/{token}"
     const val RIDE_REPLAY     = "ride_replay/{rideId}"
     const val OFFLINE_MESH_LOBBY = "offline_mesh_lobby"
-    const val OFFLINE_MESH_HUD   = "offline_mesh_hud/{sessionCode}"
+    const val OFFLINE_MESH_HUD   = "offline_mesh_hud"
 
     fun inviteFriendsPath(convoyName: String): String {
         val safe = convoyName.ifBlank { "Convoy" }
@@ -66,8 +66,7 @@ object Routes {
         return "join_via_token/${android.net.Uri.encode(token)}"
     }
 
-    fun offlineMeshHudPath(sessionCode: String): String {
-        val safe = sessionCode.ifBlank { "offline" }
-        return "offline_mesh_hud/${android.net.Uri.encode(safe)}"
-    }
+    fun offlineMeshHudPath(): String = OFFLINE_MESH_HUD
+
+    fun offlineMeshHudPath(@Suppress("UNUSED_PARAMETER") sessionCode: String): String = OFFLINE_MESH_HUD
 }

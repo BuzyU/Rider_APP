@@ -368,33 +368,36 @@ fun NavGraph(
             com.ridervoice.mesh.ui.OfflineMeshLobbyScreen(
                 onBackClick = { navController.popBackStack() },
                 onEnterSession = { sessionCode ->
-                    navController.navigate(Routes.offlineMeshHudPath(sessionCode))
+                    val session = com.ridervoice.mesh.session.OfflineSession.fromCode(sessionCode, System.currentTimeMillis())
+                        ?: com.ridervoice.mesh.session.OfflineSession.create(System.currentTimeMillis())
+                    com.ridervoice.mesh.session.OfflineSessionHolder.set(session)
+                    navController.navigate(Routes.OFFLINE_MESH_HUD)
                 }
             )
         }
         @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
         composable(
-            route = Routes.OFFLINE_MESH_HUD,
-            arguments = listOf(navArgument("sessionCode") { type = NavType.StringType })
-        ) { backStackEntry ->
+            route = Routes.OFFLINE_MESH_HUD
+        ) {
             if (!com.ridervoice.mesh.OfflineMeshGate.isOfflineAllowed()) {
                 LaunchedEffect(Unit) {
                     navController.popBackStack()
                 }
                 return@composable
             }
-            val sessionCode = backStackEntry.arguments?.getString("sessionCode") ?: "offline"
+            val session = com.ridervoice.mesh.session.OfflineSessionHolder.currentSession
+            if (session == null) {
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+                return@composable
+            }
             val context = LocalContext.current
             val viewModel: com.ridervoice.mesh.ui.OfflineMeshViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             val transport = viewModel.transport
             val liveKitConflict by viewModel.liveKitConflictError.collectAsState()
 
-            val session = androidx.compose.runtime.remember(sessionCode) {
-                com.ridervoice.mesh.session.OfflineSession.fromCode(sessionCode, System.currentTimeMillis())
-                    ?: com.ridervoice.mesh.session.OfflineSession.create(System.currentTimeMillis())
-            }
-
-            LaunchedEffect(sessionCode) {
+            LaunchedEffect(session.sessionId) {
                 com.ridervoice.services.MeshForegroundService.activeTransport = transport
                 viewModel.startSession(session)
             }
@@ -403,7 +406,7 @@ fun NavGraph(
                 transport.state.collect { state ->
                     when (state) {
                         com.ridervoice.mesh.transport.VoiceTransportState.CONNECTED -> {
-                            com.ridervoice.services.MeshForegroundService.start(context, session.pairingCode)
+                            com.ridervoice.services.MeshForegroundService.start(context)
                         }
                         com.ridervoice.mesh.transport.VoiceTransportState.FAILED,
                         com.ridervoice.mesh.transport.VoiceTransportState.STOPPED -> {
@@ -414,7 +417,7 @@ fun NavGraph(
                 }
             }
 
-            androidx.compose.runtime.DisposableEffect(sessionCode) {
+            androidx.compose.runtime.DisposableEffect(session.sessionId) {
                 onDispose {
                     viewModel.stopSession()
                     com.ridervoice.services.MeshForegroundService.stop(context)

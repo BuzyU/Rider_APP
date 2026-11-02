@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.UUID
@@ -294,5 +295,86 @@ class AdversarialTest {
         assertTrue("Replay at 230s must be dropped: $outcome3", outcome3 is ReceiveOutcome.Dropped)
         assertEquals(ReceiveOutcome.DropReason.STALE_TIMESTAMP, (outcome3 as ReceiveOutcome.Dropped).reason)
     }
-}
 
+    @Test
+    fun forgedGcmTagDoesNotPoisonDuplicateCacheOrConsumeMemberSlot() {
+        var t = 100_000L
+        val clock = { t }
+        val s = OfflineSession.create(t, iterations = 100)
+        val aId = UUID.randomUUID().toString()
+        val attackerId = UUID.randomUUID().toString()
+        val a = Node(aId, "10.0.0.1", s, clock)
+
+        // Corrupted GCM payload (valid size 656 bytes, but garbage ciphertext/tag)
+        val badPayload = ByteArray(656) { 0x7F.toByte() }
+        val forgedPacket = MeshPacket(
+            type = MeshPacketType.VOICE,
+            sessionId = s.sessionId,
+            sourceId = attackerId,
+            sequence = 1,
+            captureTimestamp = t,
+            ttl = MeshConfig.DEFAULT_TTL,
+            hopCount = 0,
+            previousHopId = attackerId,
+            payload = badPayload
+        )
+        // Outer HMAC is valid because attacker has authKey (or forged by rogue participant)
+        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(forgedPacket, s.authKey()))
+
+        val outcome = a.engine.onIncomingFrame(frame)
+        assertTrue("Bad GCM payload must be dropped: $outcome", outcome is ReceiveOutcome.Dropped)
+        assertEquals(ReceiveOutcome.DropReason.BAD_PAYLOAD, (outcome as ReceiveOutcome.Dropped).reason)
+
+        // Verify attacker was NOT admitted into session membership
+        assertFalse("Attacker must not be admitted to session", a.sessionMgr.members().contains(attackerId))
+
+        // Now send authentic packet with same (attackerId, seq=1, epoch=0)
+        val aad = PayloadCrypto.aad(s.sessionId, attackerId, MeshPacketType.VOICE.code, 0, 1, t, AudioFormatId.PCM16_16K_MONO)
+        val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code, attackerId)
+        val validSealed = PayloadCrypto.seal(s.payloadKey(), nonce, aad, ByteArray(640))
+        val validPacket = forgedPacket.copy(payload = validSealed)
+        val validFrame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(validPacket, s.authKey()))
+
+        val validOutcome = a.engine.onIncomingFrame(validFrame)
+        assertTrue("Authentic packet with same seq must be accepted: $validOutcome", validOutcome is ReceiveOutcome.Accepted)
+        assertTrue("Source should now be admitted to session", a.sessionMgr.members().contains(attackerId))
+    }
+
+    @Test
+    fun debugPeerFilterEnforcesMultiHopOnSharedSubnet() {
+        val t = 100_000L
+        val clock = { t }
+        val s = OfflineSession.create(t, iterations = 100)
+        val aId = UUID.randomUUID().toString()
+        val cId = UUID.randomUUID().toString()
+
+        val c = Node(cId, "10.0.0.3", s, clock)
+
+        // Set peer filter on C to ignore direct frames from A
+        MeshConfig.debugPeerFilter = { previousHopId -> previousHopId != aId }
+        try {
+            val directFrameFromA = MeshFrame(
+                MeshEndpoint("10.0.0.1", MeshConfig.AUDIO_PORT),
+                MeshPacketCodec.encode(
+                    MeshPacket(
+                        type = MeshPacketType.VOICE,
+                        sessionId = s.sessionId,
+                        sourceId = aId,
+                        sequence = 1,
+                        captureTimestamp = t,
+                        ttl = 5,
+                        hopCount = 0,
+                        previousHopId = aId,
+                        payload = ByteArray(656)
+                    ),
+                    s.authKey()
+                )
+            )
+            val dropOutcome = c.engine.onIncomingFrame(directFrameFromA)
+            assertTrue("Direct packet from A must be filtered: $dropOutcome", dropOutcome is ReceiveOutcome.Dropped)
+            assertEquals(ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID, (dropOutcome as ReceiveOutcome.Dropped).reason)
+        } finally {
+            MeshConfig.debugPeerFilter = null
+        }
+    }
+}

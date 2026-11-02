@@ -113,7 +113,7 @@ class ForwardingEngine(
             captureTimestamp = now,
             audioFormat = AudioFormatId.PCM16_16K_MONO
         )
-        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.VOICE.code)
+        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.VOICE.code, selfId)
         val sealed = PayloadCrypto.seal(payloadKey, nonce, aad, pcmPayload)
         val packet = MeshPacket(
             type = MeshPacketType.VOICE,
@@ -139,7 +139,7 @@ class ForwardingEngine(
     }
 
     /**
-     * Originates a periodic HELLO heartbeat and broadcasts/unicasts to known & broadcast endpoints.
+     * Originates a HELLO discovery heartbeat and broadcasts it to all known endpoints and broadcast addresses.
      */
     fun originateHello(broadcastEndpoints: Collection<MeshEndpoint> = emptyList()): MeshPacket? {
         val now = clock()
@@ -164,7 +164,7 @@ class ForwardingEngine(
             captureTimestamp = now,
             audioFormat = AudioFormatId.PCM16_16K_MONO
         )
-        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.HELLO.code)
+        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.HELLO.code, selfId)
         val sealed = PayloadCrypto.seal(payloadKey, nonce, aad, plainHello)
         val packet = MeshPacket(
             type = MeshPacketType.HELLO,
@@ -206,7 +206,7 @@ class ForwardingEngine(
             captureTimestamp = now,
             audioFormat = AudioFormatId.PCM16_16K_MONO
         )
-        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.BYE.code)
+        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.BYE.code, selfId)
         val sealed = PayloadCrypto.seal(payloadKey, nonce, aad, ByteArray(0))
         val packet = MeshPacket(
             type = MeshPacketType.BYE,
@@ -223,7 +223,8 @@ class ForwardingEngine(
         )
         duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet), localEpoch)
         val wire = MeshPacketCodec.encode(packet, authKey)
-        for (neighbor in graphRepository.directNeighbors()) {
+        val targets = graphRepository.directNeighbors()
+        for (neighbor in targets) {
             link.send(neighbor.endpoint, wire)
         }
         return packet
@@ -266,6 +267,13 @@ class ForwardingEngine(
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID)
         }
 
+        // Enforce debug peer filter (Fixes H5)
+        val filter = MeshConfig.debugPeerFilter
+        if (filter != null && !filter(decoded.previousHopId)) {
+            droppedInvalid.incrementAndGet()
+            return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID)
+        }
+
         // 6. Validate packet timestamp
         if (!ttlPolicy.isTimestampFresh(decoded.captureTimestamp)) {
             droppedInvalid.incrementAndGet()
@@ -289,8 +297,14 @@ class ForwardingEngine(
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.TTL_EXHAUSTED)
         }
 
-        // Session admission check (enforces 6-device cap; 7th device rejected)
-        when (sessionManager.admit(decoded.sourceId)) {
+        // Fast non-mutating duplicate check BEFORE decrypting
+        if (duplicateCache.isDuplicate(decoded.sessionId, decoded.sourceId, decoded.sequence, dedupKind(decoded), decoded.epoch)) {
+            droppedDup.incrementAndGet()
+            return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DUPLICATE)
+        }
+
+        // Non-mutating session admission check
+        when (sessionManager.canAdmit(decoded.sourceId)) {
             SessionManager.Admission.ADMITTED,
             SessionManager.Admission.ALREADY_MEMBER -> Unit
             SessionManager.Admission.REJECTED_FULL -> {
@@ -304,19 +318,13 @@ class ForwardingEngine(
         }
         // If relayed, also verify the relay is admitted
         if (decoded.previousHopId != decoded.sourceId) {
-            val relayAdmission = sessionManager.admit(decoded.previousHopId)
+            val relayAdmission = sessionManager.canAdmit(decoded.previousHopId)
             if (relayAdmission == SessionManager.Admission.REJECTED_FULL ||
                 relayAdmission == SessionManager.Admission.REJECTED_EXPIRED
             ) {
                 droppedInvalid.incrementAndGet()
                 return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.SESSION_FULL)
             }
-        }
-
-        // 9-11. Check duplicate cache, drop duplicates, add new packet to cache
-        if (!duplicateCache.markIfNew(decoded.sessionId, decoded.sourceId, decoded.sequence, dedupKind(decoded), decoded.epoch)) {
-            droppedDup.incrementAndGet()
-            return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DUPLICATE)
         }
 
         // Expire stale neighbors before processing or selecting next hops
@@ -334,20 +342,49 @@ class ForwardingEngine(
             captureTimestamp = decoded.captureTimestamp,
             audioFormat = decoded.audioFormat
         )
-        val nonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code)
-        val plain = PayloadCrypto.open(payloadKey, nonce, aad, decoded.payload)
+        val nonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code, decoded.sourceId)
+        var plain = PayloadCrypto.open(payloadKey, nonce, aad, decoded.payload)
+        if (plain == null) {
+            val fallbackNonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code)
+            plain = PayloadCrypto.open(payloadKey, fallbackNonce, aad, decoded.payload)
+        }
         if (plain == null) {
             droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
         }
 
+        // Pre-validate plain format before state mutations
+        val decodedHello = if (decoded.type == MeshPacketType.HELLO) {
+            val h = HelloCodec.decode(plain)
+            if (h == null) {
+                droppedInvalid.incrementAndGet()
+                return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.MALFORMED_HELLO)
+            }
+            h
+        } else null
+
+        if (decoded.type == MeshPacketType.VOICE && plain.size != MeshConfig.BYTES_PER_FRAME) {
+            droppedInvalid.incrementAndGet()
+            return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
+        }
+        if (decoded.type == MeshPacketType.BYE && plain.isNotEmpty()) {
+            droppedInvalid.incrementAndGet()
+            return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
+        }
+
+        // ONLY AFTER AEAD decryption and payload format validation succeed:
+        if (!duplicateCache.markIfNew(decoded.sessionId, decoded.sourceId, decoded.sequence, dedupKind(decoded), decoded.epoch)) {
+            droppedDup.incrementAndGet()
+            return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DUPLICATE)
+        }
+        sessionManager.admit(decoded.sourceId)
+        if (decoded.previousHopId != decoded.sourceId) {
+            sessionManager.admit(decoded.previousHopId)
+        }
+
         when (decoded.type) {
             MeshPacketType.HELLO -> {
-                val hello = HelloCodec.decode(plain)
-                    ?: run {
-                        droppedInvalid.incrementAndGet()
-                        return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.MALFORMED_HELLO)
-                    }
+                val hello = decodedHello!!
                 val changed = graphRepository.onHello(
                     sourceId = decoded.sourceId,
                     name = hello.name,
@@ -361,20 +398,12 @@ class ForwardingEngine(
                 }
             }
             MeshPacketType.BYE -> {
-                if (plain.isNotEmpty()) {
-                    droppedInvalid.incrementAndGet()
-                    return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
-                }
                 sessionManager.remove(decoded.sourceId)
                 if (graphRepository.onBye(decoded.sourceId)) {
                     routingTable.recompute(graphRepository.currentSnapshot(), now)
                 }
             }
             MeshPacketType.VOICE -> {
-                if (plain.size != MeshConfig.BYTES_PER_FRAME) {
-                    droppedInvalid.incrementAndGet()
-                    return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
-                }
                 receivedVoice.incrementAndGet()
                 sessionManager.touch(decoded.sourceId)
                 onLocalVoicePacket(decoded.copy(payload = plain))

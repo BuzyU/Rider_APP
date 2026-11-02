@@ -37,13 +37,12 @@ com.ridervoice.mesh/
 │   └── RouteCalculator.kt             # BFS shortest-path routing with deterministic lexicographic tie-breaking
 ├── session/
 │   ├── OfflineSession.kt              # Session model, pairing code formatting, SessionManager (6-device cap)
-│   └── SessionKdf.kt                  # Slow KDF (PBKDF2WithHmacSHA256) and HKDF expansion
+│   └── OfflineSession.kt              # Session model, pairing code formatting, PBKDF2 key derivation
 ├── switching/
-│   ├── AutomaticSwitchStateMachine.kt # 9-state finite state machine governing automatic failover between LiveKit and Mesh
-│   ├── LocalHealthSignals.kt          # Health signal inputs (internet, livekit, routes, probe)
+│   ├── AutomaticSwitchStateMachine.kt # 8-state finite state machine governing automatic failover between LiveKit and Mesh
+│   ├── SwitchingModels.kt             # Health signal models (internet, livekit, routes, probe)
 │   └── LocalHealthSignalsProvider.kt  # Polling and reactive sensor sampling health signals for state machine
 ├── transport/
-│   ├── AudioOwner.kt                  # AudioOwner enum (NONE, LIVEKIT, OFFLINE_MESH)
 │   ├── AudioOwnershipArbiter.kt       # Mutex-protected arbiter enforcing exclusive microphone hardware ownership
 │   ├── OfflineMeshVoiceTransport.kt   # High-level transport orchestrator managing links, engines, and background services
 │   ├── VoiceSessionCoordinator.kt     # Option B coordinator handling switching between LiveKit and Offline Mesh
@@ -70,10 +69,10 @@ com.ridervoice.mesh/
 [ForwardingEngine.sendVoice] (Prepares MeshPacket with monotonic seq, captureTs, TTL=5)
         │
         ▼
-[MeshPacketCodec.encode] (Packs 55-byte header, appends payload, appends HMAC-SHA256)
+[MeshPacketCodec.encode] (Packs 75-byte header, appends sealed payload, appends truncated HMAC-SHA256)
         │
         ▼
-[UdpMeshLink.send] (UDP broadcast/unicast datagram on port 40001)
+[UdpMeshLink.send] (UDP broadcast/unicast datagram on port 45454)
         │
        ~~~ Radio Link (Wi-Fi Direct / Local AP) ~~~
         │

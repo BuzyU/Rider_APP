@@ -116,5 +116,22 @@ class SessionKdfTest {
         val decodeResult = MeshPacketCodec.decode(wire, sessionB.authKey())
         assertEquals(DecodeResult.Invalid(DecodeResult.Reason.BAD_TAG), decodeResult)
     }
-}
 
+    @Test
+    fun fromOnlineRoomDerivesIdenticalSessionAcrossDevices() {
+        val now = 1_000_000L
+        val session1 = OfflineSession.fromOnlineRoom("convoy_abc_123", now, iterations = 100)
+        val session2 = OfflineSession.fromOnlineRoom("convoy_abc_123", now, iterations = 100)
+        assertNotNull(session1)
+        assertNotNull(session2)
+        assertEquals(session1!!.sessionId, session2!!.sessionId)
+        assertEquals(session1.pairingCode, session2.pairingCode)
+        assertArrayEquals(session1.authKey(), session2.authKey())
+        assertArrayEquals(session1.payloadKey(), session2.payloadKey())
+
+        val sessionOther = OfflineSession.fromOnlineRoom("convoy_xyz_999", now, iterations = 100)
+        assertNotNull(sessionOther)
+        assertNotEquals(session1.sessionId, sessionOther!!.sessionId)
+        assertNotEquals(session1.pairingCode, sessionOther.pairingCode)
+    }
+}

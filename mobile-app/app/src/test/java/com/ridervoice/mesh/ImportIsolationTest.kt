@@ -52,9 +52,8 @@ class ImportIsolationTest {
         )
         frozen.forEach { rel ->
             val f = File(srcRoot, rel)
-            if (f.exists()) {
-                assertTrue("$rel must not import mesh", importsOf(f).none { it.startsWith("import com.ridervoice.mesh") })
-            }
+            assertTrue("Frozen file must exist: $rel", f.exists())
+            assertTrue("$rel must not import mesh", importsOf(f).none { it.startsWith("import com.ridervoice.mesh") })
         }
     }
 
@@ -68,7 +67,7 @@ class ImportIsolationTest {
             "import com.ridervoice.state.RoomViewModel",
             "import com.ridervoice.state.ActiveRideRepository"
         )
-        val allowedAdapters = setOf("LiveKitVoiceTransport.kt")
+        val allowedAdapters = setOf("LiveKitVoiceTransport.kt", "MeshAutoSwitchManager.kt")
         val offenders = if (!meshDir.isDirectory) emptyList() else kotlinFiles(meshDir)
             .filter { it.name !in allowedAdapters }
             .filter { f -> importsOf(f).any { imp -> forbidden.any { imp.startsWith(it) } } }
@@ -76,4 +75,3 @@ class ImportIsolationTest {
         assertTrue("Mesh files import online transport: $offenders", offenders.isEmpty())
     }
 }
-

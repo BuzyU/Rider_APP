@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.routing
 
+import com.ridervoice.mesh.graph.MeshEdge
 import com.ridervoice.mesh.graph.MeshGraphSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,15 +22,26 @@ data class RouteEntry(
  */
 object RouteCalculator {
     fun compute(snapshot: MeshGraphSnapshot, now: Long): Map<String, RouteEntry> {
-        val live = snapshot.edges.filter { it.expiresAt > now }
+        val nonExpired = snapshot.edges.filter { it.expiresAt > now }
+        val biEdges = nonExpired.filter { it.bidirectional }
+        val biRoutes = bfs(snapshot.selfId, biEdges)
+        val allRoutes = bfs(snapshot.selfId, nonExpired)
+
+        val result = LinkedHashMap<String, RouteEntry>()
+        for (dest in allRoutes.keys.sorted()) {
+            result[dest] = biRoutes[dest] ?: allRoutes.getValue(dest)
+        }
+        return result
+    }
+
+    private fun bfs(self: String, edges: List<MeshEdge>): Map<String, RouteEntry> {
         val adj = HashMap<String, MutableList<Pair<String, Long>>>()
-        for (e in live) {
+        for (e in edges) {
             adj.getOrPut(e.from) { ArrayList() }.add(e.to to e.expiresAt)
             adj.getOrPut(e.to) { ArrayList() }.add(e.from to e.expiresAt)
         }
         adj.values.forEach { l -> l.sortBy { it.first } }
 
-        val self = snapshot.selfId
         val parent = HashMap<String, String>()
         val parentExpiry = HashMap<String, Long>()
         val depth = HashMap<String, Int>().apply { put(self, 0) }
@@ -84,4 +96,3 @@ class RoutingTable {
     fun routeTo(id: String): RouteEntry? = _routes.value[id]
     fun hasAnyRoute(): Boolean = _routes.value.isNotEmpty()
 }
-

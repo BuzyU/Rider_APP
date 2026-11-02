@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,22 +19,27 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,23 +51,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.material3.TextButton
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import com.ridervoice.R
 import com.ridervoice.mesh.diagnostics.MeshDiagnosticsRepository
 import com.ridervoice.mesh.diagnostics.MeshDiagnosticsSnapshot
+import com.ridervoice.mesh.transport.AudioRoute
 import com.ridervoice.mesh.transport.MicState
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.UnifiedVoicePeer
 import com.ridervoice.mesh.transport.VoiceTransport
+import com.ridervoice.mesh.transport.VoiceTransportState
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 @androidx.compose.material3.ExperimentalMaterial3Api
@@ -81,6 +87,12 @@ fun OfflineRoomScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    val meshTransport = transport as? OfflineMeshVoiceTransport
+    val voxBridge = meshTransport?.voxBridge
+    val isVoxEnabled by (voxBridge?.voxEnabled ?: MutableStateFlow(true)).collectAsState()
+    val isPttActive by (voxBridge?.isPttActive ?: MutableStateFlow(false)).collectAsState()
+    val activeRoute by (meshTransport?.audioRoute ?: MutableStateFlow(AudioRoute.SPEAKER)).collectAsState()
+
     var isDeafened by remember { mutableStateOf(false) }
     var showDiagDialog by remember { mutableStateOf(false) }
 
@@ -95,7 +107,7 @@ fun OfflineRoomScreen(
         topBar = {
             MeshTopBar(
                 sessionCode = sessionCode,
-                stateText = transportState.name,
+                transportState = transportState,
                 peerCount = peers.count { it.isOnline },
                 onInfoClick = { showDiagDialog = true }
             )
@@ -105,6 +117,9 @@ fun OfflineRoomScreen(
             MeshBottomBar(
                 isMicEnabled = isMicOn,
                 isDeafened = isDeafened,
+                activeRoute = activeRoute,
+                isVoxEnabled = isVoxEnabled,
+                isPttActive = isPttActive,
                 onToggleMic = {
                     val next = !isMicOn
                     coroutineScope.launch {
@@ -117,6 +132,23 @@ fun OfflineRoomScreen(
                     coroutineScope.launch {
                         transport.setDeafened(next)
                     }
+                },
+                onCycleAudioRoute = {
+                    val nextRoute = when (activeRoute) {
+                        AudioRoute.SPEAKER -> AudioRoute.BLUETOOTH
+                        AudioRoute.BLUETOOTH -> AudioRoute.WIRED
+                        AudioRoute.WIRED -> AudioRoute.EARPIECE
+                        AudioRoute.EARPIECE -> AudioRoute.SPEAKER
+                    }
+                    coroutineScope.launch {
+                        transport.setAudioRoute(nextRoute)
+                    }
+                },
+                onToggleVox = {
+                    voxBridge?.setVoxEnabled(!isVoxEnabled)
+                },
+                onPttPressChange = { held ->
+                    voxBridge?.setPttHeld(held)
                 },
                 onLeave = onLeave
             )
@@ -171,6 +203,7 @@ fun OfflineRoomScreen(
                     )
                 }
             }
+
             // Mesh Topology Health Header
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
@@ -185,13 +218,23 @@ fun OfflineRoomScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(
-                            text = stringResource(R.string.mesh_title),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF38BDF8),
-                            fontFamily = FontFamily.Monospace
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(if (transportState == VoiceTransportState.CONNECTED) Color(0xFF10B981) else Color(0xFFF59E0B))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.mesh_title),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF38BDF8),
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = stringResource(R.string.mesh_active_discovered, peers.count { it.isOnline }, peers.size),
                             fontSize = 14.sp,
@@ -251,7 +294,8 @@ fun OfflineRoomScreen(
                     items(uniquePeers, key = { it.id }) { peer ->
                         MeshPeerCard(
                             peer = peer,
-                            isSpeaking = peer.id in activeSpeakers
+                            isSpeaking = peer.id in activeSpeakers,
+                            allPeers = uniquePeers
                         )
                     }
                 }
@@ -261,7 +305,7 @@ fun OfflineRoomScreen(
 }
 
 @Composable
-private fun MeshDiagnosticsDialog(
+internal fun MeshDiagnosticsDialog(
     snapshot: MeshDiagnosticsSnapshot?,
     onDismiss: () -> Unit
 ) {
@@ -279,18 +323,18 @@ private fun MeshDiagnosticsDialog(
                 Text(stringResource(R.string.mesh_diag_empty), color = Color(0xFF94A3B8))
             } else {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    DiagRow("Device ID", snapshot.selfDeviceId.take(8))
-                    DiagRow("Session ID", snapshot.sessionId.take(8))
-                    DiagRow("Active Members", "${snapshot.memberCount}")
-                    DiagRow("Direct Neighbors", "${snapshot.directNeighborCount}")
-                    DiagRow("Active Routes", "${snapshot.routeCount}")
-                    DiagRow("Max Route Hops", "${snapshot.maxHopCount}")
-                    DiagRow("Voice Rx Frames", "${snapshot.receivedVoiceFrames}")
-                    DiagRow("Voice Fwd Frames", "${snapshot.forwardedVoiceFrames}")
-                    DiagRow("Dropped Duplicates", "${snapshot.droppedDuplicates}")
-                    DiagRow("Dropped Invalid", "${snapshot.droppedInvalid}")
-                    DiagRow("Dropped TTL", "${snapshot.droppedTtl}")
-                    DiagRow("Graph Version", "${snapshot.graphVersion}")
+                    DiagRow(stringResource(R.string.mesh_diag_device_id), snapshot.selfDeviceId.take(8))
+                    DiagRow(stringResource(R.string.mesh_diag_session_id), snapshot.sessionId.take(8))
+                    DiagRow(stringResource(R.string.mesh_diag_members), "${snapshot.memberCount}")
+                    DiagRow(stringResource(R.string.mesh_diag_direct_neighbors), "${snapshot.directNeighborCount}")
+                    DiagRow(stringResource(R.string.mesh_diag_routes), "${snapshot.routeCount}")
+                    DiagRow(stringResource(R.string.mesh_diag_max_hops), "${snapshot.maxHopCount}")
+                    DiagRow(stringResource(R.string.mesh_diag_rx_frames), "${snapshot.receivedVoiceFrames}")
+                    DiagRow(stringResource(R.string.mesh_diag_fwd_frames), "${snapshot.forwardedVoiceFrames}")
+                    DiagRow(stringResource(R.string.mesh_diag_dropped_dups), "${snapshot.droppedDuplicates}")
+                    DiagRow(stringResource(R.string.mesh_diag_dropped_invalid), "${snapshot.droppedInvalid}")
+                    DiagRow(stringResource(R.string.mesh_diag_dropped_ttl), "${snapshot.droppedTtl}")
+                    DiagRow(stringResource(R.string.mesh_diag_graph_version), "${snapshot.graphVersion}")
                 }
             }
         },
@@ -317,7 +361,8 @@ private fun DiagRow(label: String, value: String) {
 @Composable
 private fun MeshPeerCard(
     peer: UnifiedVoicePeer,
-    isSpeaking: Boolean
+    isSpeaking: Boolean,
+    allPeers: List<UnifiedVoicePeer>
 ) {
     val borderColor = when {
         isSpeaking -> Color(0xFF10B981) // Emerald speaking highlight
@@ -369,20 +414,36 @@ private fun MeshPeerCard(
                 }
                 Spacer(modifier = Modifier.height(2.dp))
 
-                // Routing details
-                val routeInfo = if (peer.isDirect) {
-                    "DIRECT LINK (1 Hop)"
-                } else if (peer.isRelayed) {
-                    "RELAYED · ${peer.hopCount} Hops via ${peer.nextHopId?.take(8) ?: "relay"}"
-                } else {
-                    "UNREACHABLE"
+                // Routing details with relay resolution and route age
+                val relayName = if (peer.isRelayed && peer.nextHopId != null) {
+                    allPeers.find { it.id == peer.nextHopId }?.name ?: peer.nextHopId.take(8)
+                } else null
+
+                val routeInfo = when {
+                    peer.isDirect -> stringResource(R.string.mesh_direct_link)
+                    peer.isRelayed -> stringResource(R.string.mesh_relayed_via, peer.hopCount, relayName ?: "relay")
+                    else -> stringResource(R.string.mesh_unreachable)
                 }
-                Text(
-                    text = routeInfo,
-                    color = if (peer.isDirect) Color(0xFF38BDF8) else Color(0xFFFBBF24),
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
-                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = routeInfo,
+                        color = if (peer.isDirect) Color(0xFF38BDF8) else Color(0xFFFBBF24),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    val ageSec = (peer.routeAgeMs / 1000).coerceAtLeast(0)
+                    Text(
+                        text = stringResource(R.string.mesh_route_age, ageSec),
+                        color = Color(0xFF64748B),
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
         }
     }
@@ -391,10 +452,18 @@ private fun MeshPeerCard(
 @Composable
 private fun MeshTopBar(
     sessionCode: String,
-    stateText: String,
+    transportState: VoiceTransportState,
     peerCount: Int,
     onInfoClick: () -> Unit
 ) {
+    val stateText = when (transportState) {
+        VoiceTransportState.STOPPED -> stringResource(R.string.mesh_state_stopped)
+        VoiceTransportState.STARTING -> stringResource(R.string.mesh_state_starting)
+        VoiceTransportState.CONNECTED -> stringResource(R.string.mesh_state_connected)
+        VoiceTransportState.RECONNECTING -> stringResource(R.string.mesh_state_reconnecting)
+        VoiceTransportState.FAILED -> stringResource(R.string.mesh_state_failed)
+    }
+
     Surface(color = Color(0xFF0F172A), modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -434,8 +503,14 @@ private fun MeshTopBar(
 private fun MeshBottomBar(
     isMicEnabled: Boolean,
     isDeafened: Boolean,
+    activeRoute: AudioRoute,
+    isVoxEnabled: Boolean,
+    isPttActive: Boolean,
     onToggleMic: () -> Unit,
     onToggleDeafen: () -> Unit,
+    onCycleAudioRoute: () -> Unit,
+    onToggleVox: () -> Unit,
+    onPttPressChange: (Boolean) -> Unit,
     onLeave: () -> Unit
 ) {
     Surface(
@@ -443,58 +518,139 @@ private fun MeshBottomBar(
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Mic Toggle
-            IconButton(
-                onClick = onToggleMic,
+            // Secondary row: Audio Route selector + VOX toggle + PTT indicator
+            Row(
                 modifier = Modifier
-                    .size(54.dp)
-                    .clip(CircleShape)
-                    .background(if (isMicEnabled) Color(0xFF10B981) else Color(0xFF334155))
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
-                    contentDescription = stringResource(R.string.mesh_cd_toggle_mic),
-                    tint = Color.White
-                )
+                // Audio Route Cycle Button
+                val (routeIcon, routeLabelRes) = when (activeRoute) {
+                    AudioRoute.SPEAKER -> Icons.Default.VolumeUp to R.string.mesh_audio_route_speaker
+                    AudioRoute.BLUETOOTH -> Icons.Default.Bluetooth to R.string.mesh_audio_route_bluetooth
+                    AudioRoute.WIRED -> Icons.Default.Headset to R.string.mesh_audio_route_wired
+                    AudioRoute.EARPIECE -> Icons.Default.PhoneInTalk to R.string.mesh_audio_route_earpiece
+                }
+                Surface(
+                    onClick = onCycleAudioRoute,
+                    color = Color(0xFF334155),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = routeIcon, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(routeLabelRes),
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                // VOX Toggle
+                Surface(
+                    onClick = onToggleVox,
+                    color = if (isVoxEnabled) Color(0xFF065F46) else Color(0xFF334155),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = if (isVoxEnabled) stringResource(R.string.mesh_vox_on) else stringResource(R.string.mesh_vox_off),
+                        color = if (isVoxEnabled) Color(0xFF6EE7B7) else Color(0xFF94A3B8),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+
+                // PTT Press-and-Hold Button
+                Surface(
+                    color = if (isPttActive) Color(0xFF047857) else Color(0xFF334155),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = {
+                                onPttPressChange(true)
+                                tryAwaitRelease()
+                                onPttPressChange(false)
+                            }
+                        )
+                    }
+                ) {
+                    Text(
+                        text = if (isPttActive) stringResource(R.string.mesh_ptt_transmitting) else stringResource(R.string.mesh_ptt_button),
+                        color = if (isPttActive) Color(0xFF6EE7B7) else Color(0xFFF1F5F9),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
             }
 
-            // Deafen Toggle
-            IconButton(
-                onClick = onToggleDeafen,
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(CircleShape)
-                    .background(if (isDeafened) Color(0xFFEF4444) else Color(0xFF334155))
+            // Primary control row: Mic + Deafen + Leave
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = if (isDeafened) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                    contentDescription = stringResource(R.string.mesh_cd_toggle_deafen),
-                    tint = Color.White
-                )
-            }
+                // Mic Toggle
+                IconButton(
+                    onClick = onToggleMic,
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(if (isMicEnabled) Color(0xFF10B981) else Color(0xFF334155))
+                ) {
+                    Icon(
+                        imageVector = if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
+                        contentDescription = stringResource(R.string.mesh_cd_toggle_mic),
+                        tint = Color.White
+                    )
+                }
 
-            // Leave Session Button
-            Surface(
-                onClick = onLeave,
-                color = Color(0xFFDC2626),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.mesh_leave),
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
-                )
+                // Deafen Toggle
+                IconButton(
+                    onClick = onToggleDeafen,
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(if (isDeafened) Color(0xFFEF4444) else Color(0xFF334155))
+                ) {
+                    Icon(
+                        imageVector = if (isDeafened) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                        contentDescription = stringResource(R.string.mesh_cd_toggle_deafen),
+                        tint = Color.White
+                    )
+                }
+
+                // Leave Session Button
+                Surface(
+                    onClick = onLeave,
+                    color = Color(0xFFDC2626),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.mesh_leave),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                    )
+                }
             }
         }
     }
 }
-

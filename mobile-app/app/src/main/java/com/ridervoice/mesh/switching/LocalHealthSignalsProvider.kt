@@ -107,13 +107,16 @@ class LocalHealthSignalsProvider(
         fun createMachine(
             coordinator: VoiceSessionCoordinator,
             config: AntiFlappingConfig = AntiFlappingConfig(),
-            clock: () -> Long = { System.currentTimeMillis() }
+            clock: () -> Long = { System.currentTimeMillis() },
+            onEmitTransitionDiagnostic: (from: AutoSwitchState, to: AutoSwitchState, reason: String) -> Unit = { _, _, _ -> },
+            onProbeMesh: (suspend () -> Unit)? = null
         ): AutomaticSwitchStateMachine = AutomaticSwitchStateMachine(
             config = config,
             clock = clock,
             onHandoffToOffline = { coordinator.fallbackToMesh() },
-            onHandoffToOnline = { coordinator.recoverToLiveKit() }
+            onHandoffToOnline = { coordinator.recoverToLiveKit() },
+            onEmitTransitionDiagnostic = onEmitTransitionDiagnostic,
+            onProbeMesh = onProbeMesh
         )
     }
 }
-

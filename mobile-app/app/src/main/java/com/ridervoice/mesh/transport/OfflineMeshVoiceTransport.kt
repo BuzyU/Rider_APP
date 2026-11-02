@@ -1,5 +1,8 @@
 package com.ridervoice.mesh.transport
 
+import com.ridervoice.mesh.audio.MeshAudioRouteController
+import com.ridervoice.mesh.audio.MeshVoxBridge
+
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.audio.AudioRecordSource
@@ -62,7 +65,8 @@ class OfflineMeshVoiceTransport(
         UdpMeshLink.discoverBroadcastEndpoints(MeshConfig.AUDIO_PORT)
     },
     private val hasMicPermission: () -> Boolean = { true },
-    private val audioRecordFactory: (() -> AudioRecordSource?)? = null
+    private val audioRecordFactory: (() -> AudioRecordSource?)? = null,
+    val routeController: MeshAudioRouteController? = null
 ) : VoiceTransport, MeshControl {
 
     private val startMutex = Mutex()
@@ -72,6 +76,11 @@ class OfflineMeshVoiceTransport(
 
     private val diagnosticsRepo = MeshDiagnosticsRepository()
     val diagnostics: StateFlow<MeshDiagnosticsSnapshot> = diagnosticsRepo.snapshot
+
+    private val _audioRoute = MutableStateFlow(AudioRoute.SPEAKER)
+    val audioRoute: StateFlow<AudioRoute> = routeController?.activeRoute ?: _audioRoute.asStateFlow()
+
+    val voxBridge: MeshVoxBridge = MeshVoxBridge(this, dispatcher = dispatcher)
 
     private val _micState = MutableStateFlow(MicState.OFF)
     override val micState: StateFlow<MicState> = _micState.asStateFlow()
@@ -143,7 +152,7 @@ class OfflineMeshVoiceTransport(
             link = uLink,
             clock = clock,
             onLocalVoicePacket = { pkt ->
-                jManager.onVoicePacket(pkt.sourceId, pkt.sequence, pkt.payload)
+                jManager.onVoicePacket(pkt.sourceId, pkt.sequence, pkt.payload, pkt.epoch)
             }
         )
         forwardingEngine = fEngine
@@ -243,6 +252,8 @@ class OfflineMeshVoiceTransport(
         audioPlayback = aPlayback
         aPlayback.start()
 
+        routeController?.acquireCommunicationMode()
+
         val aCapture = OfflineAudioCapture(
             gateAllowed = gateAllowed,
             canClaimAudio = { audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH },
@@ -261,6 +272,7 @@ class OfflineMeshVoiceTransport(
                 fEngine.originateVoice(pcm)
             }
         )
+        aCapture.frameGate = { pcm: ByteArray -> voxBridge.shouldTransmitPcmFrame(pcm) }
         audioCapture = aCapture
         if (micWanted) {
             _micState.value = MicState.STARTING
@@ -276,12 +288,15 @@ class OfflineMeshVoiceTransport(
     }
 
     override suspend fun disableAudio() = startMutex.withLock {
+        routeController?.releaseCommunicationMode()
         audioCapture?.stop()
         audioCapture = null
         _micState.value = MicState.OFF
 
         audioPlayback?.stop()
         audioPlayback = null
+        routeController?.releaseCommunicationMode()
+        voxBridge.close()
 
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
     }
@@ -313,6 +328,8 @@ class OfflineMeshVoiceTransport(
 
         audioPlayback?.stop()
         audioPlayback = null
+        routeController?.releaseCommunicationMode()
+        voxBridge.close()
 
         link?.stop()
         link = null
@@ -397,6 +414,8 @@ class OfflineMeshVoiceTransport(
     }
 
     override suspend fun setAudioRoute(route: AudioRoute) {
+        _audioRoute.value = route
+        routeController?.setRoute(route)
         onAudioRouteChanged(route)
     }
 

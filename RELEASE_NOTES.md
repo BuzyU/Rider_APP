@@ -1,7 +1,7 @@
 ## RiderVoice v0.0.3.20 Release Notes
 
 ### 🚀 Overview
-RiderVoice **v0.0.3.20** delivers the complete **Offline Mesh Intercom Engine (v2.0)**, an autonomous, multi-hop peer-to-peer voice communications engine designed for motorcycle convoys traversing off-grid backcountry trails where cellular infrastructure is unavailable. This release resolves all 26 defects identified in the comprehensive Stage 0–5 audit (D1–D26), maintains strict zero-modification isolation on frozen online files, introduces an Audio HAL concurrency arbiter, a 9-state deterministic automatic switching state machine with recovery deadlock prevention (D25), relay amplification storm suppression (D26), PBKDF2/AES-GCM authenticated payload encryption (D19), and extends the unit test suite to 281 tests with zero failures.
+RiderVoice **v0.0.3.20** delivers the complete **Offline Mesh Intercom Engine (v2.0)**, an autonomous, multi-hop peer-to-peer voice communications engine designed for motorcycle convoys traversing off-grid backcountry trails where cellular infrastructure is unavailable. This release resolves all 26 defects identified in the comprehensive Stage 0–5 audit (D1–D26), maintains strict zero-modification isolation on frozen online files, introduces an Audio HAL concurrency arbiter, an 8-state deterministic automatic switching state machine with recovery deadlock prevention (D25), relay amplification storm suppression (D26), PBKDF2/AES-GCM authenticated payload encryption (D19), and extends the unit test suite to 281 tests with zero failures.
 
 | Attribute | Value |
 | :--- | :--- |
@@ -19,17 +19,17 @@ RiderVoice **v0.0.3.20** delivers the complete **Offline Mesh Intercom Engine (v
 - **Microphone Release on Fallback**: Cleanly releases Android audio recording hardware during handoff rather than retaining locks in mute mode, guaranteeing offline capture availability.
 
 #### 2. Automatic Switching & Deadlock Prevention (D4, D25)
-- **9-State Deterministic State Machine (`AutomaticSwitchStateMachine`)**: Implemented complete state lifecycle with debounced handoff/handback triggers.
+- **8-State Deterministic State Machine (`AutomaticSwitchStateMachine`)**: Implemented complete state lifecycle with debounced handoff/handback triggers.
 - **Recovery Deadlock Fix (D25)**: Resolved critical issue where disconnecting LiveKit during handoff prevented reconnection evaluation. The state machine now tracks independent network reachability signals (`LocalHealthSignals`), enabling seamless recovery when cellular coverage returns.
 - **State Transition Fault Tolerance (D4)**: Handled edge cases where handoff failure or exceptions left the state machine stranded in transient states.
 
 #### 3. Wire Protocol, Relay Storm Suppression & Routing (D2, D8, D19, D20, D21, D22, D23, D26)
 - **5x Relay Amplification Suppression (D26)**: In dense peer clusters, naive broadcast flooding caused exponential packet explosions (25 datagrams per frame for 6 nodes). Introduced route-aware relay pruning ensuring exactly N-1 datagrams per frame while preserving multi-hop reachability in chain and tail topologies.
 - **Contiguous Voice Sequence Numbering (D2)**: Decoupled discovery heartbeat sequence numbers from voice stream sequences, eliminating synthetic jitter buffer packet loss and audio concealment glitches.
-- **Cryptographic Wire Hardening (D19)**: Implemented slow KDF using PBKDF2-HMAC-SHA256 (60,000 iterations) with HKDF-SHA256 expansion, deriving 256-bit AES-GCM session keys from 6-digit room codes.
-- **Sliding-Window Replay Rejection (D8)**: Hardened packet deduplication using a combination of an LRU cache and Bloom filter to reject delayed replay attacks beyond the standard cache TTL.
+- **Cryptographic Wire Hardening (D19)**: Implemented slow KDF using PBKDF2-HMAC-SHA256 (120,000 iterations), deriving session UUID, 256-bit authentication key, and 256-bit AES-GCM payload encryption key from 16-character pairing codes.
+- **Sliding-Window Replay Rejection (D8)**: Hardened packet deduplication using a sliding-window duplicate packet cache to reject delayed replay attacks beyond the standard cache TTL.
 - **Direct Neighbor Preservation (D20)**: Prevented relayed discovery packets arriving first from masking or misclassifying direct physical 1-hop radio neighbors.
-- **Oversized Voice Payload Validation (D21)**: Validated voice payload boundaries against maximum frame capacity (727-byte wire packet v2 layout), discarding oversized or malformed frames.
+- **Oversized Voice Payload Validation (D21)**: Validated voice payload boundaries against maximum frame capacity (747-byte wire packet v2 layout), discarding oversized or malformed frames.
 - **Link Hygiene & Endpoint Verification (D22)**: Enforced strict authentication before registering endpoints into the active routing table, preventing unauthenticated probe spoofing.
 - **Stale Broadcast Pruning (D23)**: Actively purges disconnected or timed-out broadcast endpoints from transmission queues.
 - **Event-Driven Capture Loop (D24)**: Replaced high-CPU busy-wait polling in `OfflineAudioCapture` with an interruptible event-driven loop.

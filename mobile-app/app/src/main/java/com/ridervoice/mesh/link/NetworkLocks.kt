@@ -1,8 +1,11 @@
 package com.ridervoice.mesh.link
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
+import java.net.DatagramSocket
 
 /**
  * Manages Wi-Fi and Multicast locks required for low-latency mesh communication.
@@ -11,17 +14,29 @@ import android.os.Build
 interface NetworkLocks {
     fun acquire()
     fun release()
+    fun bindSocketToWifi(socket: DatagramSocket) {}
 }
 
 object NoNetworkLocks : NetworkLocks {
     override fun acquire() {}
     override fun release() {}
+    override fun bindSocketToWifi(socket: DatagramSocket) {}
 }
 
-class AndroidNetworkLocks(context: Context) : NetworkLocks {
+class AndroidNetworkLocks(private val context: Context) : NetworkLocks {
     private val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
     private var multicast: WifiManager.MulticastLock? = null
     private var wifi: WifiManager.WifiLock? = null
+
+    override fun bindSocketToWifi(socket: DatagramSocket) {
+        val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val wifiNetwork = cm?.allNetworks?.firstOrNull { net ->
+            cm.getNetworkCapabilities(net)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        }
+        if (wifiNetwork != null) {
+            runCatching { wifiNetwork.bindSocket(socket) }
+        }
+    }
 
     @Synchronized
     override fun acquire() {
@@ -53,4 +68,3 @@ class AndroidNetworkLocks(context: Context) : NetworkLocks {
         wifi = null
     }
 }
-

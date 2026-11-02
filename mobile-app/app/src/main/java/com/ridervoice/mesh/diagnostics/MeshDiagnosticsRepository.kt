@@ -41,7 +41,7 @@ class MeshDiagnosticsRepository {
             selfDeviceId = selfDeviceId,
             sessionId = sessionId,
             memberCount = memberCount,
-            directNeighborCount = graph.neighborsOf(selfDeviceId).size,
+            directNeighborCount = graph.edges.count { (it.from == selfDeviceId || it.to == selfDeviceId) && it.endpoint != null },
             routeCount = routes.size,
             maxHopCount = routes.values.maxOfOrNull { it.hopCount } ?: 0,
             receivedVoiceFrames = receivedVoiceFrames,

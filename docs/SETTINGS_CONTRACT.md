@@ -21,7 +21,8 @@ This document provides the authoritative contract for all persistent settings in
 | **Device Configured** | `device_configured` | `false` | `true`, `false` | `AuthViewModel`, `NavGraph` | App startup | None | No | `DeviceSetupTest` |
 | **Emergency Country** | `emergency_country` | `null` (auto-detect device locale region) | ISO-3166 alpha-2 country (e.g. `"IN"`, `"US"`, `"GB"`) or empty for auto | `EmergencyNumbers.resolve`, `SosScreen`, `EmergencyAlertActivity` | **Live** on SOS / Emergency resolution | None (TelephonyManager strictly omitted for Play Protect safety) | **No** (Preserved across logout) | `EmergencyNumbersTest` |
 | **Offline Mesh Intercom** | `offline_mesh_enabled` | `false` | `true`, `false` | `OfflineMeshGate`, `SettingsViewModel`, `OfflineMeshLobbyScreen`, `MeshForegroundService` | **Live** | Wi-Fi / Hotspot active | **No** (Preserved across logout) | `MeshGateTest`, `SettingsScreenTest` |
-| **Auto Fallback to Mesh** | `offline_mesh_auto_fallback` | `true` | `true`, `false` | `AutomaticSwitchStateMachine`, `SettingsViewModel` | **Live** | `offline_mesh_enabled == true` | **No** (Preserved across logout) | `AutomaticSwitchStateMachineTest` |
+| **Auto Fallback to Mesh** | `auto_fallback_enabled` | `false` | `true`, `false` | `AutomaticSwitchStateMachine`, `SettingsViewModel`, `MeshAutoSwitchManager` | **Live** | `offline_mesh_enabled == true` | **No** (Preserved across logout) | `AutomaticSwitchStateMachineTest` |
+| **Warm Standby Discovery** | `warm_standby_enabled` | `false` | `true`, `false` | `OfflineMeshGate`, `VoiceSessionCoordinator`, `MeshAutoSwitchManager` | **Live** | `offline_mesh_enabled == true` | **No** (Preserved across logout) | `AutomaticSwitchStateMachineTest` |
 
 ## Removed Decorative Controls
 

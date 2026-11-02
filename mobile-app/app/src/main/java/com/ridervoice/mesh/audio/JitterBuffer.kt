@@ -26,6 +26,7 @@ class SourceJitterBuffer(
     private val targetDelayFrames: Int = 3, // 3 * 20ms = 60ms within 40-120ms target window
     private val maxQueueFrames: Int = 16,   // 320ms max queue bound
     private val frameBytes: Int = MeshConfig.BYTES_PER_FRAME,
+    val epoch: Int = 0,
     private val clock: () -> Long
 ) {
     private val queue = TreeMap<Int, ByteArray> { a, b -> (a - b).compareTo(0) }
@@ -140,8 +141,7 @@ class SourceJitterBuffer(
 }
 
 /**
- * Manages one [SourceJitterBuffer] per remote `originalSourceDeviceId`, mixes concurrent active
- * sources with 16-bit saturating addition, and cleans up timed-out sources.
+ * Manages one [SourceJitterBuffer] per remote participant.
  */
 class MultiSourceJitterBufferManager(
     private val targetDelayFrames: Int = 3,
@@ -152,14 +152,20 @@ class MultiSourceJitterBufferManager(
     private val buffers = LinkedHashMap<String, SourceJitterBuffer>()
 
     @Synchronized
-    fun onVoicePacket(sourceId: String, sequence: Int, pcmBytes: ByteArray) {
-        val buf = buffers.getOrPut(sourceId) {
-            SourceJitterBuffer(
+    fun onVoicePacket(sourceId: String, sequence: Int, pcmBytes: ByteArray, epoch: Int = 0) {
+        val existing = buffers[sourceId]
+        val buf = if (existing == null || existing.epoch != epoch) {
+            val fresh = SourceJitterBuffer(
                 sourceId = sourceId,
                 targetDelayFrames = targetDelayFrames,
                 maxQueueFrames = maxQueueFrames,
+                epoch = epoch,
                 clock = clock
             )
+            buffers[sourceId] = fresh
+            fresh
+        } else {
+            existing
         }
         buf.enqueue(sequence, pcmBytes)
     }
@@ -241,4 +247,3 @@ class MultiSourceJitterBufferManager(
         }
     }
 }
-

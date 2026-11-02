@@ -47,7 +47,7 @@ class AudioOwnershipArbiter {
     }
 
     suspend fun handoffLiveKitToOfflineMesh(onSuspendLiveKitCapture: suspend () -> Unit): Boolean = mutex.withLock {
-        if (_owner.value == AudioOwner.LIVEKIT) {
+        if (_owner.value != AudioOwner.OFFLINE_MESH) {
             onSuspendLiveKitCapture()
             _owner.value = AudioOwner.NONE
         }
@@ -59,7 +59,7 @@ class AudioOwnershipArbiter {
         onStopOfflineCapture: suspend () -> Unit,
         onResumeLiveKitCapture: suspend () -> Unit
     ): Boolean = mutex.withLock {
-        if (_owner.value == AudioOwner.OFFLINE_MESH) {
+        if (_owner.value != AudioOwner.LIVEKIT) {
             onStopOfflineCapture()
             _owner.value = AudioOwner.NONE
         }

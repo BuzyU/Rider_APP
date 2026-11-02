@@ -28,6 +28,15 @@ class DuplicatePacketCache(
         return true
     }
 
+    /** Non-mutating duplicate check for pre-AEAD validation. */
+    @Synchronized
+    fun isDuplicate(sessionId: String, sourceId: String, sequence: Int, kind: Int = 0, epoch: Int = 0): Boolean {
+        val now = clock()
+        purgeExpired(now)
+        val key = "$sessionId|$sourceId|$epoch|$kind|$sequence"
+        return entries.containsKey(key)
+    }
+
     @Synchronized
     fun size(): Int { purgeExpired(clock()); return entries.size }
 
@@ -41,4 +50,3 @@ class DuplicatePacketCache(
         }
     }
 }
-

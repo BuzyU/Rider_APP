@@ -33,6 +33,9 @@ class App : Application(), Configuration.Provider {
     @Inject
     lateinit var uploadManager: DiagnosticUploadManager
 
+    @Inject
+    lateinit var meshAutoSwitchManager: com.ridervoice.mesh.switching.MeshAutoSwitchManager
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -46,6 +49,7 @@ class App : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         com.ridervoice.mesh.OfflineMeshGate.install(com.ridervoice.mesh.PrefsMeshRuntimeSettings(this))
+        meshAutoSwitchManager.start()
         setupCrashHandler()
         createNotificationChannels()
         finalizeOrphanedDiagnosticSessions()

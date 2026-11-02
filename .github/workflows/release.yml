@@ -179,13 +179,20 @@ jobs:
           # 2. Check if a version-specific section exists in RELEASE_NOTES.md or CHANGELOG.md
           CHANGELOG_NOTES=""
           if [ -f "RELEASE_NOTES.md" ]; then
-            CHANGELOG_NOTES=$(cat RELEASE_NOTES.md)
+            CHANGELOG_NOTES=$(awk -v ver="${{ env.VERSION_NAME }}" '
+              $0 ~ "^## \\[?" ver { p=1; next }
+              $0 ~ "^## " && p { p=0 }
+              p { print }
+            ' RELEASE_NOTES.md | head -c 15000)
+            if [ -z "$CHANGELOG_NOTES" ]; then
+              CHANGELOG_NOTES=$(head -c 15000 RELEASE_NOTES.md)
+            fi
           elif [ -f "CHANGELOG.md" ]; then
             CHANGELOG_NOTES=$(awk -v ver="${{ env.VERSION_NAME }}" '
               $0 ~ "^## \\[?" ver { p=1; next }
               $0 ~ "^## " && p { p=0 }
               p { print }
-            ' CHANGELOG.md)
+            ' CHANGELOG.md | head -c 15000)
           fi
 
           # 3. Assemble dynamic release markdown

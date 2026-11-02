@@ -17,15 +17,20 @@ object PayloadCrypto {
     const val TAG_LEN = 16
     const val NONCE_LEN = 12
 
-    fun nonce(epoch: Int, sequence: Int, typeCode: Int): ByteArray =
-        ByteBuffer.allocate(NONCE_LEN).order(ByteOrder.BIG_ENDIAN)
+    fun nonce(epoch: Int, sequence: Int, typeCode: Int, sourceId: String? = null): ByteArray {
+        val srcBytes = if (sourceId != null) runCatching { MeshPacketCodec.uuidBytes(sourceId) }.getOrNull() else null
+        val b9 = srcBytes?.getOrNull(0) ?: 0.toByte()
+        val b10 = srcBytes?.getOrNull(1) ?: 0.toByte()
+        val b11 = srcBytes?.getOrNull(2) ?: 0.toByte()
+        return ByteBuffer.allocate(NONCE_LEN).order(ByteOrder.BIG_ENDIAN)
             .putInt(epoch)
             .putInt(sequence)
             .put(typeCode.toByte())
-            .put(0.toByte())
-            .put(0.toByte())
-            .put(0.toByte())
+            .put(b9)
+            .put(b10)
+            .put(b11)
             .array()
+    }
 
     fun aad(
         sessionId: String,
@@ -73,4 +78,3 @@ object PayloadCrypto {
         null
     }
 }
-

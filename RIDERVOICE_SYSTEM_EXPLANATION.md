@@ -340,7 +340,7 @@ flowchart TD
     subgraph MeshNodeA["Rider A (Host / Node)"]
         CapA["Audio Record (PCM 16kHz)"] --> CodecA["Opus Encoder / Frame Builder"]
         CodecA --> KdfA["Slow-KDF + AES-256-GCM Encrypt"]
-        KdfA --> LinkA["UdpMeshLink (Port 4242)"]
+        KdfA --> LinkA["UdpMeshLink (Port 45454)"]
     end
 
     subgraph MeshNodeB["Rider B (Relay Hop)"]
@@ -359,12 +359,12 @@ flowchart TD
 ```
 
 #### Key Architecture & Engineering Principles:
-1. **Zero-Infrastructure Ad-Hoc Radio Mesh:** Operates entirely over local Wi-Fi / Wi-Fi Direct / Local Hotspot networks on UDP port 4242 without requiring cellular data, internet gateways, or external routers.
+1. **Zero-Infrastructure Ad-Hoc Radio Mesh:** Operates entirely over local Wi-Fi / Wi-Fi Direct / Local Hotspot networks on UDP port 45454 without requiring cellular data, internet gateways, or external routers.
 2. **Daisy-Hop Forwarding & Storm Suppression (D26):** Forwarding nodes decrement TTL (`VOICE_TTL = 3`, `HELLO_TTL = 4`). In dense peer clusters, naive broadcast flooding causes an exponential datagram storm ($N \times (N-1)$ datagrams). The forwarding engine implements route-aware relay pruning, guaranteeing exactly $N-1$ datagrams per frame while preserving multi-hop reachability in chain and tail topologies.
 3. **Audio HAL Mutual Exclusion (`AudioOwnershipArbiter`):** Android's Audio Hardware Abstraction Layer (HAL) crashes or throws `ERROR_INVALID_OPERATION` if two subsystems contend for exclusive mic hardware simultaneously. `AudioOwnershipArbiter` enforces strict concurrency mutual exclusion between WebRTC ADM capture and offline mesh `AudioRecord`.
-4. **Deterministic 9-State Switching & Deadlock Prevention (D25):** The `AutomaticSwitchStateMachine` evaluates network health (`LocalHealthSignals`) across debounced windows. Crucially, when cellular coverage drops and LiveKit is disconnected, the state machine continues evaluating independent network reachability signals so the convoy seamlessly hands back to LiveKit when connectivity returns.
-5. **Slow-KDF & Authenticated Payload Encryption (D19):** Derives 256-bit AES-GCM encryption keys from 6-digit room codes using PBKDF2-HMAC-SHA256 (60,000 iterations) with HKDF-SHA256 expansion, protecting convoy voice traffic against eavesdropping.
-6. **Sliding-Window Replay Protection (D8):** Pairs a 1,024-entry LRU cache with a sliding-window Bloom filter to detect and reject delayed replay packets beyond standard TTLs.
+4. **Deterministic 8-State Switching & Deadlock Prevention (D25):** The `AutomaticSwitchStateMachine` evaluates network health (`LocalHealthSignals`) across debounced windows. Crucially, when cellular coverage drops and LiveKit is disconnected, the state machine continues evaluating independent network reachability signals so the convoy seamlessly hands back to LiveKit when connectivity returns.
+5. **Slow-KDF & Authenticated Payload Encryption (D19):** Derives 256-bit AES-GCM encryption keys from 16-character pairing codes using PBKDF2-HMAC-SHA256 (120,000 iterations), protecting convoy voice traffic against eavesdropping.
+6. **Sliding-Window Replay Protection (D8):** Utilizes a sliding-window duplicate packet cache to detect and reject delayed replay packets beyond standard TTLs.
 *(Note: Feature flag `FeatureFlags.OFFLINE_MESH_ENABLED = false` by default in release builds).*
 
 ---
@@ -425,7 +425,7 @@ Located at: `mobile-app/app/src/main/java/com/ridervoice/`
 - [VoxEngine.kt](./mobile-app/app/src/main/java/com/ridervoice/audio/VoxEngine.kt): Core Voice Activity Detection engine. Runs the 300Hz high-pass filter, calculates RMS values, receives transmit frames via `onTxFrame()`, and manages the 900ms hold timer.
 - [VoxDetector.kt](./mobile-app/app/src/main/java/com/ridervoice/audio/VoxDetector.kt): Math utility for computing decibel levels, signal noise floors, and sample-level threshold comparisons.
 - [OfflineMeshVoiceTransport.kt](./mobile-app/app/src/main/java/com/ridervoice/mesh/transport/OfflineMeshVoiceTransport.kt): Offline mesh voice transport coordinating UDP link sockets, forwarding engine, jitter buffer, and audio capture/playback with hardware mutual exclusion.
-- [AutomaticSwitchStateMachine.kt](./mobile-app/app/src/main/java/com/ridervoice/mesh/switching/AutomaticSwitchStateMachine.kt): Deterministic 9-state finite state machine orchestrating automatic handoff between LiveKit WebRTC and offline mesh.
+- [AutomaticSwitchStateMachine.kt](./mobile-app/app/src/main/java/com/ridervoice/mesh/switching/AutomaticSwitchStateMachine.kt): Deterministic 8-state finite state machine orchestrating automatic handoff between LiveKit WebRTC and offline mesh.
 
 #### 4.3.3 Foreground Services & Background Monitoring (`services/`)
 - [VoiceForegroundService.kt](./mobile-app/app/src/main/java/com/ridervoice/services/VoiceForegroundService.kt): Persistent Android service keeping WebRTC audio alive with an acquire-capped `PARTIAL_WAKE_LOCK`.
@@ -484,22 +484,22 @@ Located at: `mobile-app/app/src/main/java/com/ridervoice/`
   - `OfflineAudioCapture.kt`: Interruptible event-driven 16kHz PCM capture loop.
   - `OfflineAudioPlayback.kt`: Streams decoded PCM audio into Android `AudioTrack`.
 - **`mesh/forwarding/`**:
-  - `ForwardingEngine.kt`: 18-step forwarding pipeline with relay storm suppression (D26) and Bloom filter deduplication.
+  - `ForwardingEngine.kt`: 18-step forwarding pipeline with relay storm suppression (D26) and sliding-window deduplication.
   - `TtlPolicy.kt`: Hop limits (`VOICE_TTL = 3`, `HELLO_TTL = 4`).
 - **`mesh/graph/` & `mesh/routing/`**:
   - `MeshGraphRepository.kt`: Distance-vector shortest-path routing and deterministic tie-breaking.
   - `RoutingTable.kt`: Next-hop lookup and stale neighbor pruning (D23).
 - **`mesh/identity/` & `mesh/link/`**:
   - `MeshIdentity.kt`: Hardware-backed unique node identifier.
-  - `UdpMeshLink.kt`: Non-blocking DatagramSocket transport on UDP port 4242 with endpoint validation (D22).
+  - `UdpMeshLink.kt`: Non-blocking DatagramSocket transport on UDP port 45454 with endpoint validation (D22).
   - `NetworkLocks.kt`: Manages `WifiLock` and `MulticastLock` symmetric acquire/release.
 - **`mesh/protocol/` & `mesh/session/`**:
-  - `MeshPacketCodec.kt`: 727-byte wire packet v2 encoder/decoder.
-  - `SlowKdf.kt`: PBKDF2-HMAC-SHA256 (60,000 iterations) + HKDF-SHA256 key derivation.
+  - `MeshPacketCodec.kt`: 747-byte wire packet v2 encoder/decoder.
+  - `OfflineSession.kt`: PBKDF2-HMAC-SHA256 (120,000 iterations) key derivation.
   - `DuplicatePacketCache.kt`: Sliding-window replay rejection (D8).
   - `SessionManager.kt`: AES-256-GCM session key establishment.
 - **`mesh/switching/`**:
-  - `AutomaticSwitchStateMachine.kt`: 9-state automatic handoff machine with recovery deadlock fix (D25).
+  - `AutomaticSwitchStateMachine.kt`: 8-state automatic handoff machine with recovery deadlock fix (D25).
   - `LocalHealthSignals.kt`: Cellular and WebRTC loss signal provider.
 - **`mesh/ui/` & `mesh/service/`**:
   - `OfflineMeshLobbyScreen.kt`: Peer discovery, hotspot setup, and group pairing.
@@ -641,4 +641,4 @@ When explaining the system to a new engineer, focus on these five core concepts:
 3. **Hardened Foreground Lifecycle:** Prevents OS battery kills while riding with a 4-hour WakeLock safety cap and speed-tiered GPS polling ([VoiceForegroundService.kt](./mobile-app/app/src/main/java/com/ridervoice/services/VoiceForegroundService.kt), [LocationService.kt](./mobile-app/app/src/main/java/com/ridervoice/services/LocationService.kt)).
 4. **Resilient Data & OTA Architecture:** Self-healing Keystore fallback to prevent crash loops ([SecurePreferences.kt](./mobile-app/app/src/main/java/com/ridervoice/security/SecurePreferences.kt)) and foreground-anchored APK updates ([UpdateManager.kt](./mobile-app/app/src/main/java/com/ridervoice/update/UpdateManager.kt)).
 5. **Zero-Dependency Radar & Regional SOS:** Offline radar navigation ([TacticalRadarCanvas.kt](./mobile-app/app/src/main/java/com/ridervoice/ui/components/TacticalRadarCanvas.kt)) and intelligent emergency dispatch resolution ([EmergencyNumbers.kt](./mobile-app/app/src/main/java/com/ridervoice/utils/EmergencyNumbers.kt)).
-6. **Offline Mesh Voice Intercom (v2.0):** Autonomous multi-hop P2P mesh over local Wi-Fi/UDP with 9-state automatic switching, Audio HAL mutual exclusion, relay storm suppression, and AES-256-GCM authenticated encryption ([OfflineMeshVoiceTransport.kt](./mobile-app/app/src/main/java/com/ridervoice/mesh/transport/OfflineMeshVoiceTransport.kt)).
+6. **Offline Mesh Voice Intercom (v2.0):** Autonomous multi-hop P2P mesh over local Wi-Fi/UDP with 8-state automatic switching, Audio HAL mutual exclusion, relay storm suppression, and AES-256-GCM authenticated encryption ([OfflineMeshVoiceTransport.kt](./mobile-app/app/src/main/java/com/ridervoice/mesh/transport/OfflineMeshVoiceTransport.kt)).

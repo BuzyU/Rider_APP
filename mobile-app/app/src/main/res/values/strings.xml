@@ -266,4 +266,69 @@
         <item quantity="one">%1$d peer</item>
         <item quantity="other">%1$d peers</item>
     </plurals>
+    <!-- Offline Mesh Stage 2.5 & 3.5 UI & Tactical Banner -->
+    <string name="mesh_banner_offline_active">Offline mesh active</string>
+    <string name="mesh_banner_online_restored">Online voice restored</string>
+    <string name="mesh_banner_checking_connection">Checking connection…</string>
+    <string name="mesh_banner_starting_offline">Starting offline mesh…</string>
+    <string name="mesh_banner_handing_back">Reconnecting to online…</string>
+    <string name="mesh_banner_fallback_unavailable">Offline mesh unavailable</string>
+    <string name="mesh_group_entire_online">Entire known group online</string>
+    <string name="mesh_group_some_offline">Local online recovered · Some peers still offline</string>
+    <string name="mesh_group_offline_active">Offline mesh active</string>
+    <string name="mesh_banner_view_mesh">Mesh Diagnostics</string>
+
+    <!-- Mesh Routing & Age -->
+    <string name="mesh_direct_link">DIRECT LINK (1 Hop)</string>
+    <string name="mesh_relayed_via">RELAYED · %1$d Hops via %2$s</string>
+    <string name="mesh_unreachable">UNREACHABLE</string>
+    <string name="mesh_route_age">Age: %1$ds</string>
+
+    <!-- Audio Routes & Controls -->
+    <string name="mesh_audio_route_speaker">Speaker</string>
+    <string name="mesh_audio_route_bluetooth">Bluetooth</string>
+    <string name="mesh_audio_route_wired">Wired Headset</string>
+    <string name="mesh_audio_route_earpiece">Earpiece</string>
+    <string name="mesh_vox_toggle">VOX</string>
+    <string name="mesh_vox_on">VOX: ON</string>
+    <string name="mesh_vox_off">VOX: OFF</string>
+    <string name="mesh_ptt_button">HOLD TO TALK</string>
+    <string name="mesh_ptt_transmitting">TRANSMITTING</string>
+
+    <!-- Transport States -->
+    <string name="mesh_state_stopped">Stopped</string>
+    <string name="mesh_state_starting">Starting</string>
+    <string name="mesh_state_reconnecting">Reconnecting</string>
+    <string name="mesh_state_failed">Failed</string>
+
+    <!-- Telemetry Row Labels -->
+    <string name="mesh_diag_device_id">Device ID</string>
+    <string name="mesh_diag_session_id">Session ID</string>
+    <string name="mesh_diag_members">Active Members</string>
+    <string name="mesh_diag_direct_neighbors">Direct Neighbors</string>
+    <string name="mesh_diag_routes">Active Routes</string>
+    <string name="mesh_diag_max_hops">Max Route Hops</string>
+    <string name="mesh_diag_rx_frames">Voice Rx Frames</string>
+    <string name="mesh_diag_fwd_frames">Voice Fwd Frames</string>
+    <string name="mesh_diag_dropped_dups">Dropped Duplicates</string>
+    <string name="mesh_diag_dropped_invalid">Dropped Invalid</string>
+    <string name="mesh_diag_dropped_ttl">Dropped TTL</string>
+    <string name="mesh_diag_graph_version">Graph Version</string>
+
+    <!-- Settings Mesh Section -->
+    <string name="mesh_settings_title">Offline mesh intercom</string>
+    <string name="mesh_settings_desc">Peer-to-peer Wi-Fi mesh intercom enabled</string>
+    <string name="mesh_settings_fallback_title">Automatic fallback</string>
+    <string name="mesh_settings_fallback_disabled_hint">Enable offline mesh intercom first</string>
+    <string name="mesh_settings_fallback_enabled_hint">Switches to mesh automatically on internet loss</string>
+    <string name="mesh_settings_warm_standby_title">Warm standby discovery</string>
+    <string name="mesh_settings_warm_standby_desc">Background peer discovery ready for immediate switch</string>
+    <string name="mesh_settings_lobby_subtitle">Host or join a peer-to-peer mesh intercom channel</string>
+
+    <!-- Foreground Service Notification -->
+    <string name="mesh_notif_channel_name">Offline Mesh Intercom</string>
+    <string name="mesh_notif_channel_desc">Shows active offline mesh intercom status</string>
+    <string name="mesh_notif_title">Offline Mesh Intercom Active</string>
+    <string name="mesh_notif_content">Offline Mesh: %1$s | %2$d peers</string>
+    <string name="mesh_notif_disconnect">Disconnect</string>
 </resources>

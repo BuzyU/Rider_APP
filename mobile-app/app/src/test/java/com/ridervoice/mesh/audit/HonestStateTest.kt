@@ -5,6 +5,7 @@ import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.audio.AudioRecordSource
 import com.ridervoice.mesh.audio.OfflineAudioCapture
 import com.ridervoice.mesh.audio.PlayoutFrame
+import com.ridervoice.mesh.audio.MultiSourceJitterBufferManager
 import com.ridervoice.mesh.audio.SourceJitterBuffer
 import com.ridervoice.mesh.graph.MeshGraphRepository
 import com.ridervoice.mesh.graph.MeshGraphSnapshot
@@ -325,5 +326,58 @@ class HonestStateTest {
         val frame3 = buffer.pollFrame() as PlayoutFrame.Audio
         assertEquals(seq3, frame3.sequence)
     }
-}
 
+    @Test
+    fun oneWayEdgeIsNotSelectedByRouteCalculator() {
+        val now = 1_000L
+        val self = "self-node"
+        val dest = "dest-node"
+        val relay = "relay-node"
+        val ep = MeshEndpoint("10.0.0.1", MeshConfig.AUDIO_PORT)
+
+        val snap = MeshGraphSnapshot(
+            selfId = self,
+            nodes = mapOf(
+                self to com.ridervoice.mesh.graph.MeshNodeInfo(self, "Self"),
+                dest to com.ridervoice.mesh.graph.MeshNodeInfo(dest, "Dest"),
+                relay to com.ridervoice.mesh.graph.MeshNodeInfo(relay, "Relay")
+            ),
+            edges = listOf(
+                com.ridervoice.mesh.graph.MeshEdge(self, dest, ep, now, now + 10_000L, null, bidirectional = false),
+                com.ridervoice.mesh.graph.MeshEdge(self, relay, ep, now, now + 10_000L, null, bidirectional = true),
+                com.ridervoice.mesh.graph.MeshEdge(relay, dest, null, now, now + 10_000L, null, bidirectional = true)
+            ),
+            version = 1
+        )
+
+        val routes = RouteCalculator.compute(snap, now)
+        val routeToDest = routes[dest]
+        org.junit.Assert.assertNotNull("Route to dest must exist via bidirectional relay", routeToDest)
+        assertEquals("Next hop must be relay, ignoring unconfirmed 1-way edge", relay, routeToDest!!.nextHop)
+        assertEquals("Hop count must be 2", 2, routeToDest.hopCount)
+    }
+
+    @Test
+    fun senderRestartWithNewEpochImmediatelyPlaysInJitterBuffer() {
+        var now = 1_000L
+        val clock = { now }
+        val manager = MultiSourceJitterBufferManager(targetDelayFrames = 2, maxQueueFrames = 10, clock = clock)
+        val pcm = ByteArray(MeshConfig.BYTES_PER_FRAME) { 0x42.toByte() }
+
+        // Enqueue epoch 1 frames
+        manager.onVoicePacket("sourceA", 10, pcm, epoch = 1)
+        manager.onVoicePacket("sourceA", 11, pcm, epoch = 1)
+        // Drain frames
+        val (f1, _) = manager.pollMixedFrame()
+        org.junit.Assert.assertNotNull("Epoch 1 frame 10 delivered", f1)
+        val (f2, _) = manager.pollMixedFrame()
+        org.junit.Assert.assertNotNull("Epoch 1 frame 11 delivered", f2)
+
+        // Sender restarts with epoch 2 at seq 1 (which would be late relative to seq 12)
+        manager.onVoicePacket("sourceA", 1, pcm, epoch = 2)
+        manager.onVoicePacket("sourceA", 2, pcm, epoch = 2)
+
+        val (f3, _) = manager.pollMixedFrame()
+        org.junit.Assert.assertNotNull("Epoch 2 frame 1 should play immediately upon re-prime", f3)
+    }
+}

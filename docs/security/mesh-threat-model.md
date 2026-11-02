@@ -21,7 +21,7 @@
 ## 2. Attacker Personas & Threat Capabilities
 
 ### Persona A: Passive Radio Eavesdropper
-- **Capability:** Receives all 2.4GHz / 5GHz Wi-Fi frames and UDP broadcast/unicast datagrams on port 40001.
+- **Capability:** Receives all 2.4GHz / 5GHz Wi-Fi frames and UDP broadcast/unicast datagrams on port 45454.
 - **Goal:** Intercept and listen to intercom conversations.
 - **Countermeasure:** Voice payloads are sealed using AES-256-GCM with a 256-bit `payloadKey`. Without the 16-symbol pairing code, brute force is computationally infeasible.
 
@@ -55,21 +55,18 @@
 The architecture enforces strict separation between authentication and encryption keys derived from the master secret:
 
 ```
-[16-Symbol Pairing Code] 
+[16-Character Crockford Base32 Code] 
            │
            ▼
-PBKDF2WithHmacSHA256 (100,000 iterations, 32-byte domain salt)
+PBKDF2WithHmacSHA256 (120,000 iterations, salt "rvmesh/v2/session")
            │
-           ▼
-     [Master Key] (256 bits)
-      │          │
-      ▼          ▼
-HKDF-Expand    HKDF-Expand
-("auth-key-v2") ("payload-key-v2")
-      │          │
-      ▼          ▼
-  [authKey]   [payloadKey]
- (HMAC-SHA256) (AES-256-GCM)
+           ▼ (80 bytes derived key)
+ ┌─────────┼──────────┐
+ │         │          │
+ ▼         ▼          ▼
+[0..15]  [16..47]   [48..79]
+Session   authKey   payloadKey
+ UUID   (HMAC-SHA) (AES-256-GCM)
 ```
 
 - **`authKey`:** Used solely for wire datagram authentication (HMAC-SHA256). An intermediate relay node verifies this key to authenticate frames before forwarding, without needing to decrypt the audio.

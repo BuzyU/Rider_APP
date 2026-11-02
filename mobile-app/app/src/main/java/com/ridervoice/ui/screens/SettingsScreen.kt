@@ -170,12 +170,13 @@ fun SettingsScreen(
                     val meshPrefs = remember { com.ridervoice.mesh.PrefsMeshRuntimeSettings(context) }
                     var isMeshEnabled by remember { mutableStateOf(meshPrefs.offlineMeshEnabled) }
                     var isAutoFallbackEnabled by remember { mutableStateOf(meshPrefs.automaticFallbackEnabled) }
+                    var isWarmStandbyEnabled by remember { mutableStateOf(meshPrefs.warmStandbyEnabled) }
                     val isBuildGateOpen = remember { com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen() }
 
                     val wifiPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
                         contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
                     ) { permissions ->
-                        val granted = permissions.values.all { it }
+                        val granted = permissions[android.Manifest.permission.RECORD_AUDIO] == true
                         if (granted) {
                             meshPrefs.setOfflineMeshEnabled(true)
                             isMeshEnabled = true
@@ -184,14 +185,14 @@ fun SettingsScreen(
 
                     SettingsSectionHeader("OFFLINE MESH INTERCOM")
                     SettingsItemToggle(
-                        label = "Offline mesh intercom",
+                        label = stringResource(R.string.mesh_settings_title),
                         icon = Icons.Default.Podcasts,
                         checked = isBuildGateOpen && isMeshEnabled,
                         enabled = isBuildGateOpen,
                         subtitle = if (!isBuildGateOpen) {
                             stringResource(R.string.mesh_disabled_in_build)
                         } else if (isMeshEnabled) {
-                            "Peer-to-peer Wi-Fi mesh intercom enabled"
+                            stringResource(R.string.mesh_settings_desc)
                         } else {
                             "Disabled"
                         },
@@ -200,14 +201,16 @@ fun SettingsScreen(
                             if (enable) {
                                 val perms = mutableListOf(android.Manifest.permission.RECORD_AUDIO)
                                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                    perms.add(android.Manifest.permission.NEARBY_WIFI_DEVICES)
+                                    perms.add(android.Manifest.permission.POST_NOTIFICATIONS)
                                 }
                                 wifiPermLauncher.launch(perms.toTypedArray())
                             } else {
                                 meshPrefs.setOfflineMeshEnabled(false)
                                 meshPrefs.setAutomaticFallbackEnabled(false)
+                                meshPrefs.setWarmStandbyEnabled(false)
                                 isMeshEnabled = false
                                 isAutoFallbackEnabled = false
+                                isWarmStandbyEnabled = false
                                 com.ridervoice.services.MeshForegroundService.activeTransport?.let { t ->
                                     scope.launch(kotlinx.coroutines.Dispatchers.IO) { t.stop() }
                                 }
@@ -217,16 +220,16 @@ fun SettingsScreen(
                     )
 
                     SettingsItemToggle(
-                        label = "Automatic fallback",
+                        label = stringResource(R.string.mesh_settings_fallback_title),
                         icon = Icons.Default.NetworkCheck,
                         checked = isBuildGateOpen && isMeshEnabled && isAutoFallbackEnabled,
                         enabled = isBuildGateOpen && isMeshEnabled,
                         subtitle = if (!isBuildGateOpen) {
                             stringResource(R.string.mesh_disabled_in_build)
                         } else if (!isMeshEnabled) {
-                            "Enable offline mesh intercom first"
+                            stringResource(R.string.mesh_settings_fallback_disabled_hint)
                         } else if (isAutoFallbackEnabled) {
-                            "Switches to mesh automatically on internet loss"
+                            stringResource(R.string.mesh_settings_fallback_enabled_hint)
                         } else {
                             "Disabled"
                         },
@@ -238,10 +241,32 @@ fun SettingsScreen(
                         }
                     )
 
+                    SettingsItemToggle(
+                        label = stringResource(R.string.mesh_settings_warm_standby_title),
+                        icon = Icons.Default.WifiTethering,
+                        checked = isBuildGateOpen && isMeshEnabled && isWarmStandbyEnabled,
+                        enabled = isBuildGateOpen && isMeshEnabled,
+                        subtitle = if (!isBuildGateOpen) {
+                            stringResource(R.string.mesh_disabled_in_build)
+                        } else if (!isMeshEnabled) {
+                            stringResource(R.string.mesh_settings_fallback_disabled_hint)
+                        } else if (isWarmStandbyEnabled) {
+                            stringResource(R.string.mesh_settings_warm_standby_desc)
+                        } else {
+                            "Disabled"
+                        },
+                        onCheckedChange = { enable ->
+                            if (isBuildGateOpen && isMeshEnabled) {
+                                meshPrefs.setWarmStandbyEnabled(enable)
+                                isWarmStandbyEnabled = enable
+                            }
+                        }
+                    )
+
                     if (isBuildGateOpen && isMeshEnabled) {
                         SettingsItemAction(
                             label = "Open Offline Mesh Lobby",
-                            subtitle = "Host or join a peer-to-peer mesh intercom channel",
+                            subtitle = stringResource(R.string.mesh_settings_lobby_subtitle),
                             icon = Icons.Default.Group,
                             onClick = onNavigateToOfflineMeshLobby
                         )

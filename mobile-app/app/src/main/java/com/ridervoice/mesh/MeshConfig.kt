@@ -2,8 +2,8 @@ package com.ridervoice.mesh
 
 /** Tunable constants for the offline mesh. Values are starting points pending physical tests. */
 object MeshConfig {
-    const val DISCOVERY_PORT = 45455
     const val AUDIO_PORT = 45454
+    const val DISCOVERY_PORT = AUDIO_PORT
 
     const val MAX_DEVICES = 6
     const val HELLO_INTERVAL_MS = 1_500L
@@ -12,7 +12,6 @@ object MeshConfig {
     const val REMOTE_REPORT_TIMEOUT_MS = 8_000L
     const val MEMBER_TIMEOUT_MS = 30_000L
 
-    /** Number of times a packet may still be forwarded. 5 reaches 6 hops, the max chain for 6 devices. */
     /**
      * When true, a relay does not forward a packet to a neighbor that is already a (fresh, bidirectional) radio
      * neighbor of the previous hop or of the original source: that neighbor heard the packet directly.
@@ -20,6 +19,7 @@ object MeshConfig {
      * Trade-off: removes accidental redundancy, so measure packet loss on real hardware (device scenario 13/35).
      */
     const val SUPPRESS_REDUNDANT_RELAYS = true
+    /** Number of times a packet may still be forwarded. 5 reaches 6 hops, the max chain for 6 devices. */
     const val DEFAULT_TTL = 5
     /** HELLO floods are kept shorter than audio. */
     const val HELLO_TTL = 4
@@ -27,7 +27,7 @@ object MeshConfig {
 
     /** Sanity bound only: offline phones may have skewed clocks, so this is deliberately loose. */
     const val MAX_CLOCK_SKEW_MS = 60_000L
-    const val DUP_CACHE_MAX_ENTRIES = 32_000
+    const val DUP_CACHE_MAX_ENTRIES = 40_000
     const val DUP_CACHE_TTL_MS = 2 * MAX_CLOCK_SKEW_MS + 5_000L
     const val MAX_PAYLOAD_BYTES = 1_200
     /** Per-source forwarding budget (packets per 1s window). 20 ms frames = 50/s, plus headroom. */
@@ -45,4 +45,3 @@ object MeshConfig {
     /** Debug peer filter for test hooks / partition testing. Null by default. */
     @Volatile var debugPeerFilter: ((String) -> Boolean)? = null
 }
-

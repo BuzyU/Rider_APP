@@ -132,7 +132,7 @@ class UdpMeshLink(
     }
 
     companion object {
-        fun discoverBroadcastEndpoints(port: Int = MeshConfig.DISCOVERY_PORT): List<MeshEndpoint> {
+        fun discoverBroadcastEndpoints(port: Int = MeshConfig.AUDIO_PORT): List<MeshEndpoint> {
             return runCatching {
                 NetworkInterface.getNetworkInterfaces()?.asSequence()
                     ?.filter { it.isUp && !it.isLoopback && !it.isVirtual }
@@ -150,4 +150,3 @@ class UdpMeshLink(
         }
     }
 }
-

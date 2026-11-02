@@ -11,6 +11,13 @@ enum class AutoSwitchState {
     SESSION_ENDED
 }
 
+/** Group connectivity status required by Stage 3.5. */
+enum class GroupConnectivityStatus {
+    ENTIRE_GROUP_ONLINE,
+    LOCAL_ONLINE_SOME_PEERS_OFFLINE,
+    LOCAL_OFFLINE_MESH_ACTIVE
+}
+
 /**
  * Health signals monitored exclusively on the LOCAL device.
  * Never switches because a remote device went offline.
@@ -25,7 +32,8 @@ data class LocalHealthSignals(
 ) {
     /** True if local online transport is failing. */
     fun isOnlineFailing(): Boolean =
-        !isValidatedInternet && !isLiveKitConnected && !isHealthProbeSuccessful
+        (!isValidatedInternet || isLiveKitReconnecting || liveKitReconnectAttempts >= 2) &&
+            !isLiveKitConnected && !isHealthProbeSuccessful
 
     /** True if local online transport is confirmed healthy. */
     fun isOnlineHealthy(): Boolean =
@@ -37,6 +45,9 @@ data class LocalHealthSignals(
      */
     fun isOnlineRecoverable(): Boolean =
         isValidatedInternet && isHealthProbeSuccessful
+
+    fun shouldTriggerBackgroundReconnect(): Boolean =
+        isValidatedInternet && isHealthProbeSuccessful && !isLiveKitConnected && !isLiveKitReconnecting
 }
 
 /**
@@ -49,4 +60,3 @@ data class AntiFlappingConfig(
     val maxTransitionsPerWindow: Int = 3,
     val windowMs: Long = 120_000L
 )
-

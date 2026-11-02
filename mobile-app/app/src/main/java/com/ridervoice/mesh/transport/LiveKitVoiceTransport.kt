@@ -6,21 +6,30 @@ import com.ridervoice.network.LiveKitManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class LiveKitManagerPort(private val m: LiveKitManager) : LiveKitPort {
+class LiveKitManagerPort(
+    private val m: LiveKitManager,
+    private val voxStopper: () -> Unit = {}
+) : LiveKitPort {
     override val connectionState: StateFlow<ConnectionState> get() = m.connectionState
     override val activeSpeaker: StateFlow<String?> get() = m.activeSpeaker
     override val participants: StateFlow<List<Participant>> get() = m.participants
+    override val isUserMuted: StateFlow<Boolean> get() = m.isUserMuted
+    override val deafened: StateFlow<Boolean> get() = m.deafened
     override suspend fun connect(url: String, roomId: String, tokenProvider: suspend () -> String, expectedLkRoomName: String?) =
         m.connect(url = url, roomId = roomId, tokenProvider = tokenProvider, expectedLkRoomName = expectedLkRoomName)
     override fun disconnect() = m.disconnect()
     override fun setUserMuted(muted: Boolean) = m.setUserMuted(muted)
     override fun setDeafened(deafened: Boolean) = m.setDeafened(deafened)
+    override fun onVoiceGate(open: Boolean) = m.onVoiceGate(open)
+    override fun onNetworkRestored() = m.onNetworkRestored()
+    override fun stopVox() = voxStopper()
 }
 
 /**
@@ -36,6 +45,14 @@ class LiveKitVoiceTransport(
     private val onAudioRouteChanged: (AudioRoute) -> Unit = {},
     dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
 ) : VoiceTransport {
+
+    constructor(
+        liveKitManager: LiveKitManager,
+        audioOwnershipArbiter: AudioOwnershipArbiter,
+        voxStopper: () -> Unit = {},
+        onAudioRouteChanged: (AudioRoute) -> Unit = {},
+        dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
+    ) : this(LiveKitManagerPort(liveKitManager, voxStopper), audioOwnershipArbiter, onAudioRouteChanged, dispatcher)
 
     constructor(
         liveKitManager: LiveKitManager,
@@ -61,7 +78,11 @@ class LiveKitVoiceTransport(
     override val micState: StateFlow<MicState> = _micState.asStateFlow()
 
     private var userMicEnabled = true
-    private var pausedByCoordinator = false
+
+    @Volatile private var savedUserMutedBeforePause: Boolean = false
+    @Volatile private var savedDeafenedBeforePause: Boolean = false
+    @Volatile var pausedByCoordinator: Boolean = false
+        private set
 
     init {
         // Observe connection state
@@ -73,6 +94,37 @@ class LiveKitVoiceTransport(
                     ConnectionState.RECONNECTING -> VoiceTransportState.RECONNECTING
                     ConnectionState.FAILED -> VoiceTransportState.FAILED
                     ConnectionState.DISCONNECTED -> VoiceTransportState.STOPPED
+                }
+
+                when (conn) {
+                    ConnectionState.CONNECTING,
+                    ConnectionState.CONNECTED,
+                    ConnectionState.RECONNECTING -> {
+                        if (pausedByCoordinator) {
+                            // Keep LiveKit silent while offline mesh owns audio
+                            liveKitPort.onVoiceGate(false)
+                            liveKitPort.setUserMuted(true)
+                            liveKitPort.setDeafened(true)
+                            liveKitPort.stopVox()
+                            if (conn == ConnectionState.CONNECTED) {
+                                delay(250L) // Defeat LiveKitManager.startVoxSafely() 150ms delay
+                                if (pausedByCoordinator) {
+                                    liveKitPort.onVoiceGate(false)
+                                    liveKitPort.setUserMuted(true)
+                                    liveKitPort.setDeafened(true)
+                                    liveKitPort.stopVox()
+                                }
+                            }
+                        } else if (audioOwnershipArbiter.owner.value != AudioOwner.OFFLINE_MESH) {
+                            audioOwnershipArbiter.claimLiveKit()
+                        }
+                    }
+                    ConnectionState.DISCONNECTED,
+                    ConnectionState.FAILED -> {
+                        if (!pausedByCoordinator && audioOwnershipArbiter.owner.value == AudioOwner.LIVEKIT) {
+                            audioOwnershipArbiter.release(AudioOwner.LIVEKIT)
+                        }
+                    }
                 }
             }
         }
@@ -127,16 +179,29 @@ class LiveKitVoiceTransport(
 
     override suspend fun pause() {
         if (pausedByCoordinator) return
+        savedUserMutedBeforePause = !userMicEnabled || liveKitPort.isUserMuted.value
+        savedDeafenedBeforePause = liveKitPort.deafened.value
         pausedByCoordinator = true
         _micState.value = MicState.MUTED
+        liveKitPort.onVoiceGate(false)
+        liveKitPort.setDeafened(true)
+        liveKitPort.stopVox()
         liveKitPort.setUserMuted(true)
     }
 
     override suspend fun resume() {
         if (!pausedByCoordinator) return
         pausedByCoordinator = false
+        val restoreMuted = savedUserMutedBeforePause
+        val restoreDeafened = savedDeafenedBeforePause
+        userMicEnabled = !restoreMuted
         _micState.value = if (userMicEnabled) MicState.ON else MicState.OFF
-        liveKitPort.setUserMuted(!userMicEnabled)
+        liveKitPort.setDeafened(restoreDeafened)
+        liveKitPort.setUserMuted(restoreMuted)
+    }
+
+    fun triggerBackgroundReconnect() {
+        liveKitPort.onNetworkRestored()
     }
 
     override suspend fun setMicrophoneEnabled(enabled: Boolean) {
@@ -155,4 +220,3 @@ class LiveKitVoiceTransport(
         onAudioRouteChanged(route)
     }
 }
-

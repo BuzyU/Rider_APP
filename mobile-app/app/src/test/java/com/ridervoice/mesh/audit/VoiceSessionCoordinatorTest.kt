@@ -227,5 +227,55 @@ class VoiceSessionCoordinatorTest {
         assertEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
         assertEquals(PeerTransportKind.OFFLINE_MESH, coordinator.activeKind.value)
     }
-}
 
+    @Test
+    fun fallbackSuspendsLiveKitAndBackgroundReconnectStaysMutedUntilHandback() = runTest {
+        val connState = MutableStateFlow(com.ridervoice.network.ConnectionState.CONNECTED)
+        var mutedState = false
+        var deafenedState = false
+        val isMutedFlow = MutableStateFlow(false)
+        val isDeafenedFlow = MutableStateFlow(false)
+
+        val port = object : com.ridervoice.mesh.transport.LiveKitPort {
+            override val connectionState: StateFlow<com.ridervoice.network.ConnectionState> = connState
+            override val activeSpeaker: StateFlow<String?> = MutableStateFlow(null)
+            override val participants: StateFlow<List<com.ridervoice.models.Participant>> = MutableStateFlow(emptyList())
+            override val isUserMuted: StateFlow<Boolean> = isMutedFlow
+            override val deafened: StateFlow<Boolean> = isDeafenedFlow
+            override suspend fun connect(url: String, roomId: String, tokenProvider: suspend () -> String, expectedLkRoomName: String?) {}
+            override fun disconnect() {}
+            override fun setUserMuted(muted: Boolean) {
+                mutedState = muted
+                isMutedFlow.value = muted
+            }
+            override fun setDeafened(deafened: Boolean) {
+                deafenedState = deafened
+                isDeafenedFlow.value = deafened
+            }
+        }
+
+        val arbiter = AudioOwnershipArbiter()
+        val liveKit = com.ridervoice.mesh.transport.LiveKitVoiceTransport(port, arbiter)
+        val mesh = FakeMeshTransport()
+        val coordinator = VoiceSessionCoordinator(liveKit, mesh, arbiter)
+
+        port.setUserMuted(false)
+        mesh._hasValidRoute.value = true
+
+        assertTrue(coordinator.fallbackToMesh())
+        assertTrue("LiveKit must be paused", liveKit.pausedByCoordinator)
+        assertTrue("LiveKit must be muted while paused", mutedState)
+        assertTrue("LiveKit must be deafened while paused", deafenedState)
+        assertEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+
+        connState.value = com.ridervoice.network.ConnectionState.CONNECTED
+        assertTrue("LiveKit must remain muted during background reconnect", mutedState)
+        assertTrue("LiveKit must remain deafened during background reconnect", deafenedState)
+
+        assertTrue(coordinator.recoverToLiveKit())
+        assertFalse("LiveKit is no longer paused", liveKit.pausedByCoordinator)
+        assertFalse("Mute state restored to pre-fallback value (false)", mutedState)
+        assertFalse("Deafen state restored to pre-fallback value (false)", deafenedState)
+        assertEquals(AudioOwner.LIVEKIT, arbiter.owner.value)
+    }
+}

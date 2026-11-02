@@ -266,4 +266,69 @@
         <item quantity="one">%1$d सहकारी</item>
         <item quantity="other">%1$d सहकारी</item>
     </plurals>
+    <!-- Offline Mesh Stage 2.5 & 3.5 UI & Tactical Banner -->
+    <string name="mesh_banner_offline_active">ऑफलाइन मेश सक्रिय आहे</string>
+    <string name="mesh_banner_online_restored">ऑनलाइन आवाज पूर्ववत झाला</string>
+    <string name="mesh_banner_checking_connection">कनेक्शन तपासत आहे…</string>
+    <string name="mesh_banner_starting_offline">ऑफलाइन मेश सुरू होत आहे…</string>
+    <string name="mesh_banner_handing_back">ऑनलाइनशी पुन्हा कनेक्ट होत आहे…</string>
+    <string name="mesh_banner_fallback_unavailable">ऑफलाइन मेश अनुपलब्ध आहे</string>
+    <string name="mesh_group_entire_online">संपूर्ण ग्रुप ऑनलाइन आहे</string>
+    <string name="mesh_group_some_offline">स्थानिक ऑनलाइन पूर्ववत · काही साथी अजूनही ऑफलाइन आहेत</string>
+    <string name="mesh_group_offline_active">ऑफलाइन मेश सक्रिय आहे</string>
+    <string name="mesh_banner_view_mesh">मेश डायग्नोस्टिक्स</string>
+
+    <!-- Mesh Routing & Age -->
+    <string name="mesh_direct_link">डायरेक्ट लिंक (1 हॉप)</string>
+    <string name="mesh_relayed_via">रिले · %1$d हॉप (%2$s द्वारे)</string>
+    <string name="mesh_unreachable">अनुपलब्ध</string>
+    <string name="mesh_route_age">वय: %1$d सेकंद</string>
+
+    <!-- Audio Routes & Controls -->
+    <string name="mesh_audio_route_speaker">स्पीकर</string>
+    <string name="mesh_audio_route_bluetooth">ब्लूटूथ</string>
+    <string name="mesh_audio_route_wired">वायर्ड हेडसेट</string>
+    <string name="mesh_audio_route_earpiece">इअरपीस</string>
+    <string name="mesh_vox_toggle">VOX</string>
+    <string name="mesh_vox_on">VOX: चालू</string>
+    <string name="mesh_vox_off">VOX: बंद</string>
+    <string name="mesh_ptt_button">बोलण्यासाठी दाबून ठेवा</string>
+    <string name="mesh_ptt_transmitting">ट्रान्समिट होत आहे</string>
+
+    <!-- Transport States -->
+    <string name="mesh_state_stopped">थांबवले</string>
+    <string name="mesh_state_starting">सुरू होत आहे</string>
+    <string name="mesh_state_reconnecting">पुन्हा कनेक्ट होत आहे</string>
+    <string name="mesh_state_failed">अयशस्वी</string>
+
+    <!-- Telemetry Row Labels -->
+    <string name="mesh_diag_device_id">डिव्हाइस आयडी</string>
+    <string name="mesh_diag_session_id">सत्र आयडी</string>
+    <string name="mesh_diag_members">सक्रिय सदस्य</string>
+    <string name="mesh_diag_direct_neighbors">थेट शेजारी</string>
+    <string name="mesh_diag_routes">सक्रिय मार्ग</string>
+    <string name="mesh_diag_max_hops">कमाल मार्ग हॉप्स</string>
+    <string name="mesh_diag_rx_frames">प्राप्त व्हॉइस फ्रेम्स</string>
+    <string name="mesh_diag_fwd_frames">फॉरवर्ड केलेल्या व्हॉइस फ्रेम्स</string>
+    <string name="mesh_diag_dropped_dups">वगळलेले डुप्लिकेट</string>
+    <string name="mesh_diag_dropped_invalid">वगळलेले अवैध</string>
+    <string name="mesh_diag_dropped_ttl">वगळलेले टीटीएल</string>
+    <string name="mesh_diag_graph_version">आलेख आवृत्ती</string>
+
+    <!-- Settings Mesh Section -->
+    <string name="mesh_settings_title">ऑफलाइन मेश इंटरकॉम</string>
+    <string name="mesh_settings_desc">पीअर-टू-पीअर वाय-फाय मेश इंटरकॉम सक्षम आहे</string>
+    <string name="mesh_settings_fallback_title">स्वयंचलित फॉलबॅक</string>
+    <string name="mesh_settings_fallback_disabled_hint">प्रथम ऑफलाइन मेश इंटरकॉम सक्षम करा</string>
+    <string name="mesh_settings_fallback_enabled_hint">इंटरनेट खंडित झाल्यास आपोआप मेशवर स्विच होते</string>
+    <string name="mesh_settings_warm_standby_title">वॉर्म स्टँडबाय डिस्कव्हरी</string>
+    <string name="mesh_settings_warm_standby_desc">तात्काळ स्विचिंगसाठी पार्श्वभूमी पीअर डिस्कव्हरी</string>
+    <string name="mesh_settings_lobby_subtitle">पीअर-टू-पीअर मेश इंटरकॉम चॅनेल होस्ट करा किंवा सामील व्हा</string>
+
+    <!-- Foreground Service Notification -->
+    <string name="mesh_notif_channel_name">ऑफलाइन मेश इंटरकॉम</string>
+    <string name="mesh_notif_channel_desc">सक्रिय ऑफलाइन मेश इंटरकॉम स्थिती दाखवते</string>
+    <string name="mesh_notif_title">ऑफलाइन मेश इंटरकॉम सक्रिय आहे</string>
+    <string name="mesh_notif_content">ऑफलाइन मेश: %1$s | %2$d साथी</string>
+    <string name="mesh_notif_disconnect">डिस्कनेक्ट करा</string>
 </resources>

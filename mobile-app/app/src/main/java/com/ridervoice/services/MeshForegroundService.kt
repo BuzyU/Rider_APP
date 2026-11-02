@@ -1,5 +1,6 @@
 package com.ridervoice.services
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,10 +8,12 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.ridervoice.MainActivity
 import com.ridervoice.R
 import com.ridervoice.mesh.OfflineMeshGate
@@ -81,7 +84,39 @@ class MeshForegroundService : Service() {
         createNotificationChannel()
     }
 
+    private fun maskSessionCode(code: String): String {
+        return if (code.length >= 8) {
+            "${code.take(4)}-••••-••••-${code.takeLast(4)}"
+        } else {
+            "••••"
+        }
+    }
+
+    private fun ensureStartedForeground(notification: Notification) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val hasMic = ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+                if (hasMic) {
+                    startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (_: Throwable) {
+            // Ignore if already foreground or startForeground failed
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        currentSessionCode = intent?.getStringExtra(EXTRA_SESSION_CODE) ?: currentSessionCode
+        val notification = buildNotification(currentSessionCode, currentPeerCount)
+        ensureStartedForeground(notification)
+
         if (intent?.action == ACTION_STOP_SERVICE) {
             stopSelf()
             return START_NOT_STICKY
@@ -96,15 +131,6 @@ class MeshForegroundService : Service() {
         if (transport == null || transport.state.value != VoiceTransportState.CONNECTED) {
             stopSelf()
             return START_NOT_STICKY
-        }
-
-        currentSessionCode = intent?.getStringExtra(EXTRA_SESSION_CODE) ?: "Active"
-
-        val notification = buildNotification(currentSessionCode, currentPeerCount)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
         }
 
         observerJob?.cancel()
@@ -146,10 +172,10 @@ class MeshForegroundService : Service() {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Offline Mesh Intercom",
+                getString(R.string.mesh_notif_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Shows active offline mesh intercom status"
+                description = getString(R.string.mesh_notif_channel_desc)
             }
             nm.createNotificationChannel(channel)
         }
@@ -176,15 +202,15 @@ class MeshForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val contentText = "Offline Mesh: $sessionCode | $peerCount peers"
+        val contentText = getString(R.string.mesh_notif_content, maskSessionCode(sessionCode), peerCount)
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentTitle("Offline Mesh Intercom Active")
+            .setContentTitle(getString(R.string.mesh_notif_title))
             .setContentText(contentText)
             .setOngoing(true)
             .setContentIntent(pendingIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Disconnect", stopPendingIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, getString(R.string.mesh_notif_disconnect), stopPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .build()

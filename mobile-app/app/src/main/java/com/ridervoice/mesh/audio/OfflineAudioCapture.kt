@@ -70,6 +70,7 @@ class OfflineAudioCapture(
     private var micEnabled: Boolean = false
     private var recordJob: Job? = null
     private var audioRecordSource: AudioRecordSource? = null
+    var frameGate: ((ByteArray) -> Boolean)? = null
 
     fun setMicEnabled(enabled: Boolean) {
         micEnabled = enabled
@@ -161,7 +162,10 @@ class OfflineAudioCapture(
                         break
                     }
                     if (offset == frameBuf.size && micEnabled) {
-                        onPcmFrame(frameBuf.copyOf())
+                        val shouldSend = frameGate?.invoke(frameBuf) ?: true
+                        if (shouldSend) {
+                            onPcmFrame(frameBuf.copyOf())
+                        }
                     }
                 }
             } catch (_: Throwable) {

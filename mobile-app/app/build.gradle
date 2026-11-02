@@ -127,7 +127,12 @@ android {
             buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "true"
         }
         release {
-            buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "false"
+            def enableMeshInRelease = project.hasProperty('enableOfflineMeshInRelease') && Boolean.parseBoolean(project.property('enableOfflineMeshInRelease').toString())
+            if (enableMeshInRelease) {
+                buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "true"
+            } else {
+                buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "false"
+            }
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

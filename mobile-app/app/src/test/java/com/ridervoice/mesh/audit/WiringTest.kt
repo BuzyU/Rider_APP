@@ -337,5 +337,32 @@ class WiringTest {
 
         bridge.close()
     }
-}
 
+    @Test
+    fun onlineLiveKitConnectionAutomaticallyClaimsAndReleasesArbiter() = runTest {
+        val connState = MutableStateFlow(ConnectionState.DISCONNECTED)
+        val fakePort = object : com.ridervoice.mesh.transport.LiveKitPort {
+            override val connectionState: StateFlow<ConnectionState> = connState
+            override val activeSpeaker: StateFlow<String?> = MutableStateFlow(null)
+            override val participants: StateFlow<List<com.ridervoice.models.Participant>> = MutableStateFlow(emptyList())
+            override suspend fun connect(url: String, roomId: String, tokenProvider: suspend () -> String, expectedLkRoomName: String?) {}
+            override fun disconnect() {}
+            override fun setUserMuted(muted: Boolean) {}
+            override fun setDeafened(deafened: Boolean) {}
+        }
+        val arbiter = AudioOwnershipArbiter()
+        val transport = com.ridervoice.mesh.transport.LiveKitVoiceTransport(
+            fakePort, arbiter, dispatcher = StandardTestDispatcher(testScheduler)
+        )
+
+        assertEquals(com.ridervoice.mesh.transport.AudioOwner.NONE, arbiter.owner.value)
+
+        connState.value = ConnectionState.CONNECTED
+        testScheduler.runCurrent()
+        assertEquals(com.ridervoice.mesh.transport.AudioOwner.LIVEKIT, arbiter.owner.value)
+
+        connState.value = ConnectionState.DISCONNECTED
+        testScheduler.runCurrent()
+        assertEquals(com.ridervoice.mesh.transport.AudioOwner.NONE, arbiter.owner.value)
+    }
+}

@@ -60,13 +60,13 @@ import androidx.compose.ui.res.stringResource
 import com.ridervoice.R
 import com.ridervoice.mesh.session.OfflineSession
 
-private val GraphiteBase = Color(0xFF0F1012)
-private val CardDark = Color(0xFF181A1E)
-private val NeonOrange = Color(0xFFFF6D00)
-private val ElectricGreen = Color(0xFF00E676)
-private val AlertRed = Color(0xFFFF1744)
-private val TextPrimary = Color(0xFFEEEEEE)
-private val TextSecondary = Color(0xFF9E9E9E)
+private val GraphiteBase = MeshColors.LobbyBackground
+private val CardDark = MeshColors.LobbyCard
+private val NeonOrange = MeshColors.NeonOrange
+private val ElectricGreen = MeshColors.ElectricGreen
+private val AlertRed = MeshColors.AlertRed
+private val TextPrimary = MeshColors.TextPrimary
+private val TextSecondary = MeshColors.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -140,7 +140,7 @@ fun OfflineMeshLobbyScreen(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0xFF2C2F36), RoundedCornerShape(12.dp))
+                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(12.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -186,7 +186,7 @@ fun OfflineMeshLobbyScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFF101214), RoundedCornerShape(8.dp))
+                                .background(MeshColors.LobbyInput, RoundedCornerShape(8.dp))
                                 .padding(12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -251,7 +251,7 @@ fun OfflineMeshLobbyScreen(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0xFF2C2F36), RoundedCornerShape(12.dp))
+                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(12.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -304,7 +304,7 @@ fun OfflineMeshLobbyScreen(
                         ),
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = NeonOrange,
-                            unfocusedBorderColor = Color(0xFF3E434D),
+                            unfocusedBorderColor = MeshColors.LobbyBorderUnfocused,
                             textColor = TextPrimary
                         ),
                         modifier = Modifier.fillMaxWidth()

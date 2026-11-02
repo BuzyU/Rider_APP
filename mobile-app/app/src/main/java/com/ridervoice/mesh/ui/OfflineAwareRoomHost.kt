@@ -104,7 +104,7 @@ fun OfflineAwareRoomHost(
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .padding(top = 64.dp, start = 12.dp, end = 12.dp, bottom = 6.dp)
             )
         }
 
@@ -127,14 +127,14 @@ fun TacticalBanner(
     modifier: Modifier = Modifier
 ) {
     val (statusText, statusColor) = when (state) {
-        AutoSwitchState.OFFLINE_ACTIVE -> stringResource(R.string.mesh_banner_offline_active) to Color(0xFF10B981)
-        AutoSwitchState.ONLINE_SUSPECT -> stringResource(R.string.mesh_banner_checking_connection) to Color(0xFFF59E0B)
-        AutoSwitchState.STARTING_OFFLINE_MESH -> stringResource(R.string.mesh_banner_starting_offline) to Color(0xFFF59E0B)
-        AutoSwitchState.ONLINE_RECOVERING -> stringResource(R.string.mesh_banner_online_restored) to Color(0xFF10B981)
-        AutoSwitchState.HANDING_BACK_TO_LIVEKIT -> stringResource(R.string.mesh_banner_handing_back) to Color(0xFF38BDF8)
-        AutoSwitchState.FALLBACK_UNAVAILABLE -> stringResource(R.string.mesh_banner_fallback_unavailable) to Color(0xFFEF4444)
-        AutoSwitchState.ONLINE -> stringResource(R.string.mesh_state_connected) to Color(0xFF10B981)
-        AutoSwitchState.SESSION_ENDED -> stringResource(R.string.mesh_state_stopped) to Color(0xFF94A3B8)
+        AutoSwitchState.OFFLINE_ACTIVE -> stringResource(R.string.mesh_banner_offline_active) to MeshColors.Emerald
+        AutoSwitchState.ONLINE_SUSPECT -> stringResource(R.string.mesh_banner_checking_connection) to MeshColors.Amber
+        AutoSwitchState.STARTING_OFFLINE_MESH -> stringResource(R.string.mesh_banner_starting_offline) to MeshColors.Amber
+        AutoSwitchState.ONLINE_RECOVERING -> stringResource(R.string.mesh_banner_online_restored) to MeshColors.Emerald
+        AutoSwitchState.HANDING_BACK_TO_LIVEKIT -> stringResource(R.string.mesh_banner_handing_back) to MeshColors.Cyan
+        AutoSwitchState.FALLBACK_UNAVAILABLE -> stringResource(R.string.mesh_banner_fallback_unavailable) to MeshColors.Red
+        AutoSwitchState.ONLINE -> stringResource(R.string.mesh_state_connected) to MeshColors.Emerald
+        AutoSwitchState.SESSION_ENDED -> stringResource(R.string.mesh_state_stopped) to MeshColors.Slate
     }
 
     val groupBadgeText = when (groupStatus) {
@@ -145,7 +145,7 @@ fun TacticalBanner(
     }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xF00F172A)),
+        colors = CardDefaults.cardColors(containerColor = MeshColors.CardBackground),
         shape = RoundedCornerShape(10.dp),
         modifier = modifier
     ) {
@@ -176,7 +176,7 @@ fun TacticalBanner(
                 }
 
                 Surface(
-                    color = Color(0xFF1E293B),
+                    color = MeshColors.SurfaceDark,
                     shape = RoundedCornerShape(4.dp),
                     modifier = Modifier.clickable { onViewDiagnostics() }
                 ) {
@@ -187,14 +187,14 @@ fun TacticalBanner(
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = stringResource(R.string.mesh_banner_view_mesh),
-                            tint = Color(0xFF38BDF8),
+                            tint = MeshColors.Cyan,
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = stringResource(R.string.mesh_banner_view_mesh),
                             fontSize = 10.sp,
-                            color = Color(0xFF38BDF8),
+                            color = MeshColors.Cyan,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -211,13 +211,13 @@ fun TacticalBanner(
             ) {
                 Text(
                     text = groupBadgeText,
-                    color = if (groupStatus == GroupConnectivityStatus.MIXED) Color(0xFFFBBF24) else Color(0xFF94A3B8),
+                    color = if (groupStatus == GroupConnectivityStatus.MIXED) MeshColors.AmberYellow else MeshColors.Slate,
                     fontSize = 11.sp
                 )
                 if (state == AutoSwitchState.OFFLINE_ACTIVE) {
                     Text(
                         text = stringResource(R.string.mesh_status_summary, "$peerCount active", maxHops),
-                        color = Color(0xFFA5B4FC),
+                        color = MeshColors.Indigo,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )

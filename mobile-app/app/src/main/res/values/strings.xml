@@ -281,6 +281,7 @@
     <!-- Mesh Routing & Age -->
     <string name="mesh_direct_link">DIRECT LINK (1 Hop)</string>
     <string name="mesh_relayed_via">RELAYED · %1$d Hops via %2$s</string>
+    <string name="mesh_relayed_hops">RELAYED · %1$d Hops</string>
     <string name="mesh_unreachable">UNREACHABLE</string>
     <string name="mesh_route_age">Age: %1$ds</string>
 

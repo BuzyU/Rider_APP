@@ -153,7 +153,7 @@ fun OfflineRoomScreen(
                 onLeave = onLeave
             )
         },
-        containerColor = Color(0xFF0F172A),
+        containerColor = MeshColors.BackgroundDark,
         modifier = modifier.fillMaxSize()
     ) { padding ->
         Column(
@@ -164,7 +164,7 @@ fun OfflineRoomScreen(
         ) {
             if (micState == MicState.PERMISSION_DENIED) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF7F1D1D)),
+                    colors = CardDefaults.cardColors(containerColor = MeshColors.RedDark),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                 ) {
@@ -185,19 +185,19 @@ fun OfflineRoomScreen(
                                 context.startActivity(intent)
                             }
                         ) {
-                            Text(stringResource(R.string.mesh_mic_open_settings), color = Color(0xFFFCA5A5), fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.mesh_mic_open_settings), color = MeshColors.RedLight, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             } else if (micState == MicState.HARDWARE_BUSY) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF78350F)),
+                    colors = CardDefaults.cardColors(containerColor = MeshColors.AmberDark),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                 ) {
                     Text(
                         text = stringResource(R.string.mesh_mic_busy),
-                        color = Color(0xFFFDE68A),
+                        color = MeshColors.AmberLight,
                         fontSize = 13.sp,
                         modifier = Modifier.padding(12.dp)
                     )
@@ -206,7 +206,7 @@ fun OfflineRoomScreen(
 
             // Mesh Topology Health Header
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                colors = CardDefaults.cardColors(containerColor = MeshColors.SurfaceDark),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -223,14 +223,14 @@ fun OfflineRoomScreen(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(if (transportState == VoiceTransportState.CONNECTED) Color(0xFF10B981) else Color(0xFFF59E0B))
+                                    .background(if (transportState == VoiceTransportState.CONNECTED) MeshColors.Emerald else MeshColors.Amber)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = stringResource(R.string.mesh_title),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF38BDF8),
+                                color = MeshColors.Cyan,
                                 fontFamily = FontFamily.Monospace
                             )
                         }
@@ -243,14 +243,14 @@ fun OfflineRoomScreen(
                     }
                     val maxHops = peers.maxOfOrNull { it.hopCount } ?: 0
                     Surface(
-                        color = Color(0xFF334155),
+                        color = MeshColors.SurfaceElevated,
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.mesh_max_hops, maxHops),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFA5B4FC),
+                            color = MeshColors.Indigo,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             fontFamily = FontFamily.Monospace
                         )
@@ -265,7 +265,7 @@ fun OfflineRoomScreen(
                 text = stringResource(R.string.mesh_peers_header),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF94A3B8),
+                color = MeshColors.Slate,
                 modifier = Modifier.padding(vertical = 4.dp),
                 fontFamily = FontFamily.Monospace
             )
@@ -281,7 +281,7 @@ fun OfflineRoomScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.mesh_peers_searching, sessionCode),
-                        color = Color(0xFF64748B),
+                        color = MeshColors.SlateMuted,
                         fontSize = 14.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
@@ -320,7 +320,7 @@ internal fun MeshDiagnosticsDialog(
         },
         text = {
             if (snapshot == null) {
-                Text(stringResource(R.string.mesh_diag_empty), color = Color(0xFF94A3B8))
+                Text(stringResource(R.string.mesh_diag_empty), color = MeshColors.Slate)
             } else {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     DiagRow(stringResource(R.string.mesh_diag_device_id), snapshot.selfDeviceId.take(8))
@@ -340,10 +340,10 @@ internal fun MeshDiagnosticsDialog(
         },
         confirmButton = {
             androidx.compose.material3.TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.mesh_close), color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.mesh_close), color = MeshColors.Cyan, fontWeight = FontWeight.Bold)
             }
         },
-        containerColor = Color(0xFF1E293B)
+        containerColor = MeshColors.SurfaceDark
     )
 }
 
@@ -353,7 +353,7 @@ private fun DiagRow(label: String, value: String) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, color = Color(0xFF94A3B8), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        Text(text = label, color = MeshColors.Slate, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         Text(text = value, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
     }
 }
@@ -365,13 +365,13 @@ private fun MeshPeerCard(
     allPeers: List<UnifiedVoicePeer>
 ) {
     val borderColor = when {
-        isSpeaking -> Color(0xFF10B981) // Emerald speaking highlight
-        peer.isOnline -> Color(0xFF38BDF8) // Cyan connected
-        else -> Color(0xFF475569) // Muted offline
+        isSpeaking -> MeshColors.Emerald // Emerald speaking highlight
+        peer.isOnline -> MeshColors.Cyan // Cyan connected
+        else -> MeshColors.SlateDark // Muted offline
     }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+        colors = CardDefaults.cardColors(containerColor = MeshColors.SurfaceDark),
         shape = RoundedCornerShape(10.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -388,7 +388,7 @@ private fun MeshPeerCard(
                 modifier = Modifier
                     .size(10.dp)
                     .clip(CircleShape)
-                    .background(if (peer.isOnline) Color(0xFF10B981) else Color(0xFFEF4444))
+                    .background(if (peer.isOnline) MeshColors.Emerald else MeshColors.Red)
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -405,7 +405,7 @@ private fun MeshPeerCard(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.mesh_speaking),
-                            color = Color(0xFF10B981),
+                            color = MeshColors.Emerald,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
@@ -421,7 +421,8 @@ private fun MeshPeerCard(
 
                 val routeInfo = when {
                     peer.isDirect -> stringResource(R.string.mesh_direct_link)
-                    peer.isRelayed -> stringResource(R.string.mesh_relayed_via, peer.hopCount, relayName ?: "relay")
+                    peer.isRelayed && relayName != null -> stringResource(R.string.mesh_relayed_via, peer.hopCount, relayName)
+                    peer.isRelayed -> stringResource(R.string.mesh_relayed_hops, peer.hopCount)
                     else -> stringResource(R.string.mesh_unreachable)
                 }
 
@@ -432,14 +433,14 @@ private fun MeshPeerCard(
                 ) {
                     Text(
                         text = routeInfo,
-                        color = if (peer.isDirect) Color(0xFF38BDF8) else Color(0xFFFBBF24),
+                        color = if (peer.isDirect) MeshColors.Cyan else MeshColors.AmberYellow,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace
                     )
                     val ageSec = (peer.routeAgeMs / 1000).coerceAtLeast(0)
                     Text(
                         text = stringResource(R.string.mesh_route_age, ageSec),
-                        color = Color(0xFF64748B),
+                        color = MeshColors.SlateMuted,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -464,7 +465,7 @@ private fun MeshTopBar(
         VoiceTransportState.FAILED -> stringResource(R.string.mesh_state_failed)
     }
 
-    Surface(color = Color(0xFF0F172A), modifier = Modifier.fillMaxWidth()) {
+    Surface(color = MeshColors.BackgroundDark, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -483,7 +484,7 @@ private fun MeshTopBar(
                 Text(
                     text = stringResource(R.string.mesh_status_summary, stateText, peerCount),
                     fontSize = 11.sp,
-                    color = Color(0xFF94A3B8),
+                    color = MeshColors.Slate,
                     fontFamily = FontFamily.Monospace
                 )
             }
@@ -491,7 +492,7 @@ private fun MeshTopBar(
                 Icon(
                     imageVector = Icons.Default.Info,
                     contentDescription = stringResource(R.string.mesh_cd_diagnostics),
-                    tint = Color(0xFF38BDF8)
+                    tint = MeshColors.Cyan
                 )
             }
         }
@@ -514,7 +515,7 @@ private fun MeshBottomBar(
     onLeave: () -> Unit
 ) {
     Surface(
-        color = Color(0xFF1E293B),
+        color = MeshColors.SurfaceDark,
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -541,14 +542,14 @@ private fun MeshBottomBar(
                 }
                 Surface(
                     onClick = onCycleAudioRoute,
-                    color = Color(0xFF334155),
+                    color = MeshColors.SurfaceElevated,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = routeIcon, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                        Icon(imageVector = routeIcon, contentDescription = null, tint = MeshColors.Cyan, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = stringResource(routeLabelRes),
@@ -562,12 +563,12 @@ private fun MeshBottomBar(
                 // VOX Toggle
                 Surface(
                     onClick = onToggleVox,
-                    color = if (isVoxEnabled) Color(0xFF065F46) else Color(0xFF334155),
+                    color = if (isVoxEnabled) MeshColors.EmeraldDark else MeshColors.SurfaceElevated,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = if (isVoxEnabled) stringResource(R.string.mesh_vox_on) else stringResource(R.string.mesh_vox_off),
-                        color = if (isVoxEnabled) Color(0xFF6EE7B7) else Color(0xFF94A3B8),
+                        color = if (isVoxEnabled) MeshColors.EmeraldLight else MeshColors.Slate,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
@@ -577,7 +578,7 @@ private fun MeshBottomBar(
 
                 // PTT Press-and-Hold Button
                 Surface(
-                    color = if (isPttActive) Color(0xFF047857) else Color(0xFF334155),
+                    color = if (isPttActive) MeshColors.EmeraldActive else MeshColors.SurfaceElevated,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.pointerInput(Unit) {
                         detectTapGestures(
@@ -591,7 +592,7 @@ private fun MeshBottomBar(
                 ) {
                     Text(
                         text = if (isPttActive) stringResource(R.string.mesh_ptt_transmitting) else stringResource(R.string.mesh_ptt_button),
-                        color = if (isPttActive) Color(0xFF6EE7B7) else Color(0xFFF1F5F9),
+                        color = if (isPttActive) MeshColors.EmeraldLight else MeshColors.SlateLight,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
@@ -612,7 +613,7 @@ private fun MeshBottomBar(
                     modifier = Modifier
                         .size(50.dp)
                         .clip(CircleShape)
-                        .background(if (isMicEnabled) Color(0xFF10B981) else Color(0xFF334155))
+                        .background(if (isMicEnabled) MeshColors.Emerald else MeshColors.SurfaceElevated)
                 ) {
                     Icon(
                         imageVector = if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
@@ -627,7 +628,7 @@ private fun MeshBottomBar(
                     modifier = Modifier
                         .size(50.dp)
                         .clip(CircleShape)
-                        .background(if (isDeafened) Color(0xFFEF4444) else Color(0xFF334155))
+                        .background(if (isDeafened) MeshColors.Red else MeshColors.SurfaceElevated)
                 ) {
                     Icon(
                         imageVector = if (isDeafened) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
@@ -639,7 +640,7 @@ private fun MeshBottomBar(
                 // Leave Session Button
                 Surface(
                     onClick = onLeave,
-                    color = Color(0xFFDC2626),
+                    color = MeshColors.RedCrimson,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(

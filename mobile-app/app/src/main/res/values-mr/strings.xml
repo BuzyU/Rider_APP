@@ -281,6 +281,7 @@
     <!-- Mesh Routing & Age -->
     <string name="mesh_direct_link">डायरेक्ट लिंक (1 हॉप)</string>
     <string name="mesh_relayed_via">रिले · %1$d हॉप (%2$s द्वारे)</string>
+    <string name="mesh_relayed_hops">रिले · %1$d हॉप</string>
     <string name="mesh_unreachable">अनुपलब्ध</string>
     <string name="mesh_route_age">वय: %1$d सेकंद</string>
 

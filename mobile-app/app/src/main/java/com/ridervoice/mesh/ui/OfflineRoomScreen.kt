@@ -148,7 +148,7 @@ fun OfflineRoomScreen(
                     voxBridge?.setVoxEnabled(!isVoxEnabled)
                 },
                 onPttPressChange = { held ->
-                    voxBridge?.setPttHeld(held)
+                    voxBridge?.setPttPressed(held)
                 },
                 onLeave = onLeave
             )

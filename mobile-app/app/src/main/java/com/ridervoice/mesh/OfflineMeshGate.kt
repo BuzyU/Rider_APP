@@ -1,5 +1,9 @@
 package com.ridervoice.mesh
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
 enum class GateDecision {
     ENABLED,
     DISABLED_BY_BUILD,
@@ -13,6 +17,8 @@ enum class GateDecision {
  */
 object OfflineMeshGate {
     @Volatile private var settings: MeshRuntimeSettings = MeshRuntimeSettings.AllOff
+    val settingsFlow: StateFlow<MeshSettingsSnapshot> get() = settings.settingsFlow
+
     fun install(s: MeshRuntimeSettings) { settings = s }
 
     /** Returns whether the build-level gate allows offline mesh (independent of user preferences). */

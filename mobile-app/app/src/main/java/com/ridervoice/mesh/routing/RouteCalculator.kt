@@ -75,11 +75,17 @@ object RouteCalculator {
     }
 }
 
+/**
+ * Thread-safe routing table backed by immutable snapshots.
+ * Routing is Breadth-First Search (BFS) over the link-state mesh graph, NOT distance-vector.
+ * With at most 6 devices, BFS provides shortest paths with deterministic tie-breaking.
+ */
 class RoutingTable {
     private val _routes = MutableStateFlow<Map<String, RouteEntry>>(emptyMap())
     val routes: StateFlow<Map<String, RouteEntry>> = _routes.asStateFlow()
     private val sinceByKey = HashMap<Triple<String, String, Int>, Long>()
 
+    @Synchronized
     fun recompute(snapshot: MeshGraphSnapshot, now: Long) {
         val fresh = RouteCalculator.compute(snapshot, now)
         val keep = HashMap<Triple<String, String, Int>, Long>()
@@ -93,6 +99,7 @@ class RoutingTable {
         sinceByKey.putAll(keep)
         _routes.value = out
     }
+
     fun routeTo(id: String): RouteEntry? = _routes.value[id]
     fun hasAnyRoute(): Boolean = _routes.value.isNotEmpty()
 }

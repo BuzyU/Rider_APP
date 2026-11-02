@@ -86,7 +86,10 @@ object MeshPacketCodec {
 
     fun decode(data: ByteArray, key: ByteArray): DecodeResult {
         if (data.size < HEADER_LEN + TAG_LEN) return DecodeResult.Invalid(DecodeResult.Reason.TOO_SHORT)
-        val buf = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN)
+        if (data.size > HEADER_LEN + MeshConfig.MAX_PAYLOAD_BYTES + TAG_LEN)
+            return DecodeResult.Invalid(DecodeResult.Reason.BAD_LENGTH)
+        return try {
+            val buf = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN)
         if (buf.int != MAGIC) return DecodeResult.Invalid(DecodeResult.Reason.BAD_MAGIC)
         if ((buf.get().toInt() and 0xFF) != VERSION) return DecodeResult.Invalid(DecodeResult.Reason.BAD_VERSION)
         val type = MeshPacketType.fromCode(buf.get().toInt() and 0xFF)
@@ -110,7 +113,10 @@ object MeshPacketCodec {
         if (type == MeshPacketType.VOICE && format != AudioFormatId.PCM16_16K_MONO)
             return DecodeResult.Invalid(DecodeResult.Reason.BAD_FORMAT)
         val payload = ByteArray(len).also { System.arraycopy(data, HEADER_LEN, it, 0, len) }
-        return DecodeResult.Ok(MeshPacket(type, session, source, seq, ts, ttl, hop, prev, format, epoch, payload))
+            DecodeResult.Ok(MeshPacket(type, session, source, seq, ts, ttl, hop, prev, format, epoch, payload))
+        } catch (e: Exception) {
+            DecodeResult.Invalid(DecodeResult.Reason.TOO_SHORT)
+        }
     }
 
     private fun tag(body: ByteArray, key: ByteArray): ByteArray {

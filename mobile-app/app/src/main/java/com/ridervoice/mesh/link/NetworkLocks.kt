@@ -39,6 +39,8 @@ class AndroidNetworkLocks(private val context: Context) : NetworkLocks {
             runCatching {
                 wifiNetwork.bindSocket(socket)
                 true
+            }.onFailure {
+                Log.w("NetworkLocks", "Failed to bind socket to Wi-Fi network: ${it.message}", it)
             }.getOrDefault(false)
         } else {
             if (!loggedNoWifiClient) {

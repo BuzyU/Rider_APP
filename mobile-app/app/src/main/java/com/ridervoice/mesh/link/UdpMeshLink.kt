@@ -33,6 +33,8 @@ class UdpMeshLink(
     private val bindPort: Int = MeshConfig.AUDIO_PORT,
     private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val clock: () -> Long = { System.currentTimeMillis() },
+    private val expiryWindowMs: Long = MeshConfig.NEIGHBOR_TIMEOUT_MS,
     private val networkBinder: (DatagramSocket) -> Unit = {}
 ) : MeshLink {
 
@@ -42,7 +44,11 @@ class UdpMeshLink(
     private val _incomingFrames = MutableSharedFlow<MeshFrame>(extraBufferCapacity = 256)
     override val incomingFrames: Flow<MeshFrame> = _incomingFrames.asSharedFlow()
 
-    private val knownEndpoints = ConcurrentHashMap.newKeySet<MeshEndpoint>()
+    private val endpointTimestamps = ConcurrentHashMap<MeshEndpoint, Long>()
+
+    private val exceptionHandler = kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
+        if (throwable is kotlinx.coroutines.CancellationException) throw throwable
+    }
 
     @Volatile
     private var socket: DatagramSocket? = null
@@ -65,30 +71,31 @@ class UdpMeshLink(
                 bind(InetSocketAddress(bindPort))
             }
             socket = sock
-            val newScope = CoroutineScope(SupervisorJob() + dispatcher)
+            val newScope = CoroutineScope(SupervisorJob() + dispatcher + exceptionHandler)
             scope = newScope
             _state.value = MeshLinkState.RUNNING
 
             receiveJob = newScope.launch {
                 val buf = ByteArray(2048)
-                var backoffMs = 20L
+                var backoffMs = 100L
                 while (isActive && _state.value == MeshLinkState.RUNNING) {
                     try {
                         val packet = DatagramPacket(buf, buf.size)
                         sock.receive(packet)
-                        backoffMs = 20L
+                        backoffMs = 100L
                         val host = packet.address?.hostAddress ?: continue
                         val from = MeshEndpoint(host, packet.port)
                         val copy = packet.data.copyOfRange(packet.offset, packet.offset + packet.length)
                         _incomingFrames.tryEmit(MeshFrame(from, copy))
                     } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
                         if (!isActive || _state.value != MeshLinkState.RUNNING) break
                         if (sock.isClosed) {
                             _state.value = MeshLinkState.FAILED
                             break
                         }
                         delay(backoffMs)
-                        backoffMs = (backoffMs * 2).coerceAtMost(1_000L)
+                        backoffMs = (backoffMs * 2).coerceAtMost(2_000L)
                     }
                 }
             }
@@ -104,7 +111,7 @@ class UdpMeshLink(
         receiveJob = null
         scope = null
         closeSocket()
-        knownEndpoints.clear()
+        endpointTimestamps.clear()
     }
 
     override fun send(endpoint: MeshEndpoint, payload: ByteArray): Boolean {
@@ -120,10 +127,14 @@ class UdpMeshLink(
         }
     }
 
-    override fun endpoints(): Set<MeshEndpoint> = knownEndpoints.toSet()
+    override fun endpoints(): Set<MeshEndpoint> {
+        val now = clock()
+        endpointTimestamps.entries.removeIf { now - it.value > expiryWindowMs }
+        return endpointTimestamps.keys.toSet()
+    }
 
     fun registerEndpoint(endpoint: MeshEndpoint) {
-        knownEndpoints.add(endpoint)
+        endpointTimestamps[endpoint] = clock()
     }
 
     private fun closeSocket() {

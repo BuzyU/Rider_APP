@@ -273,7 +273,7 @@ class MeshStage1SimulationTest {
             nodes.values.filter { it.id != fromId && canReach(fromId, it.id) }
 
         fun convergeDiscovery(rounds: Int = 6) {
-            val broadcastEp = MeshEndpoint("255.255.255.255", MeshConfig.DISCOVERY_PORT)
+            val broadcastEp = MeshEndpoint("255.255.255.255", MeshConfig.MESH_PORT)
             repeat(rounds) {
                 now += 500L
                 for (node in nodes.values) {

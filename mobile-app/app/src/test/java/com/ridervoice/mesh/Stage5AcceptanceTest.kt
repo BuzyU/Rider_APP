@@ -137,7 +137,7 @@ class Stage5AcceptanceTest {
         }
 
         // Converge discovery over 8 rounds
-        val bcast = MeshEndpoint("255.255.255.255", MeshConfig.DISCOVERY_PORT)
+        val bcast = MeshEndpoint("255.255.255.255", MeshConfig.MESH_PORT)
         repeat(8) {
             clockTime += 500L
             for (node in allNodes) {

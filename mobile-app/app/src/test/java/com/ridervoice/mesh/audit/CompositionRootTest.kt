@@ -8,6 +8,7 @@ import com.ridervoice.mesh.link.NoNetworkLocks
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.transport.AudioOwner
 import com.ridervoice.mesh.transport.AudioOwnershipArbiter
+import com.ridervoice.mesh.transport.EnableAudioResult
 import com.ridervoice.mesh.transport.LiveKitVoiceTransport
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.ui.OfflineMeshViewModel
@@ -78,24 +79,26 @@ class CompositionRootTest {
 
         // 2. Direct enableAudio attempt is refused
         val session = OfflineSession.create(System.currentTimeMillis())
-        transport.startDiscoveryOnly(session)
-        val audioClaimFailed = try {
-            transport.enableAudio()
-            false
-        } catch (_: IllegalStateException) {
-            true
+        try {
+            transport.startDiscoveryOnly(session)
+            val audioClaimFailed = try {
+                val res = transport.enableAudio()
+                res !is EnableAudioResult.Success
+            } catch (_: IllegalStateException) {
+                true
+            }
+            assertTrue("startAudio/enableAudio on mesh must be refused when LiveKit owns mic", audioClaimFailed)
+            assertEquals(AudioOwner.LIVEKIT, arbiter.owner.value)
+
+            // 3. OfflineMeshViewModel refusal and error emission
+            val viewModel = OfflineMeshViewModel(transport, arbiter)
+            assertTrue("ViewModel detects LiveKit mic ownership", viewModel.isMicOwnedByLiveKit())
+            viewModel.startSession(session)
+            assertTrue("Conflict error emitted to prevent concurrent mic capture", viewModel.liveKitConflictError.value)
+            assertEquals(AudioOwner.LIVEKIT, arbiter.owner.value)
+        } finally {
+            transport.stop()
         }
-        assertTrue("startAudio/enableAudio on mesh must be refused when LiveKit owns mic", audioClaimFailed)
-        assertEquals(AudioOwner.LIVEKIT, arbiter.owner.value)
-
-        // 3. OfflineMeshViewModel refusal and error emission
-        val viewModel = OfflineMeshViewModel(transport, arbiter)
-        assertTrue("ViewModel detects LiveKit mic ownership", viewModel.isMicOwnedByLiveKit())
-        viewModel.startSession(session)
-        assertTrue("Conflict error emitted to prevent concurrent mic capture", viewModel.liveKitConflictError.value)
-        assertEquals(AudioOwner.LIVEKIT, arbiter.owner.value)
-
-        transport.stop()
     }
 
     /**

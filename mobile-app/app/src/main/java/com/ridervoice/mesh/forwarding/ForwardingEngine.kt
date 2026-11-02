@@ -291,8 +291,8 @@ class ForwardingEngine(
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
         }
 
-        // 8. Check TTL > 0
-        if (!ttlPolicy.isTtlValidOnReceive(decoded.ttl)) {
+        // 8. Check TTL > 0 and hop count bounds
+        if (!ttlPolicy.isTtlValidOnReceive(decoded.ttl, decoded.hopCount)) {
             droppedTtl.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.TTL_EXHAUSTED)
         }

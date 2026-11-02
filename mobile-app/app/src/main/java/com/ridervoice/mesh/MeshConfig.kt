@@ -2,10 +2,11 @@ package com.ridervoice.mesh
 
 /** Tunable constants for the offline mesh. Values are starting points pending physical tests. */
 object MeshConfig {
-    const val AUDIO_PORT = 45454
-    const val DISCOVERY_PORT = AUDIO_PORT
+    const val MESH_PORT = 45454
+    const val AUDIO_PORT = MESH_PORT
 
     const val MAX_DEVICES = 6
+    const val MAX_HOPS = 7
     const val HELLO_INTERVAL_MS = 1_500L
     const val NEIGHBOR_TIMEOUT_MS = 5_000L
     /** Remote (multi-hop) adjacency reports live slightly longer: they arrive via relays. */
@@ -42,6 +43,15 @@ object MeshConfig {
 
     const val SESSION_LIFETIME_MS = 8L * 60 * 60 * 1000
 
-    /** Debug peer filter for test hooks / partition testing. Null by default. */
-    @Volatile var debugPeerFilter: ((String) -> Boolean)? = null
+    var isDebugBuild: Boolean = com.ridervoice.BuildConfig.DEBUG
+
+    /** Debug peer filter for test hooks / partition testing. Operates only in debug builds. */
+    @Volatile private var _debugPeerFilter: ((String) -> Boolean)? = null
+    var debugPeerFilter: ((String) -> Boolean)?
+        get() = if (isDebugBuild) _debugPeerFilter else null
+        set(value) {
+            if (isDebugBuild) {
+                _debugPeerFilter = value
+            }
+        }
 }

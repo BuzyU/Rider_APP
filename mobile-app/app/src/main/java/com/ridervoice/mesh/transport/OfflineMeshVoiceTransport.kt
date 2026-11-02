@@ -102,6 +102,7 @@ class OfflineMeshVoiceTransport(
     private var heartbeatJob: Job? = null
     private var frameListenerJob: Job? = null
     private var peerProjectorJob: Job? = null
+    private var expireJob: Job? = null
 
     private var sessionManager: SessionManager? = null
     private var link: MeshLink? = null
@@ -184,10 +185,7 @@ class OfflineMeshVoiceTransport(
             return@withLock
         }
 
-        if (!locksHeld) {
-            locks.acquire()
-            locksHeld = true
-        }
+
 
         // Periodic discovery / heartbeat job (every 1.5s)
         heartbeatJob = scope.launch {
@@ -196,41 +194,55 @@ class OfflineMeshVoiceTransport(
                 fEngine.originateHello(broadcastEndpoints)
                 delay(MeshConfig.HELLO_INTERVAL_MS)
             }
+        }        // Periodic graph expiry sweep (every 1.0s)
+        expireJob = scope.launch {
+            while (isActive) {
+                delay(500L)
+                val expired = gRepo.expire()
+                if (expired) {
+                    rTable.recompute(gRepo.currentSnapshot(), clock())
+                }
+                updateProjectedPeers(gRepo.currentSnapshot())
+            }
         }
 
         // Project mesh peers to UnifiedVoicePeer flow and monitor route availability
         peerProjectorJob = scope.launch {
-            while (isActive) {
-                val now = clock()
-                val snapshot = gRepo.currentSnapshot()
-                val routes = rTable.routes.value
-                _hasValidRoute.value = routes.isNotEmpty()
-
-                val speakers = audioPlayback?.activeSpeakers?.value ?: emptySet()
-                _activeSpeakers.value = speakers
-
-                val offlineDevices = UnifiedVoicePeer.projectMeshGraph(snapshot, routes, speakers, now)
-                _participants.value = offlineDevices.map { UnifiedVoicePeer.fromOffline(it, now) }
-
-                val cnt = fEngine.counters()
-                diagnosticsRepo.update(
-                    selfDeviceId = identity.deviceId,
-                    sessionId = sManager.session.sessionId,
-                    memberCount = sManager.members().size,
-                    graph = snapshot,
-                    routes = routes,
-                    receivedVoiceFrames = cnt.received,
-                    forwardedVoiceFrames = cnt.forwarded,
-                    droppedDuplicates = cnt.dup,
-                    droppedInvalid = cnt.invalid,
-                    droppedTtl = cnt.ttl
-                )
-
-                delay(500L)
+            gRepo.snapshots.collect { snapshot ->
+                updateProjectedPeers(snapshot)
             }
         }
 
         _state.value = VoiceTransportState.CONNECTED
+    }
+
+    private fun updateProjectedPeers(snapshot: com.ridervoice.mesh.graph.MeshGraphSnapshot) {
+        val sManager = sessionManager ?: return
+        val rTable = routingTable ?: return
+        val fEngine = forwardingEngine ?: return
+        val now = clock()
+        val routes = rTable.routes.value
+        _hasValidRoute.value = routes.isNotEmpty()
+
+        val speakers = audioPlayback?.activeSpeakers?.value ?: emptySet()
+        _activeSpeakers.value = speakers
+
+        val offlineDevices = com.ridervoice.mesh.transport.UnifiedVoicePeer.projectMeshGraph(snapshot, routes, speakers, now)
+        _participants.value = offlineDevices.map { com.ridervoice.mesh.transport.UnifiedVoicePeer.fromOffline(it, now) }
+
+        val cnt = fEngine.counters()
+        diagnosticsRepo.update(
+            selfDeviceId = identity.deviceId,
+            sessionId = sManager.session.sessionId,
+            memberCount = sManager.members().size,
+            graph = snapshot,
+            routes = routes,
+            receivedVoiceFrames = cnt.received,
+            forwardedVoiceFrames = cnt.forwarded,
+            droppedDuplicates = cnt.dup,
+            droppedInvalid = cnt.invalid,
+            droppedTtl = cnt.ttl
+        )
     }
 
     override suspend fun enableAudio(): EnableAudioResult = startMutex.withLock {
@@ -254,6 +266,10 @@ class OfflineMeshVoiceTransport(
         audioPlayback = aPlayback
         aPlayback.start()
 
+        if (!locksHeld) {
+            locks.acquire()
+            locksHeld = true
+        }
         routeController?.acquireCommunicationMode()
 
         val aCapture = OfflineAudioCapture(
@@ -315,6 +331,10 @@ class OfflineMeshVoiceTransport(
         routeController?.releaseCommunicationMode()
         voxBridge.close()
 
+        if (locksHeld) {
+            locks.release()
+            locksHeld = false
+        }
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
     }
 
@@ -339,6 +359,8 @@ class OfflineMeshVoiceTransport(
         frameListenerJob = null
         peerProjectorJob?.cancel()
         peerProjectorJob = null
+        expireJob?.cancel()
+        expireJob = null
 
         audioCapture?.stop()
         audioCapture = null
@@ -381,6 +403,10 @@ class OfflineMeshVoiceTransport(
         _micState.value = MicState.MUTED
         audioCapture?.stop()
         audioPlayback?.stop()
+        if (locksHeld) {
+            locks.release()
+            locksHeld = false
+        }
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
     }
 
@@ -388,6 +414,10 @@ class OfflineMeshVoiceTransport(
         if (!paused) return
         if (!audioOwnershipArbiter.tryClaimOfflineMesh()) return
         paused = false
+        if (!locksHeld) {
+            locks.acquire()
+            locksHeld = true
+        }
         audioPlayback?.start()
         if (micWanted) {
             val res = audioCapture?.start()

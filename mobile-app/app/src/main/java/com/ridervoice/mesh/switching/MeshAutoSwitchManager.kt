@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -94,13 +95,16 @@ class MeshAutoSwitchManager(
     private var drivingJob: Job? = null
 
     fun start() {
-        if (OfflineMeshGate.decision() != com.ridervoice.mesh.GateDecision.ENABLED) return
+        if (!OfflineMeshGate.isBuildGateOpen() || OfflineMeshGate.decision() == com.ridervoice.mesh.GateDecision.DISABLED_BY_BUILD) return
         if (drivingJob != null) return
 
         drivingJob = scope.launch {
             var currentLiveRideId: String? = null
 
-            activeRideRepository.state.collectLatest { ride ->
+            combine(
+                activeRideRepository.state,
+                OfflineMeshGate.settingsFlow
+            ) { ride, _ -> ride }.collectLatest { ride ->
                 if (ride == null || ride.phase != ActiveRideRepository.Phase.LIVE) {
                     // Phase.LOBBY / Phase.ENDING / null -> endSession, stop ticks, stop discovery, enable-nothing
                     if (currentLiveRideId != null) {
@@ -132,7 +136,8 @@ class MeshAutoSwitchManager(
 
                 while (isActive &&
                     activeRideRepository.state.value?.roomId == ride.roomId &&
-                    activeRideRepository.state.value?.phase == ActiveRideRepository.Phase.LIVE
+                    activeRideRepository.state.value?.phase == ActiveRideRepository.Phase.LIVE &&
+                    OfflineMeshGate.isOfflineAllowed()
                 ) {
                     if ((OfflineMeshGate.isWarmStandbyAllowed() || OfflineMeshGate.isAutomaticFallbackAllowed()) &&
                         companionSession != null &&
@@ -163,11 +168,13 @@ class MeshAutoSwitchManager(
     }
 
     private fun buildUnifiedParticipantList(isLocalOffline: Boolean): List<com.ridervoice.mesh.transport.UnifiedVoicePeer> {
-        val meshPeers = meshTransport.participants.value
+        val rawMesh = meshTransport.participants.value
+        val meshPeers = (rawMesh as? List<*>)?.filterIsInstance<com.ridervoice.mesh.transport.UnifiedVoicePeer>() ?: emptyList()
         if (isLocalOffline) {
             return meshPeers
         }
-        val lkParticipants = liveKitManager.participants.value
+        val rawLk = liveKitManager.participants.value
+        val lkParticipants = (rawLk as? List<*>)?.filterIsInstance<com.ridervoice.models.Participant>() ?: emptyList()
         val lkPeers = lkParticipants.map { p ->
             com.ridervoice.mesh.transport.UnifiedVoicePeer(
                 id = p.identity,

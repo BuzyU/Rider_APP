@@ -381,8 +381,12 @@ class StateMachineLifecycleTest {
             healthSignalsProvider = LocalHealthSignalsProvider()
         )
 
-        manager.start()
-        assertEquals("Gate closed: state machine remains ONLINE without activity", AutoSwitchState.ONLINE, manager.stateMachine.state.value)
+        try {
+            manager.start()
+            assertEquals("Gate closed: state machine remains ONLINE without activity", AutoSwitchState.ONLINE, manager.stateMachine.state.value)
+        } finally {
+            manager.stop()
+        }
     }
 
     @Test

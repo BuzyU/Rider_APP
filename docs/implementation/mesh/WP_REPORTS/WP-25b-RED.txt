@@ -1,0 +1,39 @@
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:hiltAggregateDepsDebugUnitTest UP-TO-DATE
+> Task :app:hiltJavaCompileDebugUnitTest NO-SOURCE
+> Task :app:processDebugUnitTestJavaRes UP-TO-DATE
+> Task :app:transformDebugUnitTestClassesWithAsm
+
+> Task :app:testDebugUnitTest
+
+com.ridervoice.mesh.ProductionWiringTest > udpMeshLink_networkBinder_invokesBindSocketToWifi FAILED
+    java.lang.AssertionError at ProductionWiringTest.kt:36
+
+com.ridervoice.mesh.ProductionWiringTest > meshAudioRouteController_isProvidedAndInjectedIntoTransport FAILED
+    java.lang.AssertionError at ProductionWiringTest.kt:19
+
+com.ridervoice.mesh.ProductionWiringTest > meshIdentity_displayNameComesFromRiderNotBuildModelNorConvoyName FAILED
+    java.lang.AssertionError at ProductionWiringTest.kt:84
+
+com.ridervoice.mesh.ProductionWiringTest > autoSwitchManager_start_doesNothingWhenGateClosed FAILED
+    java.lang.AssertionError at ProductionWiringTest.kt:60
+
+com.ridervoice.mesh.ProductionWiringTest > nullSecretProvider_yieldsNoSharedSecret_andFallbackNeverStarts FAILED
+    java.lang.AssertionError at ProductionWiringTest.kt:71
+
+com.ridervoice.mesh.ProductionWiringTest > meshVoxBridge_receivesHardwarePttPort FAILED
+    java.lang.AssertionError at ProductionWiringTest.kt:47
+
+com.ridervoice.mesh.ProductionWiringTest > meshModule_providesHaveNoNullableOrDefaultedParameters FAILED
+    java.lang.AssertionError at ProductionWiringTest.kt:136
+
+7 tests completed, 7 failed
+
+> Task :app:testDebugUnitTest FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:testDebugUnitTest'.
+> There were failing tests. See the report at: file:///D:/Projects/Rider_APP-main/mobile-app/app/build/reports/tests/testDebugUnitTest/index.html

@@ -37,3 +37,4 @@ Columns: `ID | Description | File:Line | Severity | Status | Fixing WP | Evidenc
 | **T-FAIL-1** | Baseline test failure: `fallbackToMeshRollsBackToLiveKitWhenMeshAudioFails` | `VoiceSessionCoordinatorTest.kt:134` | HIGH | OPEN | WP-25c / WP-27 | Coordinator rollback does not restart LiveKit when stopped by hardware-busy path |
 | **T-FAIL-2** | Baseline test failure: `fallbackToMeshSucceedsWhenRouteExistsAndAudioEnables` | `VoiceSessionCoordinatorTest.kt:163` | HIGH | OPEN | WP-25c / WP-27 | Coordinator calls `pause()` but test fake asserts `stoppedCount == 1` |
 | **T-FAIL-3** | Baseline test failure: `recoveryToLiveKitRollsBackToMeshWhenLiveKitFailsToConnect` | `VoiceSessionCoordinatorTest.kt:206` | HIGH | OPEN | WP-25c / WP-27 | Test fake `state` remains `CONNECTED` across pause, bypassing failure injection |
+

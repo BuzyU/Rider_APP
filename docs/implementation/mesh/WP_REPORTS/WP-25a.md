@@ -160,3 +160,4 @@ BUILD SUCCESSFUL in 5m 14s
   - `T-FAIL-2` (line 163 in `VoiceSessionCoordinatorTest`): test fake expects `stoppedCount == 1` but coordinator calls `pause()`.
   - `T-FAIL-3` (line 206 in `VoiceSessionCoordinatorTest`): test fake state remains `CONNECTED` across pause.
 - Scheduled for resolution in WP-25c / WP-27 / WP-28.
+

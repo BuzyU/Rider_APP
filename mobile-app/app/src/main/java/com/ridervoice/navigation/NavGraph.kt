@@ -385,24 +385,18 @@ fun NavGraph(
             }
             val sessionCode = backStackEntry.arguments?.getString("sessionCode") ?: "offline"
             val context = LocalContext.current
+            val viewModel: com.ridervoice.mesh.ui.OfflineMeshViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val transport = viewModel.transport
+            val liveKitConflict by viewModel.liveKitConflictError.collectAsState()
+
             val session = androidx.compose.runtime.remember(sessionCode) {
                 com.ridervoice.mesh.session.OfflineSession.fromCode(sessionCode, System.currentTimeMillis())
                     ?: com.ridervoice.mesh.session.OfflineSession.create(System.currentTimeMillis())
             }
-            val transport = androidx.compose.runtime.remember(sessionCode) {
-                val identityRepo = com.ridervoice.mesh.identity.MeshIdentityRepository(
-                    store = com.ridervoice.mesh.identity.SharedPrefsMeshKeyValueStore(context),
-                    defaultDisplayName = { android.os.Build.MODEL ?: "Rider" }
-                )
-                val arbiter = com.ridervoice.mesh.transport.AudioOwnershipArbiter()
-                val locks = com.ridervoice.mesh.link.AndroidNetworkLocks(context)
-                com.ridervoice.mesh.transport.OfflineMeshVoiceTransport(
-                    identity = identityRepo.get(),
-                    audioOwnershipArbiter = arbiter,
-                    locks = locks
-                ).also {
-                    com.ridervoice.services.MeshForegroundService.activeTransport = it
-                }
+
+            LaunchedEffect(sessionCode) {
+                com.ridervoice.services.MeshForegroundService.activeTransport = transport
+                viewModel.startSession(session)
             }
 
             LaunchedEffect(transport, session) {
@@ -420,19 +414,31 @@ fun NavGraph(
                 }
             }
 
-            LaunchedEffect(session) {
-                transport.start(com.ridervoice.mesh.transport.VoiceSession.Offline(session))
-            }
-
-            val scope = androidx.compose.runtime.rememberCoroutineScope()
             androidx.compose.runtime.DisposableEffect(sessionCode) {
                 onDispose {
-                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                        transport.stop()
-                    }
+                    viewModel.stopSession()
                     com.ridervoice.services.MeshForegroundService.stop(context)
                     com.ridervoice.services.MeshForegroundService.activeTransport = null
                 }
+            }
+
+            if (liveKitConflict) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = {
+                        viewModel.clearConflictError()
+                        navController.popBackStack()
+                    },
+                    title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.ridervoice.R.string.mesh_title)) },
+                    text = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.ridervoice.R.string.mesh_mic_busy_livekit)) },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(onClick = {
+                            viewModel.clearConflictError()
+                            navController.popBackStack()
+                        }) {
+                            androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(android.R.string.ok))
+                        }
+                    }
+                )
             }
 
             com.ridervoice.mesh.ui.OfflineRoomScreen(

@@ -1,0 +1,2819 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.2.2" type="baseline" client="gradle" dependencies="false" name="AGP (8.2.2)" variant="all" version="8.2.2">
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            var rec = AudioRecord(audioSource, SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT, bufferSize)"
+        errorLine2="                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/VoxEngine.kt"
+            line="187"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="                rec = AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT, bufferSize)"
+        errorLine2="                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/VoxEngine.kt"
+            line="190"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="                rec = AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION, SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT, bufferSize)"
+        errorLine2="                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/VoxEngine.kt"
+            line="194"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 31 (current min is 26): `android.media.AudioDeviceInfo#TYPE_BLE_HEADSET`"
+        errorLine1="                it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/AudioDeviceRouter.kt"
+            line="348"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 28 (current min is 26): `android.media.AudioDeviceInfo#TYPE_HEARING_AID`"
+        errorLine1="                it.type == AudioDeviceInfo.TYPE_HEARING_AID ||"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/AudioDeviceRouter.kt"
+            line="349"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 30 (current min is 29): `android.content.pm.ServiceInfo#FOREGROUND_SERVICE_TYPE_MICROPHONE`"
+        errorLine1="            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)"
+        errorLine2="                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/services/MeshForegroundService.kt"
+            line="105"
+            column="60"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 28 (current min is 26): `android.net.NetworkCapabilities#NET_CAPABILITY_NOT_CONGESTED`"
+        errorLine1="        val isCongested = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_CONGESTED)"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/network/NetworkResilienceManager.kt"
+            line="77"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 29 (current min is 26): `android.Manifest.permission#ACCESS_BACKGROUND_LOCATION`"
+        errorLine1="    val backgroundLocationPermission: String = Manifest.permission.ACCESS_BACKGROUND_LOCATION"
+        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/permissions/PermissionManager.kt"
+            line="35"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 30 (current min is 26): `android.content.pm.ServiceInfo#FOREGROUND_SERVICE_TYPE_MICROPHONE`"
+        errorLine1="            mask = mask or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/services/VoiceForegroundService.kt"
+            line="232"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 33 (current min is 28): `android.content.pm.PackageManager#getPackageInfo`"
+        errorLine1="                    context.packageManager.getPackageInfo("
+        errorLine2="                                           ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/update/UpdateManager.kt"
+            line="604"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 33 (current min is 28): `android.content.pm.PackageManager.PackageInfoFlags#of`"
+        errorLine1="                        PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())"
+        errorLine2="                                                        ~~">
+        <location
+            file="src/main/java/com/ridervoice/update/UpdateManager.kt"
+            line="606"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 33 (current min is 28): `android.content.pm.PackageManager#getPackageArchiveInfo`"
+        errorLine1="                    context.packageManager.getPackageArchiveInfo("
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/update/UpdateManager.kt"
+            line="614"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 33 (current min is 28): `android.content.pm.PackageManager.PackageInfoFlags#of`"
+        errorLine1="                        PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())"
+        errorLine2="                                                        ~~">
+        <location
+            file="src/main/java/com/ridervoice/update/UpdateManager.kt"
+            line="616"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="SimpleDateFormat"
+        message="To get local formatting use `getDateInstance()`, `getDateTimeInstance()`, or `getTimeInstance()`, or use `new SimpleDateFormat(String template, Locale locale)` with for example `Locale.US` for ASCII dates."
+        errorLine1="        val timestamp = java.text.SimpleDateFormat(&quot;HH:mm:ss.SSS&quot;).format(java.util.Date())"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/HardwarePTTManager.kt"
+            line="95"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="UnusedAttribute"
+        message="Attribute `localeConfig` is only used in API level 33 and higher (current min is 26)"
+        errorLine1="        android:localeConfig=&quot;@xml/locales_config&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="32"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnusedAttribute"
+        message="Attribute `turnScreenOn` is only used in API level 27 and higher (current min is 26)"
+        errorLine1="        &lt;activity android:name=&quot;.ui.screens.RideInviteActivity&quot; android:showOnLockScreen=&quot;true&quot; android:turnScreenOn=&quot;true&quot; android:exported=&quot;false&quot; />"
+        errorLine2="                                                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="62"
+            column="97"/>
+    </issue>
+
+    <issue
+        id="UnusedAttribute"
+        message="Attribute `turnScreenOn` is only used in API level 27 and higher (current min is 26)"
+        errorLine1="        &lt;activity android:name=&quot;.ui.screens.EmergencyAlertActivity&quot; android:showOnLockScreen=&quot;true&quot; android:turnScreenOn=&quot;true&quot; android:exported=&quot;false&quot; />"
+        errorLine2="                                                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="63"
+            column="101"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: BluetoothAdapter.STATE_DISCONNECTED, BluetoothAdapter.STATE_CONNECTING, BluetoothAdapter.STATE_CONNECTED, BluetoothAdapter.STATE_DISCONNECTING"
+        errorLine1="            val a2dp = btAdapter.getProfileConnectionState(BluetoothProfile.A2DP) == BluetoothProfile.STATE_CONNECTED"
+        errorLine2="                                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/AudioDeviceRouter.kt"
+            line="633"
+            column="86"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: BluetoothAdapter.STATE_DISCONNECTED, BluetoothAdapter.STATE_CONNECTING, BluetoothAdapter.STATE_CONNECTED, BluetoothAdapter.STATE_DISCONNECTING"
+        errorLine1="            val headset = btAdapter.getProfileConnectionState(BluetoothProfile.HEADSET) == BluetoothProfile.STATE_CONNECTED"
+        errorLine2="                                                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/AudioDeviceRouter.kt"
+            line="634"
+            column="92"/>
+    </issue>
+
+    <issue
+        id="AppBundleLocaleChanges"
+        message="Found dynamic locale changes, but did not find corresponding Play Core library calls for downloading languages and splitting by language is not disabled in the `bundle` configuration"
+        errorLine1="        config.setLocale(locale)"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/utils/LocaleHelper.kt"
+            line="33"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="IntentFilterUniqueDataAttributes"
+        message="Consider splitting data tag into multiple tags with individual attributes to avoid confusion"
+        errorLine1="                &lt;data android:scheme=&quot;https&quot; android:host=&quot;*&quot; android:pathPrefix=&quot;/j/&quot; />"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="56"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="IntentFilterUniqueDataAttributes"
+        message="Consider splitting data tag into multiple tags with individual attributes to avoid confusion"
+        errorLine1="                &lt;data android:scheme=&quot;https&quot; android:host=&quot;*&quot; android:pathPrefix=&quot;/join/&quot; />"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="57"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="QueryPermissionsNeeded"
+        message="Consider adding a `&lt;queries>` declaration to your manifest when calling this \&#xA;method; see https://g.co/dev/packagevisibility for details"
+        errorLine1="                                if (mapIntent.resolveActivity(context.packageManager) != null) {"
+        errorLine2="                                              ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/ui/screens/room/SosAlertBanner.kt"
+            line="105"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="QueryPermissionsNeeded"
+        message="Consider adding a `&lt;queries>` declaration to your manifest when calling this \&#xA;method; see https://g.co/dev/packagevisibility for details"
+        errorLine1="            val resInfoList = context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)"
+        errorLine2="                                                     ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/update/UpdateManager.kt"
+            line="715"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="UnspecifiedRegisterReceiverFlag"
+        message="`wiredHeadsetReceiver` \&#xA;is missing `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED` flag for unprotected \&#xA;broadcasts registered for android.hardware.usb.action.USB_AUDIO_ACCESSORY_PLUG"
+        errorLine1="                context.registerReceiver(wiredHeadsetReceiver, wiredFilter)"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/AudioDeviceRouter.kt"
+            line="234"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/ui/screens/InviteFriendsScreen.kt"
+            line="86"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/mesh/ui/OfflineRoomScreen.kt"
+            line="74"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/ui/components/RvComponents.kt"
+            line="367"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA!&quot; instead of &quot;DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                        ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;GA!&quot; instead of &quot;GA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                                                                       ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="152"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;GA!&quot; instead of &quot;GA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                                                                                               ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="176"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;GA!&quot; instead of &quot;GA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                                                                                                                       ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="200"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;GA!&quot; instead of &quot;GA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                                                                                                                                                                                                                                                                                                                           ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="396"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;GA!&quot; instead of &quot;GA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                                                                                                                                                                                                                                                                                                                                                   ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="420"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;GA!&quot; instead of &quot;GA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                                                                                                                                                                                                                                                                                                                                                                           ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="444"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;GA!&quot; instead of &quot;GA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="892"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;GA!&quot; instead of &quot;GA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="1016"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;GA!&quot; instead of &quot;GA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="1080"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA!&quot; instead of &quot;NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                                                                                                                                                                                                                                ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="305"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;pYTEWMBQGA!&quot; instead of &quot;pYTEWMBQGA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                               ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="112"/>
+    </issue>
+
+    <issue
+        id="Typos"
+        message="Did you mean &quot;pYTEWMBQGA!&quot; instead of &quot;pYTEWMBQGA1&quot;?"
+        errorLine1="            MIIEqDCCA5CgAwIBAgIJANWFuGx90071MA0GCSqGSIb3DQEBBAUAMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTAeFw0wODA0MTUyMzM2NTZaFw0zNTA5MDEyMzM2NTZaMIGUMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTEWMBQGA1UEBxMNTW91bnRhaW4gVmlldzEQMA4GA1UEChMHQW5kcm9pZDEQMA4GA1UECxMHQW5kcm9pZDEQMA4GA1UEAxMHQW5kcm9pZDEiMCAGCSqGSIb3DQEJARYTYW5kcm9pZEBhbmRyb2lkLmNvbTCCASAwDQYJKoZIhvcNAQEBBQADggENADCCAQgCggEBANbOLiT72q8K4769lR8rYcOqPEnf+kHqgS4lQd3F/659v1L6l5U/zF4i6/kXqL854I9I2j9t297j11wI/O6H0L5s4H1m70rV0V6mH/F6uQeW7+1nU5e5w13eI5Fk+XlU5o5O5/1k66r5O6b6k51w3m7/U33rU7qG4/0o116r4g8K7j+s0mU4W15O0b4I3N4R4f4h86m4w6m8q6Z5s/y4p4c2u50h36G6/c1L02/4Z5/8u79f6uO9g3/4a1W/Q6l3f+U2x7f3o77zX8/k/3w6Z5q05e6080o15i50w9I/H1+L8f+O03W5Yq/V5t6r6G3M3wIDAQABo4GvMIGsMB0GA1UdDgQWBBRK3QYgW8c23z8tY19/e6r/q11G0TAwBgNVHR8EKTAnMCWgI6Ahhh9odHRwOi8vcGtpLmdvb2dsZS5jb20vR0lBRy5jcmwwCwYDVR0PBAQDAgAAMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB8GA1UdIwQYMBaAFAK3QYgW8c23z8tY19/e6r/q11G0MA0GCSqGSIb3DQEBBAUAA4IBAQC26Ie/L2oY4f5P4m3r5/3q7G8p9m1Wq45+y/708s4Z0V3+P4j0f9b6/4+P3j4/zX001m800/W4k0r6w83196K7k4/tq87W+6x6t2m1r5r9m5q678/3X48s241+Z3o639257g09X11m4y80r9Q7z4x8/r8o56p16Q5/2j7u0v2o7Q72k74L49+1k62h1w/g16y8G2b7s10p+e45+j1z429c7247l2m/2e4W004U9z6z04r20s0v9q93x1r93v7r4o1t7T3h5o/60v95r2m0T7T4b3W7n86v+z2x6z/h7w910w639k5n7+Q68w=="
+        errorLine2="                                                                                                                                                                                                                                                                                                                                                                   ^">
+        <location
+            file="src/main/res/values/font_certs.xml"
+            line="5"
+            column="356"/>
+    </issue>
+
+    <issue
+        id="Untranslatable"
+        message="The resource string &quot;mapbox_access_token&quot; is marked as translatable=&quot;false&quot;, but is translated to &quot;hi&quot; (Hindi) here"
+        errorLine1="    &lt;string name=&quot;mapbox_access_token&quot; translatable=&quot;false&quot;>pk.eyJ1IjoicmlkZXJ2b2ljZSIsImEiOiJjbTByaWRlcnZvaWNlMDAwMDExIn0.dummy_public_key&lt;/string>"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="5"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="Untranslatable"
+        message="The resource string &quot;mapbox_access_token&quot; is marked as translatable=&quot;false&quot;, but is translated to &quot;mr&quot; (Marathi) here"
+        errorLine1="    &lt;string name=&quot;mapbox_access_token&quot; translatable=&quot;false&quot;>pk.eyJ1IjoicmlkZXJ2b2ljZSIsImEiOiJjbTByaWRlcnZvaWNlMDAwMDExIn0.dummy_public_key&lt;/string>"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="5"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;Samples&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;diagnostics_monitoring_active&quot;>Monitoring Active — %1$d Samples Logged&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="196"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;peers&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;mesh_status_summary&quot;>Status: %1$s, %2$d peers&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="223"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;active&quot;): This should probably be a plural rather than a string"
+        errorLine1="    &lt;string name=&quot;mesh_active_discovered&quot;>%1$d active of %2$d discovered&lt;/string>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="226"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ExportedService"
+        message="Exported service does not require permission"
+        errorLine1="        &lt;service android:name=&quot;.services.FcmService&quot; android:exported=&quot;true&quot;>"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="69"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="DataExtractionRules"
+        message="The attribute `android:allowBackup` is deprecated from Android 12 and higher and may be removed in future versions. Consider adding the attribute `android:dataExtractionRules` specifying an `@xml` resource which configures cloud backups and device transfers on Android 12 and higher."
+        errorLine1="        android:allowBackup=&quot;false&quot;"
+        errorLine2="                             ~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="31"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="Wakelock"
+        message="The `release()` call is not always reached"
+        errorLine1="                    it.release()"
+        errorLine2="                       ~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/services/VoiceForegroundService.kt"
+            line="221"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="WakelockTimeout"
+        message="Provide a timeout when requesting a wakelock with `PowerManager.Wakelock.acquire(long timeout)`. This will ensure the OS will cleanup any wakelocks that last longer than you intend, and will save your user&apos;s battery."
+        errorLine1="                    it.acquire()"
+        errorLine2="                    ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/services/VoiceForegroundService.kt"
+            line="214"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 26"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/App.kt"
+            line="105"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 26"
+        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/ui/screens/EmergencyAlertActivity.kt"
+            line="114"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 26"
+        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/services/MeshForegroundService.kt"
+            line="61"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 26"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/services/MeshForegroundService.kt"
+            line="145"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is never &lt; 26"
+        errorLine1="        val allowed = Build.VERSION.SDK_INT &lt; Build.VERSION_CODES.O ||"
+        errorLine2="                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/update/UpdateManager.kt"
+            line="106"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 26"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/update/UpdateManager.kt"
+            line="686"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 26"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/update/UpdateManager.kt"
+            line="737"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 26"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/services/VoiceForegroundService.kt"
+            line="248"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 26"
+        errorLine1="        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/services/VoiceForegroundService.kt"
+            line="306"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 26"
+        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/VoxEngine.kt"
+            line="200"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 26"
+        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/VoxEngine.kt"
+            line="211"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 26"
+        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/audio/VoxEngine.kt"
+            line="428"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="This field leaks a context object"
+        errorLine1="    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/ui/viewmodels/AuthViewModel.kt"
+            line="22"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
+        errorLine1="    var selectedTab by remember { mutableStateOf(0) }"
+        errorLine2="                                  ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/ui/components/AddRidersBottomSheet.kt"
+            line="38"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="NestedWeights"
+        message="Nested weights are bad for performance"
+        errorLine1="            android:layout_weight=&quot;1&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_expanded.xml"
+            line="60"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `@android:color/background_dark` with a theme that also paints a background (inferred theme is `@style/Theme.Material3.DayNight.NoActionBar`)"
+        errorLine1="    android:background=&quot;@android:color/background_dark&quot;>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_collapsed.xml"
+            line="7"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `@android:color/background_dark` with a theme that also paints a background (inferred theme is `@style/Theme.Material3.DayNight.NoActionBar`)"
+        errorLine1="    android:background=&quot;@android:color/background_dark&quot;>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_expanded.xml"
+            line="7"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.app_name` appears to be unused"
+        errorLine1="    &lt;string name=&quot;app_name&quot;>RiderVoice&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="3"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.app_tagline` appears to be unused"
+        errorLine1="    &lt;string name=&quot;app_tagline&quot;>Talk to your riding group, hands-free.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="4"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.nav_home` appears to be unused"
+        errorLine1="    &lt;string name=&quot;nav_home&quot;>Home&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="8"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.nav_friends` appears to be unused"
+        errorLine1="    &lt;string name=&quot;nav_friends&quot;>Friends&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="9"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.nav_invites` appears to be unused"
+        errorLine1="    &lt;string name=&quot;nav_invites&quot;>Invites&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="10"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.nav_history` appears to be unused"
+        errorLine1="    &lt;string name=&quot;nav_history&quot;>Ride history&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="11"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.nav_settings` appears to be unused"
+        errorLine1="    &lt;string name=&quot;nav_settings&quot;>Settings&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="12"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.nav_account` appears to be unused"
+        errorLine1="    &lt;string name=&quot;nav_account&quot;>Account&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="13"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_start_ride` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_start_ride&quot;>Start a ride&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="16"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_join_ride` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_join_ride&quot;>Join a ride&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="17"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_send_invite` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_send_invite&quot;>Send invite&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="20"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_add_friend` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_add_friend&quot;>Add a friend&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="21"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_leave_ride` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_leave_ride&quot;>Leave this ride?&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="22"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_end_ride` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_end_ride&quot;>End ride for everyone&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="23"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_log_out` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_log_out&quot;>Log out?&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="24"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_copy_code` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_copy_code&quot;>Copy code&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="25"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_share_link` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_share_link&quot;>Share link&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="26"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_try_again` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_try_again&quot;>Try again&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="27"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_go_home` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_go_home&quot;>Go home&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="28"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_cancel` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_cancel&quot;>Cancel&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="29"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_confirm` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_confirm&quot;>Confirm&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="30"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.action_update_app` appears to be unused"
+        errorLine1="    &lt;string name=&quot;action_update_app&quot;>Update app&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="31"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.create_ride_duration_label` appears to be unused"
+        errorLine1="    &lt;string name=&quot;create_ride_duration_label&quot;>Estimated time&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="40"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.lobby_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;lobby_title&quot;>Ride lobby&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="46"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.lobby_section_joined` appears to be unused"
+        errorLine1="    &lt;string name=&quot;lobby_section_joined&quot;>Joined&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="49"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.lobby_section_invited` appears to be unused"
+        errorLine1="    &lt;string name=&quot;lobby_section_invited&quot;>Invited&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="50"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.lobby_section_declined` appears to be unused"
+        errorLine1="    &lt;string name=&quot;lobby_section_declined&quot;>Declined&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="51"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.lobby_session_expired` appears to be unused"
+        errorLine1="    &lt;string name=&quot;lobby_session_expired&quot;>Session expired. Please sign in again.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="58"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.ride_screen_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;ride_screen_title&quot;>Ride screen&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="65"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.ride_status_connected` appears to be unused"
+        errorLine1="    &lt;string name=&quot;ride_status_connected&quot;>Connected&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="66"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.ride_status_reconnecting` appears to be unused"
+        errorLine1="    &lt;string name=&quot;ride_status_reconnecting&quot;>Reconnecting...&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="67"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.ride_status_offline` appears to be unused"
+        errorLine1="    &lt;string name=&quot;ride_status_offline&quot;>Offline&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="68"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.ride_hands_free_on` appears to be unused"
+        errorLine1="    &lt;string name=&quot;ride_hands_free_on&quot;>Hands-free is on&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="69"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.ride_hands_free_off` appears to be unused"
+        errorLine1="    &lt;string name=&quot;ride_hands_free_off&quot;>Muted&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="70"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.ride_push_to_talk` appears to be unused"
+        errorLine1="    &lt;string name=&quot;ride_push_to_talk&quot;>Push to talk&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="71"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.ride_show_map` appears to be unused"
+        errorLine1="    &lt;string name=&quot;ride_show_map&quot;>Show map&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="72"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.ride_hide_map` appears to be unused"
+        errorLine1="    &lt;string name=&quot;ride_hide_map&quot;>Hide map&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="73"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.sos_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;sos_title&quot;>Emergency SOS&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="76"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.sos_button` appears to be unused"
+        errorLine1="    &lt;string name=&quot;sos_button&quot;>Send SOS now&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="77"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.sos_active` appears to be unused"
+        errorLine1="    &lt;string name=&quot;sos_active&quot;>SOS is on&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="78"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.sos_sent` appears to be unused"
+        errorLine1="    &lt;string name=&quot;sos_sent&quot;>SOS sent&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="79"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.sos_sending` appears to be unused"
+        errorLine1="    &lt;string name=&quot;sos_sending&quot;>Sending SOS...&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="80"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.sos_not_sent` appears to be unused"
+        errorLine1="    &lt;string name=&quot;sos_not_sent&quot;>SOS not sent. Call 112 now.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="81"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_title&quot;>Settings&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="84"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_talking_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_talking_title&quot;>Talking&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="85"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_vox_sensitivity` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_vox_sensitivity&quot;>Hands-free sensitivity&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="86"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_noise_filter` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_noise_filter&quot;>Noise filter&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="87"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_headset_button` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_headset_button&quot;>Headset button&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="88"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_audio_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_audio_title&quot;>Audio&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="89"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_audio_device` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_audio_device&quot;>Audio device&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="90"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_location_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_location_title&quot;>Location&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="91"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_share_location` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_share_location&quot;>Share location while riding&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="92"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_battery_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_battery_title&quot;>Battery&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="93"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_battery_help` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_battery_help&quot;>Allow running in background&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="94"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_about_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_about_title&quot;>About &amp;amp; Updates&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="95"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_check_updates` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_check_updates&quot;>Check for updates&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="96"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_language` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_language&quot;>Language&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="97"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.language_system` appears to be unused"
+        errorLine1="    &lt;string name=&quot;language_system&quot;>System default&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="98"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.language_en` appears to be unused"
+        errorLine1="    &lt;string name=&quot;language_en&quot;>English&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="99"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.language_hi` appears to be unused"
+        errorLine1="    &lt;string name=&quot;language_hi&quot;>हिन्दी&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="100"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.language_mr` appears to be unused"
+        errorLine1="    &lt;string name=&quot;language_mr&quot;>मराठी&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="101"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.participant_you` appears to be unused"
+        errorLine1="    &lt;string name=&quot;participant_you&quot;>You&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="104"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.participant_rider_prefix` appears to be unused"
+        errorLine1="    &lt;string name=&quot;participant_rider_prefix&quot;>Rider&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="105"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.profile_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;profile_title&quot;>My profile&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="108"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.profile_edit` appears to be unused"
+        errorLine1="    &lt;string name=&quot;profile_edit&quot;>Edit profile&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="109"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.profile_rider_name` appears to be unused"
+        errorLine1="    &lt;string name=&quot;profile_rider_name&quot;>Rider name&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="110"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.profile_handle` appears to be unused"
+        errorLine1="    &lt;string name=&quot;profile_handle&quot;>Handle&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="111"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.profile_bike` appears to be unused"
+        errorLine1="    &lt;string name=&quot;profile_bike&quot;>Motorcycle model&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="112"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.profile_bio` appears to be unused"
+        errorLine1="    &lt;string name=&quot;profile_bio&quot;>About me&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="113"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.plurals.riders_count` appears to be unused"
+        errorLine1="    &lt;plurals name=&quot;riders_count&quot;>"
+        errorLine2="             ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="115"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_checking_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_checking_title&quot;>Checking for updates&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="140"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_checking_desc` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_checking_desc&quot;>Querying official release channel...&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="141"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_uptodate_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_uptodate_title&quot;>Up to date&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="142"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_uptodate_desc` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_uptodate_desc&quot;>You are currently running the latest version of RiderVoice (v%1$s). No updates are required.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="143"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_available_badge` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_available_badge&quot;>Firmware Upgrade&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="144"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_available_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_available_title&quot;>New Version Available&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="145"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_current_label` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_current_label&quot;>CURRENT&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="146"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_newest_label` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_newest_label&quot;>NEWEST (%1$s)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="147"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_whats_new` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_whats_new&quot;>WHAT\&apos;S NEW&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="148"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_safety_note` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_safety_note&quot;>The update will be downloaded directly to your device and verified before installation.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="149"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_action_download_now` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_action_download_now&quot;>Download now&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="150"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_action_later` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_action_later&quot;>Later&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="151"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_confirm_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_confirm_title&quot;>Confirm download&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="152"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_confirm_body` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_confirm_body&quot;>Download RiderVoice v%1$s (%2$s)?&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="153"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_confirm_storage_note` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_confirm_storage_note&quot;>The APK will be streamed securely over HTTPS and stored in app-internal cache. Storage space has been verified.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="154"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_downloading_badge` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_downloading_badge&quot;>OTA Transmission&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="155"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_downloading_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_downloading_title&quot;>Downloading update&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="156"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_verifying_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_verifying_title&quot;>Verifying package&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="157"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_install_ready_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_install_ready_title&quot;>Ready to install&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="158"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_install_ready_desc` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_install_ready_desc&quot;>RiderVoice v%1$s has been downloaded and verified.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="159"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_action_install_now` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_action_install_now&quot;>Install update&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="160"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.update_failed_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;update_failed_title&quot;>Update failed&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="161"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_planner_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_planner_title&quot;>Route Planner&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="164"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_planner_waypoint_badge` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_planner_waypoint_badge&quot;>Waypoint Plotter&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="165"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_origin_placeholder` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_origin_placeholder&quot;>Origin / Starting Point&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="166"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_dest_placeholder` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_dest_placeholder&quot;>Destination / Mountain Pass&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="167"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_routing_characteristic` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_routing_characteristic&quot;>Routing Characteristic&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="168"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_radar_view` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_radar_view&quot;>Radar View&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="169"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_mapbox_sat` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_mapbox_sat&quot;>Mapbox Sat&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="170"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_switch_mapbox` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_switch_mapbox&quot;>Switch to Mapbox View&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="171"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_switch_radar` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_switch_radar&quot;>Switch to Radar View&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="172"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_configure_mapbox` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_configure_mapbox&quot;>Configure Mapbox Key&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="173"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_export_gpx` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_export_gpx&quot;>Export GPX Track&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="174"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_invert_swap` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_invert_swap&quot;>Invert Route (Swap)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="175"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.route_clear` appears to be unused"
+        errorLine1="    &lt;string name=&quot;route_clear&quot;>Clear Route&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="176"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.summary_ride_complete` appears to be unused"
+        errorLine1="    &lt;string name=&quot;summary_ride_complete&quot;>Ride Complete&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="180"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.summary_ride_summary` appears to be unused"
+        errorLine1="    &lt;string name=&quot;summary_ride_summary&quot;>Ride Summary&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="181"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.summary_stat_time` appears to be unused"
+        errorLine1="    &lt;string name=&quot;summary_stat_time&quot;>TIME&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="182"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.summary_stat_distance` appears to be unused"
+        errorLine1="    &lt;string name=&quot;summary_stat_distance&quot;>DISTANCE&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="183"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.summary_stat_top_speed` appears to be unused"
+        errorLine1="    &lt;string name=&quot;summary_stat_top_speed&quot;>TOP SPEED&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="184"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.summary_diagnostics_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;summary_diagnostics_title&quot;>Ride Diagnostics&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="185"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.summary_excel_exported` appears to be unused"
+        errorLine1="    &lt;string name=&quot;summary_excel_exported&quot;>Exported to %1$s in Excel (.xlsx) format&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="186"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.account_operator_badge` appears to be unused"
+        errorLine1="    &lt;string name=&quot;account_operator_badge&quot;>Transceiver Operator&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="189"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.account_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;account_title&quot;>Rider Account&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="190"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.account_loading_dossier` appears to be unused"
+        errorLine1="    &lt;string name=&quot;account_loading_dossier&quot;>Retrieving operator dossier...&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="191"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.account_edit_profile` appears to be unused"
+        errorLine1="    &lt;string name=&quot;account_edit_profile&quot;>Edit Profile&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="192"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.diagnostics_dialog_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;diagnostics_dialog_title&quot;>Ride Diagnostics&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="195"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.diagnostics_monitoring_active` appears to be unused"
+        errorLine1="    &lt;string name=&quot;diagnostics_monitoring_active&quot;>Monitoring Active — %1$d Samples Logged&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="196"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.diagnostics_auto_export_desc` appears to be unused"
+        errorLine1="    &lt;string name=&quot;diagnostics_auto_export_desc&quot;>Auto-exported to %1$s in multi-sheet Excel (.xlsx) on ride conclusion.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="197"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_noise_cancellation` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_noise_cancellation&quot;>Noise Cancellation&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="202"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_hardware_ptt` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_hardware_ptt&quot;>Hardware PTT (Helmet Button)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="203"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_hybrid_vox` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_hybrid_vox&quot;>Hybrid VOX + PTT Mode&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="204"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_section_voice_tx` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_section_voice_tx&quot;>Voice Transmission&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="205"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.settings_voice_activation` appears to be unused"
+        errorLine1="    &lt;string name=&quot;settings_voice_activation&quot;>Voice activation (VOX)&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="206"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.register_operator_badge` appears to be unused"
+        errorLine1="    &lt;string name=&quot;register_operator_badge&quot;>New Transceiver Operator&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="209"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.register_callsign_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;register_callsign_title&quot;>Register Callsign&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="210"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.register_callsign_desc` appears to be unused"
+        errorLine1="    &lt;string name=&quot;register_callsign_desc&quot;>Provision your station profile and join squad frequencies.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="211"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.join_room_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;join_room_title&quot;>Join Ride&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="214"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.join_connecting` appears to be unused"
+        errorLine1="    &lt;string name=&quot;join_connecting&quot;>Connecting to ride...&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="215"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.join_verifying` appears to be unused"
+        errorLine1="    &lt;string name=&quot;join_verifying&quot;>Verifying ride invite...&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="216"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.join_failed_title` appears to be unused"
+        errorLine1="    &lt;string name=&quot;join_failed_title&quot;>Could not join ride&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="217"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.join_callsign_label` appears to be unused"
+        errorLine1="    &lt;string name=&quot;join_callsign_label&quot;>Your Callsign / Name&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="218"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.join_action_enter_code` appears to be unused"
+        errorLine1="    &lt;string name=&quot;join_action_enter_code&quot;>Enter code&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="219"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.mesh_state_discovering` appears to be unused"
+        errorLine1="    &lt;string name=&quot;mesh_state_discovering&quot;>Looking for riders&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="237"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.mesh_state_connected` appears to be unused"
+        errorLine1="    &lt;string name=&quot;mesh_state_connected&quot;>Connected&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="238"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.mesh_state_unavailable` appears to be unused"
+        errorLine1="    &lt;string name=&quot;mesh_state_unavailable&quot;>Offline mesh unavailable&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="239"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.mesh_cd_wifi_tethering` appears to be unused"
+        errorLine1="    &lt;string name=&quot;mesh_cd_wifi_tethering&quot;>Mesh Intercom&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="262"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.mesh_cd_group_add` appears to be unused"
+        errorLine1="    &lt;string name=&quot;mesh_cd_group_add&quot;>Join Session&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="263"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.plurals.mesh_peer_count` appears to be unused"
+        errorLine1="    &lt;plurals name=&quot;mesh_peer_count&quot;>"
+        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="264"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="UsableSpace"
+        message="Consider also using `StorageManager#getAllocatableBytes` and `allocateBytes` which will consider clearable cached data"
+        errorLine1="        if (updatesDir.usableSpace &lt; requiredBytes) {"
+        errorLine2="                       ~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/ridervoice/update/UpdateManager.kt"
+            line="381"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;lobby_loading&quot;>राइड लोड हो रही है...&lt;/string>"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="47"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;lobby_loading&quot;>राइड लोड होत आहे...&lt;/string>"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="47"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;lobby_loading&quot;>Loading ride...&lt;/string>"
+        errorLine2="                                 ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="47"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;lobby_retrying&quot;>पुनः प्रयास जारी (%1$d/%2$d)...&lt;/string>"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="59"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;lobby_retrying&quot;>पुन्हा प्रयत्न करत आहे (%1$d/%2$d)...&lt;/string>"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="59"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;lobby_retrying&quot;>Retrying (%1$d/%2$d)...&lt;/string>"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="59"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;lobby_connecting&quot;>लॉबी से कनेक्ट हो रहा है...&lt;/string>"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="60"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;lobby_connecting&quot;>लॉबीशी कनेक्ट होत आहे...&lt;/string>"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="60"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;lobby_connecting&quot;>Connecting to lobby...&lt;/string>"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="60"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;ride_status_reconnecting&quot;>पुनः कनेक्ट हो रहा है...&lt;/string>"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="67"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;ride_status_reconnecting&quot;>पुन्हा कनेक्ट होत आहे...&lt;/string>"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="67"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;ride_status_reconnecting&quot;>Reconnecting...&lt;/string>"
+        errorLine2="                                            ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="67"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;sos_sending&quot;>SOS भेजा जा रहा है...&lt;/string>"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="80"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;sos_sending&quot;>SOS पाठवत आहे...&lt;/string>"
+        errorLine2="                               ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="80"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;sos_sending&quot;>Sending SOS...&lt;/string>"
+        errorLine2="                               ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="80"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;notif_convoy_connecting&quot;>कनेक्ट हो रहा है...&lt;/string>"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="131"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;notif_convoy_connecting&quot;>कनेक्ट होत आहे...&lt;/string>"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="131"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;notif_convoy_connecting&quot;>Connecting...&lt;/string>"
+        errorLine2="                                           ~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="131"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;notif_convoy_reconnecting&quot;>पुनः कनेक्ट हो रहा है...&lt;/string>"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="132"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;notif_convoy_reconnecting&quot;>पुन्हा कनेक्ट होत आहे...&lt;/string>"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="132"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;notif_convoy_reconnecting&quot;>Reconnecting...&lt;/string>"
+        errorLine2="                                             ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="132"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;update_checking_desc&quot;>आधिकारिक रिलीज चैनल से जांच जारी...&lt;/string>"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="140"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;update_checking_desc&quot;>अधिकृत रिलीज चॅनेल तपासत आहे...&lt;/string>"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="140"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;update_checking_desc&quot;>Querying official release channel...&lt;/string>"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="141"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;account_loading_dossier&quot;>ऑपरेटर प्रोफ़ाइल प्राप्त की जा रही है...&lt;/string>"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="190"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;account_loading_dossier&quot;>ऑपरेटर प्रोफाइल मिळवत आहे...&lt;/string>"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="190"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;account_loading_dossier&quot;>Retrieving operator dossier...&lt;/string>"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="191"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;join_connecting&quot;>राइड से कनेक्ट हो रहा है...&lt;/string>"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="214"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;join_connecting&quot;>राइडशी कनेक्ट होत आहे...&lt;/string>"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="214"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;join_verifying&quot;>राइड आमंत्रण सत्यापित किया जा रहा है...&lt;/string>"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-hi/strings.xml"
+            line="215"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;join_verifying&quot;>राइड आमंत्रण पडताळत आहे...&lt;/string>"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values-mr/strings.xml"
+            line="215"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;join_connecting&quot;>Connecting to ride...&lt;/string>"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="215"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="TypographyEllipsis"
+        message="Replace &quot;...&quot; with ellipsis character (…, &amp;#8230;) ?"
+        errorLine1="    &lt;string name=&quot;join_verifying&quot;>Verifying ride invite...&lt;/string>"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="216"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="IconLauncherShape"
+        message="Launcher icon used as round icon did not have a circular shape">
+        <location
+            file="src/main/res/mipmap-hdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="IconLauncherShape"
+        message="Launcher icon used as round icon did not have a circular shape">
+        <location
+            file="src/main/res/mipmap-mdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="IconLauncherShape"
+        message="Launcher icon used as round icon did not have a circular shape">
+        <location
+            file="src/main/res/mipmap-xhdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="IconLauncherShape"
+        message="Launcher icon used as round icon did not have a circular shape">
+        <location
+            file="src/main/res/mipmap-xxhdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="IconLauncherShape"
+        message="Launcher icon used as round icon did not have a circular shape">
+        <location
+            file="src/main/res/mipmap-xxxhdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="IconDipSize"
+        message="The image `ic_launcher.png` varies significantly in its density-independent (dip) size across the various density versions: mipmap-hdpi\ic_launcher.png: 683x683 dp (1024x1024 px), mipmap-mdpi\ic_launcher.png: 1024x1024 dp (1024x1024 px), mipmap-xhdpi\ic_launcher.png: 512x512 dp (1024x1024 px), mipmap-xxhdpi\ic_launcher.png: 341x341 dp (1024x1024 px), mipmap-xxxhdpi\ic_launcher.png: 256x256 dp (1024x1024 px)">
+        <location
+            file="src/main/res/mipmap-xxxhdpi/ic_launcher.png"/>
+        <location
+            file="src/main/res/mipmap-xxhdpi/ic_launcher.png"/>
+        <location
+            file="src/main/res/mipmap-xhdpi/ic_launcher.png"/>
+        <location
+            file="src/main/res/mipmap-hdpi/ic_launcher.png"/>
+        <location
+            file="src/main/res/mipmap-mdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="IconDuplicatesConfig"
+        message="The `ic_launcher.png` icon has identical contents in the following configuration folders: mipmap-hdpi, mipmap-mdpi, mipmap-xhdpi, mipmap-xxhdpi, mipmap-xxxhdpi">
+        <location
+            file="src/main/res/mipmap-xxxhdpi/ic_launcher.png"/>
+        <location
+            file="src/main/res/mipmap-xxhdpi/ic_launcher.png"/>
+        <location
+            file="src/main/res/mipmap-xhdpi/ic_launcher.png"/>
+        <location
+            file="src/main/res/mipmap-mdpi/ic_launcher.png"/>
+        <location
+            file="src/main/res/mipmap-hdpi/ic_launcher.png"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Convoy Status&quot;, should use `@string` resource"
+        errorLine1="        android:contentDescription=&quot;Convoy Status&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_collapsed.xml"
+            line="14"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Convoy LIVE (4 Riders)&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Convoy LIVE (4 Riders)&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_collapsed.xml"
+            line="28"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Active: @NightRider&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Active: @NightRider&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_collapsed.xml"
+            line="37"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Mute&quot;, should use `@string` resource"
+        errorLine1="        android:contentDescription=&quot;Mute&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_collapsed.xml"
+            line="48"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Convoy Status&quot;, should use `@string` resource"
+        errorLine1="            android:contentDescription=&quot;Convoy Status&quot; />"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_expanded.xml"
+            line="20"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Convoy LIVE (4 Riders)&quot;, should use `@string` resource"
+        errorLine1="                android:text=&quot;Convoy LIVE (4 Riders)&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_expanded.xml"
+            line="33"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Active Speaker: @NightRider&quot;, should use `@string` resource"
+        errorLine1="                android:text=&quot;Active Speaker: @NightRider&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_expanded.xml"
+            line="42"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Ping&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Ping&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_expanded.xml"
+            line="62"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Hazard&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Hazard&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_expanded.xml"
+            line="71"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Mute&quot;, should use `@string` resource"
+        errorLine1="            android:contentDescription=&quot;Mute&quot; />"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/notification_tactical_expanded.xml"
+            line="82"
+            column="13"/>
+    </issue>
+
+</issues>

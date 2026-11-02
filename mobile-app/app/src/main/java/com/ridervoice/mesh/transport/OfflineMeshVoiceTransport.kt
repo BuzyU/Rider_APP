@@ -45,7 +45,7 @@ import kotlinx.coroutines.sync.withLock
  */
 class OfflineMeshVoiceTransport(
     private val identity: MeshIdentity,
-    private val audioOwnershipArbiter: AudioOwnershipArbiter,
+    val audioOwnershipArbiter: AudioOwnershipArbiter,
     private val onAudioRouteChanged: (AudioRoute) -> Unit = {},
     private val clock: () -> Long = { System.currentTimeMillis() },
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,

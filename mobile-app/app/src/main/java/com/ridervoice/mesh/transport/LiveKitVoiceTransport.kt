@@ -32,7 +32,7 @@ class LiveKitManagerPort(private val m: LiveKitManager) : LiveKitPort {
  */
 class LiveKitVoiceTransport(
     private val liveKitPort: LiveKitPort,
-    private val audioOwnershipArbiter: AudioOwnershipArbiter,
+    val audioOwnershipArbiter: AudioOwnershipArbiter,
     private val onAudioRouteChanged: (AudioRoute) -> Unit = {},
     dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
 ) : VoiceTransport {

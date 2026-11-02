@@ -220,6 +220,7 @@
     <!-- Offline Mesh Intercom (D15) -->
     <string name="mesh_title">ऑफ़लाइन मेश इंटरकॉम</string>
     <string name="mesh_disabled_in_build">इस बिल्ड में ऑफ़लाइन मेश अक्षम है</string>
+    <string name="mesh_mic_busy_livekit">माइक्रोफ़ोन ऑनलाइन राइड द्वारा उपयोग में है। ऑनलाइन राइड छोड़ें या स्वचालित फ़ालबैक की प्रतीक्षा करें।</string>
     <string name="mesh_status_summary">स्थिति: %1$s, %2$d साथी</string>
     <string name="mesh_peers_header">मेश साथी</string>
     <string name="mesh_peers_searching">आस-पास के राइडर्स की खोज की जा रही है। यह कोड साझा करें: %1$s</string>

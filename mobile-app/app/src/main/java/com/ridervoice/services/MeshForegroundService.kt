@@ -30,7 +30,7 @@ import javax.inject.Inject
 class MeshForegroundService : Service() {
 
     @Inject
-    lateinit var meshTransportFactory: () -> OfflineMeshVoiceTransport
+    lateinit var meshTransport: OfflineMeshVoiceTransport
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var observerJob: Job? = null

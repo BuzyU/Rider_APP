@@ -57,27 +57,26 @@ object MeshModule {
     ): LiveKitVoiceTransport = LiveKitVoiceTransport(liveKitManager, arbiter)
 
     @Provides
-    fun provideMeshTransportFactory(
+    @Singleton
+    fun provideOfflineMeshVoiceTransport(
         identityRepo: MeshIdentityRepository,
         arbiter: AudioOwnershipArbiter,
         locks: NetworkLocks
-    ): () -> OfflineMeshVoiceTransport = {
-        OfflineMeshVoiceTransport(
-            identity = identityRepo.get(),
-            audioOwnershipArbiter = arbiter,
-            locks = locks
-        )
-    }
+    ): OfflineMeshVoiceTransport = OfflineMeshVoiceTransport(
+        identity = identityRepo.get(),
+        audioOwnershipArbiter = arbiter,
+        locks = locks
+    )
 
     @Provides
     @Singleton
     fun provideVoiceSessionCoordinator(
         liveKitTransport: LiveKitVoiceTransport,
-        meshTransportFactory: () -> OfflineMeshVoiceTransport,
+        meshTransport: OfflineMeshVoiceTransport,
         arbiter: AudioOwnershipArbiter
     ): VoiceSessionCoordinator = VoiceSessionCoordinator(
         liveKitTransport = liveKitTransport,
-        meshTransport = meshTransportFactory(),
+        meshTransport = meshTransport,
         audioOwnershipArbiter = arbiter
     )
 }

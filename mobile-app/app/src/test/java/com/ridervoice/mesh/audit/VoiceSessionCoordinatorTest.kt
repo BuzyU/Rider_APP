@@ -154,9 +154,9 @@ class VoiceSessionCoordinatorTest {
         assertFalse(mesh.audioEnabled)
         // 2. Arbiter does not retain OFFLINE_MESH ownership
         assertEquals(AudioOwner.LIVEKIT, arbiter.owner.value)
-        // 3. LiveKit was restarted as part of rollback
-        assertEquals(2, liveKit.startedSessions.size)
-        assertEquals(onlineSession, liveKit.startedSessions.last())
+        // 3. LiveKit was resumed without being stopped (A9: never disconnect LiveKit from mesh side)
+        assertEquals(0, liveKit.stoppedCount)
+        assertEquals(1, liveKit.startedSessions.size)
         assertEquals(VoiceTransportState.CONNECTED, liveKit.state.value)
         assertEquals(PeerTransportKind.ONLINE_LIVEKIT, coordinator.activeKind.value)
     }

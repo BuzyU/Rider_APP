@@ -72,6 +72,10 @@ class OfflineAudioCapture(
     @Volatile
     private var micEnabled: Boolean = false
     private var recordJob: Job? = null
+    private companion object {
+        const val MAX_EMPTY_READS = 50
+    }
+
     private var audioRecordSource: AudioRecordSource? = null
     var frameGate: ((ByteArray) -> Boolean)? = null
 
@@ -149,56 +153,55 @@ class OfflineAudioCapture(
         _isCapturing.value = true
         val scope = CoroutineScope(SupervisorJob() + dispatcher)
         recordJob = scope.launch {
+            val previousPriority = runCatching { android.os.Process.getThreadPriority(0) }.getOrNull()
+            runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO) }
             val frameBuf = ByteArray(MeshConfig.BYTES_PER_FRAME)
             var emptyReadCount = 0
             try {
                 recSource.startRecording()
                 while (isActive && micEnabled && gateAllowed() && canClaimAudio()) {
                     var offset = 0
-                    var errorEncountered = false
+                    var failed = false
                     while (offset < frameBuf.size && isActive) {
                         val read = recSource.read(frameBuf, offset, frameBuf.size - offset)
                         if (read < 0) {
-                            errorEncountered = true
-                            onCaptureError("AudioRecord.read returned error code $read")
+                            failed = true
+                            onCaptureError("AudioRecord.read error $read")
                             break
-                        } else if (read == 0) {
-                            emptyReadCount++
-                            if (emptyReadCount >= 50) {
-                                errorEncountered = true
-                                onCaptureError("AudioRecord.read returned 0 bytes 50 consecutive times")
+                        }
+                        if (read == 0) {
+                            if (++emptyReadCount >= MAX_EMPTY_READS) {
+                                failed = true
+                                onCaptureError("AudioRecord.read returned 0 x$MAX_EMPTY_READS")
                                 break
                             }
-                            delay(10L)
-                            break
-                        } else {
-                            emptyReadCount = 0
-                            offset += read
+                            delay(10L)                      // keep `offset`: the partial frame is NOT discarded
+                            continue
                         }
+                        emptyReadCount = 0
+                        offset += read
                     }
-                    if (errorEncountered) {
+                    if (failed) {
                         onHardwareBusy()
                         break
                     }
-                    if (offset == frameBuf.size && micEnabled) {
-                        val shouldSend = frameGate?.invoke(frameBuf) ?: true
-                        if (shouldSend) {
-                            onPcmFrame(frameBuf.copyOf())
-                        }
+                    if (offset == frameBuf.size && micEnabled && (frameGate?.invoke(frameBuf) ?: true)) {
+                        onPcmFrame(frameBuf.copyOf())
                     }
                 }
             } catch (e: java.io.IOException) {
-                onCaptureError("IOException in capture loop: ${e.message}")
+                onCaptureError("IOException: ${e.message}")
                 onHardwareBusy()
             } catch (e: IllegalStateException) {
-                onCaptureError("IllegalStateException in capture loop: ${e.message}")
+                onCaptureError("IllegalStateException: ${e.message}")
                 onHardwareBusy()
             } catch (e: SecurityException) {
-                onCaptureError("SecurityException in capture loop: ${e.message}")
+                onCaptureError("SecurityException: ${e.message}")
                 onHardwareBusy()
             } catch (ce: CancellationException) {
                 throw ce
             } finally {
+                previousPriority?.let { p -> runCatching { android.os.Process.setThreadPriority(p) } }
                 releaseInternal(recSource)
             }
         }

@@ -118,6 +118,7 @@ class AudioHandoffRobustnessTest {
         val transport = SimpleFakeVoiceTransport()
         val pttPort = TestHardwarePttPort()
         val bridge = MeshVoxBridge(transport, hardwarePttPort = pttPort, dispatcher = Dispatchers.Unconfined)
+        bridge.attach(roomOwnsAudio = false)
 
         assertFalse("Initial toggle state is false", bridge.isMicToggledOn)
 
@@ -144,6 +145,7 @@ class AudioHandoffRobustnessTest {
         pttPort.onMicToggleRequest = priorCallback
 
         val bridge = MeshVoxBridge(transport, hardwarePttPort = pttPort, dispatcher = Dispatchers.Unconfined)
+        bridge.attach(roomOwnsAudio = false)
         // Verify port callback was replaced by bridge
         assertTrue("Port callback was attached", pttPort.onMicToggleRequest != priorCallback)
 

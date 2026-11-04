@@ -211,7 +211,7 @@ class WP34RedTests {
             hasValidMeshRoute = true,
             offlineAvailable = false
         )
-        now += 10_000L
+        now += 25_000L
         sm.evaluate(recoverableNoOffline, offlineAvailable = false)
 
         // On 7919cf8: if (!offlineAvailable) return prevented recovery forever!

@@ -1,11 +1,15 @@
 package com.ridervoice.mesh.switching
 
+import com.ridervoice.mesh.MeshLog
 import com.ridervoice.mesh.OfflineMeshGate
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 
 /**
  * Stage 3 Automatic Online/Offline Switching State Machine with anti-flapping guards.
@@ -51,6 +55,14 @@ class AutomaticSwitchStateMachine(
     private val _state = MutableStateFlow(AutoSwitchState.ONLINE)
     val state: StateFlow<AutoSwitchState> = _state.asStateFlow()
 
+    private enum class Direction { TO_OFFLINE, TO_ONLINE }
+    private class Pending(val dir: Direction, val ticket: Long)
+    private var ticket = 0L
+    private companion object {
+        const val HANDOFF_TIMEOUT_MS = 20_000L
+        const val TAG = "SwitchSM"
+    }
+
     private var activeRideId: String? = null
     private var suspectStartTimeMs: Long = 0L
     private var recoveryStartTimeMs: Long = 0L
@@ -69,6 +81,7 @@ class AutomaticSwitchStateMachine(
      * Sets state to ONLINE (stable online start). Never carries state between rides.
      */
     suspend fun beginSession(rideId: String, nowMs: Long = clock()) = mutex.withLock {
+        ticket++
         activeRideId = rideId
         suspectStartTimeMs = 0L
         recoveryStartTimeMs = 0L
@@ -85,137 +98,141 @@ class AutomaticSwitchStateMachine(
     suspend fun evaluate(
         signals: LocalHealthSignals,
         offlineAvailable: Boolean = signals.offlineAvailable
-    ) = mutex.withLock {
-        val now = clock()
-        val current = _state.value
+    ) {
+        var pending: Pending? = null
+        mutex.withLock {
+            val now = clock()
+            val current = _state.value
 
-        if (current == AutoSwitchState.SESSION_ENDED) return
+            if (current == AutoSwitchState.SESSION_ENDED) return
 
-        // Rule 3: Do not enter any fallback/standby transition when OfflineAvailability != AVAILABLE
-        if (!offlineAvailable) {
-            if (current == AutoSwitchState.ONLINE_SUSPECT || current == AutoSwitchState.FALLBACK_UNAVAILABLE) {
-                transitionTo(AutoSwitchState.ONLINE, "NO_SHARED_SECRET")
-            } else if (current == AutoSwitchState.ONLINE && signals.isTotalLoss()) {
-                onEmitTransitionDiagnostic(AutoSwitchState.ONLINE, AutoSwitchState.ONLINE, "NO_SHARED_SECRET")
+            // A25: availability only blocks ENTRY states. Recovery states must always keep running.
+            val entryState = current == AutoSwitchState.ONLINE ||
+                current == AutoSwitchState.ONLINE_SUSPECT ||
+                current == AutoSwitchState.FALLBACK_UNAVAILABLE
+            if (!offlineAvailable && entryState) {
+                if (current != AutoSwitchState.ONLINE) {
+                    transitionTo(AutoSwitchState.ONLINE, "NO_SHARED_SECRET")
+                } else if (signals.isTotalLoss()) {
+                    onEmitTransitionDiagnostic(current, current, "NO_SHARED_SECRET")
+                }
+                return
             }
-            return
+
+            when (current) {
+                AutoSwitchState.ONLINE -> {
+                    if (signals.isOnlineFailing() && isGateAllowed()) {
+                        suspectStartTimeMs = now
+                        transitionTo(AutoSwitchState.ONLINE_SUSPECT, "Total loss suspected")
+                        onProbeMesh?.invoke()
+                    }
+                }
+
+                AutoSwitchState.ONLINE_SUSPECT -> {
+                    onProbeMesh?.invoke()
+                    if (!signals.isTotalLoss()) {
+                        suspectStartTimeMs = 0L
+                        transitionTo(AutoSwitchState.ONLINE, "Total loss cleared")
+                    } else if (now - suspectStartTimeMs >= config.failureConfirmationMs * backoffMultiplier) {
+                        if (isFlappingSuppressed(now)) {
+                            suspectStartTimeMs = now
+                            backoffMultiplier = (backoffMultiplier * 2).coerceAtMost(8)
+                        } else if (signals.hasValidMeshRoute) {
+                            pending = beginHandoff(Direction.TO_OFFLINE, now)
+                        } else {
+                            transitionTo(AutoSwitchState.FALLBACK_UNAVAILABLE, "Total loss confirmed, no mesh route")
+                        }
+                    }
+                }
+
+                AutoSwitchState.FALLBACK_UNAVAILABLE -> when {
+                    !signals.isTotalLoss() -> transitionTo(AutoSwitchState.ONLINE, "Total loss cleared")
+                    signals.hasValidMeshRoute && isGateAllowed() && !isFlappingSuppressed(now) ->
+                        pending = beginHandoff(Direction.TO_OFFLINE, now)
+                }
+
+                AutoSwitchState.OFFLINE_ACTIVE -> {
+                    val inDwell = (now - lastSwitchTimeMs) < config.minDwellMs
+                    val inBackoff = (now - lastRecoveryAttemptMs) < config.recoveryStabilityMs * recoveryBackoffMultiplier
+                    if (!signals.isMeshTransportAlive && signals.isOnlineRecoverable()) {
+                        pending = beginHandoff(Direction.TO_ONLINE, now)
+                    } else if (!inDwell && !inBackoff && signals.isOnlineRecoverable()) {
+                        recoveryStartTimeMs = now
+                        transitionTo(AutoSwitchState.ONLINE_RECOVERING, "Online recoverable, verifying stability")
+                    }
+                }
+
+                AutoSwitchState.ONLINE_RECOVERING -> when {
+                    !signals.isOnlineRecoverable() -> {
+                        recoveryStartTimeMs = 0L
+                        transitionTo(AutoSwitchState.OFFLINE_ACTIVE, "Online unstable; staying on mesh")
+                    }
+                    now - recoveryStartTimeMs >= config.recoveryStabilityMs -> {
+                        pending = beginHandoff(Direction.TO_ONLINE, now)
+                    }
+                }
+
+                AutoSwitchState.HANDING_BACK_TO_LIVEKIT, AutoSwitchState.STARTING_OFFLINE_MESH, AutoSwitchState.SESSION_ENDED -> Unit
+            }
+        }
+        pending?.let { runHandoff(it) }
+    }
+
+    private fun beginHandoff(dir: Direction, now: Long): Pending {
+        ticket++
+        if (dir == Direction.TO_OFFLINE) {
+            transitionTo(AutoSwitchState.STARTING_OFFLINE_MESH, "Starting offline mesh")
+        } else {
+            transitionTo(AutoSwitchState.HANDING_BACK_TO_LIVEKIT, "Recovery window satisfied")
+        }
+        return Pending(dir, ticket)
+    }
+
+    private suspend fun runHandoff(p: Pending) {
+        val ok: Boolean = try {
+            withTimeout(HANDOFF_TIMEOUT_MS) {
+                if (p.dir == Direction.TO_OFFLINE) onHandoffToOffline() else onHandoffToOnline()
+            }
+        } catch (e: TimeoutCancellationException) {
+            MeshLog.w(TAG, "handoff ${p.dir} timed out")
+            false
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            MeshLog.w(TAG, "handoff ${p.dir} failed: ${e.javaClass.simpleName}")
+            false
         }
 
-        when (current) {
-            AutoSwitchState.ONLINE -> {
-                if (signals.isOnlineFailing() && isGateAllowed()) {
-                    suspectStartTimeMs = now
-                    transitionTo(AutoSwitchState.ONLINE_SUSPECT, "Local online failure suspected")
-                    onProbeMesh?.invoke()
+        mutex.withLock {
+            if (p.ticket != ticket || _state.value == AutoSwitchState.SESSION_ENDED) return
+            val now = clock()
+            if (p.dir == Direction.TO_OFFLINE) {
+                if (ok) {
+                    recordSwitch(now)
+                    lastSwitchTimeMs = now
+                    backoffMultiplier = 1
+                    transitionTo(AutoSwitchState.OFFLINE_ACTIVE, "Offline mesh active")
+                } else {
+                    transitionTo(AutoSwitchState.FALLBACK_UNAVAILABLE, "Offline handoff failed")
                 }
-            }
-
-            AutoSwitchState.ONLINE_SUSPECT -> {
-                onProbeMesh?.invoke()
-                if (!signals.isTotalLoss()) {
-                    suspectStartTimeMs = 0L
-                    transitionTo(AutoSwitchState.ONLINE, "Total loss cleared")
-                } else if (now - suspectStartTimeMs >= config.failureConfirmationMs * backoffMultiplier) {
-                    if (isFlappingSuppressed(now)) {
-                        // Rate-limited; stay in suspect with increased backoff
-                        suspectStartTimeMs = now
-                        backoffMultiplier = (backoffMultiplier * 2).coerceAtMost(8)
-                        return
-                    }
-                    if (signals.hasValidMeshRoute) {
-                        tryHandoffOffline(now)
-                    } else {
-                        transitionTo(AutoSwitchState.FALLBACK_UNAVAILABLE, "Failure confirmed but no mesh route available")
-                    }
-                }
-            }
-
-            AutoSwitchState.FALLBACK_UNAVAILABLE -> when {
-                !signals.isTotalLoss() -> transitionTo(AutoSwitchState.ONLINE, "Total loss cleared")
-                signals.hasValidMeshRoute && isGateAllowed() && !isFlappingSuppressed(now) ->
-                    tryHandoffOffline(now)
-            }
-
-            AutoSwitchState.OFFLINE_ACTIVE -> {
-                val inDwell = (now - lastSwitchTimeMs) < config.minDwellMs
-                val inRecoveryBackoff = (now - lastRecoveryAttemptMs) < config.recoveryStabilityMs * recoveryBackoffMultiplier
-                if (!inDwell && !inRecoveryBackoff && signals.isOnlineRecoverable()) {
-                    recoveryStartTimeMs = now
-                    transitionTo(AutoSwitchState.ONLINE_RECOVERING, "Online recoverable, verifying stability window")
-                }
-            }
-
-            AutoSwitchState.ONLINE_RECOVERING -> {
-                if (!signals.isOnlineRecoverable()) {
-                    recoveryStartTimeMs = 0L
-                    transitionTo(AutoSwitchState.OFFLINE_ACTIVE, "Online instability during recovery window; returning to mesh")
-                } else if (now - recoveryStartTimeMs >= config.recoveryStabilityMs) {
-                    tryHandoffOnline(now)
-                }
-            }
-
-            AutoSwitchState.HANDING_BACK_TO_LIVEKIT -> {
-                if (now - handingBackSinceMs > 15_000L) {
+            } else {
+                if (ok) {
+                    recordSwitch(now)
+                    lastSwitchTimeMs = now
+                    backoffMultiplier = 1
+                    recoveryBackoffMultiplier = 1
+                    transitionTo(AutoSwitchState.ONLINE, "Online voice restored")
+                } else {
                     lastRecoveryAttemptMs = now
                     recoveryBackoffMultiplier = (recoveryBackoffMultiplier * 2).coerceAtMost(32)
-                    transitionTo(AutoSwitchState.OFFLINE_ACTIVE, "Online handoff timed out; staying on mesh")
+                    transitionTo(AutoSwitchState.OFFLINE_ACTIVE, "Online handoff failed; staying on mesh")
                 }
             }
-
-            AutoSwitchState.STARTING_OFFLINE_MESH -> {
-                if (now - startingSinceMs > 15_000L) {
-                    transitionTo(AutoSwitchState.FALLBACK_UNAVAILABLE, "Offline handoff timed out")
-                }
-            }
-
-            AutoSwitchState.SESSION_ENDED -> Unit
-        }
-    }
-
-    private suspend fun tryHandoffOffline(now: Long) {
-        startingSinceMs = now
-        transitionTo(AutoSwitchState.STARTING_OFFLINE_MESH, "Starting offline mesh")
-        val handoffSuccess = try {
-            onHandoffToOffline()
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Throwable) {
-            false
-        }
-        if (handoffSuccess) {
-            recordSwitch(now)
-            lastSwitchTimeMs = now
-            backoffMultiplier = 1
-            transitionTo(AutoSwitchState.OFFLINE_ACTIVE, "Offline mesh active")
-        } else {
-            transitionTo(AutoSwitchState.FALLBACK_UNAVAILABLE, "Offline handoff failed")
-        }
-    }
-
-    private suspend fun tryHandoffOnline(now: Long) {
-        handingBackSinceMs = now
-        transitionTo(AutoSwitchState.HANDING_BACK_TO_LIVEKIT, "Recovery window satisfied, handing back to LiveKit")
-        val handoffSuccess = try {
-            onHandoffToOnline()
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Throwable) {
-            false
-        }
-        if (handoffSuccess) {
-            recordSwitch(now)
-            lastSwitchTimeMs = now
-            backoffMultiplier = 1
-            recoveryBackoffMultiplier = 1
-            transitionTo(AutoSwitchState.ONLINE, "Online voice restored")
-        } else {
-            lastRecoveryAttemptMs = now
-            recoveryBackoffMultiplier = (recoveryBackoffMultiplier * 2).coerceAtMost(32)
-            transitionTo(AutoSwitchState.OFFLINE_ACTIVE, "Online handoff failed; staying on mesh")
         }
     }
 
     suspend fun endSession() = mutex.withLock {
+        ticket++
         activeRideId = null
         suspectStartTimeMs = 0L
         recoveryStartTimeMs = 0L

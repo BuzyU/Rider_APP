@@ -88,9 +88,11 @@ fun OfflineRoomScreen(
     val context = LocalContext.current
 
     val meshTransport = transport as? OfflineMeshVoiceTransport
+    val micController = meshTransport?.micController
     val voxBridge = meshTransport?.voxBridge
-    val isVoxEnabled by (voxBridge?.voxEnabled ?: MutableStateFlow(true)).collectAsState()
-    val isPttActive by (voxBridge?.isPttActive ?: MutableStateFlow(false)).collectAsState()
+    val micToggleOn by (micController?.micToggleOn ?: MutableStateFlow(false)).collectAsState()
+    val isVoxEnabled by (micController?.voxEnabled ?: voxBridge?.voxEnabled ?: MutableStateFlow(false)).collectAsState()
+    val isPttActive by (micController?.pttHeld ?: voxBridge?.isPttActive ?: MutableStateFlow(false)).collectAsState()
     val activeRoute by (meshTransport?.audioRoute ?: MutableStateFlow(AudioRoute.SPEAKER)).collectAsState()
 
     var isDeafened by remember { mutableStateOf(false) }
@@ -113,7 +115,7 @@ fun OfflineRoomScreen(
             )
         },
         bottomBar = {
-            val isMicOn = micState == MicState.ON || micState == MicState.STARTING
+            val isMicOn = micToggleOn || isPttActive || micState == MicState.ON || micState == MicState.STARTING
             MeshBottomBar(
                 isMicEnabled = isMicOn,
                 isDeafened = isDeafened,
@@ -121,9 +123,13 @@ fun OfflineRoomScreen(
                 isVoxEnabled = isVoxEnabled,
                 isPttActive = isPttActive,
                 onToggleMic = {
-                    val next = !isMicOn
-                    coroutineScope.launch {
-                        transport.setMicrophoneEnabled(next)
+                    if (micController != null) {
+                        micController.setMicToggled(!micToggleOn)
+                    } else {
+                        val next = !isMicOn
+                        coroutineScope.launch {
+                            transport.setMicrophoneEnabled(next)
+                        }
                     }
                 },
                 onToggleDeafen = {
@@ -145,10 +151,10 @@ fun OfflineRoomScreen(
                     }
                 },
                 onToggleVox = {
-                    voxBridge?.setVoxEnabled(!isVoxEnabled)
+                    micController?.setVoxEnabled(!isVoxEnabled) ?: voxBridge?.setVoxEnabled(!isVoxEnabled)
                 },
                 onPttPressChange = { held ->
-                    voxBridge?.setPttPressed(held)
+                    micController?.setPttPressed(held) ?: voxBridge?.setPttPressed(held)
                 },
                 onLeave = onLeave
             )

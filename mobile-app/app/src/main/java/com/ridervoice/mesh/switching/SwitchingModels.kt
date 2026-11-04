@@ -92,7 +92,8 @@ data class LocalHealthSignals(
     val hasValidMeshRoute: Boolean,
     val packetLossPercent: Float = 0f,
     val rttMs: Long = 0L,
-    val offlineAvailable: Boolean = true
+    val offlineAvailable: Boolean = true,
+    val isMeshTransportAlive: Boolean = true
 ) {
     /**
      * W-DEGRADED: True ONLY if confirmed total loss of online connectivity.

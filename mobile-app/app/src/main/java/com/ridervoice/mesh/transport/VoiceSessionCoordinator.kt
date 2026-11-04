@@ -167,20 +167,11 @@ class VoiceSessionCoordinator(
             return@withLock false
         }
 
-        var enableResult = runCatching { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(it.message ?: "Exception") }
-        var ok = (enableResult is EnableAudioResult.Success) && (meshTransport.micState.value != MicState.HARDWARE_BUSY)
+        val enableResult = runCatching { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(it.message ?: "Exception") }
+        val ok = (enableResult is EnableAudioResult.Success) && (meshTransport.micState.value != MicState.HARDWARE_BUSY)
 
         if (!ok) {
-            // Hardware-busy fallback (e.g. older Android native WebRTC ADM holding AudioRecord)
-            liveKitTransport.stop()
-            if (audioOwnershipArbiter.tryClaimOfflineMesh()) {
-                enableResult = runCatching { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(it.message ?: "Exception") }
-                ok = (enableResult is EnableAudioResult.Success) && (meshTransport.micState.value != MicState.HARDWARE_BUSY)
-            }
-        }
-
-        if (!ok) {
-            // Rollback to LiveKit: owner must be consistent
+            // Rollback to LiveKit: owner must be consistent. NEVER liveKitTransport.stop() here (A9).
             try {
                 runCatching { mesh.disableAudio() }
             } finally {
@@ -188,19 +179,17 @@ class VoiceSessionCoordinator(
                 audioOwnershipArbiter.claimLiveKit()
                 runCatching {
                     liveKitTransport.resume()
-                    if (liveKitTransport.state.value == VoiceTransportState.STOPPED && online != null) {
-                        liveKitTransport.start(online)
-                    }
                 }
             }
+            return@withLock false
         } else {
             _activeKind.value = PeerTransportKind.OFFLINE_MESH
             _activeTransport.value = meshTransport
             if (priorMicWanted) {
                 runCatching { meshTransport.setMicrophoneEnabled(true) }
             }
+            return@withLock true
         }
-        ok
     }
 
     private suspend fun verifyLiveKitQuiet(timeoutMs: Long = 2_000L): Boolean {

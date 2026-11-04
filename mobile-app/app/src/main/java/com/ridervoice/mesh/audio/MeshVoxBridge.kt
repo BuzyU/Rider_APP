@@ -2,6 +2,7 @@ package com.ridervoice.mesh.audio
 
 import com.ridervoice.audio.VoxDetector
 import com.ridervoice.audio.VoxEngine
+import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceTransport
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -16,175 +17,149 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 /**
  * Stage 2 Bridge connecting audio input events (PTT button, VOX speech gate) to the active mesh transport.
  *
  * Subscribes to hardware PTT events via [HardwarePttPort] and VoxEngine speech detection,
- * delegating to [VoiceTransport.setMicrophoneEnabled].
- * Also provides single-AudioRecord frame gating via [shouldTransmitPcmFrame] with built-in [VoxDetector].
- * Scope is recreated / refreshed per session so close() does not permanently disable the bridge.
+ * delegating to [MicController] or [VoiceTransport.setMicrophoneEnabled].
+ *
+ * Adheres strictly to CODE-4 lifecycle: does NOT touch HardwarePttPort in init;
+ * attaches only during active session and detaches cleanly without clobbering third-party callbacks.
  */
 class MeshVoxBridge(
     private val transport: VoiceTransport,
-    private val hardwarePttPort: HardwarePttPort? = null,
-    private val voxEngine: VoxEngine? = null,
+    val hardwarePttPort: HardwarePttPort? = null,
+    val voxEngine: VoxEngine? = null,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default
 ) : AutoCloseable {
 
-    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+    private var scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutex = Mutex()
-
-    @Volatile
-    var isMicToggledOn: Boolean = false
-        private set
-
-    @Volatile
-    var isPttHeld: Boolean = false
-        private set
-
-    @Volatile
-    var isVoxSpeechActive: Boolean = false
-        private set
-
-    private val _voxEnabled = MutableStateFlow(true)
-    val voxEnabled: StateFlow<Boolean> = _voxEnabled.asStateFlow()
-
-    private val _isPttActive = MutableStateFlow(false)
-    val isPttActive: StateFlow<Boolean> = _isPttActive.asStateFlow()
-
-    private val _isGateOpen = MutableStateFlow(false)
-    val isGateOpen: StateFlow<Boolean> = _isGateOpen.asStateFlow()
-
     val voxDetector: VoxDetector = VoxDetector()
 
+    private var ownCallback: ((Boolean) -> Unit)? = null
+    private var previousCallback: ((Boolean) -> Unit)? = null
+    private var activatedByUs = false
     private var voxJob: Job? = null
-    private var previousPttCallback: ((Boolean) -> Unit)? = null
 
-    init {
-        attachListeners()
+    // Standalone fallback controller if transport is not OfflineMeshVoiceTransport (e.g. test fakes)
+    private val fallbackController: MicController by lazy {
+        MicControllerImpl(
+            audioEnabled = { true },
+            applyCapture = { _ ->
+                val shouldOpen = isMicToggledOn || isPttHeld || (voxEnabled.value && isVoxSpeechActive)
+                runCatching { transport.setMicrophoneEnabled(shouldOpen) }
+            },
+            voxDetector = voxDetector,
+            scope = scope,
+            initialVoxEnabled = true
+        )
     }
 
-    private fun attachListeners() {
-        // Wire Hardware PTT port
-        hardwarePttPort?.let { port ->
-            previousPttCallback = port.onMicToggleRequest
-            port.onMicToggleRequest = { _ ->
-                scope.launch {
-                    mutex.withLock {
-                        // Helmet PTT key acts as a toggle flip
-                        isMicToggledOn = !isMicToggledOn
-                        updateMicState()
-                    }
-                }
-            }
+    private val micController: MicController
+        get() = (transport as? OfflineMeshVoiceTransport)?.micController ?: fallbackController
+
+    private val _isGateOpen = MutableStateFlow(false)
+
+    val micToggleOn: StateFlow<Boolean> get() = micController.micToggleOn
+    val pttHeld: StateFlow<Boolean> get() = micController.pttHeld
+    val voxEnabled: StateFlow<Boolean> get() = micController.voxEnabled
+    val isPttActive: StateFlow<Boolean> get() = micController.pttHeld
+    val isGateOpen: StateFlow<Boolean>
+        get() {
+            _isGateOpen.value = isMicToggledOn || isPttHeld || (voxEnabled.value && isVoxSpeechActive)
+            return _isGateOpen.asStateFlow()
         }
 
-        // Wire VoxEngine mic gate
+    val isMicToggledOn: Boolean get() = micController.micToggleOn.value
+    val isPttHeld: Boolean get() = micController.pttHeld.value
+    val isVoxSpeechActive: Boolean get() = micController.voxArmed.value
+
+    @Synchronized
+    fun attach(roomOwnsAudio: Boolean) {
+        if (ownCallback != null) return
+        val port = hardwarePttPort ?: return
+        previousCallback = port.onMicToggleRequest
+        val cb: (Boolean) -> Unit = { _ -> toggleMic() }
+        ownCallback = cb
+        port.onMicToggleRequest = cb
+        if (!roomOwnsAudio) {
+            port.activateSession()
+            activatedByUs = true
+        }
+
+        // Wire optional VoxEngine speech detection if provided
         voxEngine?.let { vox ->
+            voxJob?.cancel()
             voxJob = scope.launch {
                 vox.isMicOpen.collectLatest { open ->
-                    mutex.withLock {
-                        isVoxSpeechActive = open
-                        updateMicState()
+                    if (open) {
+                        micController.setVoxEnabled(true)
                     }
                 }
             }
         }
+    }
+
+    @Synchronized
+    fun detach() {
+        val port = hardwarePttPort
+        if (port != null && ownCallback != null) {
+            if (port.onMicToggleRequest === ownCallback) {
+                port.onMicToggleRequest = previousCallback
+            }
+            if (activatedByUs) {
+                port.deactivateSession()
+            }
+        }
+        ownCallback = null
+        previousCallback = null
+        activatedByUs = false
+        voxJob?.cancel()
+        voxJob = null
+        scope.coroutineContext.cancelChildren()
     }
 
     /** Direct manual PTT control (e.g. from UI buttons). */
     fun setPttPressed(pressed: Boolean) {
-        isPttHeld = pressed
-        _isPttActive.value = pressed
-        scope.launch {
-            mutex.withLock {
-                updateMicState()
-            }
-        }
+        micController.setPttPressed(pressed)
     }
 
     /** Toggle microphone state. */
     fun setMicToggled(toggled: Boolean) {
-        isMicToggledOn = toggled
-        scope.launch {
-            mutex.withLock {
-                updateMicState()
-            }
-        }
+        micController.setMicToggled(toggled)
+    }
+
+    /** Flip microphone state (e.g. helmet PTT key). */
+    fun toggleMic() {
+        micController.toggleMic()
     }
 
     /** Set whether VOX gate detection is enabled. */
     fun setVoxEnabled(enabled: Boolean) {
-        _voxEnabled.value = enabled
-        if (!enabled) {
-            isVoxSpeechActive = false
-            scope.launch {
-                mutex.withLock {
-                    updateMicState()
-                }
-            }
-        }
+        micController.setVoxEnabled(enabled)
     }
 
-    /** Update VOX speech active state. */
+    /** Direct update of VOX speech active state (testing or external detector). */
     fun setVoxSpeechActive(active: Boolean) {
-        isVoxSpeechActive = active
-        scope.launch {
-            mutex.withLock {
-                updateMicState()
-            }
+        if (active) {
+            micController.setVoxEnabled(true)
         }
+        micController.setVoxArmed(active)
     }
 
     /**
      * Inspects a raw PCM frame (640-byte 16 kHz mono 16-bit PCM = 320 samples) and returns
      * true if the frame should be transmitted over the mesh link.
      */
-    @Synchronized
     fun shouldTransmitPcmFrame(pcmBytes: ByteArray, nowMs: Long = System.currentTimeMillis()): Boolean {
-        if (isMicToggledOn || isPttHeld) {
-            _isGateOpen.value = true
-            return true
-        }
-        if (!_voxEnabled.value) {
-            _isGateOpen.value = false
-            return false
-        }
-        val shorts = ShortArray(pcmBytes.size / 2)
-        ByteBuffer.wrap(pcmBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
-        val decision = voxDetector.onFrame(shorts, 16_000, nowMs, isVoxSpeechActive)
-        when (decision) {
-            VoxDetector.Decision.OPEN -> isVoxSpeechActive = true
-            VoxDetector.Decision.CLOSE -> isVoxSpeechActive = false
-            VoxDetector.Decision.NONE -> {}
-        }
-        val open = isMicToggledOn || isPttHeld || isVoxSpeechActive
-        _isGateOpen.value = open
-        return open
+        val res = micController.shouldTransmitPcmFrame(pcmBytes, nowMs)
+        _isGateOpen.value = isMicToggledOn || isPttHeld || (voxEnabled.value && isVoxSpeechActive)
+        return res
     }
 
-    private suspend fun updateMicState() {
-        val shouldOpen = isMicToggledOn || isPttHeld || (_voxEnabled.value && isVoxSpeechActive)
-        _isGateOpen.value = shouldOpen
-        transport.setMicrophoneEnabled(shouldOpen)
-    }
-
-    /**
-     * Closes the bridge for the active session, restoring previous callbacks.
-     * Uses cancelChildren() so the supervisor scope remains available for later sessions.
-     */
     override fun close() {
-        hardwarePttPort?.let { port ->
-            if (port.onMicToggleRequest != null) {
-                port.onMicToggleRequest = previousPttCallback
-            }
-        }
-        previousPttCallback = null
-        voxJob?.cancel()
-        voxJob = null
-        scope.coroutineContext.cancelChildren()
+        detach()
     }
 }

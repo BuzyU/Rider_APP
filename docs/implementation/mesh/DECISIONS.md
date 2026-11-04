@@ -20,5 +20,10 @@ Format: `WP-NN | situation | decision | reason`
 | WP-35 | VALIDATED network capability false positive risk | Kept strict 3-way conjunction (!isValidated && !isLkConnected && !probeOk) for total loss | VALIDATED can be false while internet works (blocked captive portal endpoint/VPN); safe only because total loss also requires LiveKit down and /health probe failing |
 | WP-35 | liveKitReconnectAttempts inaccessible | Recorded NO PUBLIC SOURCE; lambda left at 0; no loss/RTT sampling added | LiveKitManager.reconnectAttempts is private; design limit A22 documented without breaking frozen files |
 | WP-35 | Standing rule enforcement in state machine | Reset suspect timer and transition to ONLINE whenever !isTotalLoss() | Prevents spurious offline fallback if internet recovers while LiveKit is still reconnecting |
+| WP-36 | Default VOX enabled state in HUD | Set default `voxEnabled` to false in `OfflineRoomScreen` and `MicControllerImpl` | Mandated by WP-36.2 and Q7/Q8 to avoid unintended open microphone / battery drain on initial join. |
+| WP-36 | AudioHandoffRobustnessTest tests helmetKey_isToggle and previousPttCallback_savedAndRestored | Updated tests to call `bridge.attach(roomOwnsAudio = false)` | Defect A6 and WP-36.3 removed automatic `attachListeners()` from bridge init; attaching now requires explicit lifecycle attach. |
+| WP-36 | Single mic arbitration | MicControllerImpl with conflated Channel<Boolean> preserves order and merges fast toggles | Solves A28 and A47 cleanly. |
+| WP-36 | VoiceSessionCoordinator.fallbackToMesh() | Deleted liveKitTransport.stop() branch on hardware busy | Mandated by A9: Never disconnect LiveKit from the mesh side. |
+| WP-36 | VoiceSessionCoordinatorTest.fallbackToMeshRollsBackToLiveKitWhenMeshAudioFails | Assert liveKit.stoppedCount == 0 and startedSessions.size == 1 instead of 2 | Mandated by A9: LiveKit is paused, never stopped on mesh enable failure. |
 
 

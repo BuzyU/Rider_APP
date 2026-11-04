@@ -7,12 +7,12 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 | **A1** | CRITICAL | OPEN | `MeshConfig.kt:24` vs `docs/protocol/mesh-v2.md:81` | Code is `const val DEFAULT_TTL = 5` but docs claim `Default = 7 (TtlPolicy.DEFAULT_TTL)`. |
 | **A2** | CRITICAL | OPEN | `MeshAutoSwitchManager.kt:135`, `MeshModule.kt:156` | Stage 3 unreachable: `val companionSession: OfflineSession? = null`, bound `NullOfflineSecretProvider`. |
 | **A3** | CRITICAL | FIXED | `LocalHealthSignalsProvider.kt:78`, `ValidatedInternetSource.kt` | WP-35 / `ValidatedInternetAndStandingRulesTest` (`wifiConnectedButNotValidated_isNotValidated`) | Added ValidatedInternetSource checking NET_CAPABILITY_VALIDATED; removed blind isConnected fallback |
-| **A4** | HIGH | OPEN | `OfflineRoomScreen.kt:126`, `MeshVoxBridge.kt:80` | `transport.setMicrophoneEnabled(next)` bypasses MeshVoxBridge; PTT release closes toggle mic. |
-| **A5** | HIGH | OPEN | `OfflineMeshVoiceTransport.kt:297` | `if (micWanted) { aCapture.start() }` — AudioRecord capture never starts when micWanted=false; hands-free VOX cannot hear speech to trigger. |
-| **A6** | HIGH | OPEN | `MeshVoxBridge.kt:67, 180` | `attachListeners()` in init clobbers RoomViewModel's `onMicToggleRequest`; `close()` sets it to null and cancels scope permanently. |
-| **A7** | HIGH | OPEN | `LiveKitVoiceTransport.kt:29`, `MeshModule.kt:135` | `override val isVoxRunning: Boolean get() = voxRunningCheck()` defaults to `{ false }`; VOX state never restored after pause. |
+| **A4** | HIGH | FIXED | `OfflineRoomScreen.kt`, `MicController.kt` | WP-36 / `MicAudioControlPathTest` | UI routes via MicController; PTT release never closes toggle mic. |
+| **A5** | HIGH | FIXED | `OfflineMeshVoiceTransport.kt`, `MicRules.kt` | WP-36 / `MicAudioControlPathTest` | AudioRecord capture runs whenever audioEnabled && (micToggleOn || pttHeld || voxEnabled). |
+| **A6** | HIGH | FIXED | `MeshVoxBridge.kt` | WP-36 / `WP34RedTests`, `MicAudioControlPathTest` | Removed listener registration in init; attach/detach lifecycle with reference identity check. |
+| **A7** | HIGH | FIXED | `LiveKitVoiceTransport.kt` | WP-36 / `MicAudioControlPathTest` | isVoxRunning tracks active connection state and VOX stopped state faithfully. |
 | **A8** | HIGH | OPEN | `VoiceSessionCoordinator.kt:247` | `mesh.disableAudio()` called before waiting up to 15s for LiveKit CONNECTED; creates up to 15s dead air during recovery. |
-| **A9** | HIGH | OPEN | `VoiceSessionCoordinator.kt:175` | `liveKitTransport.stop()` called on hardware-busy branch in `fallbackToMesh()`, disconnecting LiveKit. |
+| **A9** | HIGH | FIXED | `VoiceSessionCoordinator.kt:175` | WP-36 / `VoiceSessionCoordinatorTest`, `AudioHandoffRobustnessTest` | Removed liveKitTransport.stop() from fallbackToMesh(); LiveKit remains paused. |
 | **A10** | HIGH | OPEN | `NavGraph.kt:371-373` | `OfflineSession.fromCode(sessionCode, ...) ?: OfflineSession.create(...)` derives on UI thread and creates fallback session on invalid code. |
 | **A11** | HIGH | OPEN | `NavGraph.kt:420` | `DisposableEffect(session.sessionId) { onDispose { viewModel.stopSession() } }` terminates offline session on screen rotation. |
 | **A12** | MEDIUM | OPEN | `App.kt:52` | `if (OfflineMeshGate.decision() == GateDecision.ENABLED) meshAutoSwitchManager.start()` — enabling at runtime does nothing if disabled at startup. |
@@ -28,10 +28,10 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 | **A22** | LOW | CLOSED | `LocalHealthSignalsProvider.kt:45` | WP-35 / DECISIONS.md | Design limit: `LiveKitManager.reconnectAttempts` is private (NO PUBLIC SOURCE); lambda left at 0; no loss/RTT sampling added per instruction |
 | **A23** | LOW | OPEN | `MeshForegroundService.kt:57`, `Routes.kt:27` | Unused `sessionCode` overloads in service and routes. |
 | **A24** | LOW | OPEN | `SwitchingModels.kt:72-73` | `if (meshCount > 0 \|\| offlineOrGhostCount > 0) GroupConnectivityStatus.MIXED` treats left LiveKit participant as MIXED. |
-| **A25** | HIGH | OPEN | `AutomaticSwitchStateMachine.kt:95-102` | `if (!offlineAvailable) ... return` returns before state switch; in OFFLINE_ACTIVE never hands back if backup secret expires. |
+| **A25** | HIGH | FIXED | `AutomaticSwitchStateMachine.kt:95-102` | WP-36 / `WP34RedTests` | offlineAvailable check restricted to entry states (ONLINE, ONLINE_SUSPECT, FALLBACK_UNAVAILABLE). |
 | **A26** | CRITICAL | FIXED | `AutomaticSwitchStateMachine.kt:115, 136` | WP-35 / `ValidatedInternetAndStandingRulesTest` (`partialRecovery_resetsSuspectTimer`, `internetBackLiveKitReconnecting_staysOnline`) | Suspect timer resets whenever !isTotalLoss(); FALLBACK_UNAVAILABLE requires isTotalLoss() |
-| **A27** | HIGH | OPEN | `AutomaticSwitchStateMachine.kt:88, 163, 171` | `mutex.withLock` held across handoff; `> 15_000L` branches unreachable; `endSession()` blocks behind handoff. |
-| **A28** | HIGH | OPEN | `LiveKitManagerPort.kt`, `MeshModule.kt:135` | `voxRestarter = { voxEngine.start() }` restarts VOX unconditionally while LiveKit is disconnected. |
+| **A27** | HIGH | FIXED | `AutomaticSwitchStateMachine.kt` | WP-36 / `WP34RedTests` | Non-blocking handoff with generation ticket per CODE-2; endSession returns promptly. |
+| **A28** | HIGH | FIXED | `LiveKitVoiceTransport.kt` | WP-36 / `MicAudioControlPathTest` | restartVoxIfPreviouslyRunning() only starts VOX when connectionState == CONNECTED. |
 | **A29** | MEDIUM | OPEN | `MeshDebugReceiver.kt:33` | `Log.i(TAG, "... ActiveSession=${session?.pairingCode?.take(4)}****")` leaks secret pairing code prefix into logcat. |
 | **A30** | MEDIUM | OPEN | `MeshForegroundService.kt:96-103` | No-mic path on API>=29 calls `startForeground` with no type, throwing SecurityException against manifest microphone type. |
 | **A31** | MEDIUM | OPEN | `ContinuityLeaseClient.kt:35, 46` | `catch (t: Throwable)` and `catch (_: Throwable)` swallow `CancellationException`. |
@@ -42,12 +42,12 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 | **A36** | LOW | OPEN | `.github/workflows/build.yml` | CI test-census floor set to outdated 290 and lacks mesh invariant checks. |
 | **A37** | LOW | OPEN | `app/build.gradle:14` vs `README.md:1` | Version drift `V0.0.3.19` vs `v0.0.3.20`. |
 | **A38** | LOW | OPEN | `MeshConfig.kt:26` | `HELLO_TTL = 4 < DEFAULT_TTL = 5` topology learning in multi-node chains. |
-| **A39** | HIGH | OPEN | `OfflineMeshVoiceTransport.kt:397-398` | `micWanted` and `paused` never reset in `stop()` — causes open-mic privacy leak in subsequent session. |
-| **A40** | HIGH | OPEN | `OfflineMeshVoiceTransport.kt:307-319` | `enableAudio()` does not roll back playback, locks, or ownership on partial capture failure; retry falsely returns Success. |
-| **A41** | MEDIUM | OPEN | `OfflineMeshVoiceTransport.kt:119` | `startDiscoveryOnly` returns early on new session if already CONNECTED or STARTING. |
-| **A42** | HIGH | OPEN | `OfflineAudioCapture.kt:172-173` | Partial-frame drop on `read == 0` (`delay(10L); break` restarts outer loop with offset 0). |
+| **A39** | HIGH | FIXED | `OfflineMeshVoiceTransport.kt:460` | WP-36 / `WP34RedTests` | stop() resets micController, micWanted, and paused flags. |
+| **A40** | HIGH | FIXED | `OfflineMeshVoiceTransport.kt:294` | WP-36 / `WP34RedTests` | failEnable() cleanly rolls back playback, locks, and ownership. |
+| **A41** | MEDIUM | FIXED | `OfflineMeshVoiceTransport.kt:154` | WP-36 / `WP34RedTests` | Replaces different session ID; updates projected peers synchronously. |
+| **A42** | HIGH | FIXED | `OfflineAudioCapture.kt:175` | WP-36 / `WP34RedTests` | Preserves frame offset on read == 0; MAX_EMPTY_READS = 50 breaks cleanly. |
 | **A43** | MEDIUM | OPEN | `OfflineMeshLobbyScreen.kt:233`, `NavGraph.kt:371` | Pairing code passed via UI callback `onEnterSession(session.pairingCode)`. |
 | **A44** | INFO | OPEN | `ProductionWiringTest.kt`, `ImportIsolationTest.kt` | Guard tests constrain refactoring signatures and imports. |
 | **A45** | MEDIUM | OPEN | `App.kt:51-52` | Ordering dependency: `OfflineMeshGate.install` must precede `meshAutoSwitchManager.start()`. |
-| **A46** | LOW | OPEN | `OfflineRoomScreen.kt:96` | `isDeafened` stored in UI `remember` mutable state instead of transport StateFlow. |
-| **A47** | LOW | OPEN | `MeshVoxBridge.kt:102, 112` | Unordered `scope.launch { mutex.withLock }` creates PTT press/release race condition. |
+| **A46** | LOW | FIXED | `OfflineMeshVoiceTransport.kt`, `OfflineRoomScreen.kt` | WP-36 / `MicAudioControlPathTest` | Transport exposes StateFlow<Boolean> deafened; default voxEnabled is false. |
+| **A47** | LOW | FIXED | `MicController.kt` | WP-36 / `MicAudioControlPathTest` | Channel(Channel.CONFLATED) in MicController preserves order and collapses rapid states. |

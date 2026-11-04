@@ -21,12 +21,17 @@ class LiveKitManagerPort(
     private val voxRestarter: () -> Unit = {},
     private val voxRunningCheck: () -> Boolean = { false }
 ) : LiveKitPort {
+    @Volatile private var voxStoppedByUs = false
+
+    // LiveKitManager starts VOX on every successful connect and stops it on disconnect.
+    override val isVoxRunning: Boolean
+        get() = m.connectionState.value == ConnectionState.CONNECTED && !voxStoppedByUs
+
     override val connectionState: StateFlow<ConnectionState> get() = m.connectionState
     override val activeSpeaker: StateFlow<String?> get() = m.activeSpeaker
     override val participants: StateFlow<List<Participant>> get() = m.participants
     override val isUserMuted: StateFlow<Boolean> get() = m.isUserMuted
     override val deafened: StateFlow<Boolean> get() = m.deafened
-    override val isVoxRunning: Boolean get() = voxRunningCheck()
 
     override suspend fun connect(url: String, roomId: String, tokenProvider: suspend () -> String, expectedLkRoomName: String?) =
         m.connect(url = url, roomId = roomId, tokenProvider = tokenProvider, expectedLkRoomName = expectedLkRoomName)
@@ -35,8 +40,16 @@ class LiveKitManagerPort(
     override fun setDeafened(deafened: Boolean) = m.setDeafened(deafened)
     override fun onVoiceGate(open: Boolean) = m.onVoiceGate(open)
     override fun onNetworkRestored() = m.onNetworkRestored()
-    override fun stopVox() = voxStopper()
-    override fun restartVoxIfPreviouslyRunning() = voxRestarter()
+    override fun stopVox() {
+        voxStoppedByUs = true
+        voxStopper()
+    }
+    override fun restartVoxIfPreviouslyRunning() {
+        voxStoppedByUs = false
+        if (m.connectionState.value == ConnectionState.CONNECTED) {
+            voxRestarter() // never start VOX while disconnected
+        }
+    }
 }
 
 /**

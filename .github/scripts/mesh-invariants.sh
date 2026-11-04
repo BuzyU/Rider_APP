@@ -18,3 +18,4 @@ check "TTL 7 claims"               bash -c "grep -rnE 'DEFAULT_TTL = 7|TTL.*= 7|
 check "banned doc words"           bash -c "grep -rniE 'seamless|production-ready|fully verified|100%' docs README.md ARCHITECTURE.md | grep -v CORRECTED"
 grep -q "NET_CAPABILITY_VALIDATED" -r $M/mesh || { echo "VIOLATION: ValidatedInternetSource missing"; fail=1; }
 exit $fail
+

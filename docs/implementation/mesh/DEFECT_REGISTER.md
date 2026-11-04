@@ -39,7 +39,7 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 | **A33** | MEDIUM | FIXED (WP-37) | `VoiceSessionCoordinator.kt:55-61` | `computeAvailability()` not reactive to secretProvider flow or backup session expiry. |
 | **A34** | LOW | FIXED (WP-37) | `values/strings.xml`, `values-hi`, `values-mr` | `mesh_invalid_code` and `mesh_use_as_ride_backup` string resources missing. |
 | **A35** | MEDIUM | FIXED (WP-39) | `NavGraph.kt:418`, `OfflineMeshVoiceTransport.kt:119` | Activity rotation re-triggers LaunchedEffect; `startSession`/`transport.start` must be idempotent for same sessionId. |
-| **A36** | LOW | OPEN | `.github/workflows/build.yml` | CI test-census floor set to outdated 290 and lacks mesh invariant checks. |
+| **A36** | LOW | FIXED (WP-42) | `.github/workflows/build.yml` | Updated CI test census floor to 439 and added mesh-invariants.sh guard step. |
 | **A37** | LOW | FIXED (WP-41) | `app/build.gradle:14` vs `README.md:1` | Version drift reconciled to v0.0.3.19 in README.md matching build.gradle. |
 | **A38** | LOW | FIXED (WP-40) | `MeshConfig.kt:26` | Confirmed 6-node chain full topology learning via `sixChain_everyNodeLearnsFullTopology` simulation test. |
 | **A39** | HIGH | FIXED | `OfflineMeshVoiceTransport.kt:460` | WP-36 / `WP34RedTests` | stop() resets micController, micWanted, and paused flags. |
@@ -47,7 +47,7 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 | **A41** | MEDIUM | FIXED | `OfflineMeshVoiceTransport.kt:154` | WP-36 / `WP34RedTests` | Replaces different session ID; updates projected peers synchronously. |
 | **A42** | HIGH | FIXED | `OfflineAudioCapture.kt:175` | WP-36 / `WP34RedTests` | Preserves frame offset on read == 0; MAX_EMPTY_READS = 50 breaks cleanly. |
 | **A43** | MEDIUM | FIXED (WP-39) | `OfflineMeshLobbyScreen.kt:233`, `NavGraph.kt:371` | Pairing code passed via UI callback `onEnterSession(session.pairingCode)`. |
-| **A44** | INFO | OPEN | `ProductionWiringTest.kt`, `ImportIsolationTest.kt` | Guard tests constrain refactoring signatures and imports. |
+| **A44** | INFO | VERIFIED (WP-42) | `ProductionWiringTest.kt`, `ImportIsolationTest.kt` | All guard tests honored and continuously passing across entire test suite. |
 | **A45** | MEDIUM | FIXED (WP-37) | `App.kt:51-52` | Ordering dependency: `OfflineMeshGate.install` must precede `meshAutoSwitchManager.start()`. |
 | **A46** | LOW | FIXED | `OfflineMeshVoiceTransport.kt`, `OfflineRoomScreen.kt` | WP-36 / `MicAudioControlPathTest` | Transport exposes StateFlow<Boolean> deafened; default voxEnabled is false. |
 | **A47** | LOW | FIXED | `MicController.kt` | WP-36 / `MicAudioControlPathTest` | Channel(Channel.CONFLATED) in MicController preserves order and collapses rapid states. |

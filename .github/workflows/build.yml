@@ -56,6 +56,9 @@ jobs:
           done
           git diff --exit-code a37ef09 -- "${FROZEN_PATHS[@]}"
 
+      - name: Mesh Invariants
+        run: bash .github/scripts/mesh-invariants.sh
+
       - name: Run Unit Tests
         working-directory: mobile-app
         run: ./gradlew testDebugUnitTest --info
@@ -73,7 +76,7 @@ jobs:
               err += int(tree.attrib.get('errors', 0))
               skip += int(tree.attrib.get('skipped', 0))
           print(f'Total Tests: {total}, Failures: {fail}, Errors: {err}, Skipped: {skip}')
-          if total < 290 or fail > 0 or err > 0:
+          if total < 439 or fail > 0 or err > 0:
               sys.exit(1)
           "
 

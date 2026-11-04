@@ -51,12 +51,13 @@ fun computeGroupConnectivity(
     isLocalOffline: Boolean,
     peers: List<UnifiedVoicePeer>
 ): GroupConnectivityStatus {
-    if (peers.isEmpty()) {
+    // Ghost / left participants (!it.isOnline) are ignored for connectivity calculation (A24)
+    val activePeers = peers.filter { it.isOnline }
+    if (activePeers.isEmpty()) {
         return GroupConnectivityStatus.ALONE
     }
-    val onlineCount = peers.count { it.isOnline && it.transport == PeerTransportKind.ONLINE_LIVEKIT }
-    val meshCount = peers.count { it.isOnline && it.transport == PeerTransportKind.OFFLINE_MESH }
-    val offlineOrGhostCount = peers.count { !it.isOnline }
+    val onlineCount = activePeers.count { it.transport == PeerTransportKind.ONLINE_LIVEKIT }
+    val meshCount = activePeers.count { it.transport == PeerTransportKind.OFFLINE_MESH }
 
     return when {
         isLocalOffline -> {
@@ -69,7 +70,7 @@ fun computeGroupConnectivity(
             }
         }
         else -> {
-            if (meshCount > 0 || offlineOrGhostCount > 0) {
+            if (meshCount > 0) {
                 GroupConnectivityStatus.MIXED
             } else {
                 GroupConnectivityStatus.ONLINE_ALL

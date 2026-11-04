@@ -38,6 +38,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import com.ridervoice.mesh.session.OfflineSessionHolder
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -81,6 +83,7 @@ fun OfflineMeshLobbyScreen(
     var createdSession by remember { mutableStateOf<OfflineSession?>(null) }
     var joinCodeInput by remember { mutableStateOf("") }
     var joinError by remember { mutableStateOf<String?>(null) }
+    var useAsBackup by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
 
@@ -133,6 +136,32 @@ fun OfflineMeshLobbyScreen(
                 color = TextSecondary,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
+
+            // Backup mode toggle
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(CardDark, RoundedCornerShape(12.dp))
+                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(12.dp))
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(
+                        text = stringResource(R.string.mesh_use_as_ride_backup),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Switch(
+                    checked = useAsBackup,
+                    onCheckedChange = { useAsBackup = it }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Section 1: Create Session
             Card(
@@ -230,7 +259,14 @@ fun OfflineMeshLobbyScreen(
 
                             Button(
                                 onClick = {
-                                    onEnterSession(session.pairingCode)
+                                    if (useAsBackup) {
+                                        val backup = OfflineSession.fromCode(session.pairingCode, System.currentTimeMillis())
+                                        OfflineSessionHolder.setBackup(backup)
+                                        Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
+                                        onBackClick()
+                                    } else {
+                                        onEnterSession(session.pairingCode)
+                                    }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = ElectricGreen),
                                 shape = RoundedCornerShape(8.dp),
@@ -296,9 +332,16 @@ fun OfflineMeshLobbyScreen(
                                 keyboardController?.hide()
                                 val session = OfflineSession.fromCode(joinCodeInput, System.currentTimeMillis())
                                 if (session == null) {
-                                    joinError = context.getString(R.string.mesh_lobby_invalid_code_error)
+                                    joinError = context.getString(R.string.mesh_invalid_code)
                                 } else {
-                                    onEnterSession(session.pairingCode)
+                                    if (useAsBackup) {
+                                        val backup = OfflineSession.fromCode(session.pairingCode, System.currentTimeMillis())
+                                        OfflineSessionHolder.setBackup(backup)
+                                        Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
+                                        onBackClick()
+                                    } else {
+                                        onEnterSession(session.pairingCode)
+                                    }
                                 }
                             }
                         ),
@@ -334,9 +377,16 @@ fun OfflineMeshLobbyScreen(
                             keyboardController?.hide()
                             val session = OfflineSession.fromCode(joinCodeInput, System.currentTimeMillis())
                             if (session == null) {
-                                joinError = context.getString(R.string.mesh_lobby_invalid_code_error)
+                                joinError = context.getString(R.string.mesh_invalid_code)
                             } else {
-                                onEnterSession(session.pairingCode)
+                                if (useAsBackup) {
+                                    val backup = OfflineSession.fromCode(session.pairingCode, System.currentTimeMillis())
+                                    OfflineSessionHolder.setBackup(backup)
+                                    Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
+                                    onBackClick()
+                                } else {
+                                    onEnterSession(session.pairingCode)
+                                }
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),

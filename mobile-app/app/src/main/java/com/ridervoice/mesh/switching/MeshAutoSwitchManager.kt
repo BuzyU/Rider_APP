@@ -83,11 +83,8 @@ class MeshAutoSwitchManager(
         onEmitTransitionDiagnostic = { from, to, reason ->
             _lastTransitionReason.value = "$from -> $to ($reason)"
         },
-        onProbeMesh = {
-            val ride = activeRideRepository.state.value ?: return@createMachine
-            secretProvider.getSecretForOnlineRide(ride.roomId) ?: return@createMachine
-            // No companion session derived without shared secret
-        }
+        // hasValidRoute is the transport's own live StateFlow; no separate probe needed
+        onProbeMesh = null
     )
 
     val autoSwitchState: StateFlow<AutoSwitchState> = stateMachine.state
@@ -113,6 +110,11 @@ class MeshAutoSwitchManager(
                     }
                     coordinator.setOnlineSession(null)
                     _groupStatus.value = GroupConnectivityStatus.ONLINE_ALL
+                    if (meshTransport.state.value != VoiceTransportState.STOPPED &&
+                        stateMachine.state.value == AutoSwitchState.ONLINE
+                    ) {
+                        meshTransport.stop()
+                    }
                     return@collectLatest
                 }
 
@@ -132,18 +134,22 @@ class MeshAutoSwitchManager(
                     )
                 )
 
-                val companionSession: OfflineSession? = null
-
                 while (isActive &&
                     activeRideRepository.state.value?.roomId == ride.roomId &&
                     activeRideRepository.state.value?.phase == ActiveRideRepository.Phase.LIVE &&
                     OfflineMeshGate.isOfflineAllowed()
                 ) {
+                    val backup = secretProvider.getSessionForOnlineRide(ride.roomId)
                     if ((OfflineMeshGate.isWarmStandbyAllowed() || OfflineMeshGate.isAutomaticFallbackAllowed()) &&
-                        companionSession != null &&
+                        backup != null &&
                         meshTransport.state.value == VoiceTransportState.STOPPED
                     ) {
-                        coordinator.ensureWarmStandbyDiscovery(companionSession)
+                        coordinator.ensureWarmStandbyDiscovery(backup)
+                    }
+                    if (backup == null && meshTransport.state.value == VoiceTransportState.CONNECTED &&
+                        stateMachine.state.value == AutoSwitchState.ONLINE
+                    ) {
+                        meshTransport.stop()
                     }
 
                     val signals = healthSignalsProvider.sampleSignals()
@@ -162,6 +168,12 @@ class MeshAutoSwitchManager(
                     _groupStatus.value = computeGroupConnectivity(isLocalOffline, unifiedPeers)
 
                     delay(1_000L)
+                }
+
+                if (meshTransport.state.value != VoiceTransportState.STOPPED &&
+                    stateMachine.state.value == AutoSwitchState.ONLINE
+                ) {
+                    meshTransport.stop()
                 }
             }
         }

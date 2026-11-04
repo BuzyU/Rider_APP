@@ -21,6 +21,12 @@ class OfflineSession private constructor(
 ) {
     fun isExpired(now: Long): Boolean = now >= expiresAt
 
+    val secret: ByteArray get() = payloadKey()
+
+    fun close() {
+        // Zeroing key buffers will be completed in WP-39
+    }
+
     /** 32-byte HMAC key derived from the pairing code. Never sent over the wire. */
     fun authKey(): ByteArray = key.copyOf()
 

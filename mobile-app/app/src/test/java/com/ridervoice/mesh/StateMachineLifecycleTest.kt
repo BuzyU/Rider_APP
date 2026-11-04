@@ -489,7 +489,7 @@ class StateMachineLifecycleTest {
             )
         )
         val status1 = computeGroupConnectivity(isLocalOffline = false, peers = mixedPeers1)
-        assertEquals(GroupConnectivityStatus.MIXED, status1)
+        assertEquals(GroupConnectivityStatus.ONLINE_ALL, status1)
 
         // Local online, one peer on offline mesh
         val mixedPeers2 = listOf(

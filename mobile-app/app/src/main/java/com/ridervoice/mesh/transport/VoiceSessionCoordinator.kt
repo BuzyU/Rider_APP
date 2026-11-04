@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -49,16 +50,20 @@ class VoiceSessionCoordinator(
     private val scope = CoroutineScope(SupervisorJob() + dispatcher + exceptionHandler)
     private val switchMutex = Mutex()
     @Volatile private var lastOnlineSession: VoiceSession.Online? = null
+    private val onlineSession = MutableStateFlow<VoiceSession.Online?>(null)
 
-    private val _offlineAvailability = MutableStateFlow(computeAvailability())
-    val offlineAvailability: StateFlow<OfflineAvailability> = _offlineAvailability.asStateFlow()
-
-    private fun computeAvailability(): OfflineAvailability {
-        if (!OfflineMeshGate.isOfflineAllowed()) return OfflineAvailability.DISABLED
-        val roomId = lastOnlineSession?.roomId
-        val secret = if (roomId != null) secretProvider.getSecretForOnlineRide(roomId) else null
-        return if (secret != null) OfflineAvailability.AVAILABLE else OfflineAvailability.NO_SHARED_SECRET
+    private fun availability(ride: VoiceSession.Online?, s: OfflineSession?, now: Long): OfflineAvailability = when {
+        !OfflineMeshGate.isOfflineAllowed() -> OfflineAvailability.DISABLED
+        ride != null && s != null && !s.isExpired(now) -> OfflineAvailability.AVAILABLE
+        else -> {
+            val roomId = ride?.roomId
+            val secret = if (roomId != null) secretProvider.getSecretForOnlineRide(roomId) else null
+            if (ride != null && secret != null) OfflineAvailability.AVAILABLE else OfflineAvailability.NO_SHARED_SECRET
+        }
     }
+
+    private val _offlineAvailability = MutableStateFlow(availability(null, secretProvider.backupSession.value, clock()))
+    val offlineAvailability: StateFlow<OfflineAvailability> = _offlineAvailability.asStateFlow()
 
     private val _activeKind = MutableStateFlow(PeerTransportKind.ONLINE_LIVEKIT)
     val activeKind: StateFlow<PeerTransportKind> = _activeKind.asStateFlow()
@@ -76,6 +81,17 @@ class VoiceSessionCoordinator(
     val activeSpeakers: StateFlow<Set<String>> = _activeSpeakers.asStateFlow()
 
     init {
+        scope.launch {
+            combine(secretProvider.backupSession, onlineSession, OfflineMeshGate.settingsFlow) { s, ride, _ -> s to ride }
+                .collectLatest { (s, ride) ->
+                    _offlineAvailability.value = availability(ride, s, clock())
+                    if (s != null && !s.isExpired(clock())) {
+                        delay((s.expiresAt - clock()).coerceAtLeast(0L)) // flips at expiry (A33)
+                        _offlineAvailability.value = availability(ride, s, clock())
+                    }
+                }
+        }
+
         // Dynamically proxy state from whichever transport is currently active
         scope.launch {
             _activeTransport.collectLatest { transport ->
@@ -94,7 +110,8 @@ class VoiceSessionCoordinator(
 
     fun setOnlineSession(session: VoiceSession.Online?) {
         lastOnlineSession = session
-        _offlineAvailability.value = computeAvailability()
+        onlineSession.value = session
+        _offlineAvailability.value = availability(session, secretProvider.backupSession.value, clock())
     }
 
     suspend fun ensureWarmStandbyDiscovery(session: OfflineSession) {
@@ -124,8 +141,7 @@ class VoiceSessionCoordinator(
         _activeKind.value = targetKind
         _activeTransport.value = next
         if (newSession is VoiceSession.Online) {
-            lastOnlineSession = newSession
-            _offlineAvailability.value = computeAvailability()
+            setOnlineSession(newSession)
         }
         next.start(newSession)
     }

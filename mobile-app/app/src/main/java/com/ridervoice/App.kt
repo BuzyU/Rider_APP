@@ -48,10 +48,11 @@ class App : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // OfflineMeshGate.install must precede start() so start() uses installed settings (A45).
+        // start() is called unconditionally; disabled-by-build builds return immediately inside start(),
+        // while disabled-by-user builds observe settingsFlow and react dynamically when toggled on (A12).
         com.ridervoice.mesh.OfflineMeshGate.install(com.ridervoice.mesh.PrefsMeshRuntimeSettings(this))
-        if (com.ridervoice.mesh.OfflineMeshGate.decision() == com.ridervoice.mesh.GateDecision.ENABLED) {
-            meshAutoSwitchManager.start()
-        }
+        meshAutoSwitchManager.start()
         setupCrashHandler()
         createNotificationChannels()
         finalizeOrphanedDiagnosticSessions()

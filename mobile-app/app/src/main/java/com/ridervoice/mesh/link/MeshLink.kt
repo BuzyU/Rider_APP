@@ -20,5 +20,7 @@ interface MeshLink {
     ): Boolean
 
     fun endpoints(): Set<MeshEndpoint>
+
+    fun noteAuthenticatedEndpoint(endpoint: MeshEndpoint) {}
 }
 

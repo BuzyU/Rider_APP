@@ -133,6 +133,10 @@ class UdpMeshLink(
         return endpointTimestamps.keys.toSet()
     }
 
+    override fun noteAuthenticatedEndpoint(endpoint: MeshEndpoint) {
+        registerEndpoint(endpoint)
+    }
+
     fun registerEndpoint(endpoint: MeshEndpoint) {
         endpointTimestamps[endpoint] = clock()
     }

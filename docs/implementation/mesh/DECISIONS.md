@@ -25,5 +25,9 @@ Format: `WP-NN | situation | decision | reason`
 | WP-36 | Single mic arbitration | MicControllerImpl with conflated Channel<Boolean> preserves order and merges fast toggles | Solves A28 and A47 cleanly. |
 | WP-36 | VoiceSessionCoordinator.fallbackToMesh() | Deleted liveKitTransport.stop() branch on hardware busy | Mandated by A9: Never disconnect LiveKit from the mesh side. |
 | WP-36 | VoiceSessionCoordinatorTest.fallbackToMeshRollsBackToLiveKitWhenMeshAudioFails | Assert liveKit.stoppedCount == 0 and startedSessions.size == 1 instead of 2 | Mandated by A9: LiveKit is paused, never stopped on mesh enable failure. |
-
+| WP-37 | Pairing-code backup | Riders enter lobby code saved as backup session in OfflineSessionHolder without launching HUD | Owner decision Q1 amendment: offline secret comes only from user-entered pre-ride pairing code. |
+| WP-37 | Ghost LiveKit participants | Treated as disconnected/left rather than triggering MIXED group status | Mandated by A24: Ghost participants must not cause false mixed connectivity alerts. |
+| WP-37 | StateMachineLifecycleTest.testGroupConnectivityStatusComputation | Assert status1 == ONLINE_ALL for peer list with ghost LiveKit participant | Mandated by A24 and Rule R5: test asserted obsolete behavior declaring ghost peers as MIXED. |
+| WP-37 | Authenticated endpoint registration | Direct hopCount == 0 frames only registered after AEAD + dedup + admission pass | Mandated by A14: prevents cache pollution from forged or relayed packets. |
+| WP-37 | App.kt startup order | OfflineMeshGate.install precedes meshAutoSwitchManager.start() unconditionally | Mandated by A12/A45: ensures runtime settings flow is initialized before manager collects it. |
 

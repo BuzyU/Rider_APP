@@ -332,4 +332,6 @@
     <string name="mesh_notif_title">Offline Mesh Intercom Active</string>
     <string name="mesh_notif_content">Offline Mesh: %1$s | %2$d peers</string>
     <string name="mesh_notif_disconnect">Disconnect</string>
+    <string name="mesh_use_as_ride_backup">Use this code as backup for online rides</string>
+    <string name="mesh_invalid_code">Invalid pairing code</string>
 </resources>

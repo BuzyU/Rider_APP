@@ -332,4 +332,6 @@
     <string name="mesh_notif_title">ऑफलाइन मेश इंटरकॉम सक्रिय आहे</string>
     <string name="mesh_notif_content">ऑफलाइन मेश: %1$s | %2$d साथी</string>
     <string name="mesh_notif_disconnect">डिस्कनेक्ट करा</string>
+    <string name="mesh_use_as_ride_backup">ऑनलाइन राइडसाठी बॅकअप म्हणून हा कोड वापरा</string>
+    <string name="mesh_invalid_code">अवैध पेअरिंग कोड</string>
 </resources>

@@ -21,7 +21,9 @@ import com.ridervoice.mesh.identity.SharedPrefsMeshKeyValueStore
 import com.ridervoice.mesh.link.AndroidNetworkLocks
 import com.ridervoice.mesh.link.NetworkLocks
 import com.ridervoice.mesh.link.UdpMeshLink
+import com.ridervoice.mesh.session.HolderOfflineSecretProvider
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
+import com.ridervoice.mesh.session.OfflineSessionHolder
 import com.ridervoice.mesh.session.OfflineSecretProvider
 import com.ridervoice.mesh.switching.AndroidNetworkCapsReader
 import com.ridervoice.mesh.switching.AutomaticSwitchStateMachine
@@ -120,7 +122,12 @@ object MeshModule {
 
     @Provides
     @Singleton
-    fun provideOfflineSecretProvider(): OfflineSecretProvider = NullOfflineSecretProvider()
+    fun provideOfflineSessionHolder(): OfflineSessionHolder = OfflineSessionHolder.getHolder()
+
+    @Provides
+    @Singleton
+    fun provideOfflineSecretProvider(): OfflineSecretProvider =
+        HolderOfflineSecretProvider(OfflineSessionHolder.getHolder())
 
     @Provides
     @Singleton
@@ -146,6 +153,7 @@ object MeshModule {
         @ApplicationContext context: Context
     ): OfflineMeshVoiceTransport = OfflineMeshVoiceTransport(
         identity = identityRepo.get(),
+        identityProvider = { identityRepo.get() },
         audioOwnershipArbiter = arbiter,
         locks = locks,
         routeController = routeController,

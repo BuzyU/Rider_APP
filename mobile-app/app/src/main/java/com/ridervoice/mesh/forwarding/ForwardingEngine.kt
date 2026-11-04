@@ -382,6 +382,10 @@ class ForwardingEngine(
             sessionManager.admit(decoded.previousHopId)
         }
 
+        if (decoded.hopCount == 0) {
+            link.noteAuthenticatedEndpoint(frame.from)
+        }
+
         when (decoded.type) {
             MeshPacketType.HELLO -> {
                 val hello = decodedHello!!

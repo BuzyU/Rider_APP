@@ -52,7 +52,7 @@ import kotlinx.coroutines.sync.withLock
  * Manages the mesh network lifecycle, forwarding engine, jitter buffer, and audio capture/playback.
  */
 class OfflineMeshVoiceTransport(
-    private val identity: MeshIdentity,
+    private var identity: MeshIdentity,
     val audioOwnershipArbiter: AudioOwnershipArbiter,
     private val onAudioRouteChanged: (AudioRoute) -> Unit = {},
     private val clock: () -> Long = { System.currentTimeMillis() },
@@ -72,7 +72,8 @@ class OfflineMeshVoiceTransport(
     private val hasMicPermission: () -> Boolean = { true },
     private val audioRecordFactory: (() -> AudioRecordSource?)? = null,
     val routeController: MeshAudioRouteController? = null,
-    val hardwarePttPort: HardwarePttPort? = null
+    val hardwarePttPort: HardwarePttPort? = null,
+    private val identityProvider: () -> MeshIdentity = { identity }
 ) : VoiceTransport, MeshControl {
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -89,6 +90,8 @@ class OfflineMeshVoiceTransport(
 
     private val _deafened = MutableStateFlow(false)
     val deafened: StateFlow<Boolean> = _deafened.asStateFlow()
+
+    val currentIdentity: MeshIdentity get() = identity
 
     val micController: MicController = MicControllerImpl(
         audioEnabled = { audioPlayback != null && audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH },
@@ -170,7 +173,10 @@ class OfflineMeshVoiceTransport(
         _state.value = VoiceTransportState.STARTING
         currentSession = session
 
-        val sManager = SessionManager(session, identity.deviceId, clock)
+        val currentIdentity = identityProvider()
+        identity = currentIdentity
+
+        val sManager = SessionManager(session, currentIdentity.deviceId, clock)
         sessionManager = sManager
 
         val gRepo = MeshGraphRepository(identity.deviceId, identity.displayName, clock)

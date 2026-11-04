@@ -34,15 +34,6 @@ enum class GroupConnectivityStatus {
     }
 }
 
-/**
- * Partial mesh peer representation for mixed group status computation (V6).
- */
-data class PartialMeshPeer(
-    val id: String,
-    val displayName: String,
-    val isOnline: Boolean,
-    val isMeshReachable: Boolean
-)
 
 /**
  * Pure function computing group connectivity status from unified participant list.

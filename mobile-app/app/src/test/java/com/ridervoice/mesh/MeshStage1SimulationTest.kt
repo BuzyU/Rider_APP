@@ -253,7 +253,7 @@ class MeshStage1SimulationTest {
 
         fun addNode(tag: String, session: OfflineSession, ip: String = "10.0.0.${nodes.size + 1}"): SimNode {
             val id = UUID.nameUUIDFromBytes("node-$tag".toByteArray()).toString()
-            val node = SimNode(tag, id, MeshEndpoint(ip, MeshConfig.AUDIO_PORT), session, this)
+            val node = SimNode(tag, id, MeshEndpoint(ip, MeshConfig.MESH_PORT), session, this)
             nodes[tag] = node
             return node
         }
@@ -372,7 +372,7 @@ class MeshStage1SimulationTest {
 
         // Phase 2: Riders move -> A — C — B — D, and B also gets a new IP endpoint
         b. receivedVoice.clear(); c.receivedVoice.clear(); d.receivedVoice.clear()
-        b.endpoint = MeshEndpoint("10.0.0.99", MeshConfig.AUDIO_PORT)
+        b.endpoint = MeshEndpoint("10.0.0.99", MeshConfig.MESH_PORT)
         net.setChain("A", "C", "B", "D")
         net.now += MeshConfig.NEIGHBOR_TIMEOUT_MS + 1_000L
         net.convergeDiscovery()

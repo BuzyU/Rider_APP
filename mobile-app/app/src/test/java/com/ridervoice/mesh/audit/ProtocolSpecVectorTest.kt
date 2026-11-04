@@ -20,7 +20,7 @@ class ProtocolSpecVectorTest {
 
     @Test
     fun protocolConstantsMatchSpec() {
-        assertEquals("Audio port must be 45454", 45454, MeshConfig.AUDIO_PORT)
+        assertEquals("Mesh port must be 45454", 45454, MeshConfig.MESH_PORT)
         assertEquals("Magic must be 0x52564D31 (ASCII 'RVM1')", 0x52564D31, MeshPacketCodec.MAGIC)
         assertEquals("Protocol version must be 2", 2, MeshPacketCodec.VERSION)
         assertEquals("Header length must be 75 bytes", 75, MeshPacketCodec.HEADER_LEN)

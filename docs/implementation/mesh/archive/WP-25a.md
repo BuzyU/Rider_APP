@@ -1,3 +1,5 @@
+> SUPERSEDED: contains claims later disproved; see DEFECT_REGISTER.md
+
 # Work Package Report: WP-25a
 
 ## (a) Git Revisions & Diff Stat

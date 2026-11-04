@@ -18,6 +18,36 @@ Per the verification contract and rule R4, tests that have not been run on real 
 | **PHYS-06** | Battery & Thermal Runaway on 2-Hour Ride | 2 physical phones running continuous mesh voice loop | Battery drain < 12%/hour, no thermal throttling or background process kill | **NOT EXECUTED** |
 | **PHYS-07** | Wi-Fi / Bluetooth Radio Coexistence | Wi-Fi Direct active on 2.4GHz + BT SCO headset | No packet drops or SCO audio stutter under mutual RF interference | **NOT EXECUTED** |
 | **PHYS-08** | Dynamic Convoy Re-ordering & Topology Mutation | 4 physical nodes changing relative order on road | Graph repository discovers topology changes, Dijkstra/BFS updates next-hop | **NOT EXECUTED** |
+| **PHYS-09** | Dead Hotspot (Wi-Fi Up, No Internet) | Mobile Wi-Fi hotspot active without internet uplink | Total loss confirmed via missing NET_CAPABILITY_VALIDATED; falls back after 10 s | **NOT EXECUTED** |
+| **PHYS-10** | Cellular Bars But No Data | Connected to cell tower with zero data throughput | Probe failure confirms total loss; triggers mesh fallback after 10 s debounce | **NOT EXECUTED** |
+| **PHYS-11** | Internet Back While LiveKit Reconnecting | Internet restored while LiveKit WebRTC is reconnecting | Standing rule enforced: suspect timer resets; does NOT fall back to mesh | **NOT EXECUTED** |
+| **PHYS-12** | Non-Disruptive Recovery Dead Air Check | Convoy exiting dead zone back into 5G coverage | Mesh audio playout continues while LiveKit reconnects; zero dead air gap | **NOT EXECUTED** |
+| **PHYS-13** | Helmet PTT After Offline Session | Helmet headset PTT used online after offline session | PTT toggles mic state online without residual offline ownership lock | **NOT EXECUTED** |
+| **PHYS-14** | VOX Hands-Free Over Mesh | Helmet microphone in high-noise cockpit environment | VOX auto-triggers mic capture; release hold timer prevents syllable clipping | **NOT EXECUTED** |
+| **PHYS-15** | Screen Activity Rotation During Active Session | Orientation rotated during active offline HUD | Session and audio stream remain continuous without re-deriving session keys | **NOT EXECUTED** |
+| **PHYS-16** | Android 14 Foreground Service Start Without Mic | App launched with RECORD_AUDIO permission revoked | Companion start() refuses startup; avoids foreground service security exception | **NOT EXECUTED** |
+| **PHYS-17** | Peer Reboot Rejoin Within Report Timeout | One convoy phone rebooted and re-opened | Device rejoins mesh with new random epoch; graph accepts report within 8 s | **NOT EXECUTED** |
+| **PHYS-18** | Hotspot-Host Phone Socket Binding | Phone acting as Wi-Fi hotspot AP host | bindSocketToWifi logs fallback gracefully; socket communicates unbound | **NOT EXECUTED** |
+
+---
+
+## Adb Diagnostic Commands for Field Testing
+
+The debug broadcast receiver is guarded by `android.permission.DUMP` in debug builds:
+
+```bash
+# Dump runtime mesh diagnostics (truncated session ID only)
+adb shell am broadcast -a com.ridervoice.mesh.DEBUG_DUMP_STATE
+
+# Set peer filter for partitioned mesh simulation
+adb shell am broadcast -a com.ridervoice.debug.MESH_SET_PEER_FILTER --es allow "node-1,node-2"
+
+# Clear peer filter
+adb shell am broadcast -a com.ridervoice.debug.MESH_SET_PEER_FILTER --es allow ""
+
+# Clear all in-memory offline sessions
+adb shell am broadcast -a com.ridervoice.mesh.DEBUG_CLEAR_SESSION
+```
 
 ---
 
@@ -27,4 +57,3 @@ When executing physical test runs:
 2. Record `MeshDiagnosticsSnapshot` logs via adb bugreport.
 3. Measure round-trip audio latency using synchronized hardware clocks or acoustic chirp analysis.
 4. Record actual physical device model numbers, Android OS versions, and RF environment metrics.
-

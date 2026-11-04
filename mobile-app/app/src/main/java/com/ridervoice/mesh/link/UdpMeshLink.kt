@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
  */
 class UdpMeshLink(
     override val linkId: String = "udp-subnet",
-    private val bindPort: Int = MeshConfig.AUDIO_PORT,
+    private val bindPort: Int = MeshConfig.MESH_PORT,
     private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val clock: () -> Long = { System.currentTimeMillis() },
@@ -149,7 +149,7 @@ class UdpMeshLink(
     }
 
     companion object {
-        fun discoverBroadcastEndpoints(port: Int = MeshConfig.AUDIO_PORT): List<MeshEndpoint> {
+        fun discoverBroadcastEndpoints(port: Int = MeshConfig.MESH_PORT): List<MeshEndpoint> {
             return runCatching {
                 NetworkInterface.getNetworkInterfaces()?.asSequence()
                     ?.filter { it.isUp && !it.isLoopback && !it.isVirtual }

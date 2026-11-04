@@ -61,14 +61,14 @@ class OfflineMeshVoiceTransport(
     private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
     private val linkFactory: () -> MeshLink = {
         UdpMeshLink(
-            bindPort = MeshConfig.AUDIO_PORT,
+            bindPort = MeshConfig.MESH_PORT,
             gateAllowed = gateAllowed,
             dispatcher = dispatcher
         )
     },
     private val locks: NetworkLocks = NoNetworkLocks,
     private val broadcastProvider: () -> List<MeshEndpoint> = {
-        UdpMeshLink.discoverBroadcastEndpoints(MeshConfig.AUDIO_PORT)
+        UdpMeshLink.discoverBroadcastEndpoints(MeshConfig.MESH_PORT)
     },
     private val hasMicPermission: () -> Boolean = { true },
     private val audioRecordFactory: (() -> AudioRecordSource?)? = null,

@@ -68,7 +68,7 @@ class RelayAmplificationTest {
         val session: OfflineSession,
         val net: SimNetwork
     ) {
-        val ep = MeshEndpoint(ip, MeshConfig.AUDIO_PORT)
+        val ep = MeshEndpoint(ip, MeshConfig.MESH_PORT)
         val heardVoicePackets = mutableListOf<MeshPacket>()
         val clock = { 1_000L }
         val graph = MeshGraphRepository(selfId = id, selfName = id, clock = clock)

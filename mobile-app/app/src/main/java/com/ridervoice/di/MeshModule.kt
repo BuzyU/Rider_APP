@@ -160,7 +160,7 @@ object MeshModule {
         hardwarePttPort = hardwarePttPort,
         linkFactory = {
             UdpMeshLink(
-                bindPort = MeshConfig.AUDIO_PORT,
+                bindPort = MeshConfig.MESH_PORT,
                 gateAllowed = { OfflineMeshGate.isOfflineAllowed() },
                 networkBinder = { socket ->
                     locks.bindSocketToWifi(socket)

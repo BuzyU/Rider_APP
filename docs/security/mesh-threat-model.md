@@ -103,6 +103,12 @@ All security controls were tested and verified under adversarial conditions:
 
 ---
 
+
+### 5.3 Shared-Key Forgery, Relay Decryption & Debug Attack Surface (WP-40/WP-41)
+- **Symmetric Key Tradeoff:** All admitted nodes in an offline session share the same `authKey` and `payloadKey`. Any node possessing the session secret can decrypt all audio payloads and can forge packets claiming another member's `sourceId`. True non-repudiation would require asymmetric per-packet digital signatures, which is incompatible with 20ms low-latency mobile radio constraints.
+- **In-Memory Backup Session:** `OfflineSessionHolder.backupSession` stores a user-entered pre-ride pairing code in RAM only. All byte buffers and char arrays are zeroized on session close (`AutoCloseable`).
+- **Debug Receiver Guard (A20):** `MeshDebugReceiver` is compiled exclusively into debug source sets and guarded with `android:permission="android.permission.DUMP"`, which can be held by the `adb shell` but cannot be acquired by normal third-party apps. It supports `--es allow "prefix1,prefix2"` peer filtering and logs strictly truncated 8-character session IDs, never pairing codes or key material.
+
 ## 6. Verification Status
 
 Automated unit tests verified cryptographic separation and secret hygiene in JVM:

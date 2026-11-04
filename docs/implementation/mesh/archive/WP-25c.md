@@ -1,3 +1,5 @@
+> SUPERSEDED: contains claims later disproved; see DEFECT_REGISTER.md
+
 # Work Package 25c Verification Report
 
 ## 1. Summary

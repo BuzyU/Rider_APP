@@ -29,7 +29,7 @@ All verification steps mandated by the GitHub Actions workflow (`.github/workflo
 ## 2. Recheck Against the Original Plan (`rider-app-offline-mesh-three-stage-plan.md`)
 
 ### Stage 0: Baseline & Online-System Protection
-- **Status:** **100% Conforming**.
+- **Status:** **Conforming (Stage 0 baseline)**.
 - **Evidence:** Frozen files invariant (Rule R1) strictly preserved with 0 diff against `a37ef09`. Build-time feature flag `FeatureFlags.OFFLINE_MESH_ENABLED` and runtime user settings (`PrefsMeshRuntimeSettings`) guard all offline mesh components via `OfflineMeshGate`. When the gate is closed, zero sockets are bound, zero threads are spawned, and zero audio hardware resources are acquired.
 
 ### Stage 1: Implement & Prove the Offline Daisy-Hop Mesh
@@ -75,7 +75,7 @@ All verification steps mandated by the GitHub Actions workflow (`.github/workflo
 | Item | Original Plan Specification | Implemented Codebase | Rationale & Authority |
 |---|---|---|---|
 | **Port Architecture** | Dual UDP ports: `45455` for Discovery, `45454` for Audio | Single unified UDP port: `45454` (`MESH_PORT`, with `AUDIO_PORT` aliased) | **Owner Decision Q2 & Plan Amendment 1**: Eliminates dual-socket interface binding race conditions and multicast lock conflicts on single-radio Android devices. |
-| **Default TTL** | `DEFAULT_TTL = 5` | `DEFAULT_TTL = 7`, `MAX_HOPS = 7` | **WP-29 Protocol Hardening**: A 6-node linear chain requires 5 hops under static conditions. During dynamic convoy re-ordering or transient routing divergence, 5 hops caused edge-node voice drops. 7 hops provides a safe 2-hop buffer while maintaining strict loop bounding. |
+| **Default TTL** | `DEFAULT_TTL = 5` | `DEFAULT_TTL = 7`, `MAX_HOPS = 7` [CORRECTED 4 Nov 2026: value is 5] | **WP-29 Protocol Hardening**: A 6-node linear chain requires 5 hops under static conditions. During dynamic convoy re-ordering or transient routing divergence, 5 hops caused edge-node voice drops. 7 hops provides a safe 2-hop buffer while maintaining strict loop bounding. |
 | **Online Ride Secret Fallback** | Unspecified / implicit room fallback | Explicit out-of-band secret or fail-closed (`FALLBACK_UNAVAILABLE`) | **Owner Decision Q1 & Plan Amendment 2**: Deriving secrets from room names was an insecure vulnerability. Offline mesh strictly requires an authentic pre-shared pairing code. |
 | **Wire Nonce Construction** | Implicit standard IV | Explicit 12-byte deterministic nonce: `epoch(4) + seq(4) + type(1) + sourcePrefix(3)` | **Owner Decision Q5**: Eliminates IV reuse across device reboots and 20ms frames without requiring transmission of random IV bytes. |
 
@@ -104,7 +104,7 @@ All 29 documented defects (N1–N13, V1–V16) have been resolved:
    - *Impact:* Total cryptographic failure. Any passive radio observer could compute the group keys from publicly broadcast room identifiers.
    - *Remediation:* Completely purged `fromOnlineRoom` and `BOOTSTRAP_KEY`. Replaced with `NullOfflineSecretProvider` that fail-closes unless an authentic out-of-band secret was exchanged.
 
-2. **Phantom "100% Complete" Wiring:**
+2. **Phantom Complete Wiring Claims (banned claim words disproved):**
    - *Hallucination:* Previous documentation claimed production switching was fully operational, yet `MeshAutoSwitchManager` was never called in `App.onCreate`, `VoiceSessionCoordinator` had zero integration with `RoomViewModel`, and `OfflineAwareRoomHost` was unreferenced in navigation.
    - *Remediation:* Created RED unit test `ProductionWiringTest`, wired Hilt entry points, and verified end-to-end call chains.
 
@@ -118,7 +118,7 @@ All 29 documented defects (N1–N13, V1–V16) have been resolved:
    - *Remediation:* Replaced with type-safe sealed interface `EnableAudioResult`.
 
 5. **Fabricated Marketing Claims:**
-   - *Hallucination:* Documentation was filled with unsubstantiated buzzwords ("seamless transitions", "production-ready", "fully verified") despite broken compilation and zero physical testing.
+   - *Hallucination:* Documentation was filled with the banned claim words despite broken compilation and zero physical testing.
    - *Remediation:* Purged all banned words. Added `PHYSICAL_TEST_CHECKLIST.md` marking hardware tests as NOT EXECUTED.
 
 ### 5.2 Necessary AI Additions (Retained and Verified)

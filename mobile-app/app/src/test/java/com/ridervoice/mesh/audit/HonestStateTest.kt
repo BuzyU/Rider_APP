@@ -192,7 +192,7 @@ class HonestStateTest {
                 previousHopId = peerId,
                 payload = sealed
             )
-            MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(packet, s.authKey()))
+            MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(packet, s.authKey()))
         }
 
         // Send a direct HELLO so peerId is admitted and direct neighbor
@@ -213,7 +213,7 @@ class HonestStateTest {
             previousHopId = peerId,
             payload = sealedHello
         )
-        val helloFrame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(helloPacket, s.authKey()))
+        val helloFrame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(helloPacket, s.authKey()))
 
         // Simulate incoming frames via fake link reflection
         val field = OfflineMeshVoiceTransport::class.java.getDeclaredField("forwardingEngine")
@@ -333,7 +333,7 @@ class HonestStateTest {
         val self = "self-node"
         val dest = "dest-node"
         val relay = "relay-node"
-        val ep = MeshEndpoint("10.0.0.1", MeshConfig.AUDIO_PORT)
+        val ep = MeshEndpoint("10.0.0.1", MeshConfig.MESH_PORT)
 
         val snap = MeshGraphSnapshot(
             selfId = self,

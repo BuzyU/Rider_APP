@@ -1,3 +1,5 @@
+> SUPERSEDED: contains claims later disproved; see DEFECT_REGISTER.md
+
 > Task :app:compileDebugUnitTestKotlin
 > Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
 > Task :app:hiltAggregateDepsDebugUnitTest UP-TO-DATE

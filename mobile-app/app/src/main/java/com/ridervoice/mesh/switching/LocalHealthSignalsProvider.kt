@@ -127,7 +127,8 @@ class LocalHealthSignalsProvider(
     }.getOrDefault(false)
 
     /**
-     * Drives the state machine evaluation loop once per second while [isRideActive] is true.
+     * Test harness seam: drives the state machine evaluation loop once per second while [isRideActive] is true.
+     * Retained for isolated component testing (e.g. WiringTest) without full MeshAutoSwitchManager orchestration.
      * When [isRideActive] becomes false, ends the session.
      */
     fun startDriving(

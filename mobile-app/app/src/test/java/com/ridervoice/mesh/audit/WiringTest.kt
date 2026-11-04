@@ -79,8 +79,8 @@ class WiringTest {
             // Verify that port 45454 was NEVER bound and is freely bindable
             var socket: DatagramSocket? = null
             try {
-                socket = DatagramSocket(MeshConfig.AUDIO_PORT)
-                assertTrue("Socket bound successfully on AUDIO_PORT", socket.isBound)
+                socket = DatagramSocket(MeshConfig.MESH_PORT)
+                assertTrue("Socket bound successfully on MESH_PORT", socket.isBound)
             } finally {
                 socket?.close()
                 transport.stop()
@@ -118,8 +118,8 @@ class WiringTest {
 
             var socket: DatagramSocket? = null
             try {
-                socket = DatagramSocket(MeshConfig.AUDIO_PORT)
-                assertTrue("AUDIO_PORT remains bindable", socket.isBound)
+                socket = DatagramSocket(MeshConfig.MESH_PORT)
+                assertTrue("MESH_PORT remains bindable", socket.isBound)
             } finally {
                 socket?.close()
                 transport.stop()

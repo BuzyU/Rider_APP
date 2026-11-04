@@ -82,7 +82,7 @@ class ScheduledDeliveryScenarioTest {
         }
 
         fun tickHello() {
-            engine.originateHello(listOf(MeshEndpoint("255.255.255.255", MeshConfig.AUDIO_PORT)))
+            engine.originateHello(listOf(MeshEndpoint("255.255.255.255", MeshConfig.MESH_PORT)))
         }
 
         fun tickVoice(pcm: ByteArray = ByteArray(MeshConfig.BYTES_PER_FRAME)): MeshPacket? {
@@ -95,7 +95,7 @@ class ScheduledDeliveryScenarioTest {
             ScheduledNode(
                 tag = tag,
                 id = uuid(tag),
-                endpoint = MeshEndpoint("192.168.49.${10 + idx}", MeshConfig.AUDIO_PORT),
+                endpoint = MeshEndpoint("192.168.49.${10 + idx}", MeshConfig.MESH_PORT),
                 session = session,
                 net = net
             )
@@ -174,7 +174,7 @@ class ScheduledDeliveryScenarioTest {
             net.advance(10_000L)
 
             // Reconnect B with a new endpoint string
-            val newEndpoint = MeshEndpoint("192.168.49.99", MeshConfig.AUDIO_PORT)
+            val newEndpoint = MeshEndpoint("192.168.49.99", MeshConfig.MESH_PORT)
             b.endpoint = newEndpoint
             net.endpointOf[b.tag] = newEndpoint
             net.connect("A", "B")
@@ -210,10 +210,10 @@ class ScheduledDeliveryScenarioTest {
         for (seed in 1L..3L) {
             val net = ScheduledNet(seed)
             val session = OfflineSession.create(0L)
-            val a = ScheduledNode("A", uuid("A"), MeshEndpoint("192.168.49.1", MeshConfig.AUDIO_PORT), session, net)
-            val b = ScheduledNode("B", uuid("B"), MeshEndpoint("192.168.49.2", MeshConfig.AUDIO_PORT), session, net)
-            val c = ScheduledNode("C", uuid("C"), MeshEndpoint("192.168.49.3", MeshConfig.AUDIO_PORT), session, net)
-            val d = ScheduledNode("D", uuid("D"), MeshEndpoint("192.168.49.4", MeshConfig.AUDIO_PORT), session, net)
+            val a = ScheduledNode("A", uuid("A"), MeshEndpoint("192.168.49.1", MeshConfig.MESH_PORT), session, net)
+            val b = ScheduledNode("B", uuid("B"), MeshEndpoint("192.168.49.2", MeshConfig.MESH_PORT), session, net)
+            val c = ScheduledNode("C", uuid("C"), MeshEndpoint("192.168.49.3", MeshConfig.MESH_PORT), session, net)
+            val d = ScheduledNode("D", uuid("D"), MeshEndpoint("192.168.49.4", MeshConfig.MESH_PORT), session, net)
             val nodes = listOf(a, b, c, d)
 
             // Cluster 1: A-B, Cluster 2: C-D
@@ -247,10 +247,10 @@ class ScheduledDeliveryScenarioTest {
         for (seed in 1L..3L) {
             val net = ScheduledNet(seed)
             val session = OfflineSession.create(0L)
-            val a = ScheduledNode("A", uuid("A"), MeshEndpoint("192.168.49.1", MeshConfig.AUDIO_PORT), session, net)
-            val b = ScheduledNode("B", uuid("B"), MeshEndpoint("192.168.49.2", MeshConfig.AUDIO_PORT), session, net)
-            val c = ScheduledNode("C", uuid("C"), MeshEndpoint("192.168.49.3", MeshConfig.AUDIO_PORT), session, net)
-            val d = ScheduledNode("D", uuid("D"), MeshEndpoint("192.168.49.4", MeshConfig.AUDIO_PORT), session, net)
+            val a = ScheduledNode("A", uuid("A"), MeshEndpoint("192.168.49.1", MeshConfig.MESH_PORT), session, net)
+            val b = ScheduledNode("B", uuid("B"), MeshEndpoint("192.168.49.2", MeshConfig.MESH_PORT), session, net)
+            val c = ScheduledNode("C", uuid("C"), MeshEndpoint("192.168.49.3", MeshConfig.MESH_PORT), session, net)
+            val d = ScheduledNode("D", uuid("D"), MeshEndpoint("192.168.49.4", MeshConfig.MESH_PORT), session, net)
             val nodes = listOf(a, b, c, d)
 
             net.connect("A", "B")

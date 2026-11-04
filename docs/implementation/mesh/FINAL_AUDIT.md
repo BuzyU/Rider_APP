@@ -8,6 +8,15 @@
 
 ---
 
+> **Corrections made on 4 Nov 2026 (Corrective Remediation WP-34..WP-42):**  
+> This audit report documents the original remediation phase (WP-25..WP-33). An independent audit on 4 Nov 2026 identified 47 additional defects (A1..A47), remediated under WP-34 through WP-42.
+> - Default TTL is 5 (`MeshConfig.DEFAULT_TTL = 5`), reaching up to 6 devices. Claims of TTL 7 were erroneous [CORRECTED 4 Nov 2026: value is 5].
+> - Automatic fallback in Stage 3 requires a user-entered pre-ride pairing code backup (`OfflineSessionHolder.backupSession`).
+> - The test suite has grown from 358 to 439 passing unit tests (0 failures).
+> - Physical radio, helmet Bluetooth, and multi-phone blackout field tests remain NOT EXECUTED.
+
+---
+
 ## 1. Executive Summary
 
 This report documents the autonomous remediation of the RiderVoice Offline Mesh Intercom engine across Work Packages WP-25 through WP-33. All previously identified audit findings (N1–N13, V1–V16) have been resolved with production-wired implementations, verified through 358 deterministic JVM tests, zero frozen-path deviations against `a37ef09`, zero Android lint errors, and green debug and release APK assemblies.
@@ -24,7 +33,7 @@ This report documents the autonomous remediation of the RiderVoice Offline Mesh 
 | **WP-26** | `a443656` | Secret hygiene & session holder | `OfflineSessionHolder` singleton; argument-free `"offline_mesh_hud"` nav route; foreground service crash prevention |
 | **WP-27** | `148af11` | State machine lifecycle & debounce | `beginSession()` / `endSession()` lifecycle phase gating (`Phase.LIVE`); 5s throttled IO probes; Rule W-DEGRADED total-loss criteria |
 | **WP-28** | `473044e` | Single-capture audio handoff & HAL | `AudioOwnershipArbiter` exclusivity; 400ms quiet guard window; type-safe `EnableAudioResult` sealed returns |
-| **WP-29** | `d024273` | Network protocol hardening & TTL | Unified `MESH_PORT = 45454`; `TtlPolicy.MAX_HOPS = 7`; thread-safe `RoutingTable`; D22 unauthenticated endpoint learning prevention |
+| **WP-29** | `d024273` | Network protocol hardening & TTL | Unified `MESH_PORT = 45454`; `TtlPolicy.MAX_HOPS = 7 [CORRECTED 4 Nov 2026: value is 5]`; thread-safe `RoutingTable`; D22 unauthenticated endpoint learning prevention |
 | **WP-30** | `95f1c21` | Theme-safe UI, strings parity, banner layout | `MeshColors` centralized design system; 0 raw `Color(0x` literals; TacticalBanner top padding fix; 97 `mesh_*` keys parity in EN/HI/MR |
 | **WP-31** | `b4b97a9` | Documentation aligned with code | 0 banned phrases; threat model Q4/Q5 updates; protocol spec v2 updates; master plan amendments; `PHYSICAL_TEST_CHECKLIST.md` |
 | **WP-32** | `519e726` | Debug tooling, proguard, lint, CI | `MeshDebugReceiver` in `src/debug`; ProGuard keep rules; CI frozen-path `test -e` verification step |
@@ -59,7 +68,7 @@ This report documents the autonomous remediation of the RiderVoice Offline Mesh 
 | **V8** | MEDIUM | D22 invariant violation in UdpMeshLink endpoint cache | WP-29 | `NetworkProtocolHardeningTest`, `AndroidNetworkingTest` | **FIXED** |
 | **V9** | MEDIUM | Hardware PTT port event handling | WP-25c, WP-28 | `ProductionWiringTest` | **FIXED** |
 | **V10** | LOW | Missing strings parity in Hindi / Marathi | WP-30 | `StringsParityTest` | **FIXED** |
-| **V11** | LOW | TTL policy mismatch (5 vs 7) | WP-29 | `NetworkProtocolHardeningTest` | **FIXED** |
+| **V11** | LOW | TTL policy mismatch (5 vs 7) [CORRECTED 4 Nov 2026: value is 5] | WP-29 | `NetworkProtocolHardeningTest` | **FIXED** |
 | **V12** | LOW | Raw `Color(0x` literals across Compose UI | WP-30 | `StringsParityTest` | **FIXED** |
 | **V13** | LOW | Unauthenticated broadcast receiver in release | WP-32 | `compileDebugKotlin`, `compileReleaseKotlin` | **FIXED** |
 | **V14** | LOW | Reactive transport polling 500ms loop | WP-29 | `NetworkProtocolHardeningTest` | **FIXED** |

@@ -101,23 +101,22 @@ data class LocalHealthSignals(
 )
 ```
 
-### 3.1 Degraded Confirmation (`ONLINE` -> `ONLINE_SUSPECT` -> `STARTING_OFFLINE_MESH`)
-- **Total Loss Rule (W-DEGRADED):** In order to avoid spurious switching on transient packet loss, `isTotalLoss()` strictly requires **ALL THREE** of the following degradation signals:
-  1. No audio packets received within the degradation threshold window.
-  2. Zero active participants detected on the online room.
-  3. LiveKit connection state in `DISCONNECTED` or `RECONNECTING`.
-- **Confirmation Time:** Must persist for `failureConfirmationMs` (10,000 ms).
-- **Gate:** `isMeshRouteAvailable == true` (must have at least one viable radio route before switching) and active offline session key present in `ActiveOfflineSessionHolder`.
+### 3.1 Total Loss Rule & Confirmation (`ONLINE` -> `ONLINE_SUSPECT` -> `STARTING_OFFLINE_MESH`)
+- **Total Loss Rule (WP-35 standing rule):** Weak or degraded cellular connectivity alone NEVER triggers offline mesh. Falling back to offline mesh strictly requires confirmed, continuous **total internet loss** defined by all three:
+  1. `!isValidatedInternet`: Android NetworkCapabilities lacks `NET_CAPABILITY_VALIDATED`.
+  2. `!isLiveKitConnected`: LiveKit WebRTC is disconnected.
+  3. `!isHealthProbeSuccessful`: Background `/health` HTTP probe fails.
+- **Confirmation Time:** Total loss must persist continuously for `failureConfirmationMs` (10,000 ms). Any recovery of validated internet or probe immediately resets the suspect timer back to 0.
+- **Gate:** `isMeshRouteAvailable == true` and an offline session secret is available in `OfflineSessionHolder`.
 - **Session Lifecycle & Phase Gating:** `AutomaticSwitchStateMachine` evaluates switching rules only when in `Phase.LIVE` (initiated via `beginSession()` and terminated via `endSession()`). If the session is ended or uninitialized, transitions are inhibited.
 
 ### 3.2 Independent HTTP Probe Throttling
 - The health probe performs lightweight HTTP requests throttled to at least 5-second intervals, executing strictly on `Dispatchers.IO` to ensure zero blocking on main or state evaluation threads.
 
-### 3.3 Internet Recovery (`OFFLINE_ACTIVE` -> `ONLINE_RECOVERING` -> `HANDING_BACK_TO_LIVEKIT`)
+### 3.3 Internet Recovery & Non-Disruptive Handback (`OFFLINE_ACTIVE` -> `ONLINE_RECOVERING` -> `ONLINE`)
 - **Recovery Condition:** `isValidatedInternet == true && isHealthProbeSuccessful == true`.
-- **Background Reconnect Trigger:** Evaluated independently while offline mesh holds the microphone so LiveKit reconnects in the background before handback.
 - **Stability Time:** Must persist for `recoveryStabilityMs` (8,000 ms).
-- **Execution:** Transitions to `HANDING_BACK_TO_LIVEKIT`. Reconnects LiveKit, releases mesh mic, re-claims `AudioOwner.LIVEKIT`, and transitions back to `ONLINE`.
+- **Non-Disruptive Transition (WP-38):** In provisional online recovery, mesh audio playback remains active. Microphone capture is paused only while awaiting LiveKit `CONNECTED` state with a 15-second timeout. If LiveKit reconnects, audio ownership transitions cleanly to LiveKit. If the 15-second timeout expires without LiveKit connected, capture rolls back to offline mesh, avoiding dead air.
 
 ### 3.4 Audio Ownership & Quiet Guard Window
 - Audio exclusivity is governed by `AudioOwnershipArbiter` via mutual exclusion mutex.

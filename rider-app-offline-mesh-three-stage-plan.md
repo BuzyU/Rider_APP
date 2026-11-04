@@ -1116,9 +1116,17 @@ Following independent audit and remediation (WP-25 through WP-33), the following
 - `enableAudio()` returns a type-safe `EnableAudioResult` sealed hierarchy (`Success`, `Failure.OwnershipDenied`, `Failure.SocketError`, `Failure.AudioRecordError`, `Failure.SessionInvalid`) rather than throwing raw runtime exceptions.
 
 ### Amendment 5: Forwarding, TTL Limits, and Endpoint Learning
-- Forwarding and hop count bounds: `TtlPolicy.MAX_HOPS = 7`, `TtlPolicy.DEFAULT_TTL = 7`. Packets are dropped immediately if `ttl <= 0`, `hopCount > MAX_HOPS`, or `ttl + hopCount > DEFAULT_TTL`.
+- Forwarding and hop count bounds: `TtlPolicy.MAX_HOPS = 7`, `TtlPolicy.DEFAULT_TTL = 7` [CORRECTED 4 Nov 2026: value is 5]. Packets are dropped immediately if `ttl <= 0`, `hopCount > MAX_HOPS`, or `ttl + hopCount > DEFAULT_TTL`.
+  * [CORRECTED 4 Nov 2026: value is 5] (A1 / WP-41: MeshConfig.DEFAULT_TTL is 5; MAX_HOPS = 7 is a sanity cap only; with DEFAULT_TTL = 5 and ttl >= 1, hopCount cannot exceed 4 upon forwarding).
 - UDP sockets enforce D22 invariant: unauthenticated packets are never registered into endpoint caches. Endpoints are registered solely after outer HMAC-SHA256 verification or explicit verified registration.
 - `RoutingTable` uses `@Synchronized` recomputation and atomic immutable snapshot swapping.
 
 ### Amendment 6: Physical Testing Contract
 - All multi-device, radio propagation, Bluetooth SCO helmet headset, and physical vehicular field tests are cataloged in `docs/testing/PHYSICAL_TEST_CHECKLIST.md` and marked as **NOT EXECUTED**. Automated verification is strictly based on JVM unit test suites (358 tests).
+
+### Amendment 7 (4 Nov 2026) - Corrective Remediation (WP-34 through WP-42)
+1. **TTL and Hop Invariants:** Time-To-Live default is strictly 5 (`MeshConfig.DEFAULT_TTL = 5`), reaching up to 6 devices in a line. With invariant `ttl + hopCount <= 5`, max hop count cannot exceed 4 upon relay.
+2. **Stage 3 Reachability via Pairing-Code Backup:** Offline secrets are never derived from online room names. Automatic fallback during online rides requires riders to type a shared pairing code in the offline lobby before the ride, saved in `OfflineSessionHolder.backupSession`.
+3. **Validated Internet Source & Standing Rule:** Handoff to offline mesh occurs ONLY on confirmed continuous total loss of internet (`!isValidatedInternet && !isLiveKitConnected && !isHealthProbeSuccessful`) for the full 10-second hysteresis window. Degraded connectivity or loss of LiveKit alone NEVER triggers mesh fallback.
+4. **Non-Disruptive Recovery:** When validated internet returns, mesh audio playback remains active while awaiting LiveKit reconnection in the background (up to 15s timeout). If timeout expires without LiveKit connected, capture rolls back cleanly to mesh without dead air.
+5. **Memory Hygiene & Permission Hardening:** PBKDF2 buffers and cryptographic key arrays are zeroized on close (`OfflineSession` implements `AutoCloseable`). Unreferenced permissions (`CHANGE_WIFI_STATE`, `NEARBY_WIFI_DEVICES`) removed from AndroidManifest.xml. Debug receiver guarded with `android.permission.DUMP`.

@@ -116,7 +116,7 @@ class Stage5AcceptanceTest {
         val names = listOf("A", "B", "C", "D", "E", "F")
         for ((idx, name) in names.withIndex()) {
             val uuid = UUID.nameUUIDFromBytes("node-$name".toByteArray()).toString()
-            val ep = MeshEndpoint("10.1.1.${idx + 1}", MeshConfig.AUDIO_PORT)
+            val ep = MeshEndpoint("10.1.1.${idx + 1}", MeshConfig.MESH_PORT)
             allNodes.add(
                 AcceptanceNode(
                     tag = name,

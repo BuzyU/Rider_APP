@@ -78,8 +78,8 @@ Every datagram transmitted on the network adheres to the binary big-endian layou
 | 22..37 | `Source ID` | 16 bytes | 128-bit UUID of the node originating the packet. Unmodified during relays. |
 | 38..41 | `Sequence` | int32 | Monotonically incrementing sequence number for the `(sourceId, packetType)` stream. |
 | 42..49 | `Capture Timestamp` | int64 | Milliseconds elapsed since Unix epoch on sender. Verified by clock guard. |
-| 50 | `TTL` | uint8 | Time-To-Live hop counter. Decremented at each relay step. Default = 7 (`TtlPolicy.DEFAULT_TTL`). |
-| 51 | `Hop Count` | uint8 | Number of hops traversed so far. Incremented at each relay step. Max = 7 (`TtlPolicy.MAX_HOPS`). |
+| 50 | `TTL` | uint8 | Time-To-Live hop counter. Decremented at each relay step. Default = 5 (`MeshConfig.DEFAULT_TTL`). |
+| 51 | `Hop Count` | uint8 | Number of hops traversed so far. Incremented at each relay step. Sanity bound = 7 (`MeshConfig.MAX_HOPS`). |
 | 52..67 | `Previous Hop ID` | 16 bytes | 128-bit UUID of the node that transmitted this specific datagram. |
 | 68 | `Audio Format` | uint8 | `0x01` = PCM 16kHz 16-bit Mono (640 bytes / 20ms). |
 | 69..72 | `Epoch` | int32 | Incremented on sender restart to defeat replay across sessions. |
@@ -113,7 +113,7 @@ Upon receiving a UDP packet on port 45454, every node executes the following det
     - If `VOICE`: Proceed to audio decryption and local playout.
 13. **Voice Playout Decryption (VOICE only):** Decrypt sealed payload using AES-256-GCM with `payloadKey` and deterministic nonce. Unsealed PCM bytes are submitted to `MultiSourceJitterBufferManager` under `sourceId`.
 14. **TTL & Hop Count Policy Enforcement:** 
-    - Invariant: Drop and reject packet immediately if `ttl <= 0`, `hopCount > MAX_HOPS` (7), or `ttl + hopCount > DEFAULT_TTL` (7).
+    - Invariant: Drop and reject packet immediately if `ttl <= 0`, `hopCount > MAX_HOPS` (7), or `ttl + hopCount > DEFAULT_TTL` (5).
     - Forwarding Stop Condition: If `ttl <= 1` or `hopCount >= MAX_HOPS` (7), do not relay further.
 15. **Candidate Neighbor Selection:** Retrieve direct radio neighbors from `MeshGraphRepository`. Exclude:
     - `previousHopId` (never bounce backward to the immediate transmitter).

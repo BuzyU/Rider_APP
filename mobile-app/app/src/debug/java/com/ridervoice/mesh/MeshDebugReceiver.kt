@@ -35,7 +35,7 @@ class MeshDebugReceiver : BroadcastReceiver() {
                 val session = OfflineSessionHolder.currentSession
                 val gateOpen = OfflineMeshGate.isOfflineAllowed()
                 val sessionTruncated = session?.let { it.sessionId.take(8) } ?: "none"
-                // Security rule (A20): log only truncated sessionId, NEVER pairingCode or keys
+                // Security rule (A20): log only truncated sessionId, NEVER session code or secret keys
                 Log.i(TAG, "Debug State Dump: GateOpen=$gateOpen, SessionId=$sessionTruncated")
                 try {
                     val entryPoint = EntryPointAccessors.fromApplication(

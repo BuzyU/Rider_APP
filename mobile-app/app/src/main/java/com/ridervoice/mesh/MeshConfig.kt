@@ -3,7 +3,6 @@ package com.ridervoice.mesh
 /** Tunable constants for the offline mesh. Values are starting points pending physical tests. */
 object MeshConfig {
     const val MESH_PORT = 45454
-    const val AUDIO_PORT = MESH_PORT
 
     const val MAX_DEVICES = 6
     const val MAX_HOPS = 7

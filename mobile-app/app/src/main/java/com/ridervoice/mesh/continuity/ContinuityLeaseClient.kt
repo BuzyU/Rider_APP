@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/** NOT IMPLEMENTED - client stubs only, no backend, unreferenced in production (Stage 4 / Q9). */
 interface ContinuityLeaseClient {
     val activeLeaseUntil: StateFlow<Long?>
     suspend fun requestLease(rideId: String, deviceId: String): ContinuityLeaseResult

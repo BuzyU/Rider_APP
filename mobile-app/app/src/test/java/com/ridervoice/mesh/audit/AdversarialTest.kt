@@ -55,7 +55,7 @@ class AdversarialTest {
         val session: OfflineSession,
         val clock: () -> Long
     ) {
-        val ep = MeshEndpoint(host, MeshConfig.AUDIO_PORT)
+        val ep = MeshEndpoint(host, MeshConfig.MESH_PORT)
         val link = FakeLink()
         val graph = MeshGraphRepository(selfId = id, selfName = id, clock = clock)
         val routing = RoutingTable()
@@ -149,7 +149,7 @@ class AdversarialTest {
             previousHopId = cId,
             payload = sealedHello
         )
-        val frameFromC = MeshFrame(MeshEndpoint("10.0.0.3", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(relayedHello, s.authKey()))
+        val frameFromC = MeshFrame(MeshEndpoint("10.0.0.3", MeshConfig.MESH_PORT), MeshPacketCodec.encode(relayedHello, s.authKey()))
         val outcomeRelayed = a.engine.onIncomingFrame(frameFromC)
         assertTrue(outcomeRelayed is ReceiveOutcome.Accepted)
 
@@ -166,7 +166,7 @@ class AdversarialTest {
             previousHopId = bId,
             payload = sealedHello
         )
-        val frameFromB = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(directHello, s.authKey()))
+        val frameFromB = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(directHello, s.authKey()))
         val outcomeDirect = a.engine.onIncomingFrame(frameFromB)
         assertTrue("Direct HELLO was dropped: $outcomeDirect", outcomeDirect is ReceiveOutcome.Accepted)
         assertTrue("Direct neighbor B should be registered", a.graph.directNeighborIds().contains(bId))
@@ -193,7 +193,7 @@ class AdversarialTest {
             previousHopId = bId,
             payload = ByteArray(1200) { 1 }
         )
-        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(oversizedVoice, s.authKey()))
+        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(oversizedVoice, s.authKey()))
         val outcome = a.engine.onIncomingFrame(frame)
         assertTrue("Oversized voice should be dropped: $outcome", outcome is ReceiveOutcome.Dropped)
         assertEquals(ReceiveOutcome.DropReason.BAD_PAYLOAD, (outcome as ReceiveOutcome.Dropped).reason)
@@ -220,7 +220,7 @@ class AdversarialTest {
             previousHopId = bId,
             payload = ByteArray(0)
         )
-        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(emptyVoice, s.authKey()))
+        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(emptyVoice, s.authKey()))
         val outcome = a.engine.onIncomingFrame(frame)
         assertTrue("Zero-length voice should be dropped: $outcome", outcome is ReceiveOutcome.Dropped)
         assertEquals(ReceiveOutcome.DropReason.BAD_PAYLOAD, (outcome as ReceiveOutcome.Dropped).reason)
@@ -247,7 +247,7 @@ class AdversarialTest {
             previousHopId = bId,
             payload = ByteArray(10) { 1 }
         )
-        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(byeWithBody, s.authKey()))
+        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(byeWithBody, s.authKey()))
         val outcome = a.engine.onIncomingFrame(frame)
         assertTrue("BYE with body should be dropped: $outcome", outcome is ReceiveOutcome.Dropped)
         assertEquals(ReceiveOutcome.DropReason.BAD_PAYLOAD, (outcome as ReceiveOutcome.Dropped).reason)
@@ -277,7 +277,7 @@ class AdversarialTest {
             previousHopId = bId,
             payload = sealed
         )
-        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(voicePacket, s.authKey()))
+        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(voicePacket, s.authKey()))
 
         // 1. Initial receive at t=100s
         val outcome1 = a.engine.onIncomingFrame(frame)
@@ -319,7 +319,7 @@ class AdversarialTest {
             payload = badPayload
         )
         // Outer HMAC is valid because attacker has authKey (or forged by rogue participant)
-        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(forgedPacket, s.authKey()))
+        val frame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(forgedPacket, s.authKey()))
 
         val outcome = a.engine.onIncomingFrame(frame)
         assertTrue("Bad GCM payload must be dropped: $outcome", outcome is ReceiveOutcome.Dropped)
@@ -333,7 +333,7 @@ class AdversarialTest {
         val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code, attackerId)
         val validSealed = PayloadCrypto.seal(s.payloadKey(), nonce, aad, ByteArray(640))
         val validPacket = forgedPacket.copy(payload = validSealed)
-        val validFrame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.AUDIO_PORT), MeshPacketCodec.encode(validPacket, s.authKey()))
+        val validFrame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(validPacket, s.authKey()))
 
         val validOutcome = a.engine.onIncomingFrame(validFrame)
         assertTrue("Authentic packet with same seq must be accepted: $validOutcome", validOutcome is ReceiveOutcome.Accepted)
@@ -354,7 +354,7 @@ class AdversarialTest {
         MeshConfig.debugPeerFilter = { previousHopId -> previousHopId != aId }
         try {
             val directFrameFromA = MeshFrame(
-                MeshEndpoint("10.0.0.1", MeshConfig.AUDIO_PORT),
+                MeshEndpoint("10.0.0.1", MeshConfig.MESH_PORT),
                 MeshPacketCodec.encode(
                     MeshPacket(
                         type = MeshPacketType.VOICE,

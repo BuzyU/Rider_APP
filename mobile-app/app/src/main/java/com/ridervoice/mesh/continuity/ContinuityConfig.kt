@@ -1,6 +1,7 @@
 package com.ridervoice.mesh.continuity
 
 /**
+ * NOT IMPLEMENTED - client stubs only, no backend, unreferenced in production (Stage 4 / Q9).
  * Feature flag for optional backend ride continuity reservation.
  * Default is FALSE: completely decoupled from standalone offline mesh operations.
  */

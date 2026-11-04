@@ -15,7 +15,7 @@ import com.ridervoice.BuildConfig
  * build a graph, create AudioRecord/AudioTrack, request offline permissions, or start foreground services.
  */
 object FeatureFlags {
-    /** Emergency in-app kill switch (not remote yet; in-app/diagnostic control). Defaults to false (fail-open for offline riders). */
+    /** Emergency in-app kill switch (not remote yet; in-app/diagnostic control). Defaults to false (offline mesh allowed when build permits). When true, kills offline mesh unconditionally. */
     @Volatile
     var localKillSwitch: Boolean = false
 

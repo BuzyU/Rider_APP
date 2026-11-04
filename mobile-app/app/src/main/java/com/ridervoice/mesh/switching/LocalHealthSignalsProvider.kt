@@ -75,8 +75,7 @@ class LocalHealthSignalsProvider(
     private var lastProbeResult: Boolean = true
 
     suspend fun sampleSignals(): LocalHealthSignals {
-        val validatedInternet = isInternetValidated?.invoke()
-            ?: (networkObserver?.isConnected() ?: false)
+        val validatedInternet = isInternetValidated?.invoke() ?: false
 
         val lkState = liveKitConnectionState?.value ?: ConnectionState.DISCONNECTED
         val isLkConnected = lkState == ConnectionState.CONNECTED
@@ -119,7 +118,7 @@ class LocalHealthSignalsProvider(
 
     private fun executeActiveProbe(): Boolean = runCatching {
         val req = Request.Builder()
-            .url("${Constants.BASE_URL}health")
+            .url(buildHealthUrl(Constants.BASE_URL))
             .head()
             .build()
         probeClient.newCall(req).execute().use { response ->
@@ -151,6 +150,9 @@ class LocalHealthSignalsProvider(
     }
 
     companion object {
+        fun buildHealthUrl(baseUrl: String = Constants.BASE_URL): String =
+            baseUrl.trimEnd('/') + "/health"
+
         fun createMachine(
             coordinator: VoiceSessionCoordinator,
             config: AntiFlappingConfig = AntiFlappingConfig(),

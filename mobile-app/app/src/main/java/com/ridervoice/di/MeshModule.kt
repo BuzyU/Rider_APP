@@ -23,9 +23,11 @@ import com.ridervoice.mesh.link.NetworkLocks
 import com.ridervoice.mesh.link.UdpMeshLink
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSecretProvider
+import com.ridervoice.mesh.switching.AndroidNetworkCapsReader
 import com.ridervoice.mesh.switching.AutomaticSwitchStateMachine
 import com.ridervoice.mesh.switching.LocalHealthSignalsProvider
 import com.ridervoice.mesh.switching.MeshAutoSwitchManager
+import com.ridervoice.mesh.switching.ValidatedInternetSource
 import com.ridervoice.mesh.transport.AudioOwnershipArbiter
 import com.ridervoice.mesh.transport.LiveKitVoiceTransport
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
@@ -181,14 +183,25 @@ object MeshModule {
 
     @Provides
     @Singleton
+    fun provideValidatedInternetSource(
+        @ApplicationContext context: Context
+    ): ValidatedInternetSource = ValidatedInternetSource(
+        reader = AndroidNetworkCapsReader(context),
+        context = context
+    )
+
+    @Provides
+    @Singleton
     fun provideLocalHealthSignalsProvider(
         networkObserver: NetworkObserver,
         liveKitManager: LiveKitManager,
-        meshTransport: OfflineMeshVoiceTransport
+        meshTransport: OfflineMeshVoiceTransport,
+        validated: ValidatedInternetSource
     ): LocalHealthSignalsProvider = LocalHealthSignalsProvider(
         networkObserver = networkObserver,
         liveKitConnectionState = liveKitManager.connectionState,
-        meshControl = meshTransport
+        meshControl = meshTransport,
+        isInternetValidated = { validated.isValidated() }
     )
 
     @Provides

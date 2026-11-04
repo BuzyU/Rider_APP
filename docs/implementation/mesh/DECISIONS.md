@@ -17,5 +17,8 @@ Format: `WP-NN | situation | decision | reason`
 | Owner Q10 | Frozen files & permissions invariant | Exact 0 diff against commit a37ef09. Zero backend changes. Zero Android permissions added. | Mandated owner decision Q10 & Rule R1. Preserves operational stability of production online ride infrastructure. |
 | WP-28 | LiveKit quiet guard and enableAudio return type | 400ms guard window before claiming OFFLINE_MESH owner; enableAudio returns EnableAudioResult sealed interface | Avoids throwing exceptions across coordinator boundaries; ensures LiveKit mic is completely quiet before mesh starts AudioRecord |
 | WP-33 | Remote main had commit 71da9fc (failed CI before prompt) diverging from mandated baseline 7f8314e | Pushed with --force-with-lease | Preserves linear git history from baseline 7f8314e per prompt contract and replaces failed CI commit |
+| WP-35 | VALIDATED network capability false positive risk | Kept strict 3-way conjunction (!isValidated && !isLkConnected && !probeOk) for total loss | VALIDATED can be false while internet works (blocked captive portal endpoint/VPN); safe only because total loss also requires LiveKit down and /health probe failing |
+| WP-35 | liveKitReconnectAttempts inaccessible | Recorded NO PUBLIC SOURCE; lambda left at 0; no loss/RTT sampling added | LiveKitManager.reconnectAttempts is private; design limit A22 documented without breaking frozen files |
+| WP-35 | Standing rule enforcement in state machine | Reset suspect timer and transition to ONLINE whenever !isTotalLoss() | Prevents spurious offline fallback if internet recovers while LiveKit is still reconnecting |
 
 

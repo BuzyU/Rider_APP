@@ -112,9 +112,9 @@ class AutomaticSwitchStateMachine(
 
             AutoSwitchState.ONLINE_SUSPECT -> {
                 onProbeMesh?.invoke()
-                if (signals.isOnlineHealthy()) {
+                if (!signals.isTotalLoss()) {
                     suspectStartTimeMs = 0L
-                    transitionTo(AutoSwitchState.ONLINE, "Local online recovered during suspect window")
+                    transitionTo(AutoSwitchState.ONLINE, "Total loss cleared")
                 } else if (now - suspectStartTimeMs >= config.failureConfirmationMs * backoffMultiplier) {
                     if (isFlappingSuppressed(now)) {
                         // Rate-limited; stay in suspect with increased backoff
@@ -130,15 +130,10 @@ class AutomaticSwitchStateMachine(
                 }
             }
 
-            AutoSwitchState.FALLBACK_UNAVAILABLE -> {
-                if (signals.isOnlineHealthy()) {
-                    transitionTo(AutoSwitchState.ONLINE, "Online restored from fallback unavailable")
-                } else if (signals.hasValidMeshRoute && isGateAllowed()) {
-                    if (isFlappingSuppressed(now)) {
-                        return
-                    }
+            AutoSwitchState.FALLBACK_UNAVAILABLE -> when {
+                !signals.isTotalLoss() -> transitionTo(AutoSwitchState.ONLINE, "Total loss cleared")
+                signals.hasValidMeshRoute && isGateAllowed() && !isFlappingSuppressed(now) ->
                     tryHandoffOffline(now)
-                }
             }
 
             AutoSwitchState.OFFLINE_ACTIVE -> {

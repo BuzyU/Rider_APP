@@ -6,7 +6,7 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 |---|---|---|---|---|
 | **A1** | CRITICAL | OPEN | `MeshConfig.kt:24` vs `docs/protocol/mesh-v2.md:81` | Code is `const val DEFAULT_TTL = 5` but docs claim `Default = 7 (TtlPolicy.DEFAULT_TTL)`. |
 | **A2** | CRITICAL | OPEN | `MeshAutoSwitchManager.kt:135`, `MeshModule.kt:156` | Stage 3 unreachable: `val companionSession: OfflineSession? = null`, bound `NullOfflineSecretProvider`. |
-| **A3** | CRITICAL | OPEN | `LocalHealthSignalsProvider.kt:78-79` | `val validatedInternet = isInternetValidated?.invoke() ?: (networkObserver?.isConnected() ?: false)` — fallback checks only NET_CAPABILITY_INTERNET, blind to dead hotspots. |
+| **A3** | CRITICAL | FIXED | `LocalHealthSignalsProvider.kt:78`, `ValidatedInternetSource.kt` | WP-35 / `ValidatedInternetAndStandingRulesTest` (`wifiConnectedButNotValidated_isNotValidated`) | Added ValidatedInternetSource checking NET_CAPABILITY_VALIDATED; removed blind isConnected fallback |
 | **A4** | HIGH | OPEN | `OfflineRoomScreen.kt:126`, `MeshVoxBridge.kt:80` | `transport.setMicrophoneEnabled(next)` bypasses MeshVoxBridge; PTT release closes toggle mic. |
 | **A5** | HIGH | OPEN | `OfflineMeshVoiceTransport.kt:297` | `if (micWanted) { aCapture.start() }` — AudioRecord capture never starts when micWanted=false; hands-free VOX cannot hear speech to trigger. |
 | **A6** | HIGH | OPEN | `MeshVoxBridge.kt:67, 180` | `attachListeners()` in init clobbers RoomViewModel's `onMicToggleRequest`; `close()` sets it to null and cancels scope permanently. |
@@ -25,11 +25,11 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 | **A19** | LOW | OPEN | `AndroidManifest.xml:6, 9` | `CHANGE_WIFI_STATE` and `NEARBY_WIFI_DEVICES` declared without recorded architectural decision. |
 | **A20** | LOW | OPEN | `MeshDebugReceiver.kt:24`, `debug/AndroidManifest.xml:4` | Exported receiver without permission guard or peer filter. |
 | **A21** | LOW | OPEN | `docs/implementation/mesh/AUDIT_FACTS.md`, root audit docs | Stale documents and overclaiming documentation. |
-| **A22** | LOW | OPEN | `LocalHealthSignalsProvider.kt:45` | `liveKitReconnectAttempts: () -> Int = { 0 }` (NO PUBLIC SOURCE on LiveKitManager). |
+| **A22** | LOW | CLOSED | `LocalHealthSignalsProvider.kt:45` | WP-35 / DECISIONS.md | Design limit: `LiveKitManager.reconnectAttempts` is private (NO PUBLIC SOURCE); lambda left at 0; no loss/RTT sampling added per instruction |
 | **A23** | LOW | OPEN | `MeshForegroundService.kt:57`, `Routes.kt:27` | Unused `sessionCode` overloads in service and routes. |
 | **A24** | LOW | OPEN | `SwitchingModels.kt:72-73` | `if (meshCount > 0 \|\| offlineOrGhostCount > 0) GroupConnectivityStatus.MIXED` treats left LiveKit participant as MIXED. |
 | **A25** | HIGH | OPEN | `AutomaticSwitchStateMachine.kt:95-102` | `if (!offlineAvailable) ... return` returns before state switch; in OFFLINE_ACTIVE never hands back if backup secret expires. |
-| **A26** | CRITICAL | OPEN | `AutomaticSwitchStateMachine.kt:115, 136` | `isOnlineHealthy()` required to leave SUSPECT (falls back if internet returns but LiveKit reconnecting); FALLBACK_UNAVAILABLE lacks isTotalLoss check. |
+| **A26** | CRITICAL | FIXED | `AutomaticSwitchStateMachine.kt:115, 136` | WP-35 / `ValidatedInternetAndStandingRulesTest` (`partialRecovery_resetsSuspectTimer`, `internetBackLiveKitReconnecting_staysOnline`) | Suspect timer resets whenever !isTotalLoss(); FALLBACK_UNAVAILABLE requires isTotalLoss() |
 | **A27** | HIGH | OPEN | `AutomaticSwitchStateMachine.kt:88, 163, 171` | `mutex.withLock` held across handoff; `> 15_000L` branches unreachable; `endSession()` blocks behind handoff. |
 | **A28** | HIGH | OPEN | `LiveKitManagerPort.kt`, `MeshModule.kt:135` | `voxRestarter = { voxEngine.start() }` restarts VOX unconditionally while LiveKit is disconnected. |
 | **A29** | MEDIUM | OPEN | `MeshDebugReceiver.kt:33` | `Log.i(TAG, "... ActiveSession=${session?.pairingCode?.take(4)}****")` leaks secret pairing code prefix into logcat. |

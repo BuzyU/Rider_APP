@@ -409,6 +409,37 @@ class OfflineMeshVoiceTransport(
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
     }
 
+    override suspend fun pauseCaptureOnly() {
+        startMutex.withLock {
+            audioCapture?.stop()
+            _micState.value = MicState.MUTED
+        }
+    }
+
+    override suspend fun resumeCaptureOnly() {
+        startMutex.withLock {
+            if (audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH) {
+                val cap = audioCapture
+                if (cap != null) {
+                    val wantCapture = micWanted || micController.micToggleOn.value || micController.pttHeld.value || micController.voxEnabled.value
+                    if (wantCapture) {
+                        _micState.value = MicState.STARTING
+                        val res = cap.start()
+                        _micState.value = when (res) {
+                            CaptureStart.Started -> MicState.ON
+                            CaptureStart.NoPermission -> MicState.PERMISSION_DENIED
+                            CaptureStart.NotOwner -> MicState.OWNERSHIP_DENIED
+                            CaptureStart.HardwareFailed -> MicState.HARDWARE_BUSY
+                            CaptureStart.GateClosed -> MicState.OFF
+                        }
+                    } else {
+                        _micState.value = MicState.OFF
+                    }
+                }
+            }
+        }
+    }
+
     override suspend fun start(session: VoiceSession) {
         val offlineSession = when (session) {
             is VoiceSession.Offline -> session.session

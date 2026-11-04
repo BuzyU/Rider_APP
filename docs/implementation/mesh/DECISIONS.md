@@ -31,3 +31,4 @@ Format: `WP-NN | situation | decision | reason`
 | WP-37 | Authenticated endpoint registration | Direct hopCount == 0 frames only registered after AEAD + dedup + admission pass | Mandated by A14: prevents cache pollution from forged or relayed packets. |
 | WP-37 | App.kt startup order | OfflineMeshGate.install precedes meshAutoSwitchManager.start() unconditionally | Mandated by A12/A45: ensures runtime settings flow is initialized before manager collects it. |
 
+| WP-38 | Non-disruptive recovery dead air | Keep mesh playback enabled and pause capture only while waiting up to 15s for LiveKit CONNECTED; rollback to mesh capture on timeout | Mandated by A8: eliminates up to 15s of silence/dead air during recovery attempt.

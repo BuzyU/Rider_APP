@@ -11,7 +11,7 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 | **A5** | HIGH | FIXED | `OfflineMeshVoiceTransport.kt`, `MicRules.kt` | WP-36 / `MicAudioControlPathTest` | AudioRecord capture runs whenever audioEnabled && (micToggleOn || pttHeld || voxEnabled). |
 | **A6** | HIGH | FIXED | `MeshVoxBridge.kt` | WP-36 / `WP34RedTests`, `MicAudioControlPathTest` | Removed listener registration in init; attach/detach lifecycle with reference identity check. |
 | **A7** | HIGH | FIXED | `LiveKitVoiceTransport.kt` | WP-36 / `MicAudioControlPathTest` | isVoxRunning tracks active connection state and VOX stopped state faithfully. |
-| **A8** | HIGH | OPEN | `VoiceSessionCoordinator.kt:247` | `mesh.disableAudio()` called before waiting up to 15s for LiveKit CONNECTED; creates up to 15s dead air during recovery. |
+| **A8** | HIGH | FIXED | VoiceSessionCoordinator.kt:190-205 | pauseCaptureOnly() stops AudioRecord but keeps playback until LiveKit CONNECTED confirmed; rollback on timeout restores capture. (WP-38) |
 | **A9** | HIGH | FIXED | `VoiceSessionCoordinator.kt:175` | WP-36 / `VoiceSessionCoordinatorTest`, `AudioHandoffRobustnessTest` | Removed liveKitTransport.stop() from fallbackToMesh(); LiveKit remains paused. |
 | **A10** | HIGH | OPEN | `NavGraph.kt:371-373` | `OfflineSession.fromCode(sessionCode, ...) ?: OfflineSession.create(...)` derives on UI thread and creates fallback session on invalid code. |
 | **A11** | HIGH | OPEN | `NavGraph.kt:420` | `DisposableEffect(session.sessionId) { onDispose { viewModel.stopSession() } }` terminates offline session on screen rotation. |
@@ -34,7 +34,7 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 | **A28** | HIGH | FIXED | `LiveKitVoiceTransport.kt` | WP-36 / `MicAudioControlPathTest` | restartVoxIfPreviouslyRunning() only starts VOX when connectionState == CONNECTED. |
 | **A29** | MEDIUM | OPEN | `MeshDebugReceiver.kt:33` | `Log.i(TAG, "... ActiveSession=${session?.pairingCode?.take(4)}****")` leaks secret pairing code prefix into logcat. |
 | **A30** | MEDIUM | OPEN | `MeshForegroundService.kt:96-103` | No-mic path on API>=29 calls `startForeground` with no type, throwing SecurityException against manifest microphone type. |
-| **A31** | MEDIUM | OPEN | `ContinuityLeaseClient.kt:35, 46` | `catch (t: Throwable)` and `catch (_: Throwable)` swallow `CancellationException`. |
+| **A31** | MEDIUM | FIXED | ContinuityLeaseClient.kt:35, 48 | Rethrows CancellationException before catching Exception; logs warning with MeshLog.w. (WP-38) |
 | **A32** | LOW | OPEN | `SwitchingModels.kt:40`, `MeshConfig.kt:6` | Dead code `PartialMeshPeer` and `AUDIO_PORT` redundant alias. |
 | **A33** | MEDIUM | FIXED (WP-37) | `VoiceSessionCoordinator.kt:55-61` | `computeAvailability()` not reactive to secretProvider flow or backup session expiry. |
 | **A34** | LOW | FIXED (WP-37) | `values/strings.xml`, `values-hi`, `values-mr` | `mesh_invalid_code` and `mesh_use_as_ride_backup` string resources missing. |

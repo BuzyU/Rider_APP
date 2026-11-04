@@ -89,8 +89,15 @@ class VoiceSessionCoordinatorTest {
             return EnableAudioResult.Success
         }
 
+        var capturePaused = false
         override suspend fun disableAudio() {
             audioEnabled = false
+        }
+        override suspend fun pauseCaptureOnly() {
+            capturePaused = true
+        }
+        override suspend fun resumeCaptureOnly() {
+            capturePaused = false
         }
 
         override suspend fun start(session: VoiceSession) {

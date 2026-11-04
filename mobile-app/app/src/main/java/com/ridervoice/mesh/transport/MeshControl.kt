@@ -39,4 +39,10 @@ interface MeshControl {
 
     /** Stops mic capture first, then playback, and releases audio ownership. */
     suspend fun disableAudio()
+
+    /** Pauses offline AudioRecord capture while keeping playback active (no dead air during recovery). */
+    suspend fun pauseCaptureOnly()
+
+    /** Resumes offline AudioRecord capture if recovery to LiveKit fails or times out. */
+    suspend fun resumeCaptureOnly()
 }

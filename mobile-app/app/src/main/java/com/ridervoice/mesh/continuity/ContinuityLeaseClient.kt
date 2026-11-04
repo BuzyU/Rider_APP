@@ -32,8 +32,11 @@ class DefaultContinuityLeaseClient(
             } else {
                 ContinuityLeaseResult.Denied(response.message ?: "Lease denied by server")
             }
-        } catch (t: Throwable) {
-            ContinuityLeaseResult.NetworkError(t)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            com.ridervoice.mesh.MeshLog.w("ContinuityLease", "Lease request failed: ${e.javaClass.simpleName}")
+            ContinuityLeaseResult.NetworkError(e)
         }
     }
 
@@ -43,7 +46,10 @@ class DefaultContinuityLeaseClient(
         val releaser = leaseReleaser ?: return true
         return try {
             releaser(rideId, deviceId)
-        } catch (_: Throwable) {
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            com.ridervoice.mesh.MeshLog.w("ContinuityLease", "Lease release failed: ${e.javaClass.simpleName}")
             false
         }
     }

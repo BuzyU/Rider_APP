@@ -228,6 +228,8 @@ class WiringTest {
                 override suspend fun startDiscoveryOnly(session: OfflineSession) {}
                 override suspend fun enableAudio(): com.ridervoice.mesh.transport.EnableAudioResult = com.ridervoice.mesh.transport.EnableAudioResult.Success
                 override suspend fun disableAudio() {}
+                override suspend fun pauseCaptureOnly() {}
+                override suspend fun resumeCaptureOnly() {}
             },
             healthProbe = { probeSuccessful },
             isInternetValidated = { internetValidated }

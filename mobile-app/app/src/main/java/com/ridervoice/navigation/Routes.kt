@@ -68,5 +68,4 @@ object Routes {
 
     fun offlineMeshHudPath(): String = OFFLINE_MESH_HUD
 
-    fun offlineMeshHudPath(@Suppress("UNUSED_PARAMETER") sessionCode: String): String = OFFLINE_MESH_HUD
 }

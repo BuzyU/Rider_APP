@@ -12,26 +12,41 @@ import java.security.SecureRandom
  */
 class OfflineSession private constructor(
     val sessionId: String,
-    val pairingCode: String,
+    private val code: CharArray,
     private val key: ByteArray,
     private val pKey: ByteArray,
     val createdAt: Long,
     val expiresAt: Long,
     val maxDevices: Int = MeshConfig.MAX_DEVICES
-) {
+) : AutoCloseable {
+    @Volatile private var closed = false
+    val isClosed: Boolean get() = closed
+
     fun isExpired(now: Long): Boolean = now >= expiresAt
 
     val secret: ByteArray get() = payloadKey()
 
-    fun close() {
-        // Zeroing key buffers will be completed in WP-39
-    }
+    /** DISPLAY ONLY (lobby). Empty after close(). */
+    val pairingCode: String get() = if (closed) "" else String(code)
 
     /** 32-byte HMAC key derived from the pairing code. Never sent over the wire. */
-    fun authKey(): ByteArray = key.copyOf()
+    fun authKey(): ByteArray {
+        check(!closed) { "session closed" }
+        return key.copyOf()
+    }
 
     /** 32-byte AES-256 payload encryption key derived from the pairing code. Never sent over the wire. */
-    fun payloadKey(): ByteArray = pKey.copyOf()
+    fun payloadKey(): ByteArray {
+        check(!closed) { "session closed" }
+        return pKey.copyOf()
+    }
+
+    override fun close() {
+        closed = true
+        key.fill(0)
+        pKey.fill(0)
+        code.fill('\u0000')
+    }
 
     override fun toString(): String =
         "OfflineSession(id=$sessionId, expiresAt=$expiresAt)"
@@ -71,7 +86,7 @@ class OfflineSession private constructor(
             val derived = SessionKdf.derive(code, iterations)
             return OfflineSession(
                 sessionId = derived.sessionId,
-                pairingCode = code,
+                code = code.toCharArray(),
                 key = derived.authKey,
                 pKey = derived.payloadKey,
                 createdAt = now,

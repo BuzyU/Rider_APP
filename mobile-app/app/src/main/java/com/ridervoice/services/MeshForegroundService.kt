@@ -13,9 +13,11 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.ridervoice.MainActivity
 import com.ridervoice.R
+import com.ridervoice.mesh.MeshLog
 import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.session.OfflineSessionHolder
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
@@ -40,29 +42,37 @@ class MeshForegroundService : Service() {
     private var observerJob: Job? = null
     private var stateJob: Job? = null
 
+    sealed interface FgsDecision {
+        data class Start(val withType: Boolean) : FgsDecision
+        object Stop : FgsDecision
+    }
+
     companion object {
+        private const val TAG = "MeshFgs"
         const val CHANNEL_ID = "CHANNEL_OFFLINE_MESH"
         const val NOTIFICATION_ID = 45454
-        const val ACTION_STOP_SERVICE = "com.ridervoice.mesh.ACTION_STOP"
+        const val ACTION_START = "com.ridervoice.mesh.action.START"
+        const val ACTION_STOP = "com.ridervoice.mesh.ACTION_STOP"
+        const val ACTION_STOP_SERVICE = ACTION_STOP
 
-        /** Shared reference to active mesh transport for HUD and service */
-        @Volatile
-        var activeTransport: OfflineMeshVoiceTransport? = null
-            internal set
-
-        fun start(context: Context) {
-            start(context, null)
+        fun decideForeground(action: String?): FgsDecision {
+            return if (action == ACTION_STOP || action == ACTION_STOP_SERVICE) {
+                FgsDecision.Stop
+            } else {
+                FgsDecision.Start(withType = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+            }
         }
 
-        fun start(context: Context, sessionCode: String? = null) {
-            if (!OfflineMeshGate.isOfflineAllowed()) {
+        fun start(context: Context) {
+            if (!OfflineMeshGate.isOfflineAllowed()) return
+            val hasMic = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            if (!hasMic) {
+                MeshLog.w(TAG, "start refused: RECORD_AUDIO missing")
                 return
             }
-            val transport = activeTransport
-            if (transport == null || transport.state.value != VoiceTransportState.CONNECTED) {
-                return
+            val intent = Intent(context, MeshForegroundService::class.java).apply {
+                action = ACTION_START
             }
-            val intent = Intent(context, MeshForegroundService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
@@ -71,7 +81,9 @@ class MeshForegroundService : Service() {
         }
 
         fun stop(context: Context) {
-            val intent = Intent(context, MeshForegroundService::class.java)
+            val intent = Intent(context, MeshForegroundService::class.java).apply {
+                action = ACTION_STOP_SERVICE
+            }
             context.stopService(intent)
         }
     }
@@ -85,51 +97,50 @@ class MeshForegroundService : Service() {
         createNotificationChannel()
     }
 
-    private fun ensureStartedForeground(notification: Notification) {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val hasMic = ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.RECORD_AUDIO
-                ) == PackageManager.PERMISSION_GRANTED
-                if (hasMic) {
-                    startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-                } else {
-                    startForeground(NOTIFICATION_ID, notification)
-                }
-            } else {
-                startForeground(NOTIFICATION_ID, notification)
-            }
-        } catch (_: Throwable) {
-            // Ignore if already foreground or startForeground failed
-        }
-    }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val decision = decideForeground(intent?.action)
+        if (decision is FgsDecision.Stop) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        val hasMic = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        if (!hasMic) {
+            MeshLog.w(TAG, "RECORD_AUDIO missing; refusing startForeground")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         val session = OfflineSessionHolder.currentSession
         val sessionDisplay = session?.let { "ID: ${it.sessionId.take(8)}" } ?: "Active"
         val notification = buildNotification(sessionDisplay, currentPeerCount)
-        ensureStartedForeground(notification)
 
-        if (intent?.action == ACTION_STOP_SERVICE) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: SecurityException) {
+            MeshLog.w(TAG, "startForeground denied: ${e.javaClass.simpleName}")
+            stopSelf()
+            return START_NOT_STICKY
+        } catch (e: IllegalStateException) {
+            MeshLog.w(TAG, "startForeground not allowed: ${e.javaClass.simpleName}")
             stopSelf()
             return START_NOT_STICKY
         }
 
-        if (!OfflineMeshGate.isOfflineAllowed()) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
-
-        val transport = activeTransport
-        if (transport == null || transport.state.value != VoiceTransportState.CONNECTED) {
+        if (!OfflineMeshGate.isOfflineAllowed() || meshTransport.state.value != VoiceTransportState.CONNECTED) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
         }
 
         observerJob?.cancel()
         observerJob = serviceScope.launch {
-            activeTransport?.participants?.collectLatest { peers ->
+            meshTransport.participants.collectLatest { peers ->
                 val onlineCount = peers.count { it.isOnline }
                 if (onlineCount != currentPeerCount) {
                     currentPeerCount = onlineCount
@@ -142,8 +153,9 @@ class MeshForegroundService : Service() {
 
         stateJob?.cancel()
         stateJob = serviceScope.launch {
-            activeTransport?.state?.collectLatest { state ->
+            meshTransport.state.collectLatest { state ->
                 if (state == VoiceTransportState.FAILED || state == VoiceTransportState.STOPPED) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }
             }

@@ -32,3 +32,4 @@ Format: `WP-NN | situation | decision | reason`
 | WP-37 | App.kt startup order | OfflineMeshGate.install precedes meshAutoSwitchManager.start() unconditionally | Mandated by A12/A45: ensures runtime settings flow is initialized before manager collects it. |
 
 | WP-38 | Non-disruptive recovery dead air | Keep mesh playback enabled and pause capture only while waiting up to 15s for LiveKit CONNECTED; rollback to mesh capture on timeout | Mandated by A8: eliminates up to 15s of silence/dead air during recovery attempt.
+| WP-39 | Session lifecycle & rotation stability | Reused holder session across activity rotations; removed NavGraph DisposableEffect teardown; pure decideForeground helper; removed activeTransport static; zeroized KDF and key buffers | Mandated by A10, A11, A15, A16, A23, A30, A35, A43 |

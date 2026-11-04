@@ -34,6 +34,7 @@ class OfflineSessionHolder @Inject constructor() {
     }
 
     fun clearCurrent() = setCurrent(null)
+    fun clearBackup() = setBackup(null)
     fun clearAll() {
         setCurrent(null)
         setBackup(null)
@@ -56,6 +57,9 @@ class OfflineSessionHolder @Inject constructor() {
         fun set(session: OfflineSession?) { getHolder().setCurrent(session) }
         fun get(): OfflineSession? = getHolder().current.value
         fun clear() { getHolder().clearCurrent() }
+        fun clearCurrent() { getHolder().clearCurrent() }
+        fun clearBackup() { getHolder().clearBackup() }
+        fun clearAll() { getHolder().clearAll() }
 
         fun setBackup(session: OfflineSession?) { getHolder().setBackup(session) }
         fun getBackup(): OfflineSession? = getHolder().backup.value

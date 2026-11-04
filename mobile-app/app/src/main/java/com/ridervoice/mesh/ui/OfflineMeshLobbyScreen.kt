@@ -74,7 +74,7 @@ private val TextSecondary = MeshColors.TextSecondary
 @Composable
 fun OfflineMeshLobbyScreen(
     onBackClick: () -> Unit,
-    onEnterSession: (sessionCode: String) -> Unit,
+    onEnterSession: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -265,7 +265,7 @@ fun OfflineMeshLobbyScreen(
                                         Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
                                         onBackClick()
                                     } else {
-                                        onEnterSession(session.pairingCode)
+                                        onEnterSession()
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = ElectricGreen),
@@ -340,7 +340,7 @@ fun OfflineMeshLobbyScreen(
                                         Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
                                         onBackClick()
                                     } else {
-                                        onEnterSession(session.pairingCode)
+                                        onEnterSession()
                                     }
                                 }
                             }
@@ -385,7 +385,7 @@ fun OfflineMeshLobbyScreen(
                                     Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
                                     onBackClick()
                                 } else {
-                                    onEnterSession(session.pairingCode)
+                                    onEnterSession()
                                 }
                             }
                         },

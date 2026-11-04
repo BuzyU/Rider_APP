@@ -127,7 +127,7 @@ class WiringTest {
 
             // 2. MeshForegroundService.start aborts and posts no notification
             val mockContext = io.mockk.mockk<android.content.Context>(relaxed = false)
-            com.ridervoice.services.MeshForegroundService.start(mockContext, "PAIR123")
+            com.ridervoice.services.MeshForegroundService.start(mockContext)
             io.mockk.verify(exactly = 0) {
                 mockContext.startService(any())
                 mockContext.startForegroundService(any())
@@ -153,24 +153,11 @@ class WiringTest {
         FeatureFlags.localOverride = true
 
         val mockContext = io.mockk.mockk<android.content.Context>(relaxed = true)
-        val mockTransport = io.mockk.mockk<OfflineMeshVoiceTransport>(relaxed = true)
-        val transportState = MutableStateFlow(VoiceTransportState.STARTING)
-        io.mockk.every { mockTransport.state } returns transportState
 
         try {
             assertTrue(OfflineMeshGate.isOfflineAllowed())
-            com.ridervoice.services.MeshForegroundService.activeTransport = mockTransport
 
-            // Case 1: In STARTING state, start() does not start service
-            com.ridervoice.services.MeshForegroundService.start(mockContext, "PAIR123")
-            io.mockk.verify(exactly = 0) {
-                mockContext.startService(any())
-                mockContext.startForegroundService(any())
-            }
-
-            // Case 2: Transition to CONNECTED state, start() starts service
-            transportState.value = VoiceTransportState.CONNECTED
-            com.ridervoice.services.MeshForegroundService.start(mockContext, "PAIR123")
+            com.ridervoice.services.MeshForegroundService.start(mockContext)
             io.mockk.verify(atLeast = 1) {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     mockContext.startForegroundService(any())
@@ -179,7 +166,6 @@ class WiringTest {
                 }
             }
         } finally {
-            com.ridervoice.services.MeshForegroundService.activeTransport = null
             FeatureFlags.localOverride = null
             OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
         }
@@ -191,13 +177,9 @@ class WiringTest {
     @Test
     fun transportGoesFailedOrStoppedStopsService() = runTest {
         val mockContext = io.mockk.mockk<android.content.Context>(relaxed = true)
-        try {
-            com.ridervoice.services.MeshForegroundService.stop(mockContext)
-            io.mockk.verify(exactly = 1) {
-                mockContext.stopService(any())
-            }
-        } finally {
-            com.ridervoice.services.MeshForegroundService.activeTransport = null
+        com.ridervoice.services.MeshForegroundService.stop(mockContext)
+        io.mockk.verify(exactly = 1) {
+            mockContext.stopService(any())
         }
     }
 

@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.transport
 
+import com.ridervoice.mesh.MeshLog
 import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSecretProvider
@@ -46,7 +47,7 @@ class VoiceSessionCoordinator(
 ) {
     private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         if (exception is CancellationException) throw exception
-        // Coordinator error logging without process crash
+        MeshLog.w("VoiceSessionCoordinator", "unhandled coroutine error: ${exception.message}")
     }
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher + exceptionHandler)

@@ -1,6 +1,7 @@
 package com.ridervoice.mesh.link
 
 import com.ridervoice.mesh.MeshConfig
+import com.ridervoice.mesh.MeshLog
 import com.ridervoice.mesh.OfflineMeshGate
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -48,6 +49,7 @@ class UdpMeshLink(
 
     private val exceptionHandler = kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
         if (throwable is kotlinx.coroutines.CancellationException) throw throwable
+        MeshLog.w("UdpMeshLink", "unhandled coroutine error: ${throwable.message}")
     }
 
     @Volatile

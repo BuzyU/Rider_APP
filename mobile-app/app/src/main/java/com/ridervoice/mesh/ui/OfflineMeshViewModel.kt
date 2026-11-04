@@ -22,7 +22,8 @@ import javax.inject.Inject
 @HiltViewModel
 class OfflineMeshViewModel @Inject constructor(
     val transport: OfflineMeshVoiceTransport,
-    val arbiter: AudioOwnershipArbiter
+    val arbiter: AudioOwnershipArbiter,
+    val holder: OfflineSessionHolder = OfflineSessionHolder.getHolder()
 ) : ViewModel() {
 
     private var appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -35,6 +36,15 @@ class OfflineMeshViewModel @Inject constructor(
         this.appScope = appScope
     }
 
+    constructor(
+        transport: OfflineMeshVoiceTransport,
+        arbiter: AudioOwnershipArbiter,
+        holder: OfflineSessionHolder,
+        appScope: CoroutineScope
+    ) : this(transport, arbiter, holder) {
+        this.appScope = appScope
+    }
+
     private val _liveKitConflictError = MutableStateFlow(false)
     val liveKitConflictError: StateFlow<Boolean> = _liveKitConflictError.asStateFlow()
 
@@ -44,8 +54,7 @@ class OfflineMeshViewModel @Inject constructor(
     private val _sessionError = MutableStateFlow(false)
     val sessionError: StateFlow<Boolean> = _sessionError.asStateFlow()
 
-    private val _activeSession = MutableStateFlow<OfflineSession?>(null)
-    val activeSession: StateFlow<OfflineSession?> = _activeSession.asStateFlow()
+    val activeSession: StateFlow<OfflineSession?> = holder.current
 
     fun isMicOwnedByLiveKit(): Boolean = arbiter.owner.value == AudioOwner.LIVEKIT
 
@@ -57,8 +66,7 @@ class OfflineMeshViewModel @Inject constructor(
                 OfflineSession.create(System.currentTimeMillis())
             }
             _isDerivingKey.value = false
-            _activeSession.value = session
-            OfflineSessionHolder.set(session)
+            holder.setCurrent(session)
             onReady(session.pairingCode)
         }
     }
@@ -76,15 +84,14 @@ class OfflineMeshViewModel @Inject constructor(
                 onInvalid()
                 return@launch
             }
-            _activeSession.value = session
-            OfflineSessionHolder.set(session)
+            holder.setCurrent(session)
             onReady(session.pairingCode)
         }
     }
 
     fun resolveAndStartSession(sessionCode: String, onInvalid: () -> Unit = {}) {
         viewModelScope.launch {
-            val current = _activeSession.value
+            val current = holder.current.value
             if (current != null && current.pairingCode == sessionCode) {
                 startSession(current)
                 return@launch
@@ -103,8 +110,7 @@ class OfflineMeshViewModel @Inject constructor(
                 return@launch
             }
 
-            _activeSession.value = session
-            OfflineSessionHolder.set(session)
+            holder.setCurrent(session)
             startSession(session)
         }
     }
@@ -115,8 +121,7 @@ class OfflineMeshViewModel @Inject constructor(
             return
         }
         _liveKitConflictError.value = false
-        _activeSession.value = session
-        OfflineSessionHolder.set(session)
+        holder.setCurrent(session)
         transport.start(VoiceSession.Offline(session))
     }
 
@@ -124,8 +129,15 @@ class OfflineMeshViewModel @Inject constructor(
         appScope.launch {
             transport.stop()
             arbiter.release(AudioOwner.OFFLINE_MESH)
-            OfflineSessionHolder.clear()
-            _activeSession.value = null
+            holder.clearCurrent()
+        }
+    }
+
+    fun leave() {
+        appScope.launch {
+            transport.stop()
+            arbiter.release(AudioOwner.OFFLINE_MESH)
+            holder.clearCurrent()
         }
     }
 

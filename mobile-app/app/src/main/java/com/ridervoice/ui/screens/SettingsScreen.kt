@@ -211,9 +211,6 @@ fun SettingsScreen(
                                 isMeshEnabled = false
                                 isAutoFallbackEnabled = false
                                 isWarmStandbyEnabled = false
-                                com.ridervoice.services.MeshForegroundService.activeTransport?.let { t ->
-                                    scope.launch(kotlinx.coroutines.Dispatchers.IO) { t.stop() }
-                                }
                                 com.ridervoice.services.MeshForegroundService.stop(context)
                             }
                         }

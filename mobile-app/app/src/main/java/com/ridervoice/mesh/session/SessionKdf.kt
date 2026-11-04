@@ -21,11 +21,13 @@ object SessionKdf {
     class Derived(val sessionId: String, val authKey: ByteArray, val payloadKey: ByteArray)
 
     fun derive(normalizedCode: String, iterations: Int = DEFAULT_ITERATIONS): Derived {
-        val spec = PBEKeySpec(normalizedCode.toCharArray(), SALT, iterations, 80 * 8)
+        val chars = normalizedCode.toCharArray()
+        val spec = PBEKeySpec(chars, SALT, iterations, 80 * 8)
         val out = try {
             SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
         } finally {
             spec.clearPassword()
+            chars.fill('\u0000')
         }
         val id = out.copyOfRange(0, 16)
         id[6] = ((id[6].toInt() and 0x0f) or 0x40).toByte()
@@ -34,7 +36,7 @@ object SessionKdf {
         val sessionId = UUID(bb.long, bb.long).toString()
         val authKey = out.copyOfRange(16, 48)
         val payloadKey = out.copyOfRange(48, 80)
+        out.fill(0)
         return Derived(sessionId, authKey, payloadKey)
     }
 }
-

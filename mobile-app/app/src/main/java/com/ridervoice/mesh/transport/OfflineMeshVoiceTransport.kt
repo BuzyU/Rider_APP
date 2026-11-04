@@ -9,6 +9,7 @@ import com.ridervoice.mesh.audio.MicRules
 import com.ridervoice.mesh.audio.MicInputs
 
 import com.ridervoice.mesh.MeshConfig
+import com.ridervoice.mesh.MeshLog
 import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.audio.AudioRecordSource
 import com.ridervoice.mesh.audio.CaptureStart
@@ -101,7 +102,6 @@ class OfflineMeshVoiceTransport(
             if (cap != null) {
                 cap.setMicEnabled(wantCapture)
                 if (wantCapture) {
-                    _micState.value = MicState.STARTING
                     val res = cap.start()
                     _micState.value = when (res) {
                         CaptureStart.Started -> MicState.ON
@@ -115,7 +115,7 @@ class OfflineMeshVoiceTransport(
                     _micState.value = if (paused) MicState.MUTED else MicState.OFF
                 }
             } else {
-                _micState.value = if (wantCapture) MicState.STARTING else MicState.OFF
+                _micState.value = if (wantCapture) (if (hasMicPermission()) MicState.STARTING else MicState.PERMISSION_DENIED) else MicState.OFF
             }
         },
         scope = scope
@@ -264,6 +264,17 @@ class OfflineMeshVoiceTransport(
         }
 
         updateProjectedPeers(gRepo.currentSnapshot())
+
+        // Periodic session expiry sweep (WP-39 / A23)
+        val remaining = session.expiresAt - clock()
+        if (remaining > 0L) {
+            scope.launch {
+                delay(remaining)
+                MeshLog.w("MeshTransport", "session expired id=${session.sessionId.take(8)}")
+                stop()
+            }
+        }
+
         _state.value = VoiceTransportState.CONNECTED
         }
     }
@@ -546,7 +557,6 @@ class OfflineMeshVoiceTransport(
             val want = MicRules.captureWanted(MicInputs(true, enabled, micController.pttHeld.value, micController.voxEnabled.value, micController.voxArmed.value))
             cap.setMicEnabled(want)
             if (want) {
-                _micState.value = MicState.STARTING
                 val res = cap.start()
                 _micState.value = when (res) {
                     CaptureStart.Started -> MicState.ON
@@ -560,7 +570,7 @@ class OfflineMeshVoiceTransport(
                 _micState.value = if (paused) MicState.MUTED else MicState.OFF
             }
         } else {
-            _micState.value = if (enabled) MicState.STARTING else MicState.OFF
+            _micState.value = if (enabled) (if (hasMicPermission()) MicState.STARTING else MicState.PERMISSION_DENIED) else MicState.OFF
         }
     }
 

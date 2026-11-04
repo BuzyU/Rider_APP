@@ -47,8 +47,7 @@ class SessionHygieneTest {
         )
         assertEquals("offline_mesh_hud", Routes.OFFLINE_MESH_HUD)
 
-        val pathWithSecret = Routes.offlineMeshHudPath("SECRET1234567890")
-        assertFalse("offlineMeshHudPath must not embed the secret pairing code", pathWithSecret.contains("SECRET"))
+        val pathWithSecret = Routes.offlineMeshHudPath()
         assertEquals("offline_mesh_hud", pathWithSecret)
     }
 

@@ -179,7 +179,7 @@ class HonestStateTest {
         // Deliver 10 distinct voice packets through the incoming link flow
         val rawFrames = (1..10).map { seq ->
             val aad = PayloadCrypto.aad(s.sessionId, peerId, MeshPacketType.VOICE.code, 0, seq, t, AudioFormatId.PCM16_16K_MONO)
-            val nonce = PayloadCrypto.nonce(0, seq, MeshPacketType.VOICE.code)
+            val nonce = PayloadCrypto.nonce(0, seq, MeshPacketType.VOICE.code, peerId)
             val sealed = PayloadCrypto.seal(s.payloadKey(), nonce, aad, ByteArray(640))
             val packet = MeshPacket(
                 type = MeshPacketType.VOICE,
@@ -200,7 +200,7 @@ class HonestStateTest {
             com.ridervoice.mesh.discovery.HelloPayload(name = "Peer", graphVersion = 1, neighborIds = emptyList())
         )
         val helloAad = PayloadCrypto.aad(s.sessionId, peerId, MeshPacketType.HELLO.code, 0, 100, t, AudioFormatId.PCM16_16K_MONO)
-        val helloNonce = PayloadCrypto.nonce(0, 100, MeshPacketType.HELLO.code)
+        val helloNonce = PayloadCrypto.nonce(0, 100, MeshPacketType.HELLO.code, peerId)
         val sealedHello = PayloadCrypto.seal(s.payloadKey(), helloNonce, helloAad, helloPayload)
         val helloPacket = MeshPacket(
             type = MeshPacketType.HELLO,

@@ -20,10 +20,10 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 | **A14** | MEDIUM | FIXED (WP-37) | `UdpMeshLink.kt:130` | `endpoints()` returns empty set because `registerEndpoint()` has no production caller. |
 | **A15** | MEDIUM | FIXED (WP-39) | `MeshForegroundService.kt:103`, `AutomaticSwitchStateMachine.kt:187` | `catch (_: Throwable)` swallows CancellationException and logs nothing; CoroutineExceptionHandlers silent. |
 | **A16** | MEDIUM | FIXED (WP-39) | `OfflineSessionHolder.kt:9`, `OfflineSession.kt:15` | Plain object not Hilt singleton, no session zeroing or `.close()`; PBKDF2 `out` buffer not zeroed. |
-| **A17** | MEDIUM | OPEN | `MeshGraphRepository.kt:85` | `val isStale = sequence != 0 && r.sequence != 0 && (sequence - r.sequence) < 0` ignores epoch; restarted peer ignored until timeout. |
-| **A18** | LOW | OPEN | `ForwardingEngine.kt:348` | `val fallbackNonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code)` accepted without source binding. |
-| **A19** | LOW | OPEN | `AndroidManifest.xml:6, 9` | `CHANGE_WIFI_STATE` and `NEARBY_WIFI_DEVICES` declared without recorded architectural decision. |
-| **A20** | LOW | OPEN | `MeshDebugReceiver.kt:24`, `debug/AndroidManifest.xml:4` | Exported receiver without permission guard or peer filter. |
+| **A17** | MEDIUM | FIXED (WP-40) | `MeshGraphRepository.kt:85` | `isStaleReport` compares epoch & sequence; different epoch always replaces restarted peers. |
+| **A18** | LOW | FIXED (WP-40) | `ForwardingEngine.kt:348` | `ACCEPT_LEGACY_NONCE = false` by default; fallback guarded behind opt-in config flag. |
+| **A19** | LOW | FIXED (WP-40) | `AndroidManifest.xml:6, 9` | Removed unreferenced `CHANGE_WIFI_STATE` and `NEARBY_WIFI_DEVICES`; documented Wi-Fi permissions rationale. |
+| **A20** | LOW | FIXED (WP-40) | `MeshDebugReceiver.kt:24`, `debug/AndroidManifest.xml:4` | Added `android.permission.DUMP` guard, peer prefix filtering, truncated session IDs. |
 | **A21** | LOW | OPEN | `docs/implementation/mesh/AUDIT_FACTS.md`, root audit docs | Stale documents and overclaiming documentation. |
 | **A22** | LOW | CLOSED | `LocalHealthSignalsProvider.kt:45` | WP-35 / DECISIONS.md | Design limit: `LiveKitManager.reconnectAttempts` is private (NO PUBLIC SOURCE); lambda left at 0; no loss/RTT sampling added per instruction |
 | **A23** | LOW | FIXED (WP-39) | `MeshForegroundService.kt:57`, `Routes.kt:27` | Unused `sessionCode` overloads in service and routes. |
@@ -32,7 +32,7 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 | **A26** | CRITICAL | FIXED | `AutomaticSwitchStateMachine.kt:115, 136` | WP-35 / `ValidatedInternetAndStandingRulesTest` (`partialRecovery_resetsSuspectTimer`, `internetBackLiveKitReconnecting_staysOnline`) | Suspect timer resets whenever !isTotalLoss(); FALLBACK_UNAVAILABLE requires isTotalLoss() |
 | **A27** | HIGH | FIXED | `AutomaticSwitchStateMachine.kt` | WP-36 / `WP34RedTests` | Non-blocking handoff with generation ticket per CODE-2; endSession returns promptly. |
 | **A28** | HIGH | FIXED | `LiveKitVoiceTransport.kt` | WP-36 / `MicAudioControlPathTest` | restartVoxIfPreviouslyRunning() only starts VOX when connectionState == CONNECTED. |
-| **A29** | MEDIUM | OPEN | `MeshDebugReceiver.kt:33` | `Log.i(TAG, "... ActiveSession=${session?.pairingCode?.take(4)}****")` leaks secret pairing code prefix into logcat. |
+| **A29** | MEDIUM | FIXED (WP-40) | `MeshDebugReceiver.kt:33` | Leaked pairingCode prefix removed; only truncated sessionId is logged. |
 | **A30** | MEDIUM | FIXED (WP-39) | `MeshForegroundService.kt:96-103` | No-mic path on API>=29 calls `startForeground` with no type, throwing SecurityException against manifest microphone type. |
 | **A31** | MEDIUM | FIXED | ContinuityLeaseClient.kt:35, 48 | Rethrows CancellationException before catching Exception; logs warning with MeshLog.w. (WP-38) |
 | **A32** | LOW | OPEN | `SwitchingModels.kt:40`, `MeshConfig.kt:6` | Dead code `PartialMeshPeer` and `AUDIO_PORT` redundant alias. |
@@ -41,7 +41,7 @@ Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
 | **A35** | MEDIUM | FIXED (WP-39) | `NavGraph.kt:418`, `OfflineMeshVoiceTransport.kt:119` | Activity rotation re-triggers LaunchedEffect; `startSession`/`transport.start` must be idempotent for same sessionId. |
 | **A36** | LOW | OPEN | `.github/workflows/build.yml` | CI test-census floor set to outdated 290 and lacks mesh invariant checks. |
 | **A37** | LOW | OPEN | `app/build.gradle:14` vs `README.md:1` | Version drift `V0.0.3.19` vs `v0.0.3.20`. |
-| **A38** | LOW | OPEN | `MeshConfig.kt:26` | `HELLO_TTL = 4 < DEFAULT_TTL = 5` topology learning in multi-node chains. |
+| **A38** | LOW | FIXED (WP-40) | `MeshConfig.kt:26` | Confirmed 6-node chain full topology learning via `sixChain_everyNodeLearnsFullTopology` simulation test. |
 | **A39** | HIGH | FIXED | `OfflineMeshVoiceTransport.kt:460` | WP-36 / `WP34RedTests` | stop() resets micController, micWanted, and paused flags. |
 | **A40** | HIGH | FIXED | `OfflineMeshVoiceTransport.kt:294` | WP-36 / `WP34RedTests` | failEnable() cleanly rolls back playback, locks, and ownership. |
 | **A41** | MEDIUM | FIXED | `OfflineMeshVoiceTransport.kt:154` | WP-36 / `WP34RedTests` | Replaces different session ID; updates projected peers synchronously. |

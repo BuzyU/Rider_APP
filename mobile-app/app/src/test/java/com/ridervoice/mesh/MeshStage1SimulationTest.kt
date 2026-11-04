@@ -427,7 +427,7 @@ class MeshStage1SimulationTest {
         // Inject a 7th device G connected to F with the valid session key -> rejected by 6-device cap
         val gId = uuidFor("G")
         val gAad = PayloadCrypto.aad(session.sessionId, gId, MeshPacketType.VOICE.code, 0, 1, net.now, AudioFormatId.PCM16_16K_MONO)
-        val gNonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code)
+        val gNonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code, gId)
         val gSealed = PayloadCrypto.seal(session.payloadKey(), gNonce, gAad, pcm)
         val gPkt = MeshPacket(
             type = MeshPacketType.VOICE,
@@ -459,7 +459,7 @@ class MeshStage1SimulationTest {
 
         val pcm = ByteArray(MeshConfig.BYTES_PER_FRAME) { 0x33 }
         val aad = PayloadCrypto.aad(session.sessionId, a.id, MeshPacketType.VOICE.code, 0, 99, net.now, AudioFormatId.PCM16_16K_MONO)
-        val nonce = PayloadCrypto.nonce(0, 99, MeshPacketType.VOICE.code)
+        val nonce = PayloadCrypto.nonce(0, 99, MeshPacketType.VOICE.code, a.id)
         val sealed = PayloadCrypto.seal(session.payloadKey(), nonce, aad, pcm)
         val pkt = MeshPacket(
             type = MeshPacketType.VOICE,

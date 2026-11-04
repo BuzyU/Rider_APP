@@ -432,5 +432,25 @@ class ScheduledDeliveryScenarioTest {
             )
         }
     }
-}
 
+    /**
+     * WP-40.5 (A38): 6-node chain simulation confirming that every node learns full topology
+     * even with HELLO_TTL = 4 because edge (E, F) is reported by node E at distance 4.
+     */
+    @Test
+    fun sixChain_everyNodeLearnsFullTopology() {
+        val net = ScheduledNet(42L)
+        val session = OfflineSession.create(0L)
+        val nodes = createChain(net, session, listOf("A", "B", "C", "D", "E", "F"))
+        converge(net, nodes, 6)
+
+        for (node in nodes) {
+            for (target in nodes) {
+                if (node.id != target.id) {
+                    val route = node.routingTable.routeTo(target.id)
+                    assertNotNull("${node.tag} must learn route to ${target.tag}", route)
+                }
+            }
+        }
+    }
+}

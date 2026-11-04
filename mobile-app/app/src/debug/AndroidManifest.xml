@@ -2,12 +2,14 @@
     <application>
         <receiver
             android:name="com.ridervoice.mesh.MeshDebugReceiver"
+            android:permission="android.permission.DUMP"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.ridervoice.mesh.DEBUG_DUMP_STATE" />
                 <action android:name="com.ridervoice.mesh.DEBUG_CLEAR_SESSION" />
+                <action android:name="com.ridervoice.debug.MESH_SET_PEER_FILTER" />
+                <action android:name="com.ridervoice.mesh.DEBUG_SET_PEER_FILTER" />
             </intent-filter>
         </receiver>
     </application>
 </manifest>
-

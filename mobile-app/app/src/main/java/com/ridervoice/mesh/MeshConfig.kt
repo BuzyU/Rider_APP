@@ -43,6 +43,9 @@ object MeshConfig {
 
     const val SESSION_LIFETIME_MS = 8L * 60 * 60 * 1000
 
+    /** Whether to accept legacy nonces without sourceId prefix. False by default for protocol hardening (A18). */
+    var ACCEPT_LEGACY_NONCE: Boolean = false
+
     var isDebugBuild: Boolean = com.ridervoice.BuildConfig.DEBUG
 
     /** Debug peer filter for test hooks / partition testing. Operates only in debug builds. */

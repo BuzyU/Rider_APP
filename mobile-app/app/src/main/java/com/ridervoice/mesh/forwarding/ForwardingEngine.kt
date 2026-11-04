@@ -344,7 +344,7 @@ class ForwardingEngine(
         )
         val nonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code, decoded.sourceId)
         var plain = PayloadCrypto.open(payloadKey, nonce, aad, decoded.payload)
-        if (plain == null) {
+        if (plain == null && MeshConfig.ACCEPT_LEGACY_NONCE) {
             val fallbackNonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code)
             plain = PayloadCrypto.open(payloadKey, fallbackNonce, aad, decoded.payload)
         }
@@ -395,7 +395,8 @@ class ForwardingEngine(
                     hopCount = decoded.hopCount,
                     endpoint = frame.from,
                     neighborIds = hello.neighborIds,
-                    sequence = decoded.sequence
+                    sequence = decoded.sequence,
+                    epoch = decoded.epoch
                 )
                 if (changed) {
                     routingTable.recompute(graphRepository.currentSnapshot(), now)

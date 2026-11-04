@@ -9,26 +9,34 @@ import com.ridervoice.mesh.session.OfflineSessionHolder
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import dagger.hilt.android.EntryPointAccessors
 
+internal fun parsePeerFilter(allow: String?): ((String) -> Boolean)? {
+    val prefixes = allow.orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }
+    return if (prefixes.isEmpty()) null else { id -> prefixes.any { id.startsWith(it) } }
+}
+
 /**
  * Debug BroadcastReceiver available exclusively in debug builds.
- * Enables automated QA, adb shell test harness triggers, and state inspection:
+ * Protected by android.permission.DUMP (A20, A38) so non-shell third-party apps cannot invoke it.
  *
  * adb shell am broadcast -a com.ridervoice.mesh.DEBUG_DUMP_STATE
  * adb shell am broadcast -a com.ridervoice.mesh.DEBUG_CLEAR_SESSION
+ * adb shell am broadcast -a com.ridervoice.debug.MESH_SET_PEER_FILTER --es allow "peer1,peer2"
  */
 class MeshDebugReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (!BuildConfig.DEBUG) return
+        if (!BuildConfig.DEBUG || !MeshConfig.isDebugBuild) return
 
         val action = intent.action ?: return
         Log.i(TAG, "Received debug action: $action")
 
         when (action) {
             ACTION_DUMP_STATE -> {
-                val session = OfflineSessionHolder.get()
+                val session = OfflineSessionHolder.currentSession
                 val gateOpen = OfflineMeshGate.isOfflineAllowed()
-                Log.i(TAG, "Debug State Dump: GateOpen=$gateOpen, ActiveSession=${session?.pairingCode?.take(4)}****")
+                val sessionTruncated = session?.let { it.sessionId.take(8) } ?: "none"
+                // Security rule (A20): log only truncated sessionId, NEVER pairingCode or keys
+                Log.i(TAG, "Debug State Dump: GateOpen=$gateOpen, SessionId=$sessionTruncated")
                 try {
                     val entryPoint = EntryPointAccessors.fromApplication(
                         context.applicationContext,
@@ -42,8 +50,13 @@ class MeshDebugReceiver : BroadcastReceiver() {
                 }
             }
             ACTION_CLEAR_SESSION -> {
-                OfflineSessionHolder.clear()
+                OfflineSessionHolder.clearAll()
                 Log.i(TAG, "Cleared OfflineSessionHolder via debug broadcast")
+            }
+            ACTION_SET_PEER_FILTER, ACTION_LEGACY_SET_PEER_FILTER -> {
+                val allowExtra = intent.getStringExtra(EXTRA_ALLOW) ?: intent.getStringExtra(EXTRA_ALLOWED_PEERS)
+                MeshConfig.debugPeerFilter = parsePeerFilter(allowExtra)
+                Log.i(TAG, "Updated debugPeerFilter: ${MeshConfig.debugPeerFilter != null}")
             }
         }
     }
@@ -52,6 +65,10 @@ class MeshDebugReceiver : BroadcastReceiver() {
         private const val TAG = "MeshDebugReceiver"
         const val ACTION_DUMP_STATE = "com.ridervoice.mesh.DEBUG_DUMP_STATE"
         const val ACTION_CLEAR_SESSION = "com.ridervoice.mesh.DEBUG_CLEAR_SESSION"
+        const val ACTION_SET_PEER_FILTER = "com.ridervoice.debug.MESH_SET_PEER_FILTER"
+        const val ACTION_LEGACY_SET_PEER_FILTER = "com.ridervoice.mesh.DEBUG_SET_PEER_FILTER"
+        const val EXTRA_ALLOW = "allow"
+        const val EXTRA_ALLOWED_PEERS = "allowed_peers"
     }
 }
 

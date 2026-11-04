@@ -35,13 +35,16 @@ data class MeshGraphSnapshot(
 
 data class DirectNeighbor(val deviceId: String, val name: String, val endpoint: MeshEndpoint, val lastSeen: Long)
 
+internal fun isStaleReport(prevEpoch: Int, prevSeq: Int, epoch: Int, seq: Int): Boolean =
+    prevSeq != 0 && seq != 0 && prevEpoch == epoch && (seq - prevSeq) < 0
+
 class MeshGraphRepository(
     private val selfId: String,
     private val selfName: String,
     private val clock: () -> Long
 ) {
     private class Neighbor(var name: String, var endpoint: MeshEndpoint, var lastSeen: Long)
-    private class Report(var name: String, var neighbors: Set<String>, var lastSeen: Long, var sequence: Int = 0)
+    private class Report(var name: String, var neighbors: Set<String>, var lastSeen: Long, var sequence: Int = 0, var epoch: Int = 0)
 
     private val neighbors = LinkedHashMap<String, Neighbor>()
     private val reports = HashMap<String, Report>()
@@ -62,7 +65,8 @@ class MeshGraphRepository(
         hopCount: Int,
         endpoint: MeshEndpoint,
         neighborIds: Collection<String>,
-        sequence: Int = 0
+        sequence: Int = 0,
+        epoch: Int = 0
     ): Boolean {
         if (sourceId == selfId) return false
         val now = clock()
@@ -79,15 +83,16 @@ class MeshGraphRepository(
         val set = neighborIds.filter { it != sourceId }.toSet()
         val r = reports[sourceId]
         if (r == null) {
-            reports[sourceId] = Report(name, set, now, sequence)
+            reports[sourceId] = Report(name, set, now, sequence, epoch)
             changed = true
         } else {
-            val isStale = sequence != 0 && r.sequence != 0 && (sequence - r.sequence) < 0
+            val isStale = isStaleReport(r.epoch, r.sequence, epoch, sequence)
             if (!isStale) {
-                if (r.neighbors != set || r.name != name) changed = true
+                if (r.neighbors != set || r.name != name || r.epoch != epoch) changed = true
                 r.neighbors = set
                 r.name = name
                 r.lastSeen = now
+                r.epoch = epoch
                 if (sequence != 0) r.sequence = sequence
             }
         }

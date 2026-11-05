@@ -393,6 +393,7 @@ fun SettingsScreen(
                     Button(
                         onClick = {
                             showSignOutConfirmDialog = false
+                            meshSettingsViewModel.clearAllOnSignOut()
                             authViewModel.signOut()
                             onSignOutSuccess()
                         },

@@ -18,37 +18,36 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import javax.inject.Qualifier
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class MeshApplicationScope
 
 @HiltViewModel
 class OfflineMeshViewModel @Inject constructor(
     val transport: OfflineMeshVoiceTransport,
     val arbiter: AudioOwnershipArbiter,
-    val holder: OfflineSessionHolder
+    val holder: OfflineSessionHolder,
+    @MeshApplicationScope private val appScope: CoroutineScope
 ) : ViewModel() {
-
-    private var appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     constructor(
         transport: OfflineMeshVoiceTransport,
         arbiter: AudioOwnershipArbiter
-    ) : this(transport, arbiter, OfflineSessionHolder())
+    ) : this(transport, arbiter, OfflineSessionHolder(), CoroutineScope(SupervisorJob() + Dispatchers.IO))
 
     constructor(
         transport: OfflineMeshVoiceTransport,
         arbiter: AudioOwnershipArbiter,
         appScope: CoroutineScope
-    ) : this(transport, arbiter, OfflineSessionHolder()) {
-        this.appScope = appScope
-    }
+    ) : this(transport, arbiter, OfflineSessionHolder(), appScope)
 
     constructor(
         transport: OfflineMeshVoiceTransport,
         arbiter: AudioOwnershipArbiter,
-        holder: OfflineSessionHolder,
-        appScope: CoroutineScope
-    ) : this(transport, arbiter, holder) {
-        this.appScope = appScope
-    }
+        holder: OfflineSessionHolder
+    ) : this(transport, arbiter, holder, CoroutineScope(SupervisorJob() + Dispatchers.IO))
 
     private val _liveKitConflictError = MutableStateFlow(false)
     val liveKitConflictError: StateFlow<Boolean> = _liveKitConflictError.asStateFlow()
@@ -60,23 +59,70 @@ class OfflineMeshViewModel @Inject constructor(
     val sessionError: StateFlow<Boolean> = _sessionError.asStateFlow()
 
     val activeSession: StateFlow<OfflineSession?> = holder.current
+    val backupSession: StateFlow<OfflineSession?> = holder.backup
+
+    @Volatile private var startedStandaloneSession: Boolean = false
 
     fun isMicOwnedByLiveKit(): Boolean = arbiter.owner.value == AudioOwner.LIVEKIT
 
-    fun createNewSession(onReady: (String) -> Unit) {
+    fun createNewSession(onReady: (String) -> Unit) =
+        createNewSession(saveAsBackup = false, onReady = onReady)
+
+    fun createNewSession(saveAsBackup: Boolean, onReady: (String) -> Unit = {}) {
+        if (_isDerivingKey.value) return
         viewModelScope.launch {
             _isDerivingKey.value = true
             _sessionError.value = false
-            val session = withContext(Dispatchers.Default) {
-                OfflineSession.create(System.currentTimeMillis())
+            val now = System.currentTimeMillis()
+            val (primary, backupCopy) = withContext(Dispatchers.Default) {
+                val created = OfflineSession.create(now)
+                val backup = if (saveAsBackup) {
+                    OfflineSession.fromCode(created.pairingCode, now)
+                } else {
+                    null
+                }
+                created to backup
+            }
+            holder.setCurrent(primary)
+            if (backupCopy != null) {
+                holder.setBackup(backupCopy)
             }
             _isDerivingKey.value = false
-            holder.setCurrent(session)
-            onReady(session.pairingCode)
+            onReady(primary.pairingCode)
         }
     }
 
-    fun joinWithCode(rawCode: String, onReady: (String) -> Unit, onInvalid: () -> Unit) {
+    fun saveCurrentGeneratedAsBackupAndFinish(onSaved: () -> Unit) {
+        if (_isDerivingKey.value) return
+        val current = holder.current.value ?: return
+        val code = current.pairingCode
+        if (code.isBlank()) return
+        viewModelScope.launch {
+            _isDerivingKey.value = true
+            val backupCopy = withContext(Dispatchers.Default) {
+                OfflineSession.fromCode(code, System.currentTimeMillis())
+            }
+            if (backupCopy != null) {
+                holder.setBackup(backupCopy)
+            }
+            if (!startedStandaloneSession) {
+                holder.clearCurrent()
+            }
+            _isDerivingKey.value = false
+            onSaved()
+        }
+    }
+
+    fun joinWithCode(rawCode: String, onReady: (String) -> Unit, onInvalid: () -> Unit) =
+        joinWithCode(rawCode = rawCode, saveAsBackupOnly = false, onReady = onReady, onInvalid = onInvalid)
+
+    fun joinWithCode(
+        rawCode: String,
+        saveAsBackupOnly: Boolean,
+        onReady: (String) -> Unit,
+        onInvalid: () -> Unit
+    ) {
+        if (_isDerivingKey.value) return
         viewModelScope.launch {
             _isDerivingKey.value = true
             _sessionError.value = false
@@ -89,9 +135,21 @@ class OfflineMeshViewModel @Inject constructor(
                 onInvalid()
                 return@launch
             }
-            holder.setCurrent(session)
+            if (saveAsBackupOnly) {
+                holder.setBackup(session)
+            } else {
+                holder.setCurrent(session)
+            }
             onReady(session.pairingCode)
         }
+    }
+
+    fun clearSavedBackup() {
+        holder.clearBackup()
+    }
+
+    fun clearSessionError() {
+        _sessionError.value = false
     }
 
     fun resolveAndStartSession(sessionCode: String, onInvalid: () -> Unit = {}) {
@@ -126,11 +184,13 @@ class OfflineMeshViewModel @Inject constructor(
             return
         }
         _liveKitConflictError.value = false
+        startedStandaloneSession = true
         holder.setCurrent(session)
         transport.start(VoiceSession.Offline(session))
     }
 
     fun stopSession() {
+        startedStandaloneSession = false
         holder.clearCurrent()
         appScope.launch {
             transport.stop()
@@ -139,6 +199,7 @@ class OfflineMeshViewModel @Inject constructor(
     }
 
     fun leave() {
+        startedStandaloneSession = false
         holder.clearCurrent()
         appScope.launch {
             transport.stop()
@@ -152,6 +213,8 @@ class OfflineMeshViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        stopSession()
+        if (startedStandaloneSession || (holder.current.value != null && !isMicOwnedByLiveKit())) {
+            stopSession()
+        }
     }
 }

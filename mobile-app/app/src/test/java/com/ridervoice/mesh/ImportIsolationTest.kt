@@ -14,7 +14,8 @@ class ImportIsolationTest {
 
     private val srcRoot: File = listOf(
         File("src/main/java/com/ridervoice"),
-        File("app/src/main/java/com/ridervoice")
+        File("app/src/main/java/com/ridervoice"),
+        File("mobile-app/app/src/main/java/com/ridervoice")
     ).first { it.isDirectory }
 
     private fun kotlinFiles(dir: File): List<File> =

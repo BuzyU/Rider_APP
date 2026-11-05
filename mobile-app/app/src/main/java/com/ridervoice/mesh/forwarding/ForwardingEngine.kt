@@ -308,8 +308,13 @@ class ForwardingEngine(
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DUPLICATE)
         }
 
-        // Non-mutating session admission check
-        when (sessionManager.canAdmit(decoded.sourceId)) {
+        // Non-mutating joint session admission check (source + relay must both fit within 6-device cap)
+        val candidateIds = if (decoded.previousHopId != decoded.sourceId) {
+            listOf(decoded.sourceId, decoded.previousHopId)
+        } else {
+            listOf(decoded.sourceId)
+        }
+        when (sessionManager.canAdmitAll(candidateIds)) {
             SessionManager.Admission.ADMITTED,
             SessionManager.Admission.ALREADY_MEMBER -> Unit
             SessionManager.Admission.REJECTED_FULL -> {
@@ -319,16 +324,6 @@ class ForwardingEngine(
             SessionManager.Admission.REJECTED_EXPIRED -> {
                 droppedInvalid.incrementAndGet()
                 return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.SESSION_EXPIRED)
-            }
-        }
-        // If relayed, also verify the relay is admitted
-        if (decoded.previousHopId != decoded.sourceId) {
-            val relayAdmission = sessionManager.canAdmit(decoded.previousHopId)
-            if (relayAdmission == SessionManager.Admission.REJECTED_FULL ||
-                relayAdmission == SessionManager.Admission.REJECTED_EXPIRED
-            ) {
-                droppedInvalid.incrementAndGet()
-                return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.SESSION_FULL)
             }
         }
 

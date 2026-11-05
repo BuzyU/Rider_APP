@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RiderVoice — Reimagined UI/UX Studio (Light + Dark + Motion Suite)</title>
+<style>
+:root {
+  --studio-bg: #0B0F17;
+  --studio-panel: #131924;
+  --studio-border: rgba(255, 255, 255, 0.09);
+  --studio-ink: #F8FAFC;
+  --studio-sub: #94A3B8;
+  --studio-accent: #FF6B35;
+  --studio-teal: #14B8A6;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Plus Jakarta Sans", "Inter", "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: var(--studio-bg);
+  color: var(--studio-ink);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.director-bar {
+  background: var(--studio-panel);
+  border-bottom: 1px solid var(--studio-border);
+  padding: 12px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.title-cluster { display: flex; align-items: center; gap: 10px; }
+.wp-pill {
+  background: var(--studio-accent);
+  color: #090B0E;
+  font-weight: 900;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.director-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.d-btn {
+  border: 1px solid var(--studio-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--studio-ink);
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.d-btn.active {
+  background: var(--studio-accent);
+  color: #090B0E;
+  border-color: var(--studio-accent);
+  font-weight: 800;
+}
+.d-select {
+  border: 1px solid var(--studio-border);
+  background: #1A2230;
+  color: var(--studio-ink);
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.studio-body {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+}
+.nav-rail {
+  width: 265px;
+  background: var(--studio-panel);
+  border: 1px solid var(--studio-border);
+  border-radius: 18px;
+  padding: 14px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.sec-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--studio-sub);
+  margin: 10px 0 6px;
+}
+.scr-item {
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--studio-sub);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+.scr-item:hover { background: rgba(255,255,255,0.05); color: var(--studio-ink); }
+.scr-item.active {
+  background: rgba(255, 107, 53, 0.16);
+  color: var(--studio-accent);
+  border-color: rgba(255, 107, 53, 0.35);
+  font-weight: 700;
+}
+
+.frames-stage {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.frame-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.frame-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.frame-header a {
+  color: var(--studio-teal);
+  font-size: 11.5px;
+  text-decoration: none;
+}
+iframe.theme-frame {
+  width: 440px;
+  height: 890px;
+  border: none;
+  border-radius: 24px;
+  background: transparent;
+}
+body.layout-light #darkCol { display: none; }
+body.layout-dark #lightCol { display: none; }
+body.layout-grid iframe.theme-frame { width: 100%; min-width: 980px; height: 920px; }
+</style>
+</head>
+<body>
+
+<header class="director-bar">
+  <div class="title-cluster">
+    <span class="wp-pill">WP-61 SHOWCASE</span>
+    <strong>RiderVoice Reimagined Minimalist UI/UX</strong>
+    <a href="./REIMAGINED_UIUX_SPEC.md" style="color:var(--studio-teal); font-size:12px; font-weight:700; text-decoration:none;">📄 Design Spec (MD)</a>
+  </div>
+
+  <div class="director-actions">
+    <button class="d-btn active" id="vDual" onclick="setLayout('dual')">Dual Light + Dark</button>
+    <button class="d-btn" id="vLight" onclick="setLayout('light')">Light Only</button>
+    <button class="d-btn" id="vDark" onclick="setLayout('dark')">Dark Only</button>
+    <button class="d-btn" id="vGrid" onclick="setLayout('grid')">All 18 Screens + 11 Sheets Matrix</button>
+    <button class="d-btn active" id="syncBtn" onclick="toggleSync()">🔗 Sync Frames: ON</button>
+    <button class="d-btn" onclick="broadcast({replayLaunch:true})">🏍️ Replay Launch Bike & Logo (S01)</button>
+    <button class="d-btn" id="skBtn" onclick="toggleSk()">✨ Skeleton Shimmer: OFF</button>
+    <button class="d-btn active" id="miniBtn" onclick="toggleMini()">🎵 Mini-Ride Bar: ON</button>
+    <select class="d-select" onchange="broadcast({transport:this.value})" aria-label="Transport State">
+      <option value="cloud">Transport: Cloud Intercom · 24ms</option>
+      <option value="switching">Transport: Switching (400ms Guard)…</option>
+      <option value="mesh">Transport: Offline Mesh (4/6 · Max 5 Hops)</option>
+    </select>
+    <select class="d-select" id="sheetSel" onchange="broadcast({sheet:this.value})" aria-label="Open Sheet or Modal">
+      <option value="">Inspect Modal / Sheet (M01–M11)…</option>
+      <option value="M01">M01 · Quick Join Sheet</option>
+      <option value="M02">M02 · Invite / Add Riders Sheet</option>
+      <option value="M03">M03 · Audio Route & Helmet Sheet</option>
+      <option value="M04">M04 · Live Connection & Mesh Topology</option>
+      <option value="M05">M05 · Leave vs End Convoy Sheet</option>
+      <option value="M06">M06 · Offline Mesh Self-Test Sheet</option>
+      <option value="M07">M07 · Mapbox Token Configuration</option>
+      <option value="M08">M08 · Add Squad Rider Modal</option>
+      <option value="M09">M09 · Remove / Sign-Out Confirmation</option>
+      <option value="M10">M10 · Edit Profile & Bike Sheet</option>
+      <option value="M11">M11 · Privacy & 8-State OTA Updater</option>
+    </select>
+    <button class="d-btn" id="rmBtn" onclick="toggleRm()">Reduced Motion: OFF</button>
+  </div>
+</header>
+
+<div class="studio-body">
+  <aside class="nav-rail" aria-label="Synchronized Screen Switcher">
+    <div class="sec-label">5-Tab Bottom Navigation</div>
+    <button class="scr-item active" data-s="S04" onclick="pickScreen('S04')"><span>Tab 1 · Ride Hub</span><span>S04</span></button>
+    <button class="scr-item" data-s="S13" onclick="pickScreen('S13')"><span>Tab 2 · Routes & Radar</span><span>S13</span></button>
+    <button class="scr-item" data-s="S16" onclick="pickScreen('S16')"><span>Tab 3 · Squad & Invites</span><span>S16</span></button>
+    <button class="scr-item" data-s="S14" onclick="pickScreen('S14')"><span>Tab 4 · Activity & Stats</span><span>S14</span></button>
+    <button class="scr-item" data-s="S18" onclick="pickScreen('S18')"><span>Tab 5 · You & Settings</span><span>S18</span></button>
+
+    <div class="sec-label">Launch & Auth</div>
+    <button class="scr-item" data-s="S01" onclick="pickScreen('S01')"><span>Launch Bike & Logo Reveal</span><span>S01</span></button>
+    <button class="scr-item" data-s="S02" onclick="pickScreen('S02')"><span>Sign In</span><span>S02</span></button>
+    <button class="scr-item" data-s="S03" onclick="pickScreen('S03')"><span>Create Account</span><span>S03</span></button>
+
+    <div class="sec-label">Ride, Mesh & Safety Flows</div>
+    <button class="scr-item" data-s="S05" onclick="pickScreen('S05')"><span>Start a Ride Setup</span><span>S05</span></button>
+    <button class="scr-item" data-s="S06" onclick="pickScreen('S06')"><span>Invite Squad to Ride</span><span>S06</span></button>
+    <button class="scr-item" data-s="S07" onclick="pickScreen('S07')"><span>Join a Ride</span><span>S07</span></button>
+    <button class="scr-item" data-s="S08" onclick="pickScreen('S08')"><span>Pre-Ride Staging Lobby</span><span>S08</span></button>
+    <button class="scr-item" data-s="S09" onclick="pickScreen('S09')"><span>Active Ride Voice HUD</span><span>S09</span></button>
+    <button class="scr-item" data-s="S10" onclick="pickScreen('S10')"><span>Offline Mesh Setup Lobby</span><span>S10</span></button>
+    <button class="scr-item" data-s="S11" onclick="pickScreen('S11')"><span>Offline Mesh Active HUD</span><span>S11</span></button>
+    <button class="scr-item" data-s="S12" onclick="pickScreen('S12')"><span>Post-Ride Summary</span><span>S12</span></button>
+    <button class="scr-item" data-s="S15" onclick="pickScreen('S15')"><span>Interactive GPS Replay</span><span>S15</span></button>
+    <button class="scr-item" data-s="S17" onclick="pickScreen('S17')"><span>Emergency SOS & Crash</span><span>S17</span></button>
+  </aside>
+
+  <section class="frames-stage">
+    <div class="frame-col" id="lightCol">
+      <div class="frame-header">
+        <span>☀️ Light Theme — "Daylight Alpine"</span>
+        <a href="./ridervoice-light.html" target="_blank" rel="noopener">Open Standalone ↗</a>
+      </div>
+      <iframe id="lightFrame" class="theme-frame" src="./ridervoice-light.html?embed=1" title="RiderVoice Light Theme"></iframe>
+    </div>
+
+    <div class="frame-col" id="darkCol">
+      <div class="frame-header">
+        <span>🌙 Dark Theme — "Obsidian Night"</span>
+        <a href="./ridervoice-dark.html" target="_blank" rel="noopener">Open Standalone ↗</a>
+      </div>
+      <iframe id="darkFrame" class="theme-frame" src="./ridervoice-dark.html?embed=1" title="RiderVoice Dark Theme"></iframe>
+    </div>
+  </section>
+</div>
+
+<script>
+let syncEnabled = true;
+let skOn = false;
+let miniOn = true;
+let rmOn = false;
+
+function broadcast(payload, excludeSource) {
+  const lf = document.getElementById('lightFrame');
+  const df = document.getElementById('darkFrame');
+  const msg = Object.assign({ type: 'RV_COMMAND' }, payload);
+  if (lf && lf.contentWindow && lf.contentWindow !== excludeSource) {
+    lf.contentWindow.postMessage(msg, '*');
+  }
+  if (df && df.contentWindow && df.contentWindow !== excludeSource) {
+    df.contentWindow.postMessage(msg, '*');
+  }
+  if (payload.screen || payload.replayLaunch) {
+    const scr = payload.replayLaunch ? 'S01' : payload.screen;
+    document.querySelectorAll('.scr-item').forEach(b => b.classList.toggle('active', b.dataset.s === scr));
+  }
+}
+
+function pickScreen(scr) {
+  broadcast({ screen: scr, sheet: '' });
+}
+
+function setLayout(mode) {
+  document.body.classList.remove('layout-light', 'layout-dark', 'layout-grid');
+  if (mode === 'light') document.body.classList.add('layout-light');
+  if (mode === 'dark') document.body.classList.add('layout-dark');
+  if (mode === 'grid') {
+    document.body.classList.add('layout-light', 'layout-grid');
+    broadcast({ viewMode: 'grid' });
+  } else {
+    broadcast({ viewMode: 'sim' });
+  }
+  document.getElementById('vDual').classList.toggle('active', mode === 'dual');
+  document.getElementById('vLight').classList.toggle('active', mode === 'light');
+  document.getElementById('vDark').classList.toggle('active', mode === 'dark');
+  document.getElementById('vGrid').classList.toggle('active', mode === 'grid');
+}
+
+function toggleSync() {
+  syncEnabled = !syncEnabled;
+  const btn = document.getElementById('syncBtn');
+  btn.textContent = `🔗 Sync Frames: ${syncEnabled ? 'ON' : 'OFF'}`;
+  btn.classList.toggle('active', syncEnabled);
+}
+
+function toggleSk() {
+  skOn = !skOn;
+  const btn = document.getElementById('skBtn');
+  btn.textContent = `✨ Skeleton Shimmer: ${skOn ? 'ON' : 'OFF'}`;
+  btn.classList.toggle('active', skOn);
+  broadcast({ skeleton: skOn });
+}
+
+function toggleMini() {
+  miniOn = !miniOn;
+  const btn = document.getElementById('miniBtn');
+  btn.textContent = `🎵 Mini-Ride Bar: ${miniOn ? 'ON' : 'OFF'}`;
+  btn.classList.toggle('active', miniOn);
+  broadcast({ miniBar: miniOn });
+}
+
+function toggleRm() {
+  rmOn = !rmOn;
+  const btn = document.getElementById('rmBtn');
+  btn.textContent = `Reduced Motion: ${rmOn ? 'ON' : 'OFF'}`;
+  btn.classList.toggle('active', rmOn);
+  broadcast({ reducedMotion: rmOn });
+}
+
+window.addEventListener('message', (e) => {
+  if (!syncEnabled || !e.data || e.data.type !== 'RV_SYNC') return;
+  const st = e.data.state;
+  broadcast({
+    screen: st.screen,
+    sheet: st.sheet,
+    skeleton: st.skeleton,
+    miniBar: st.miniBar,
+    reducedMotion: st.reducedMotion,
+    transport: st.transport
+  }, e.source);
+});
+</script>
+</body>
+</html>
+

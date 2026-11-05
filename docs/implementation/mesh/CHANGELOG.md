@@ -4,6 +4,23 @@ This changelog consolidates and replaces all historical work package reports (`W
 
 ---
 
+## Round 4 Remediation & Reimagined UI/UX Showcase (WP-53 – WP-61)
+
+### WP-53 – WP-60: Online Isolation, Backup Persistence, Audio Pacing, Protocol & Lifecycle Hardening
+- **Summary:**
+  - **WP-53 (Online-System Zero-Interference):** Removed unrequested `setUserMuted` writes on normal online reconnects when not paused by coordinator; synchronized online user mutes (`isUserMuted.drop(1)`); injected real `voxRunningCheck`; fixed `UnifiedVoicePeer.fromOnline` (`hopCount = 0`, `isDirect = false`).
+  - **WP-54 (Backup Session Persistence & Lobby Isolation):** Added `EncryptedPrefsBackupSessionStore` with self-healing fallback to persist unexpired backup sessions across process death; guarded `OfflineMeshViewModel.onCleared()` from stopping warm-standby discovery; routed all `OfflineMeshLobbyScreen` PBKDF2 work through `OfflineMeshViewModel` off the main thread; cleared sessions on sign-out.
+  - **WP-55 (Audio Playout, SCO & Helmet PTT):** Enforced monotonic 20 ms tick pacing in `OfflineAudioPlayback`; guarded `MeshAudioRouteController.releaseCommunicationMode()` when `AudioOwner.LIVEKIT` owns audio; prevented `MeshVoxBridge.detach()` from deactivating `MediaSessionCompat` during online rides; offloaded `ForwardingEngine.originateVoice` from the capture thread; added fast numeric IPv4 parsing and endpoint caching in `UdpMeshLink`.
+  - **WP-56 (Protocol & Graph Consistency):** Aligned `MeshConfig.MAX_HOPS = 5` with `DEFAULT_TTL = 5`; added atomic `SessionManager.canAdmitAll` for joint pre-AEAD admission; refreshed `MeshGraphRepository` snapshot timestamps on steady-state HELLOs; wired live link state, IP/broadcast addresses, and self-test diagnostics into `MeshPeerProjector`.
+  - **WP-57 & WP-58 (Handoff, Lifecycle & FGS Hardening):** Preserved deafened and mic states across fallback/recovery; added `VoiceSessionCoordinator.onOnlineRideEnded`; made `MeshAutoSwitchManager` restartable; added `ACTION_DISCONNECT` and `try/catch` guards to `MeshForegroundService`; cancelled child `CoroutineScope`s on `stop()`.
+  - **WP-59 & WP-60 (UI/UX, Tests & Repo Hygiene):** Hardened `MeshBottomBar` PTT gesture with `try/finally` and `DisposableEffect`; fixed `TacticalBanner` and `MeshActiveOverlay` copy across EN/HI/MR; added `Round4RemediationTest`; cleaned up root audit clutter and reconciled documentation.
+
+### WP-61: Reimagined Minimalist & Modern UI/UX Interactive Showcase (Generate-Only)
+- **Summary:**
+  - Generated standalone interactive HTML/CSS/SVG/JS showcases (`ridervoice-light.html`, `ridervoice-dark.html`, `index.html`) and architectural specification (`REIMAGINED_UIUX_SPEC.md`) under `docs/design/reimagined-uiux/` covering all 18 screens (`S01`–`S18`), 11 modals/sheets (`M01`–`M11`), 5-tab bottom navigation, and motion choreography without altering production Android UI code.
+
+---
+
 ## Round 3 Remediation (WP-43 – WP-52)
 
 ### WP-52: Test Quality, Stress Smoke Test, and Final Verification

@@ -3,6 +3,8 @@ package com.ridervoice.mesh.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
+import android.os.PersistableBundle
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -39,13 +42,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
-import com.ridervoice.mesh.link.MeshLinkState
-import com.ridervoice.mesh.link.UdpMeshLink
-import com.ridervoice.mesh.session.OfflineSessionHolder
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,15 +57,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.R
+import com.ridervoice.mesh.link.MeshLinkState
+import com.ridervoice.mesh.link.UdpMeshLink
 import com.ridervoice.mesh.session.OfflineSession
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 
 private val GraphiteBase = MeshColors.LobbyBackground
 private val CardDark = MeshColors.LobbyCard
@@ -84,15 +93,52 @@ fun OfflineMeshLobbyScreen(
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    var createdSession by remember { mutableStateOf<OfflineSession?>(null) }
+    var generatedCode by remember { mutableStateOf<String?>(null) }
     var joinCodeInput by remember { mutableStateOf("") }
     var joinError by remember { mutableStateOf<String?>(null) }
-    var useAsBackup by remember { mutableStateOf(false) }
-    val localIp = remember { UdpMeshLink.getLocalIpAddress() }
-    val bcastAddr = remember { UdpMeshLink.getLocalBroadcastAddress() }
+    var useAsBackup by remember { mutableStateOf(viewModel.isMicOwnedByLiveKit()) }
+
+    val backupSession by viewModel.backupSession.collectAsState()
+    val diagSnapshot by viewModel.transport.diagnostics.collectAsState()
+
+    var localIp by remember { mutableStateOf<String?>(null) }
+    var bcastAddr by remember { mutableStateOf("255.255.255.255") }
     val zeroNeighboursStartMs = remember { System.currentTimeMillis() }
+    var elapsedZeroNeighboursSec by remember { mutableStateOf(0L) }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            val ip = UdpMeshLink.getLocalIpAddress()
+            val bcast = UdpMeshLink.getLocalBroadcastAddress()
+            localIp = ip
+            bcastAddr = bcast
+        }
+        while (isActive) {
+            delay(1_000L)
+            elapsedZeroNeighboursSec = ((System.currentTimeMillis() - zeroNeighboursStartMs) / 1000L).coerceAtLeast(0L)
+        }
+    }
 
     val scrollState = rememberScrollState()
+
+    val submitJoinCode: () -> Unit = {
+        keyboardController?.hide()
+        viewModel.joinWithCode(
+            rawCode = joinCodeInput,
+            saveAsBackupOnly = useAsBackup,
+            onReady = {
+                if (useAsBackup) {
+                    Toast.makeText(context, context.getString(R.string.mesh_backup_saved_toast), Toast.LENGTH_SHORT).show()
+                    onBackClick()
+                } else {
+                    onEnterSession()
+                }
+            },
+            onInvalid = {
+                joinError = context.getString(R.string.mesh_invalid_code)
+            }
+        )
+    }
 
     Box(
         modifier = modifier
@@ -103,6 +149,7 @@ fun OfflineMeshLobbyScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .navigationBarsPadding()
                 .verticalScroll(scrollState)
                 .padding(16.dp)
         ) {
@@ -144,6 +191,47 @@ fun OfflineMeshLobbyScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
+            // Active Backup Session Status Card (if configured)
+            val currentBackup = backupSession
+            if (currentBackup != null) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = CardDark),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, ElectricGreen.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                        .padding(bottom = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = stringResource(
+                                R.string.mesh_backup_active_label,
+                                OfflineSession.format(currentBackup.pairingCode)
+                            ),
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = ElectricGreen,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = { viewModel.clearSavedBackup() }) {
+                            Text(
+                                text = stringResource(R.string.mesh_backup_clear_action),
+                                color = NeonOrange,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
             // Numbered Setup Instructions Card
             Card(
                 colors = CardDefaults.cardColors(containerColor = CardDark),
@@ -182,13 +270,24 @@ fun OfflineMeshLobbyScreen(
             }
 
             // Self-Test HUD Card
-            val selfTestInput = remember(localIp, bcastAddr) {
+            val resolvedLinkState = remember(diagSnapshot.linkState) {
+                when (diagSnapshot.linkState) {
+                    MeshLinkState.RUNNING.name -> MeshLinkState.RUNNING
+                    MeshLinkState.STARTING.name -> MeshLinkState.STARTING
+                    MeshLinkState.FAILED.name -> MeshLinkState.FAILED
+                    else -> MeshLinkState.STOPPED
+                }
+            }
+            val effectiveIp = diagSnapshot.localIp.takeIf { it.isNotBlank() } ?: localIp
+            val effectiveBcast = diagSnapshot.broadcastAddress.takeIf { it.isNotBlank() } ?: bcastAddr
+            val neighboursCount = diagSnapshot.authenticatedNeighborsLast10s
+            val selfTestInput = remember(resolvedLinkState, effectiveIp, effectiveBcast, neighboursCount, elapsedZeroNeighboursSec) {
                 MeshSelfTestInput(
-                    linkState = MeshLinkState.STOPPED,
-                    localIp = localIp,
-                    broadcastAddress = bcastAddr,
-                    authenticatedNeighboursHeardLast10s = 0,
-                    secondsWithZeroNeighbours = (System.currentTimeMillis() - zeroNeighboursStartMs) / 1000L
+                    linkState = resolvedLinkState,
+                    localIp = effectiveIp,
+                    broadcastAddress = effectiveBcast,
+                    authenticatedNeighboursHeardLast10s = neighboursCount,
+                    secondsWithZeroNeighbours = if (neighboursCount > 0) 0L else elapsedZeroNeighboursSec
                 )
             }
             val selfTestState = MeshSelfTestMapper.map(selfTestInput)
@@ -216,7 +315,7 @@ fun OfflineMeshLobbyScreen(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = stringResource(R.string.mesh_selftest_local_addresses, localIp ?: "None", bcastAddr),
+                        text = stringResource(R.string.mesh_selftest_local_addresses, effectiveIp ?: "None", effectiveBcast),
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -314,11 +413,13 @@ fun OfflineMeshLobbyScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    if (createdSession == null) {
+                    val currentGeneratedCode = generatedCode
+                    if (currentGeneratedCode == null) {
                         Button(
                             onClick = {
-                                val session = OfflineSession.create(System.currentTimeMillis())
-                                createdSession = session
+                                viewModel.createNewSession(saveAsBackup = useAsBackup) { code ->
+                                    generatedCode = code
+                                }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
                             shape = RoundedCornerShape(8.dp),
@@ -327,8 +428,7 @@ fun OfflineMeshLobbyScreen(
                             Text(stringResource(R.string.mesh_lobby_generate_code), color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     } else {
-                        val session = createdSession!!
-                        val formattedCode = OfflineSession.format(session.pairingCode)
+                        val formattedCode = OfflineSession.format(currentGeneratedCode)
 
                         Column(
                             modifier = Modifier
@@ -364,7 +464,16 @@ fun OfflineMeshLobbyScreen(
                             OutlinedButton(
                                 onClick = {
                                     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    cm.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.mesh_lobby_channel_code_header), formattedCode))
+                                    val clip = ClipData.newPlainText(
+                                        context.getString(R.string.mesh_lobby_channel_code_header),
+                                        formattedCode
+                                    )
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                        clip.description.extras = PersistableBundle().apply {
+                                            putBoolean("android.content.extra.IS_SENSITIVE", true)
+                                        }
+                                    }
+                                    cm.setPrimaryClip(clip)
                                     Toast.makeText(context, context.getString(R.string.mesh_lobby_code_copied), Toast.LENGTH_SHORT).show()
                                 },
                                 shape = RoundedCornerShape(8.dp),
@@ -378,10 +487,10 @@ fun OfflineMeshLobbyScreen(
                             Button(
                                 onClick = {
                                     if (useAsBackup) {
-                                        val backup = OfflineSession.fromCode(session.pairingCode, System.currentTimeMillis())
-                                        viewModel.holder.setBackup(backup)
-                                        Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
-                                        onBackClick()
+                                        viewModel.saveCurrentGeneratedAsBackupAndFinish {
+                                            Toast.makeText(context, context.getString(R.string.mesh_backup_saved_toast), Toast.LENGTH_SHORT).show()
+                                            onBackClick()
+                                        }
                                     } else {
                                         onEnterSession()
                                     }
@@ -390,7 +499,12 @@ fun OfflineMeshLobbyScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.weight(1.5f)
                             ) {
-                                Text(stringResource(R.string.mesh_lobby_enter_room), color = Color.Black, fontWeight = FontWeight.Bold)
+                                val createCtaText = if (useAsBackup) {
+                                    stringResource(R.string.mesh_settings_pair_code_action)
+                                } else {
+                                    stringResource(R.string.mesh_lobby_enter_room)
+                                }
+                                Text(createCtaText, color = Color.Black, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -446,22 +560,7 @@ fun OfflineMeshLobbyScreen(
                             imeAction = ImeAction.Done
                         ),
                         keyboardActions = KeyboardActions(
-                            onDone = {
-                                keyboardController?.hide()
-                                val session = OfflineSession.fromCode(joinCodeInput, System.currentTimeMillis())
-                                if (session == null) {
-                                    joinError = context.getString(R.string.mesh_invalid_code)
-                                } else {
-                                    if (useAsBackup) {
-                                        val backup = OfflineSession.fromCode(session.pairingCode, System.currentTimeMillis())
-                                        viewModel.holder.setBackup(backup)
-                                        Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
-                                        onBackClick()
-                                    } else {
-                                        onEnterSession()
-                                    }
-                                }
-                            }
+                            onDone = { submitJoinCode() }
                         ),
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = NeonOrange,
@@ -491,27 +590,17 @@ fun OfflineMeshLobbyScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
-                        onClick = {
-                            keyboardController?.hide()
-                            val session = OfflineSession.fromCode(joinCodeInput, System.currentTimeMillis())
-                            if (session == null) {
-                                joinError = context.getString(R.string.mesh_invalid_code)
-                            } else {
-                                if (useAsBackup) {
-                                    val backup = OfflineSession.fromCode(session.pairingCode, System.currentTimeMillis())
-                                    viewModel.holder.setBackup(backup)
-                                    Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
-                                    onBackClick()
-                                } else {
-                                    onEnterSession()
-                                }
-                            }
-                        },
+                        onClick = { submitJoinCode() },
                         colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(R.string.mesh_lobby_join_button), color = Color.Black, fontWeight = FontWeight.Bold)
+                        val joinCtaText = if (useAsBackup) {
+                            stringResource(R.string.mesh_settings_pair_code_action)
+                        } else {
+                            stringResource(R.string.mesh_lobby_join_button)
+                        }
+                        Text(joinCtaText, color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }

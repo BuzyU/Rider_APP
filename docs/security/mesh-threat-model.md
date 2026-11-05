@@ -58,7 +58,7 @@ The architecture enforces strict separation between authentication and encryptio
 [16-Character Crockford Base32 Code] 
            │
            ▼
-PBKDF2WithHmacSHA256 (120,000 iterations, salt "rvmesh/v2/session")
+PBKDF2WithHmacSHA256 (100,000 iterations, salt "rvmesh/v2/session")
            │
            ▼ (80 bytes derived key)
  ┌─────────┼──────────┐

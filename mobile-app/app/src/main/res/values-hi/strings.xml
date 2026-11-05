@@ -351,4 +351,9 @@
     <string name="mesh_diag_local_ip">लोकल IPv4</string>
     <string name="mesh_diag_broadcast">ब्रॉडकास्ट पता</string>
     <string name="mesh_settings_no_wifi_hardware">डिवाइस में वाई-फ़ाई हार्डवेयर नहीं है। ऑफ़लाइन मेश फ़ॉलबैक के लिए वाई-फ़ाई आवश्यक है।</string>
+    <string name="mesh_backup_active_label">सक्रिय बैकअप कोड: %1$s</string>
+    <string name="mesh_backup_clear_action">बैकअप हटाएं</string>
+    <string name="mesh_backup_saved_toast">ऑनलाइन राइड के लिए बैकअप पेयरिंग कोड सहेजा गया</string>
+    <string name="mesh_overlay_searching_peers">मेश पर आस-पास के राइडर्स को खोजा जा रहा है…</string>
+    <string name="mesh_tactical_summary">%1$d साथी · अधिकतम %2$d हॉप</string>
 </resources>

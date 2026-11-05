@@ -22,6 +22,7 @@ import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.session.OfflineSessionHolder
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceTransportState
+import com.ridervoice.mesh.ui.MeshApplicationScope
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,10 @@ class MeshForegroundService : Service() {
     @Inject
     lateinit var sessionHolder: OfflineSessionHolder
 
+    @Inject
+    @MeshApplicationScope
+    lateinit var appScope: CoroutineScope
+
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var observerJob: Job? = null
     private var stateJob: Job? = null
@@ -57,9 +62,10 @@ class MeshForegroundService : Service() {
         const val ACTION_START = "com.ridervoice.mesh.action.START"
         const val ACTION_STOP = "com.ridervoice.mesh.ACTION_STOP"
         const val ACTION_STOP_SERVICE = ACTION_STOP
+        const val ACTION_DISCONNECT = "com.ridervoice.mesh.action.DISCONNECT"
 
         fun decideForeground(action: String?): FgsDecision {
-            return if (action == ACTION_STOP || action == ACTION_STOP_SERVICE) {
+            return if (action == ACTION_STOP || action == ACTION_STOP_SERVICE || action == ACTION_DISCONNECT) {
                 FgsDecision.Stop
             } else {
                 FgsDecision.Start(withType = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
@@ -76,10 +82,14 @@ class MeshForegroundService : Service() {
             val intent = Intent(context, MeshForegroundService::class.java).apply {
                 action = ACTION_START
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                MeshLog.w(TAG, "startForegroundService failed: ${e.javaClass.simpleName}")
             }
         }
 
@@ -87,7 +97,11 @@ class MeshForegroundService : Service() {
             val intent = Intent(context, MeshForegroundService::class.java).apply {
                 action = ACTION_STOP_SERVICE
             }
-            context.stopService(intent)
+            try {
+                context.stopService(intent)
+            } catch (e: Exception) {
+                MeshLog.w(TAG, "stopService failed: ${e.javaClass.simpleName}")
+            }
         }
     }
 
@@ -103,6 +117,16 @@ class MeshForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val decision = decideForeground(intent?.action)
         if (decision is FgsDecision.Stop) {
+            if (intent?.action == ACTION_DISCONNECT) {
+                if (::sessionHolder.isInitialized) {
+                    sessionHolder.clearCurrent()
+                }
+                if (::meshTransport.isInitialized && ::appScope.isInitialized) {
+                    appScope.launch {
+                        meshTransport.stop()
+                    }
+                }
+            }
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
@@ -202,7 +226,7 @@ class MeshForegroundService : Service() {
         )
 
         val stopIntent = Intent(this, MeshForegroundService::class.java).apply {
-            action = ACTION_STOP_SERVICE
+            action = ACTION_DISCONNECT
         }
         val stopPendingIntent = PendingIntent.getService(
             this,

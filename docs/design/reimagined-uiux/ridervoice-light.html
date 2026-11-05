@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RiderVoice — Reimagined UI/UX (Daylight Alpine · Light Theme)</title>
+<style>
+:root {
+  --bg-page: #ECEFF4;
+  --bg-canvas: #F7F8FA;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --bg-recessed: #EFF2F6;
+  --bg-glass: rgba(255, 255, 255, 0.88);
+  --border-hairline: #E5E8EE;
+  --border-strong: #CBD5E1;
+  --ink-primary: #0F172A;
+  --ink-secondary: #475569;
+  --ink-muted: #64748B;
+  --accent-primary: #FF5A1F;
+  --accent-soft: rgba(255, 90, 31, 0.12);
+  --voice-active: #0D9488;
+  --voice-soft: rgba(13, 148, 136, 0.12);
+  --mesh-accent: #0284C7;
+  --mesh-soft: rgba(2, 132, 199, 0.12);
+  --warning-amber: #D97706;
+  --warning-soft: rgba(217, 119, 6, 0.14);
+  --danger-sos: #DC2626;
+  --danger-soft: rgba(220, 38, 38, 0.12);
+  --shadow-card: 0 8px 24px rgba(15, 23, 42, 0.05);
+  --shadow-float: 0 16px 38px rgba(15, 23, 42, 0.12);
+  --shimmer-a: #E2E8F0;
+  --shimmer-b: #F8FAFC;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Plus Jakarta Sans", "Inter", "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-page);
+  color: var(--ink-primary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+body.embedded-frame { background: transparent; }
+body.embedded-frame .studio-header { display: none; }
+
+.tabular { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+
+/* Top Studio Header */
+.studio-header {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-hairline);
+  padding: 12px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.brand-row { display: flex; align-items: center; gap: 10px; }
+.brand-badge {
+  background: var(--accent-primary);
+  color: #FFF;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  letter-spacing: 0.04em;
+}
+.studio-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ctrl-pill {
+  border: 1px solid var(--border-hairline);
+  background: var(--bg-recessed);
+  color: var(--ink-primary);
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+.ctrl-pill:hover { border-color: var(--accent-primary); }
+.ctrl-pill.active {
+  background: var(--accent-primary);
+  color: #FFF;
+  border-color: var(--accent-primary);
+}
+.ctrl-select {
+  border: 1px solid var(--border-hairline);
+  background: var(--bg-surface);
+  color: var(--ink-primary);
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Main Workspace */
+.workspace {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  padding: 18px;
+  justify-content: center;
+  align-items: flex-start;
+}
+body.embedded-frame .workspace { padding: 6px; }
+
+/* Left Screen Rail */
+.screen-rail {
+  width: 270px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: var(--shadow-card);
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
+body.embedded-frame .screen-rail { display: none; }
+.rail-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+  margin: 10px 0 6px;
+}
+.rail-btn {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3px;
+}
+.rail-btn:hover { background: var(--bg-recessed); color: var(--ink-primary); }
+.rail-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent-primary);
+  border-color: rgba(255, 90, 31, 0.28);
+  font-weight: 700;
+}
+.rail-code { font-family: var(--font-mono); font-size: 10px; opacity: 0.75; }
+
+/* Phone Frame (412 x 915 dp scaled cleanly) */
+.phone-shell {
+  width: 412px;
+  height: 868px;
+  background: var(--bg-canvas);
+  border-radius: 44px;
+  border: 10px solid #1E293B;
+  box-shadow: var(--shadow-float);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* Status Bar */
+.status-bar {
+  height: 36px;
+  padding: 0 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  background: var(--bg-canvas);
+  z-index: 20;
+  flex-shrink: 0;
+}
+.status-icons { display: flex; gap: 6px; align-items: center; font-size: 11px; }
+
+/* Screen Viewport */
+.screen-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+}
+
+/* Reusable Minimalist UI Atoms */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.icon-btn {
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid var(--border-hairline);
+  background: var(--bg-surface);
+  color: var(--ink-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+.icon-btn:active { transform: scale(0.96); }
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+}
+.card-title { font-size: 16px; font-weight: 700; color: var(--ink-primary); }
+.card-sub { font-size: 12.5px; color: var(--ink-secondary); line-height: 1.45; margin-top: 4px; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.badge-voice { background: var(--voice-soft); color: var(--voice-active); }
+.badge-mesh { background: var(--mesh-soft); color: var(--mesh-accent); }
+.badge-warn { background: var(--warning-soft); color: var(--warning-amber); }
+.badge-sos { background: var(--danger-soft); color: var(--danger-sos); }
+.badge-neutral { background: var(--bg-recessed); color: var(--ink-secondary); }
+
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-voice { background: var(--voice-active); }
+.dot-mesh { background: var(--mesh-accent); }
+.dot-warn { background: var(--warning-amber); }
+.dot-sos { background: var(--danger-sos); }
+
+/* Glove-First Primary & Secondary Buttons */
+.btn-primary {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 16px;
+  border: none;
+  background: var(--accent-primary);
+  color: #FFFFFF;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 8px 20px rgba(255, 90, 31, 0.25);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.btn-primary:active { transform: scale(0.975); }
+.btn-secondary {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid var(--border-hairline);
+  background: var(--bg-recessed);
+  color: var(--ink-primary);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+}
+.btn-danger {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 16px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: var(--danger-soft);
+  color: var(--danger-sos);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.input-group { display: flex; flex-direction: column; gap: 6px; }
+.input-label { font-size: 12px; font-weight: 700; color: var(--ink-secondary); }
+.input-field {
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid var(--border-hairline);
+  background: var(--bg-recessed);
+  color: var(--ink-primary);
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  width: 100%;
+}
+
+.segmented {
+  display: flex;
+  background: var(--bg-recessed);
+  padding: 4px;
+  border-radius: 14px;
+  gap: 4px;
+}
+.seg-btn {
+  flex: 1;
+  min-height: 42px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.seg-btn.active {
+  background: var(--bg-surface);
+  color: var(--ink-primary);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+/* Guarded Hold-to-SOS Bar */
+.sos-hold-bar {
+  position: relative;
+  min-height: 52px;
+  border-radius: 16px;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  background: var(--danger-soft);
+  color: var(--danger-sos);
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  overflow: hidden;
+  user-select: none;
+}
+.sos-hold-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0%;
+  background: rgba(220, 38, 38, 0.26);
+  transition: width 0.1s linear;
+}
+.sos-hold-bar.holding .sos-hold-fill {
+  width: 100%;
+  transition: width 1.1s linear;
+}
+
+/* Sculpted 88dp Glove PTT Bar (S09 / S11) */
+.ptt-sculpted-bar {
+  min-height: 88px;
+  border-radius: 24px;
+  border: 2px solid var(--accent-primary);
+  background: var(--accent-primary);
+  color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 12px 28px rgba(255, 90, 31, 0.3);
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.18s ease, box-shadow 0.18s ease;
+}
+.ptt-sculpted-bar.transmitting {
+  transform: scale(0.965);
+  background: var(--voice-active);
+  border-color: var(--voice-active);
+  box-shadow: 0 0 0 8px var(--voice-soft);
+}
+.ptt-sculpted-bar.hw-busy {
+  background: var(--warning-amber);
+  border-color: var(--warning-amber);
+}
+.eq-bars { display: flex; align-items: center; gap: 4px; height: 18px; }
+.eq-bar {
+  width: 4px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 99px;
+  transition: height 0.15s ease;
+}
+.transmitting .eq-bar:nth-child(odd),
+.mini-eq .eq-bar:nth-child(odd) {
+  animation: eqPulse 0.48s ease-in-out infinite alternate;
+}
+.transmitting .eq-bar:nth-child(even),
+.mini-eq .eq-bar:nth-child(even) {
+  animation: eqPulse 0.36s ease-in-out 0.15s infinite alternate;
+}
+@keyframes eqPulse {
+  from { height: 5px; }
+  to { height: 18px; }
+}
+
+/* Rider Speaking Aura */
+.rider-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--bg-recessed);
+  color: var(--ink-primary);
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.rider-avatar.speaking {
+  border: 2px solid var(--voice-active);
+  box-shadow: 0 0 0 6px var(--voice-soft);
+}
+
+/* Persistent Floating Live-Ride Mini-Player */
+.mini-ride-pill {
+  margin: 0 12px 8px;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--voice-active);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  z-index: 25;
+}
+
+/* 5-Tab Minimalist Bottom Navigation Bar (Replaces ProfileDrawer) */
+.bottom-nav {
+  height: 68px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border-hairline);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding: 6px 8px;
+  z-index: 25;
+  flex-shrink: 0;
+}
+.nav-tab {
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  position: relative;
+}
+.nav-tab.active {
+  color: var(--accent-primary);
+  background: var(--accent-soft);
+}
+.nav-dot {
+  position: absolute;
+  top: 6px;
+  right: 20px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+}
+
+/* Animation 1: Right-to-Left Motorcycle Sweep & Slipstream Logo Reveal (S01) */
+.launch-stage {
+  position: relative;
+  height: 240px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, var(--bg-surface), var(--bg-recessed));
+  border: 1px solid var(--border-hairline);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.slipstream-line {
+  position: absolute;
+  top: 52%;
+  left: 10%;
+  right: 10%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
+  transform-origin: right center;
+  animation: slipstreamDraw 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.bike-runner {
+  position: absolute;
+  top: 38%;
+  right: -120px;
+  width: 96px;
+  height: 48px;
+  color: var(--accent-primary);
+  animation: bikeRightToLeft 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.launch-logo-reveal {
+  text-align: center;
+  z-index: 2;
+  animation: logoRevealClip 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes bikeRightToLeft {
+  0% { transform: translateX(130px); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateX(-540px); opacity: 0; }
+}
+@keyframes slipstreamDraw {
+  0% { transform: scaleX(0); opacity: 0.9; }
+  60% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0.22; }
+}
+@keyframes logoRevealClip {
+  0%, 25% { clip-path: inset(0 0 0 100%); opacity: 0; transform: translateY(6px); }
+  100% { clip-path: inset(0 0 0 0); opacity: 1; transform: translateY(0); }
+}
+
+/* Animation 2: Geometry-Matched Skeleton Shimmer Loading */
+.skeleton-mode .sk-target {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--shimmer-a) !important;
+  border-color: transparent !important;
+}
+.skeleton-mode .sk-target * { visibility: hidden; }
+.skeleton-mode .sk-target::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--shimmer-b), transparent);
+  animation: shimmerSweep 1.6s ease-in-out infinite;
+}
+@keyframes shimmerSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Reduced Motion Respect */
+body.reduced-motion *,
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Modal / Bottom Sheet Backdrop Inside Phone */
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.46);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.bottom-sheet {
+  width: 100%;
+  max-height: 82%;
+  background: var(--bg-surface);
+  border-radius: 28px 28px 0 0;
+  padding: 16px 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 -12px 34px rgba(15, 23, 42, 0.16);
+  animation: sheetUp 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.sheet-handle {
+  width: 42px;
+  height: 5px;
+  background: var(--border-strong);
+  border-radius: 99px;
+  margin: 0 auto 4px;
+}
+
+/* All-Screens Blueprint Grid Mode */
+.blueprint-grid {
+  display: none;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 1440px;
+}
+body.grid-mode .phone-shell,
+body.grid-mode .screen-rail { display: none; }
+body.grid-mode .blueprint-grid { display: grid; }
+.bp-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bp-chip-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.bp-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--bg-recessed);
+  color: var(--ink-secondary);
+}
+</style>
+</head>
+<body>
+
+<header class="studio-header">
+  <div class="brand-row">
+    <span class="brand-badge">DAYLIGHT ALPINE · LIGHT</span>
+    <strong>RiderVoice Reimagined UI/UX</strong>
+    <span class="badge badge-neutral tabular" id="activeScreenBadge">S04 · Ride Hub</span>
+  </div>
+  <div class="studio-controls">
+    <button class="ctrl-pill active" id="modeSimBtn" onclick="setViewMode('sim')">Phone Simulator</button>
+    <button class="ctrl-pill" id="modeGridBtn" onclick="setViewMode('grid')">All 18 Screens + 11 Sheets Grid</button>
+    <button class="ctrl-pill" onclick="replayLaunch()">Replay Bike Launch (S01)</button>
+    <button class="ctrl-pill" id="skBtn" onclick="toggleSkeleton()">Skeleton Shimmer: OFF</button>
+    <button class="ctrl-pill" id="miniBarBtn" onclick="toggleMiniBar()">Mini-Ride Bar: ON</button>
+    <select class="ctrl-select" id="transportSelect" onchange="setTransportMode(this.value)" aria-label="Transport Mode">
+      <option value="cloud">Transport: Cloud · HD (24ms)</option>
+      <option value="switching">Transport: Switching (400ms Guard)…</option>
+      <option value="mesh">Transport: Offline Mesh (4/6 · Max 5 Hops)</option>
+    </select>
+    <select class="ctrl-select" id="modalSelect" onchange="openSheet(this.value)" aria-label="Inspect Modal or Bottom Sheet">
+      <option value="">Open Modal / Sheet (M01–M11)…</option>
+      <option value="M01">M01 · Quick Join Convoy Sheet</option>
+      <option value="M02">M02 · Invite / Add Riders Sheet</option>
+      <option value="M03">M03 · Audio Route & Helmet Sheet</option>
+      <option value="M04">M04 · Live Connection & Mesh Topology</option>
+      <option value="M05">M05 · Leave vs End Convoy Sheet</option>
+      <option value="M06">M06 · Offline Mesh Self-Test Sheet</option>
+      <option value="M07">M07 · Mapbox Token Configuration</option>
+      <option value="M08">M08 · Add Squad Rider Modal</option>
+      <option value="M09">M09 · Remove / Sign-Out Confirmation</option>
+      <option value="M10">M10 · Edit Rider Profile & Bike</option>
+      <option value="M11">M11 · Privacy & 8-State OTA Updater</option>
+    </select>
+    <button class="ctrl-pill" id="rmBtn" onclick="toggleReducedMotion()">Reduced Motion: OFF</button>
+  </div>
+</header>
+
+<main class="workspace">
+  <!-- Left Navigation Rail for All 18 Screens & 11 Modals -->
+  <aside class="screen-rail" aria-label="Screen and Modal Directory">
+    <div class="rail-section-title">Core 5 Bottom-Nav Tabs</div>
+    <button class="rail-btn" data-scr="S04" onclick="goScreen('S04')"><span>Tab 1 · Ride Hub</span><span class="rail-code">S04</span></button>
+    <button class="rail-btn" data-scr="S13" onclick="goScreen('S13')"><span>Tab 2 · Routes & Radar</span><span class="rail-code">S13</span></button>
+    <button class="rail-btn" data-scr="S16" onclick="goScreen('S16')"><span>Tab 3 · Squad & Invites</span><span class="rail-code">S16</span></button>
+    <button class="rail-btn" data-scr="S14" onclick="goScreen('S14')"><span>Tab 4 · Activity & Stats</span><span class="rail-code">S14</span></button>
+    <button class="rail-btn" data-scr="S18" onclick="goScreen('S18')"><span>Tab 5 · You & Settings</span><span class="rail-code">S18</span></button>
+
+    <div class="rail-section-title">Launch & Onboarding</div>
+    <button class="rail-btn" data-scr="S01" onclick="goScreen('S01')"><span>Launch Bike & Logo Reveal</span><span class="rail-code">S01</span></button>
+    <button class="rail-btn" data-scr="S02" onclick="goScreen('S02')"><span>Sign In</span><span class="rail-code">S02</span></button>
+    <button class="rail-btn" data-scr="S03" onclick="goScreen('S03')"><span>Create Account</span><span class="rail-code">S03</span></button>
+
+    <div class="rail-section-title">Ride & Voice Intercom Flows</div>
+    <button class="rail-btn" data-scr="S05" onclick="goScreen('S05')"><span>Start a Ride Setup</span><span class="rail-code">S05</span></button>
+    <button class="rail-btn" data-scr="S06" onclick="goScreen('S06')"><span>Invite Squad to Ride</span><span class="rail-code">S06</span></button>
+    <button class="rail-btn" data-scr="S07" onclick="goScreen('S07')"><span>Join a Ride</span><span class="rail-code">S07</span></button>
+    <button class="rail-btn" data-scr="S08" onclick="goScreen('S08')"><span>Pre-Ride Staging Lobby</span><span class="rail-code">S08</span></button>
+    <button class="rail-btn" data-scr="S09" onclick="goScreen('S09')"><span>Active Ride Voice HUD</span><span class="rail-code">S09</span></button>
+    <button class="rail-btn" data-scr="S10" onclick="goScreen('S10')"><span>Offline Mesh Setup Lobby</span><span class="rail-code">S10</span></button>
+    <button class="rail-btn" data-scr="S11" onclick="goScreen('S11')"><span>Offline Mesh Active HUD</span><span class="rail-code">S11</span></button>
+    <button class="rail-btn" data-scr="S12" onclick="goScreen('S12')"><span>Post-Ride Summary</span><span class="rail-code">S12</span></button>
+    <button class="rail-btn" data-scr="S15" onclick="goScreen('S15')"><span>Interactive GPS Replay</span><span class="rail-code">S15</span></button>
+    <button class="rail-btn" data-scr="S17" onclick="goScreen('S17')"><span>Emergency SOS & Crash</span><span class="rail-code">S17</span></button>
+  </aside>
+
+  <!-- Interactive Phone Frame -->
+  <section class="phone-shell" aria-label="Interactive RiderVoice Light Theme Phone">
+    <div class="status-bar">
+      <span class="tabular">09:41</span>
+      <span style="font-size:11px; color:var(--ink-muted);">DAYLIGHT ALPINE</span>
+      <div class="status-icons tabular">
+        <span>5G</span>
+        <span>BT · 92%</span>
+      </div>
+    </div>
+
+    <div class="screen-viewport" id="screenViewport"></div>
+
+    <!-- Persistent Floating Live-Ride Mini-Player Pill -->
+    <div class="mini-ride-pill" id="miniRidePill">
+      <div style="display:flex; align-items:center; gap:10px; cursor:pointer;" onclick="goScreen('S09')">
+        <div class="eq-bars mini-eq" style="color:var(--voice-active);">
+          <span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span>
+        </div>
+        <div>
+          <div style="font-size:12.5px; font-weight:800;">Sunday Twisties · 4 Riders</div>
+          <div style="font-size:11px; color:var(--voice-active); font-weight:700;" id="miniTransportLabel">Cloud Intercom · Tap to Expand HUD</div>
+        </div>
+      </div>
+      <button class="icon-btn" style="min-width:42px; min-height:42px;" onclick="toggleGlobalMute()" id="miniMuteBtn" title="Quick Mute/Unmute">🎙️</button>
+    </div>
+
+    <!-- 5-Tab Minimalist Bottom Navigation Bar -->
+    <nav class="bottom-nav" id="bottomNav" aria-label="Bottom Navigation">
+      <button class="nav-tab active" data-tab="S04" onclick="goScreen('S04')">
+        <span>🏍️</span><span>Ride</span>
+      </button>
+      <button class="nav-tab" data-tab="S13" onclick="goScreen('S13')">
+        <span>🧭</span><span>Routes</span>
+      </button>
+      <button class="nav-tab" data-tab="S16" onclick="goScreen('S16')">
+        <span class="nav-dot"></span>
+        <span>👥</span><span>Squad</span>
+      </button>
+      <button class="nav-tab" data-tab="S14" onclick="goScreen('S14')">
+        <span>📈</span><span>Activity</span>
+      </button>
+      <button class="nav-tab" data-tab="S18" onclick="goScreen('S18')">
+        <span>⚙️</span><span>You</span>
+      </button>
+    </nav>
+
+    <!-- Interactive Modal / Bottom Sheet Container -->
+    <div class="sheet-backdrop" id="sheetBackdrop" style="display:none;" onclick="if(event.target===this) closeSheet()">
+      <div class="bottom-sheet" id="sheetContent"></div>
+    </div>
+  </section>
+
+  <!-- All-Screens & All-Sheets Blueprint Grid -->
+  <section class="blueprint-grid" id="blueprintGrid" aria-label="All Screens and Sheets Matrix"></section>
+</main>
+
+<script>
+const STATE = {
+  screen: 'S04',
+  sheet: '',
+  skeleton: false,
+  miniBar: true,
+  reducedMotion: false,
+  transport: 'cloud', // cloud | switching | mesh
+  muted: false,
+  deafened: false,
+  pttHeld: false,
+  hwBusyDemo: false,
+  talkMode: 'VOX Hands-Free',
+  audioRoute: 'Cardo Packtalk (BT SCO)',
+  backupReady: true,
+  backupCode: 'RV2M-8K4P-9X7T-3N6Q',
+  routeView: 'map', // map | radar
+  routeStyle: 'Twisty',
+  squadTab: 'squad', // squad | invites
+  statsRange: '30D',
+  statsMetric: 'Speed',
+  replayProgress: 42,
+  replaySpeed: '1x',
+  replayPlaying: false,
+  sosMode: 'manual', // manual | crash
+  incomingInviteOverlay: false,
+  otaStateIndex: 2 // 0..7
+};
+
+const OTA_STATES = [
+  '1/8 · Checking GitHub Release Manifest…',
+  '2/8 · Up to Date (v0.0.3.19)',
+  '3/8 · Update Available: v0.0.3.20 (54.2 MB)',
+  '4/8 · Downloading APK… 68% (36.8 / 54.2 MB)',
+  '5/8 · Verifying SHA-256 & Signing Certificate…',
+  '6/8 · Ready to Install Verified Update',
+  '7/8 · Allow "Install Unknown Apps" Permission',
+  '8/8 · Network Interrupted — Tap to Resume Cached APK'
+];
+
+const SCREENS_META = [
+  { id:'S01', title:'App Launch & Right-to-Left Bike Reveal', route:'Routes.SPLASH', buttons:['Replay Launch Animation','Skip to Sign In (S02)','Enter Ride Hub (S04)'] },
+  { id:'S02', title:'Sign In', route:'Routes.LOGIN', buttons:['Email/@handle Input','Password + Show/Hide','Sign In (S04)','Create an Account (S03)','Offline Mesh Quick Mode (S10)'] },
+  { id:'S03', title:'Create Account', route:'Routes.REGISTER', buttons:['Back (S02)','Full Name','@RiderHandle Check','Bike Model','Email','Password + Show/Hide','Create Account (S04)','Sign In Link'] },
+  { id:'S04', title:'Tab 1 · Ride Command Hub', route:'Routes.HOME', buttons:['Rider Avatar (S18)','Helmet & Audio Pill (M03)','Resume Active Convoy (S09)','Start a Ride (S05)','Join Ride (M01/S07)','Offline Mesh Intercom (S10)','Fix Background Audio','Dismiss Battery Tip','Hold for Emergency SOS (S17)'] },
+  { id:'S05', title:'Start a Ride Setup', route:'Routes.HOST_SETUP', buttons:['Back (S04)','Convoy Name + Quick Chips','VOX / PTT / Hybrid / Open Mic','Auto-Arm Offline Backup (8h)','Next: Invite Squad (S06)','Start Immediately (S08)'] },
+  { id:'S06', title:'Invite Squad to Ride', route:'Routes.INVITE_FRIENDS', buttons:['Back (S05)','Search @handle','Select All Available','Squad Checkboxes','Share Invite Link','Send Invites & Open Lobby (S08)','Skip (S08)'] },
+  { id:'S07', title:'Join a Ride', route:'Routes.JOIN_ROOM', buttons:['Back (S04)','6-Char Room Code Input','Paste Code','Recent Convoys Rejoin','Scan Nearby Offline Mesh (S10)','Join Convoy (S08)'] },
+  { id:'S08', title:'Pre-Ride Staging Lobby', route:'Routes.LOBBY', buttons:['Back / Leave (M05)','Copy Room Code','Share Link','+ Invite More (M02)','Mute Mic','Audio Route (M03)','Test Helmet PTT','Copy Backup Code','Launch Ride Intercom (S09)'] },
+  { id:'S09', title:'Active Ride Voice HUD', route:'Routes.ACTIVE_RIDE_HUD', buttons:['Minimize HUD','Morphing Transport Pill (M04)','Backup Code Chip (S10)','+ Invite (M02)','Hold SOS (S17)','Squad SOS Banner Actions','Radar Peek Toggle','Mic Mute','Mute Speaker (Deafen)','Audio Route (M03)','Talk Mode Pill','Leave / End (M05)','88dp HOLD TO TALK / VOX Bar'] },
+  { id:'S10', title:'Standalone Offline Mesh Setup', route:'Routes.OFFLINE_MESH_LOBBY', buttons:['Back (S04)','Host / Join Tabs','Save as Backup & Finish','Clear Saved Backup','Generate New Pairing Code','Copy Pairing Code','Open Wi-Fi / Hotspot Settings','Paste Pre-Shared Code','Mesh Self-Test (M06)','Start / Join Offline Mesh (S11)'] },
+  { id:'S11', title:'Standalone Offline Mesh HUD', route:'Routes.OFFLINE_MESH_HUD', buttons:['Minimize','Peers 4/6 · Max 5 Hops Pill (M04)','Copy Pairing Code','Mesh Self-Test (M06)','Hold SOS (S17)','Hardware Busy Demo Toggle','Mic Mute','Mute Speaker (Deafen)','Audio Route (M03)','Disconnect Mesh (M05)','88dp HOLD TO TALK Bar'] },
+  { id:'S12', title:'Post-Ride Summary', route:'Routes.POST_RIDE_SUMMARY', buttons:['Save to Logbook','Share Summary Card','Watch GPS Replay (S15)','Back to Ride Hub (S04)'] },
+  { id:'S13', title:'Tab 2 · Routes & Radar Planner', route:'Routes.ROUTE_PLANNER', buttons:['Map / Compass-Radar Switch','Map Token Gear (M07)','Recenter GPS','Use Current GPS Origin','Swap Origin/Dest','Fastest / Scenic / Twisty / Off-Road','Save Route','Export GPX','Invert','Clear','Start Ride With Route (S05)'] },
+  { id:'S14', title:'Tab 4 · Activity & Telemetry', route:'Routes.RIDE_STATS', buttons:['Share Stats','7D / 30D / Season / All','Overview / Speed / Elevation Chart','Ride Logbook Replay Buttons (S15)'] },
+  { id:'S15', title:'Interactive GPS Ride Replay', route:'Routes.RIDE_REPLAY', buttons:['Back to Activity (S14)','Timeline Scrubber','-10%','Play / Pause','+10%','1x / 2x / 4x Speed'] },
+  { id:'S16', title:'Tab 3 · Squad & Invites', route:'Routes.SQUAD + INVITES_INBOX', buttons:['My Squad / Invites Switch','+ Add Rider (M08)','Search @handle','Invite to Ride','Remove Rider (M09)','Accept & Join Invite (S08)','Decline Invite'] },
+  { id:'S17', title:'Emergency SOS & Crash Countdown', route:'Routes.SOS + EmergencyAlertActivity', buttons:['Manual SOS (15s) / Crash Impact (10s) Toggle','CANCEL — I AM SAFE','Send SOS Immediately','Call Emergency (112 / 911)'] },
+  { id:'S18', title:'Tab 5 · You, Helmet & Settings', route:'Routes.ACCOUNT + DEVICE_SETUP + SETTINGS', buttons:['Edit Profile (M10)','Light / Dark / System','Language (EN/HI/MR)','Test Audio Loopback','Talk Mode & VOX Slider','Test Helmet PTT','Offline Mesh Toggles','Clear Backup','Emergency Country Picker','Diagnostics Consent (M11)','Check OTA Updates (M11)','Incoming Call Overlay Toggle','Sign Out (M09)'] }
+];
+
+const SHEETS_META = [
+  { id:'M01', title:'Quick Join Convoy Sheet', buttons:['6-Char Code Input','Paste Code','Nearby Offline Mesh (S10)','Join Convoy (S08)','Close'] },
+  { id:'M02', title:'Invite / Add Riders In-Ride Sheet', buttons:['Search Squad','Select Riders','Copy Room Code','Share Link','Send Invites','Close'] },
+  { id:'M03', title:'Audio Route & Helmet Picker Sheet', buttons:['Bluetooth Helmet (SCO Active)','Speakerphone','Wired / USB-C','Earpiece','Test Mic & Speaker','Done'] },
+  { id:'M04', title:'Live Connection & Multi-Hop Topology Sheet', buttons:['Cloud RTT/Loss Metrics','6-Node Relay Graph (Max 5 Hops, Port 45454)','Copy Diagnostic Report','Close'] },
+  { id:'M05', title:'Leave vs End Convoy Confirmation Sheet', buttons:['Leave Audio Only (S04)','End Convoy for All (S12)','Cancel'] },
+  { id:'M06', title:'Offline Mesh Live Self-Test Sheet', buttons:['5-Step Readiness Checklist','Re-run Self-Test','Open Wi-Fi Settings','Close'] },
+  { id:'M07', title:'Mapbox Token Configuration Modal', buttons:['Public Token Input','Save & Reload Map','Reset Default','Cancel'] },
+  { id:'M08', title:'Add Squad Rider Modal', buttons:['@handle Lookup','Send Squad Request','Cancel'] },
+  { id:'M09', title:'Remove Rider / Sign-Out Confirmation', buttons:['Confirm Remove / Sign Out (Wipe Keys)','Cancel'] },
+  { id:'M10', title:'Edit Rider Profile & Bike Sheet', buttons:['Display Name','@handle','Bike Model','Emergency Note','Save Changes','Cancel'] },
+  { id:'M11', title:'Privacy Consent & 8-State OTA Updater', buttons:['Cycle All 8 OTA States','Accept Diagnostics Consent','Install / Retry Update','Close'] }
+];
+
+const IMMERSIVE_SCREENS = new Set(['S01','S02','S03','S05','S06','S07','S08','S09','S10','S11','S12','S15','S17']);
+
+function notifyParent() {
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({ type:'RV_SYNC', state: STATE }, '*');
+  }
+}
+
+window.addEventListener('message', (e) => {
+  if (!e.data || e.data.type !== 'RV_COMMAND') return;
+  const cmd = e.data;
+  if (cmd.screen) STATE.screen = cmd.screen;
+  if (cmd.sheet !== undefined) STATE.sheet = cmd.sheet;
+  if (cmd.skeleton !== undefined) STATE.skeleton = cmd.skeleton;
+  if (cmd.miniBar !== undefined) STATE.miniBar = cmd.miniBar;
+  if (cmd.reducedMotion !== undefined) STATE.reducedMotion = cmd.reducedMotion;
+  if (cmd.transport) STATE.transport = cmd.transport;
+  if (cmd.viewMode) setViewMode(cmd.viewMode, true);
+  if (cmd.replayLaunch) { STATE.screen = 'S01'; }
+  renderAll(true);
+});
+
+function setViewMode(mode, fromParent) {
+  document.body.classList.toggle('grid-mode', mode === 'grid');
+  document.getElementById('modeSimBtn').classList.toggle('active', mode !== 'grid');
+  document.getElementById('modeGridBtn').classList.toggle('active', mode === 'grid');
+  if (!fromParent) notifyParent();
+}
+
+function goScreen(scr) {
+  STATE.screen = scr;
+  STATE.sheet = '';
+  if (document.body.classList.contains('grid-mode')) setViewMode('sim', true);
+  renderAll();
+}
+
+function openSheet(id) {
+  STATE.sheet = id || '';
+  renderAll();
+}
+function closeSheet() {
+  STATE.sheet = '';
+  document.getElementById('modalSelect').value = '';
+  renderAll();
+}
+
+function replayLaunch() {
+  STATE.screen = 'S01';
+  renderAll();
+}
+
+function toggleSkeleton() {
+  STATE.skeleton = !STATE.skeleton;
+  renderAll();
+}
+
+function toggleMiniBar() {
+  STATE.miniBar = !STATE.miniBar;
+  renderAll();
+}
+
+function toggleReducedMotion() {
+  STATE.reducedMotion = !STATE.reducedMotion;
+  renderAll();
+}
+
+function setTransportMode(mode) {
+  STATE.transport = mode;
+  renderAll();
+}
+
+function toggleGlobalMute() {
+  STATE.muted = !STATE.muted;
+  renderAll();
+}
+
+function attachHoldSos(el) {
+  if (!el) return;
+  let timer = null;
+  const start = () => {
+    el.classList.add('holding');
+    timer = setTimeout(() => {
+      el.classList.remove('holding');
+      goScreen('S17');
+    }, 850);
+  };
+  const cancel = () => {
+    el.classList.remove('holding');
+    if (timer) clearTimeout(timer);
+  };
+  el.addEventListener('mousedown', start);
+  el.addEventListener('touchstart', start);
+  el.addEventListener('mouseup', cancel);
+  el.addEventListener('mouseleave', cancel);
+  el.addEventListener('touchend', cancel);
+}
+
+function renderScreenHTML(s) {
+  switch (s) {
+    case 'S01':
+      return `
+        <div class="launch-stage">
+          <div class="slipstream-line"></div>
+          <svg class="bike-runner" viewBox="0 0 120 60" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="26" cy="42" r="12"/>
+            <circle cx="92" cy="42" r="12"/>
+            <path d="M26 42 L48 22 L76 22 L92 42 M48 22 L62 42 L92 42 M42 14 L54 14"/>
+          </svg>
+          <div class="launch-logo-reveal">
+            <div class="badge badge-voice" style="margin-bottom:8px;">ZERO-DROP CONVOY INTERCOM</div>
+            <h1 style="font-size:28px; font-weight:900; letter-spacing:-0.03em;">RiderVoice</h1>
+            <p style="font-size:12.5px; color:var(--ink-secondary); margin-top:4px;">Cloud WebRTC + Multi-Hop Offline Mesh</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Right-to-Left Motorcycle Sweep & Slipstream Reveal</div>
+          <div class="card-sub">Minimalist geometric motorcycle sweeps right-to-left, drawing a safety-orange slipstream that unveils the RiderVoice emblem with zero blocking delay.</div>
+          <div class="grid-2" style="margin-top:12px;">
+            <button class="btn-secondary" onclick="replayLaunch()">↻ Replay Animation</button>
+            <button class="btn-secondary" onclick="goScreen('S02')">Skip to Sign In →</button>
+          </div>
+          <button class="btn-primary" style="margin-top:10px;" onclick="goScreen('S04')">Continue to Ride Hub (S04)</button>
+        </div>
+      `;
+
+    case 'S02':
+      return `
+        <div style="padding:8px 0;">
+          <span class="badge badge-voice">WELCOME BACK</span>
+          <h2 style="font-size:24px; font-weight:800; margin-top:6px;">Sign in to your Convoy</h2>
+          <p class="card-sub">Sync your Trusted Squad, routes, and encrypted mesh backup keys.</p>
+        </div>
+        <div class="card" style="display:flex; flex-direction:column; gap:12px;">
+          <div class="input-group">
+            <label class="input-label">Email or @RiderHandle</label>
+            <input class="input-field" value="arjun@ridervoice.app" aria-label="Email or Handle"/>
+          </div>
+          <div class="input-group">
+            <div class="row-between">
+              <label class="input-label">Password</label>
+              <button class="ctrl-pill" style="padding:3px 8px; font-size:11px;" onclick="this.textContent=this.textContent==='Show'?'Hide':'Show'">Show</button>
+            </div>
+            <input class="input-field" type="password" value="••••••••••••" aria-label="Password"/>
+          </div>
+          <button class="btn-primary" onclick="goScreen('S04')">Sign In to RiderVoice</button>
+          <button class="btn-secondary" onclick="goScreen('S03')">Create a New Rider Account</button>
+        </div>
+        <div class="card" style="border-style:dashed;">
+          <div class="row-between">
+            <div>
+              <div class="card-title" style="font-size:14px;">No Cell Signal at Trailhead?</div>
+              <div class="card-sub">Launch standalone local Wi-Fi / Hotspot Offline Mesh immediately.</div>
+            </div>
+            <button class="btn-secondary" style="width:auto;" onclick="goScreen('S10')">Offline Mesh →</button>
+          </div>
+        </div>
+      `;
+
+    case 'S03':
+      return `
+        <div class="top-bar">
+          <button class="icon-btn" onclick="goScreen('S02')">← Back</button>
+          <span class="card-title">Create Rider Account</span>
+          <span style="width:48px;"></span>
+        </div>
+        <div class="card" style="display:flex; flex-direction:column; gap:10px;">
+          <div class="input-group">
+            <label class="input-label">Full Name</label>
+            <input class="input-field" value="Arjun Deshmukh" />
+          </div>
+          <div class="grid-2">
+            <div class="input-group">
+              <label class="input-label">@RiderHandle</label>
+              <input class="input-field tabular" value="@arjun_adv" />
+            </div>
+            <div class="input-group">
+              <label class="input-label">Motorcycle Model</label>
+              <input class="input-field" value="Himalayan 450" />
+            </div>
+          </div>
+          <div class="input-group">
+            <label class="input-label">Email Address</label>
+            <input class="input-field" value="arjun@ridervoice.app" />
+          </div>
+          <div class="input-group">
+            <label class="input-label">Password (Strong · 12+ chars)</label>
+            <input class="input-field" type="password" value="••••••••••••" />
+          </div>
+          <button class="btn-primary" style="margin-top:6px;" onclick="goScreen('S04')">Create Account & Continue</button>
+          <button class="btn-secondary" onclick="goScreen('S02')">Already have an account? Sign In</button>
+        </div>
+      `;
+
+    case 'S04':
+      return `
+        <div class="top-bar">
+          <div style="display:flex; align-items:center; gap:10px; cursor:pointer;" onclick="goScreen('S18')">
+            <div class="rider-avatar speaking">AD</div>
+            <div>
+              <div style="font-size:15px; font-weight:800;">Arjun · @arjun_adv</div>
+              <div style="font-size:11.5px; color:var(--ink-secondary);">Himalayan 450 · Online & Mesh Ready</div>
+            </div>
+          </div>
+          <button class="badge badge-voice" style="border:none; cursor:pointer; min-height:38px;" onclick="openSheet('M03')">
+            <span class="dot dot-voice"></span>🎧 Cardo · Ready
+          </button>
+        </div>
+
+        <!-- Active Convoy Resume Card -->
+        <div class="card sk-target" style="border-color:rgba(13,148,136,0.35);">
+          <div class="row-between">
+            <span class="badge badge-voice"><span class="dot dot-voice"></span>ACTIVE CONVOY LIVE</span>
+            <span class="tabular" style="font-size:12px; font-weight:700; color:var(--ink-muted);">00:42:18</span>
+          </div>
+          <div class="row-between" style="margin-top:8px;">
+            <div>
+              <div class="card-title">Sunday Twisties · 4/6 Riders</div>
+              <div class="card-sub">Cloud Intercom + Armed 8h Mesh Backup</div>
+            </div>
+            <button class="btn-primary" style="width:auto; padding:0 18px; min-height:48px;" onclick="goScreen('S09')">Rejoin HUD →</button>
+          </div>
+        </div>
+
+        <!-- Primary Action Duo -->
+        <div class="grid-2">
+          <div class="card" style="display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+            <div>
+              <span class="badge badge-neutral">HOST</span>
+              <div class="card-title" style="margin-top:8px;">Start a Ride</div>
+              <div class="card-sub">Create a convoy room & arm auto-mesh backup.</div>
+            </div>
+            <button class="btn-primary" onclick="goScreen('S05')">Start Ride</button>
+          </div>
+          <div class="card" style="display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+            <div>
+              <span class="badge badge-neutral">JOIN</span>
+              <div class="card-title" style="margin-top:8px;">Join Convoy</div>
+              <div class="card-sub">Enter 6-digit code, link, or scan nearby mesh.</div>
+            </div>
+            <button class="btn-secondary" style="min-height:56px;" onclick="openSheet('M01')">Join Ride</button>
+          </div>
+        </div>
+
+        <!-- Offline Mesh Card -->
+        <div class="card sk-target">
+          <div class="row-between">
+            <span class="badge badge-mesh"><span class="dot dot-mesh"></span>OFFLINE MESH INTERCOM</span>
+            <span class="badge badge-voice">${STATE.backupReady ? '8h Backup Armed' : 'No Backup Paired'}</span>
+          </div>
+          <div class="card-title" style="margin-top:8px;">Direct Bike-to-Bike Wi-Fi / Hotspot Mesh</div>
+          <div class="card-sub">Up to 6 riders, Max 5 hops daisy-chain relay, AES-256-GCM encrypted. Zero cellular signal required.</div>
+          <div class="grid-2" style="margin-top:12px;">
+            <button class="btn-secondary" onclick="goScreen('S10')">Mesh Lobby (S10)</button>
+            <button class="btn-secondary" onclick="goScreen('S11')">Active Mesh HUD</button>
+          </div>
+        </div>
+
+        <!-- Battery Optimization Tip -->
+        <div class="card" id="batteryTipCard" style="padding:12px 14px;">
+          <div class="row-between">
+            <div style="font-size:12px; font-weight:700;">⚡ Keep intercom alive with screen off</div>
+            <div style="display:flex; gap:6px;">
+              <button class="ctrl-pill" onclick="alert('Unrestricted battery optimization granted for RiderVoice.')">Fix Now</button>
+              <button class="ctrl-pill" onclick="document.getElementById('batteryTipCard').style.display='none'">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Guarded Hold for SOS -->
+        <div class="sos-hold-bar" id="sosHoldBar" onclick="goScreen('S17')">
+          <div class="sos-hold-fill"></div>
+          <span>🆘 HOLD 1.2s FOR EMERGENCY SOS BEACON (OR TAP IN DEMO)</span>
+        </div>
+      `;
+
+    case 'S05':
+      return `
+        <div class="top-bar">
+          <button class="icon-btn" onclick="goScreen('S04')">← Back</button>
+          <span class="card-title">Start a Ride Setup</span>
+          <span class="badge badge-neutral">STEP 1/2</span>
+        </div>
+        <div class="card" style="display:flex; flex-direction:column; gap:12px;">
+          <div class="input-group">
+            <label class="input-label">Ride / Convoy Name</label>
+            <input class="input-field" id="convoyNameInput" value="Sunday Twisties" />
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button class="ctrl-pill" onclick="document.getElementById('convoyNameInput').value='Sunday Twisties'">Sunday Twisties</button>
+            <button class="ctrl-pill" onclick="document.getElementById('convoyNameInput').value='Dawn Patrol'">Dawn Patrol</button>
+            <button class="ctrl-pill" onclick="document.getElementById('convoyNameInput').value='Western Ghats Run'">Western Ghats Run</button>
+          </div>
+          <div class="input-group">
+            <label class="input-label">Default Voice Mode</label>
+            <div class="segmented">
+              <button class="seg-btn active" onclick="STATE.talkMode='VOX Hands-Free'; renderAll()">VOX</button>
+              <button class="seg-btn" onclick="STATE.talkMode='Push-to-Talk'; renderAll()">PTT</button>
+              <button class="seg-btn" onclick="STATE.talkMode='Hybrid'; renderAll()">Hybrid</button>
+              <button class="seg-btn" onclick="STATE.talkMode='Open Mic'; renderAll()">Open</button>
+            </div>
+          </div>
+          <div class="row-between" style="padding-top:4px;">
+            <div>
+              <div style="font-size:13.5px; font-weight:700;">Auto-Arm Offline Mesh Backup (8h Expiry)</div>
+              <div class="card-sub">Pre-generates pairing code for seamless zero-cell fallback.</div>
+            </div>
+            <input type="checkbox" checked style="width:22px; height:22px;" aria-label="Auto-Arm Offline Mesh Backup"/>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="goScreen('S06')">Next: Invite Squad Members →</button>
+        <button class="btn-secondary" onclick="goScreen('S08')">Start Immediately & Open Staging Lobby</button>
+      `;
+
+    case 'S06':
+      return `
+        <div class="top-bar">
+          <button class="icon-btn" onclick="goScreen('S05')">← Back</button>
+          <span class="card-title">Invite Squad to Convoy</span>
+          <button class="ctrl-pill" onclick="goScreen('S08')">Skip</button>
+        </div>
+        <input class="input-field" placeholder="Search @handle or rider name…" />
+        <div class="card sk-target" style="display:flex; flex-direction:column; gap:10px;">
+          <div class="row-between">
+            <span class="input-label">TRUSTED SQUAD (3 SELECTED)</span>
+            <button class="ctrl-pill">Select All Online</button>
+          </div>
+          ${[
+            ['RK','Rohan Kulkarni','@rohan_gt','Continental GT 650 · Online',true],
+            ['SM','Sana Mirza','@sana_ktm','390 Adventure · Online',true],
+            ['VP','Vikram Patil','@vikram_gs','R1250GS · Mesh Ready',true],
+            ['NK','Neha Joshi','@neha_scram','Scram 411 · Offline 2h ago',false]
+          ].map(([ini,name,handle,sub,chk]) => `
+            <label class="row-between" style="padding:8px 0; border-bottom:1px solid var(--border-hairline); cursor:pointer;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="rider-avatar" style="width:40px; height:40px; font-size:13px;">${ini}</div>
+                <div>
+                  <div style="font-size:13.5px; font-weight:700;">${name} <span style="color:var(--ink-muted); font-weight:600;">${handle}</span></div>
+                  <div style="font-size:11.5px; color:var(--ink-secondary);">${sub}</div>
+                </div>
+              </div>
+              <input type="checkbox" ${chk ? 'checked' : ''} style="width:20px; height:20px;"/>
+            </label>
+          `).join('')}
+          <button class="btn-secondary" onclick="alert('Invite deep link copied: ridervoice://join/TWIST9')">🔗 Share External Invite Link</button>
+        </div>
+        <button class="btn-primary" onclick="goScreen('S08')">Send 3 Invites & Open Staging Lobby →</button>
+      `;
+
+    case 'S07':
+      return `
+        <div class="top-bar">
+          <button class="icon-btn" onclick="goScreen('S04')">← Back</button>
+          <span class="card-title">Join a Convoy</span>
+          <span style="width:48px;"></span>
+        </div>
+        <div class="card" style="display:flex; flex-direction:column; gap:12px;">
+          <label class="input-label">6-CHARACTER CONVOY ROOM CODE</label>
+          <div class="row-between">
+            <input class="input-field tabular" style="font-size:20px; letter-spacing:0.22em; text-align:center;" value="TWIST9" aria-label="6 Character Room Code"/>
+            <button class="btn-secondary" style="width:auto;" onclick="alert('Pasted room code TWIST9 from clipboard')">Paste</button>
+          </div>
+          <button class="btn-primary" onclick="goScreen('S08')">Join Convoy Staging Lobby →</button>
+        </div>
+        <div class="card">
+          <div class="card-title" style="font-size:14px;">Recent Convoys</div>
+          <div class="row-between" style="margin-top:10px;">
+            <div>
+              <div style="font-size:13.5px; font-weight:700;">Sunday Twisties (Host: @arjun_adv)</div>
+              <div class="card-sub">Code: TWIST9 · 4 Riders Active</div>
+            </div>
+            <button class="btn-secondary" style="width:auto;" onclick="goScreen('S08')">Rejoin</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="row-between">
+            <div>
+              <div class="card-title" style="font-size:14px;">Joining Offline Mesh Instead?</div>
+              <div class="card-sub">Pair with a pre-shared 16-char mesh backup code.</div>
+            </div>
+            <button class="btn-secondary" style="width:auto;" onclick="goScreen('S10')">Mesh Lobby →</button>
+          </div>
+        </div>
+      `;
+
+    case 'S08':
+      return `
+        <div class="top-bar">
+          <button class="icon-btn" onclick="openSheet('M05')">← Leave</button>
+          <div style="text-align:center;">
+            <div style="font-size:15px; font-weight:800;">Sunday Twisties</div>
+            <div class="tabular" style="font-size:11.5px; color:var(--ink-secondary);">ROOM CODE: <strong>TWIST9</strong></div>
+          </div>
+          <button class="icon-btn" onclick="openSheet('M02')">+ Invite</button>
+        </div>
+
+        <div class="card sk-target">
+          <div class="row-between" style="margin-bottom:10px;">
+            <span class="badge badge-voice">4/6 RIDERS IN STAGING LOBBY</span>
+            <button class="ctrl-pill" onclick="alert('Room code TWIST9 copied')">Copy Code</button>
+          </div>
+          <div class="grid-2">
+            ${[
+              ['AD','Arjun (Host)','Speaking · Cardo BT',true],
+              ['RK','Rohan (@rohan_gt)','Ready · Wired Mic',false],
+              ['SM','Sana (@sana_ktm)','Ready · Sena 50S',true],
+              ['VP','Vikram (@vikram_gs)','Connecting Audio…',false]
+            ].map(([ini,name,status,spk]) => `
+              <div style="padding:10px; border-radius:14px; background:var(--bg-recessed); display:flex; align-items:center; gap:10px;">
+                <div class="rider-avatar ${spk?'speaking':''}" style="width:40px; height:40px; font-size:13px;">${ini}</div>
+                <div>
+                  <div style="font-size:12.5px; font-weight:800;">${name}</div>
+                  <div style="font-size:11px; color:var(--ink-secondary);">${status}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row-between">
+            <div>
+              <div style="font-size:13.5px; font-weight:800;">Offline Mesh Backup Armed</div>
+              <div class="card-sub tabular">Code: ${STATE.backupCode}</div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="ctrl-pill" onclick="alert('Sensitive backup code copied')">Copy</button>
+              <button class="ctrl-pill" onclick="goScreen('S10')">Configure</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <button class="btn-secondary" onclick="openSheet('M03')">🎧 ${STATE.audioRoute}</button>
+          <button class="btn-secondary" onclick="toggleGlobalMute()">${STATE.muted ? '🔇 Mic Muted' : '🎙️ Mic Check OK'}</button>
+        </div>
+
+        <button class="btn-primary" onclick="goScreen('S09')">Launch Active Ride Intercom HUD (S09) →</button>
+      `;
+
+    case 'S09': {
+      const transportBadge = STATE.transport === 'cloud'
+        ? `<button class="badge badge-voice tabular" style="border:none; cursor:pointer;" onclick="openSheet('M04')"><span class="dot dot-voice"></span>Cloud Intercom · 24ms</button>`
+        : STATE.transport === 'switching'
+        ? `<button class="badge badge-warn tabular" style="border:none; cursor:pointer;" onclick="openSheet('M04')"><span class="dot dot-warn"></span>Switching to Mesh (400ms Guard)…</button>`
+        : `<button class="badge badge-mesh tabular" style="border:none; cursor:pointer;" onclick="openSheet('M04')"><span class="dot dot-mesh"></span>Offline Mesh · 4/6 · Max 5 Hops</button>`;
+
+      return `
+        <div class="top-bar">
+          <button class="icon-btn" onclick="goScreen('S04')" title="Minimize to Floating Mini-Player">⌄ Min</button>
+          <div style="text-align:center;">
+            <div style="font-size:14px; font-weight:800;">Sunday Twisties</div>
+            ${transportBadge}
+          </div>
+          <button class="icon-btn" onclick="openSheet('M02')">+Rider</button>
+        </div>
+
+        <!-- Secondary Status Strip: Backup Chip + Elapsed Timer + SOS Pill -->
+        <div class="row-between">
+          <button class="ctrl-pill tabular" onclick="goScreen('S10')">
+            🛡️ ${STATE.backupReady ? 'Mesh Backup Ready' : 'Tap to Pair Backup'}
+          </button>
+          <span class="tabular" style="font-size:13px; font-weight:800;">⏱️ 00:42:19</span>
+          <button class="ctrl-pill" style="background:var(--danger-soft); color:var(--danger-sos); border-color:rgba(220,38,38,0.3);" onclick="goScreen('S17')">🆘 SOS</button>
+        </div>
+
+        <!-- Rider Voice Matrix -->
+        <div class="grid-2">
+          ${[
+            ['AD','Arjun (You)', STATE.transport==='mesh'?'Self · Direct':'Host · 24ms', true],
+            ['RK','Rohan', STATE.transport==='mesh'?'Direct · 1 Hop':'Cloud · 29ms', true],
+            ['SM','Sana', STATE.transport==='mesh'?'Relayed · 2 Hops':'Cloud · 34ms', false],
+            ['VP','Vikram', STATE.transport==='mesh'?'Relayed · 3 Hops':'Muted · 31ms', false]
+          ].map(([ini,name,meta,spk]) => `
+            <div class="card" style="padding:14px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px;">
+              <div class="rider-avatar ${spk && !STATE.deafened ? 'speaking' : ''}">${ini}</div>
+              <div>
+                <div style="font-size:14px; font-weight:800;">${name}</div>
+                <div class="tabular" style="font-size:11.5px; color:var(--ink-secondary);">${meta}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Quick Transport Switcher Demo Strip -->
+        <div class="segmented">
+          <button class="seg-btn ${STATE.transport==='cloud'?'active':''}" onclick="setTransportMode('cloud')">Cloud HD</button>
+          <button class="seg-btn ${STATE.transport==='switching'?'active':''}" onclick="setTransportMode('switching')">Handover…</button>
+          <button class="seg-btn ${STATE.transport==='mesh'?'active':''}" onclick="setTransportMode('mesh')">Offline Mesh</button>
+        </div>
+
+        <!-- Glove Secondary Controls Dock (>= 48dp targets) -->
+        <div class="grid-2">
+          <button class="btn-secondary" onclick="toggleGlobalMute()">${STATE.muted ? '🔇 Unmute Mic' : '🎙️ Mute Mic'}</button>
+          <button class="btn-secondary" onclick="STATE.deafened=!STATE.deafened; renderAll()">${STATE.deafened ? '🔈 Unmute Speaker' : '🔊 Mute Speaker'}</button>
+          <button class="btn-secondary" onclick="openSheet('M03')">🎧 Audio Route</button>
+          <button class="btn-danger" style="min-height:48px;" onclick="openSheet('M05')">Leave / End</button>
+        </div>
+
+        <!-- Sculpted 88dp Primary Glove PTT Zone -->
+        <div class="ptt-sculpted-bar ${STATE.pttHeld ? 'transmitting' : ''}"
+             onmousedown="STATE.pttHeld=true; renderAll()"
+             onmouseup="STATE.pttHeld=false; renderAll()"
+             ontouchstart="STATE.pttHeld=true; renderAll()"
+             ontouchend="STATE.pttHeld=false; renderAll()"
+             onclick="STATE.pttHeld=!STATE.pttHeld; renderAll()">
+          <div class="eq-bars">
+            <span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span>
+          </div>
+          <div style="font-size:16px; font-weight:900; letter-spacing:0.04em;">
+            ${STATE.pttHeld ? 'TRANSMITTING TO CONVOY — RELEASE TO LISTEN' : 'HOLD TO TALK (OR HELMET PTT BUTTON)'}
+          </div>
+          <div style="font-size:11.5px; opacity:0.9;">${STATE.talkMode} · ${STATE.audioRoute}</div>
+        </div>
+      `;
+    }
+
+    case 'S10':
+      return `
+        <div class="top-bar">
+          <button class="icon-btn" onclick="goScreen('S04')">← Back</button>
+          <span class="card-title">Offline Mesh Setup</span>
+          <button class="icon-btn" onclick="openSheet('M06')">🩺 Test</button>
+        </div>
+
+        <!-- Active Backup Status Card -->
+        <div class="card" style="border-color:rgba(2,132,199,0.35);">
+          <div class="row-between">
+            <span class="badge badge-mesh">ENCRYPTED 8h BACKUP SESSION</span>
+            <span class="badge badge-voice">${STATE.backupReady ? 'Armed' : 'Cleared'}</span>
+          </div>
+          <div class="card-title tabular" style="margin-top:8px; font-size:17px;">${STATE.backupReady ? STATE.backupCode : '— No Backup Paired —'}</div>
+          <div class="card-sub">PBKDF2-HMAC-SHA256 (120,000 iterations) off-main-thread · AES-256-GCM · UDP Port 45454 · Max 5 Hops.</div>
+          <div class="grid-2" style="margin-top:10px;">
+            <button class="btn-secondary" onclick="STATE.backupReady=true; alert('Saved as active 8h backup session!'); renderAll()">Save as Backup</button>
+            <button class="btn-secondary" onclick="STATE.backupReady=false; renderAll()">Clear Backup</button>
+          </div>
+        </div>
+
+        <!-- Generate / Join Controls -->
+        <div class="card" style="display:flex; flex-direction:column; gap:10px;">
+          <div class="row-between">
+            <span class="input-label">HOST OR JOIN WITH PAIRING CODE</span>
+            <button class="ctrl-pill" onclick="STATE.backupCode='RV7K-4M9P-2W8X-5L3D'; STATE.backupReady=true; renderAll()">↻ Generate New Code</button>
+          </div>
+          <input class="input-field tabular" value="${STATE.backupCode}" aria-label="Mesh Pairing Code"/>
+          <div class="grid-2">
+            <button class="btn-secondary" onclick="alert('Copied pairing code with EXTRA_IS_SENSITIVE flag')">📋 Copy Code</button>
+            <button class="btn-secondary" onclick="alert('Opening Android Wi-Fi / Hotspot Settings')">📶 Wi-Fi / Hotspot</button>
+          </div>
+          <button class="btn-primary" onclick="goScreen('S11')">Start Standalone Offline Mesh HUD (S11) →</button>
+        </div>
+      `;
+
+    case 'S11':
+      return `
+        <div class="top-bar">
+          <button class="icon-btn" onclick="goScreen('S10')">← Lobby</button>
+          <div style="text-align:center;">
+            <div style="font-size:14px; font-weight:800;">Standalone Offline Mesh</div>
+            <button class="badge badge-mesh tabular" style="border:none; cursor:pointer;" onclick="openSheet('M04')">
+              <span class="dot dot-mesh"></span>4/6 Riders · Max 5 Hops · Port 45454
+            </button>
+          </div>
+          <button class="icon-btn" onclick="openSheet('M06')">🩺</button>
+        </div>
+
+        <div class="row-between">
+          <button class="ctrl-pill tabular" onclick="alert('Copied sensitive pairing code: ' + STATE.backupCode)">🔑 ${STATE.backupCode.slice(0,9)}…</button>
+          <button class="ctrl-pill" onclick="STATE.hwBusyDemo=!STATE.hwBusyDemo; renderAll()">
+            ${STATE.hwBusyDemo ? '⚠️ Simulating Mic Busy' : '✓ Audio HAL Healthy'}
+          </button>
+          <button class="ctrl-pill" style="background:var(--danger-soft); color:var(--danger-sos);" onclick="goScreen('S17')">🆘 SOS</button>
+        </div>
+
+        <div class="grid-2">
+          ${[
+            ['AD','Arjun (You)','Self · 192.168.43.1',true],
+            ['RK','Rohan','Direct · 1 Hop · -54dBm',true],
+            ['SM','Sana','Relayed via RK · 2 Hops',false],
+            ['VP','Vikram','Relayed via SM · 3 Hops',false]
+          ].map(([ini,name,hop,spk]) => `
+            <div class="card" style="padding:14px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:6px;">
+              <div class="rider-avatar ${spk && !STATE.deafened ? 'speaking' : ''}">${ini}</div>
+              <div style="font-size:13.5px; font-weight:800;">${name}</div>
+              <div class="tabular" style="font-size:11px; color:var(--mesh-accent); font-weight:700;">${hop}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="grid-2">
+          <button class="btn-secondary" onclick="toggleGlobalMute()">${STATE.muted ? '🔇 Unmute Mic' : '🎙️ Mute Mic'}</button>
+          <button class="btn-secondary" onclick="STATE.deafened=!STATE.deafened; renderAll()">${STATE.deafened ? '🔈 Unmute Speaker' : '🔊 Mute Speaker'}</button>
+          <button class="btn-secondary" onclick="openSheet('M03')">🎧 Audio Route</button>
+          <button class="btn-danger" style="min-height:48px;" onclick="openSheet('M05')">Disconnect Mesh</button>
+        </div>
+
+        <div class="ptt-sculpted-bar ${STATE.hwBusyDemo ? 'hw-busy' : STATE.pttHeld ? 'transmitting' : ''}"
+             onclick="if(STATE.hwBusyDemo){STATE.hwBusyDemo=false;}else{STATE.pttHeld=!STATE.pttHeld;} renderAll()">
+          <div class="eq-bars">
+            <span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span><span class="eq-bar"></span>
+          </div>
+          <div style="font-size:15px; font-weight:900;">
+            ${STATE.hwBusyDemo ? 'HARDWARE MIC BUSY — TAP TO RETRY AUDIO HAL' : STATE.pttHeld ? 'TRANSMITTING PCM OVER UDP MESH' : 'HOLD TO TALK (OFFLINE MESH)'}
+          </div>
+          <div class="tabular" style="font-size:11px; opacity:0.9;">16kHz 16-bit Mono · 20ms Frames · Playout Jitter 60ms</div>
+        </div>
+      `;
+
+    case 'S12':
+      return `
+        <div style="text-align:center; padding:8px 0;">
+          <span class="badge badge-voice">CONVOY COMPLETED</span>
+          <h2 style="font-size:22px; font-weight:900; margin-top:6px;">Sunday Twisties</h2>
+          <p class="card-sub">4 Riders · Zero dropped voice packets across Cloud & Mesh</p>
+        </div>
+        <div class="grid-2">
+          <div class="card"><div class="card-sub">Duration</div><div class="card-title tabular" style="font-size:20px;">02:18:44</div></div>
+          <div class="card"><div class="card-sub">Distance</div><div class="card-title tabular" style="font-size:20px;">114.6 km</div></div>
+          <div class="card"><div class="card-sub">Top / Avg Speed</div><div class="card-title tabular" style="font-size:20px;">94 / 62 km/h</div></div>
+          <div class="card"><div class="card-sub">Mesh Handovers</div><div class="card-title tabular" style="font-size:20px;">2 Seamless</div></div>
+        </div>
+        <div class="card">
+          <div class="row-between"><span style="font-size:12.5px; font-weight:700;">Cloud Intercom (84%)</span><span style="font-size:12.5px; font-weight:700; color:var(--mesh-accent);">Offline Mesh (16%)</span></div>
+          <div style="height:10px; border-radius:99px; background:var(--mesh-accent); overflow:hidden; margin-top:8px;">
+            <div style="width:84%; height:100%; background:var(--voice-active);"></div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <button class="btn-secondary" onclick="alert('Saved to local Ride Logbook')">💾 Save Logbook</button>
+          <button class="btn-secondary" onclick="alert('Summary card ready to share')">📤 Share Summary</button>
+        </div>
+        <button class="btn-primary" onclick="goScreen('S15')">▶️ Watch Interactive GPS Ride Replay (S15)</button>
+        <button class="btn-secondary" onclick="goScreen('S04')">Back to Ride Hub (S04)</button>
+      `;
+
+    case 'S13':
+      return `
+        <div class="top-bar">
+          <div class="segmented" style="flex:1;">
+            <button class="seg-btn ${STATE.routeView==='map'?'active':''}" onclick="STATE.routeView='map'; renderAll()">🗺️ Map Planner</button>
+            <button class="seg-btn ${STATE.routeView==='radar'?'active':''}" onclick="STATE.routeView='radar'; renderAll()">📡 Offline Radar</button>
+          </div>
+          <button class="icon-btn" onclick="openSheet('M07')" title="Configure Mapbox Token">🔑</button>
+        </div>
+
+        <!-- Map or Offline Compass Radar Canvas -->
+        <div class="card sk-target" style="padding:14px; position:relative; min-height:210px; display:flex; flex-direction:column; justify-content:space-between; background:linear-gradient(160deg, var(--bg-surface), var(--bg-recessed));">
+          ${STATE.routeView === 'map' ? `
+            <div class="row-between">
+              <span class="badge badge-voice">GPS LOCKED · 4 SQUAD RIDERS VISIBLE</span>
+              <button class="ctrl-pill" onclick="alert('Map centered on current GPS coordinates')">🎯 Recenter</button>
+            </div>
+            <svg viewBox="0 0 320 110" style="width:100%; height:110px;">
+              <path d="M 18 92 C 80 20, 150 105, 220 38 S 285 25, 304 18" fill="none" stroke="var(--accent-primary)" stroke-width="4.5" stroke-linecap="round"/>
+              <circle cx="18" cy="92" r="6" fill="var(--voice-active)"/>
+              <circle cx="165" cy="58" r="6" fill="var(--accent-primary)"/>
+              <circle cx="304" cy="18" r="6" fill="var(--danger-sos)"/>
+            </svg>
+            <div class="row-between tabular" style="font-size:12px; font-weight:700;">
+              <span>Pune Start</span><span>Lavasa Crest (+840m)</span><span>Tamhini End</span>
+            </div>
+          ` : `
+            <div class="row-between">
+              <span class="badge badge-mesh">OFFLINE TACTICAL COMPASS RADAR</span>
+              <span class="tabular" style="font-size:12px; font-weight:700;">RANGE: 5 KM</span>
+            </div>
+            <svg viewBox="0 0 200 130" style="width:100%; height:130px;">
+              <circle cx="100" cy="65" r="55" fill="none" stroke="var(--border-strong)" stroke-dasharray="4 4"/>
+              <circle cx="100" cy="65" r="32" fill="none" stroke="var(--border-strong)"/>
+              <circle cx="100" cy="65" r="5" fill="var(--accent-primary)"/>
+              <circle cx="122" cy="44" r="5" fill="var(--voice-active)"/>
+              <circle cx="76" cy="49" r="5" fill="var(--mesh-accent)"/>
+            </svg>
+            <div class="row-between tabular" style="font-size:11.5px;">
+              <span>HDG 284° NW</span><span>RK: 0.4km · SM: 1.1km</span>
+            </div>
+          `}
+        </div>
+
+        <div class="card" style="display:flex; flex-direction:column; gap:8px;">
+          <div class="row-between">
+            <input class="input-field" value="Current GPS Location (Pune)" aria-label="Origin"/>
+            <button class="icon-btn" onclick="alert('Swapped Origin & Destination')" title="Swap Origin and Destination">⇅</button>
+          </div>
+          <input class="input-field" value="Tamhini Ghat Viewpoint" aria-label="Destination"/>
+          <div class="segmented">
+            ${['Fastest','Scenic','Twisty','Off-Road'].map(st => `
+              <button class="seg-btn ${STATE.routeStyle===st?'active':''}" onclick="STATE.routeStyle='${st}'; renderAll()">${st}</button>
+            `).join('')}
+          </div>
+          <div class="grid-2" style="margin-top:4px;">
+            <button class="btn-secondary" onclick="alert('Exported route as GPX file')">📤 Export GPX</button>
+            <button class="btn-secondary" onclick="alert('Route waypoints inverted')">🔄 Invert Route</button>
+          </div>
+          <button class="btn-primary" onclick="goScreen('S05')">Start Convoy With This Route →</button>
+        </div>
+      `;
+
+    case 'S14':
+      return `
+        <div class="top-bar">
+          <span class="card-title" style="font-size:18px;">Activity & Telemetry</span>
+          <button class="ctrl-pill" onclick="alert('Telemetry stats card shared')">📤 Share Stats</button>
+        </div>
+        <div class="segmented">
+          ${['7D','30D','Season','All'].map(r => `
+            <button class="seg-btn ${STATE.statsRange===r?'active':''}" onclick="STATE.statsRange='${r}'; renderAll()">${r}</button>
+          `).join('')}
+        </div>
+        <div class="grid-2 sk-target">
+          <div class="card"><div class="card-sub">Total Distance</div><div class="card-title tabular" style="font-size:20px;">1,482 km</div></div>
+          <div class="card"><div class="card-sub">Ride Hours</div><div class="card-title tabular" style="font-size:20px;">28.4 hrs</div></div>
+          <div class="card"><div class="card-sub">Peak Speed</div><div class="card-title tabular" style="font-size:20px;">118 km/h</div></div>
+          <div class="card"><div class="card-sub">Convoys Led</div><div class="card-title tabular" style="font-size:20px;">14 Rides</div></div>
+        </div>
+        <div class="card sk-target">
+          <div class="row-between" style="margin-bottom:8px;">
+            <span class="card-title" style="font-size:14px;">Telemetry Spline (${STATE.statsMetric})</span>
+            <div style="display:flex; gap:4px;">
+              ${['Overview','Speed','Elevation'].map(m => `
+                <button class="ctrl-pill ${STATE.statsMetric===m?'active':''}" style="padding:4px 8px; font-size:11px;" onclick="STATE.statsMetric='${m}'; renderAll()">${m}</button>
+              `).join('')}
+            </div>
+          </div>
+          <svg viewBox="0 0 320 90" style="width:100%; height:90px;">
+            <path d="M 10 75 Q 65 20, 120 55 T 230 24 T 310 40" fill="none" stroke="var(--accent-primary)" stroke-width="3.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="card">
+          <div class="card-title" style="font-size:14px; margin-bottom:8px;">Recent Rides Logbook</div>
+          <div class="row-between" style="padding:6px 0; border-bottom:1px solid var(--border-hairline);">
+            <div>
+              <div style="font-size:13px; font-weight:800;">Sunday Twisties · 114.6 km</div>
+              <div class="card-sub tabular">02h 18m · Avg 62 km/h · 4 Riders</div>
+            </div>
+            <button class="ctrl-pill active" onclick="goScreen('S15')">▶️ Replay</button>
+          </div>
+          <div class="row-between" style="padding:6px 0; margin-top:4px;">
+            <div>
+              <div style="font-size:13px; font-weight:800;">Dawn Patrol Lonavala · 88.2 km</div>
+              <div class="card-sub tabular">01h 40m · Avg 58 km/h · 6 Riders</div>
+            </div>
+            <button class="ctrl-pill" onclick="goScreen('S15')">▶️ Replay</button>
+          </div>
+        </div>
+      `;
+
+    case 'S15': {
+      const pct = STATE.replayProgress;
+      const cx = 20 + Math.round((pct / 100) * 280);
+      const cy = 65 - Math.round(Math.sin((pct / 100) * Math.PI * 2) * 28);
+      return `
+        <div class="top-bar">
+          <button class="icon-btn" onclick="goScreen('S14')">← Activity</button>
+          <span class="card-title">GPS Ride Replay</span>
+          <button class="ctrl-pill tabular" onclick="STATE.replaySpeed=STATE.replaySpeed==='1x'?'2x':STATE.replaySpeed==='2x'?'4x':'1x'; renderAll()">${STATE.replaySpeed}</button>
+        </div>
+        <div class="card" style="padding:14px;">
+          <div class="row-between tabular" style="font-size:12px; font-weight:700; margin-bottom:8px;">
+            <span>SPEED: ${54 + Math.round(pct * 0.4)} km/h</span>
+            <span>ELEV: ${620 + Math.round(pct * 2.1)} m</span>
+            <span>PROGRESS: ${pct}%</span>
+          </div>
+          <svg viewBox="0 0 320 130" style="width:100%; height:130px; background:var(--bg-recessed); border-radius:14px;">
+            <path d="M 20 65 Q 90 15, 160 65 T 300 65" fill="none" stroke="var(--border-strong)" stroke-width="4"/>
+            <circle cx="${cx}" cy="${cy}" r="8" fill="var(--accent-primary)"/>
+          </svg>
+          <input type="range" min="0" max="100" value="${pct}" style="width:100%; margin-top:12px;" oninput="STATE.replayProgress=Number(this.value); renderAll()" aria-label="Replay Timeline Scrubber"/>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn-secondary" onclick="STATE.replayProgress=Math.max(0,STATE.replayProgress-10); renderAll()">-10%</button>
+            <button class="btn-primary" onclick="STATE.replayProgress=(STATE.replayProgress+15)%100; renderAll()">⏯️ Step / Play</button>
+            <button class="btn-secondary" onclick="STATE.replayProgress=Math.min(100,STATE.replayProgress+10); renderAll()">+10%</button>
+          </div>
+        </div>
+      `;
+    }
+
+    case 'S16':
+      return `
+        <div class="top-bar">
+          <div class="segmented" style="flex:1;">
+            <button class="seg-btn ${STATE.squadTab==='squad'?'active':''}" onclick="STATE.squadTab='squad'; renderAll()">My Squad (8)</button>
+            <button class="seg-btn ${STATE.squadTab==='invites'?'active':''}" onclick="STATE.squadTab='invites'; renderAll()">Invites (2)</button>
+          </div>
+          <button class="icon-btn" onclick="openSheet('M08')">+ Add</button>
+        </div>
+        ${STATE.squadTab === 'squad' ? `
+          <input class="input-field" placeholder="Search trusted squad by @handle…" />
+          <div class="card sk-target" style="display:flex; flex-direction:column; gap:10px;">
+            ${[
+              ['RK','Rohan Kulkarni','@rohan_gt','In Convoy · Continental GT 650'],
+              ['SM','Sana Mirza','@sana_ktm','Online · KTM 390 Adventure'],
+              ['VP','Vikram Patil','@vikram_gs','Mesh Ready · BMW R1250GS']
+            ].map(([ini,name,handle,meta]) => `
+              <div class="row-between" style="padding:8px 0; border-bottom:1px solid var(--border-hairline);">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <div class="rider-avatar" style="width:40px; height:40px; font-size:13px;">${ini}</div>
+                  <div>
+                    <div style="font-size:13.5px; font-weight:800;">${name} <span style="color:var(--ink-muted);">${handle}</span></div>
+                    <div style="font-size:11.5px; color:var(--ink-secondary);">${meta}</div>
+                  </div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                  <button class="ctrl-pill" onclick="goScreen('S08')">Invite</button>
+                  <button class="ctrl-pill" onclick="openSheet('M09')">✕</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        ` : `
+          <div class="card" style="display:flex; flex-direction:column; gap:10px;">
+            <span class="badge badge-warn">INCOMING CONVOY INVITE</span>
+            <div class="card-title">Coastal Dawn Run · Host: @rohan_gt</div>
+            <div class="card-sub">5 Riders Active · Cloud Intercom + Mesh Backup</div>
+            <div class="grid-2">
+              <button class="btn-primary" onclick="goScreen('S08')">Accept & Join</button>
+              <button class="btn-secondary" onclick="alert('Invite declined')">Decline</button>
+            </div>
+          </div>
+        `}
+      `;
+
+    case 'S17':
+      return `
+        <div class="segmented">
+          <button class="seg-btn ${STATE.sosMode==='manual'?'active':''}" onclick="STATE.sosMode='manual'; renderAll()">Manual SOS (15s)</button>
+          <button class="seg-btn ${STATE.sosMode==='crash'?'active':''}" onclick="STATE.sosMode='crash'; renderAll()">Crash Detected (10s)</button>
+        </div>
+        <div class="card" style="text-align:center; border:2px solid var(--danger-sos); padding:22px 16px;">
+          <span class="badge badge-sos">${STATE.sosMode==='manual' ? 'EMERGENCY DISTRESS BEACON' : 'IMPACT DETECTED · AUTO-ALERT'}</span>
+          <div class="tabular" style="font-size:54px; font-weight:900; color:var(--danger-sos); margin:10px 0;">
+            ${STATE.sosMode==='manual' ? '00:15' : '00:10'}
+          </div>
+          <p class="card-sub">Broadcasting live GPS (18.5204° N, 73.8567° E) to active Convoy & Emergency Responder.</p>
+          <button class="btn-primary" style="background:var(--voice-active); margin-top:14px; min-height:60px;" onclick="goScreen('S04')">
+            ✓ CANCEL — I AM SAFE
+          </button>
+          <div class="grid-2" style="margin-top:10px;">
+            <button class="btn-danger" onclick="alert('SOS Distress Packet broadcasted to Convoy & Mesh')">Send SOS Now</button>
+            <button class="btn-danger" onclick="alert('Dialing regional emergency number 112')">📞 Call 112 / 911</button>
+          </div>
+        </div>
+      `;
+
+    case 'S18':
+      return `
+        <div class="card">
+          <div class="row-between">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div class="rider-avatar">AD</div>
+              <div>
+                <div class="card-title">Arjun Deshmukh · @arjun_adv</div>
+                <div class="card-sub">Royal Enfield Himalayan 450 · Blood Group O+</div>
+              </div>
+            </div>
+            <button class="ctrl-pill" onclick="openSheet('M10')">Edit</button>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex; flex-direction:column; gap:10px;">
+          <div class="card-title" style="font-size:14px;">Appearance & Language (EN / हिन्दी / मराठी)</div>
+          <div class="grid-2">
+            <div class="segmented">
+              <button class="seg-btn active">Light</button>
+              <button class="seg-btn" onclick="if(window.location.href.includes('light')) window.location.href='ridervoice-dark.html'">Dark</button>
+            </div>
+            <select class="ctrl-select" aria-label="Language Selection">
+              <option>English (102 keys)</option>
+              <option>हिन्दी (102 keys)</option>
+              <option>मराठी (102 keys)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex; flex-direction:column; gap:8px;">
+          <div class="row-between">
+            <span class="card-title" style="font-size:14px;">Helmet, Mic & Audio Setup</span>
+            <button class="ctrl-pill" onclick="openSheet('M03')">Route</button>
+          </div>
+          <div class="card-sub">VOX Sensitivity, Wind Noise Filter & Hardware Helmet PTT Button Check.</div>
+          <input type="range" min="10" max="90" value="65" aria-label="VOX Sensitivity Slider"/>
+          <div class="grid-2">
+            <button class="btn-secondary" onclick="alert('Audio loopback active for 3 seconds')">🔊 Loopback Test</button>
+            <button class="btn-secondary" onclick="alert('MediaSessionCompat Helmet PTT button verified')">🎛️ Test Helmet PTT</button>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex; flex-direction:column; gap:8px;">
+          <div class="row-between">
+            <span class="card-title" style="font-size:14px;">Offline Mesh & 8h Encrypted Backup</span>
+            <span class="badge badge-mesh">Max 5 Hops</span>
+          </div>
+          <div class="row-between"><span style="font-size:12.5px;">Enable Offline Mesh Intercom</span><input type="checkbox" checked aria-label="Enable Offline Mesh"/></div>
+          <div class="row-between"><span style="font-size:12.5px;">Auto-Switch When Cell Drops (10s/8s)</span><input type="checkbox" checked aria-label="Auto Switch"/></div>
+          <div class="grid-2" style="margin-top:4px;">
+            <button class="btn-secondary" onclick="goScreen('S10')">Pair Backup Code</button>
+            <button class="btn-secondary" onclick="STATE.backupReady=false; renderAll()">Clear Backup</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <button class="btn-secondary" onclick="openSheet('M11')">🔄 OTA Update & Privacy</button>
+          <button class="btn-danger" style="min-height:48px;" onclick="openSheet('M09')">Sign Out</button>
+        </div>
+      `;
+  }
+}
+
+function renderSheetHTML(m) {
+  switch (m) {
+    case 'M01':
+      return `
+        <div class="sheet-handle"></div>
+        <div class="card-title">M01 · Quick Join Convoy</div>
+        <input class="input-field tabular" value="TWIST9" aria-label="Quick Join Code"/>
+        <div class="grid-2">
+          <button class="btn-secondary" onclick="alert('Pasted code TWIST9')">📋 Paste Code</button>
+          <button class="btn-secondary" onclick="closeSheet(); goScreen('S10')">📡 Nearby Mesh</button>
+        </div>
+        <button class="btn-primary" onclick="closeSheet(); goScreen('S08')">Join Staging Lobby →</button>
+      `;
+    case 'M02':
+      return `
+        <div class="sheet-handle"></div>
+        <div class="card-title">M02 · Invite / Add Riders In-Ride</div>
+        <input class="input-field" placeholder="Search @handle…" />
+        <div class="grid-2">
+          <button class="btn-secondary" onclick="alert('Copied Room Code TWIST9')">Copy Code</button>
+          <button class="btn-secondary" onclick="alert('Shared Deep Link')">Share Link</button>
+        </div>
+        <button class="btn-primary" onclick="closeSheet()">Send Convoy Invites</button>
+      `;
+    case 'M03':
+      return `
+        <div class="sheet-handle"></div>
+        <div class="card-title">M03 · Audio Route & Helmet Picker</div>
+        ${['Cardo Packtalk (BT SCO)','Phone Speakerphone','Wired / USB-C Helmet Mic','Handset Earpiece'].map(r => `
+          <button class="btn-secondary" style="justify-content:space-between;" onclick="STATE.audioRoute='${r}'; closeSheet()">
+            <span>${r}</span><span>${STATE.audioRoute===r?'✓ Active':''}</span>
+          </button>
+        `).join('')}
+      `;
+    case 'M04':
+      return `
+        <div class="sheet-handle"></div>
+        <div class="card-title">M04 · Live Connection & Multi-Hop Topology</div>
+        <div class="card-sub tabular">UDP Port 45454 · Default TTL = 5 · Max 5 Hops · Playout Delay 60ms</div>
+        <div class="card" style="padding:10px;">
+          <div class="tabular" style="font-size:12px;">[You: AD] ──1 hop──> [RK] ──2 hops──> [SM] ──3 hops──> [VP]</div>
+        </div>
+        <div class="grid-2">
+          <button class="btn-secondary" onclick="alert('Diagnostics report copied')">Copy Report</button>
+          <button class="btn-primary" style="min-height:48px;" onclick="closeSheet()">Done</button>
+        </div>
+      `;
+    case 'M05':
+      return `
+        <div class="sheet-handle"></div>
+        <div class="card-title">M05 · Leave or End Convoy?</div>
+        <div class="card-sub">Leaving audio keeps the convoy open; ending terminates the session for all riders.</div>
+        <button class="btn-secondary" onclick="closeSheet(); goScreen('S04')">Leave Audio Only (Keep Convoy Active)</button>
+        <button class="btn-danger" onclick="closeSheet(); goScreen('S12')">End Convoy for All Riders → Summary</button>
+        <button class="btn-secondary" onclick="closeSheet()">Cancel</button>
+      `;
+    case 'M06':
+      return `
+        <div class="sheet-handle"></div>
+        <div class="card-title">M06 · Offline Mesh Live Self-Test</div>
+        <div class="card-sub tabular">✓ UDP Socket :45454 Bound · ✓ PBKDF2 120k Key Ready · ✓ Local IP 192.168.43.1 · ✓ 3 Authenticated Neighbors (10s)</div>
+        <div class="grid-2">
+          <button class="btn-secondary" onclick="alert('Self-test refreshed')">↻ Re-run Test</button>
+          <button class="btn-primary" style="min-height:48px;" onclick="closeSheet()">Close</button>
+        </div>
+      `;
+    case 'M07':
+      return `
+        <div class="sheet-handle"></div>
+        <div class="card-title">M07 · Mapbox Token Configuration</div>
+        <input class="input-field tabular" value="pk.eyJ1IjoicmlkZXJ2b2ljZSIsImEiOiJjbT..." />
+        <div class="grid-2">
+          <button class="btn-secondary" onclick="closeSheet()">Reset Default</button>
+          <button class="btn-primary" style="min-height:48px;" onclick="closeSheet()">Save Token</button>
+        </div>
+      `;
+    case 'M08':
+      return `
+        <div class="sheet-handle"></div>
+        <div class="card-title">M08 · Add Rider to Trusted Squad</div>
+        <input class="input-field" placeholder="Enter @handle (e.g. @kabir_900)" />
+        <button class="btn-primary" onclick="closeSheet()">Send Squad Request</button>
+      `;
+    case 'M09':
+      return `
+        <div class="sheet-handle"></div>
+        <div class="card-title">M09 · Confirm Action & Key Wipe</div>
+        <div class="card-sub">Signing out wipes auth tokens, active mesh session keys, and encrypted 8h backup credentials.</div>
+        <button class="btn-danger" onclick="STATE.backupReady=false; closeSheet(); goScreen('S02')">Confirm & Wipe Session Keys</button>
+        <button class="btn-secondary" onclick="closeSheet()">Cancel</button>
+      `;
+    case 'M10':
+      return `
+        <div class="sheet-handle"></div>
+        <div class="card-title">M10 · Edit Rider Profile & Motorcycle</div>
+        <input class="input-field" value="Arjun Deshmukh" />
+        <input class="input-field" value="Royal Enfield Himalayan 450" />
+        <button class="btn-primary" onclick="closeSheet()">Save Profile</button>
+      `;
+    case 'M11':
+      return `
+        <div class="sheet-handle"></div>
+        <div class="card-title">M11 · Privacy Consent & 8-State OTA Updater</div>
+        <div class="badge badge-voice tabular">${OTA_STATES[STATE.otaStateIndex]}</div>
+        <div class="card-sub">Diagnostics uploads are opt-in and chunked via WorkManager. OTA updates verify SHA-256 + APK signing certs.</div>
+        <div class="grid-2">
+          <button class="btn-secondary" onclick="STATE.otaStateIndex=(STATE.otaStateIndex+1)%OTA_STATES.length; renderAll()">Next OTA State (${STATE.otaStateIndex+1}/8)</button>
+          <button class="btn-primary" style="min-height:48px;" onclick="closeSheet()">Install / Done</button>
+        </div>
+      `;
+  }
+  return '';
+}
+
+function renderBlueprintGrid() {
+  const grid = document.getElementById('blueprintGrid');
+  const screenCards = SCREENS_META.map(s => `
+    <div class="bp-card">
+      <div class="row-between">
+        <span class="badge badge-voice tabular">${s.id}</span>
+        <span class="tabular" style="font-size:11px; color:var(--ink-muted);">${s.route}</span>
+      </div>
+      <div class="card-title" style="font-size:15px;">${s.title}</div>
+      <div class="bp-chip-wrap">
+        ${s.buttons.map(b => `<span class="bp-chip">${b}</span>`).join('')}
+      </div>
+      <button class="btn-secondary" style="margin-top:auto; min-height:40px;" onclick="goScreen('${s.id}')">Open ${s.id} in Interactive Simulator →</button>
+    </div>
+  `).join('');
+
+  const sheetCards = SHEETS_META.map(m => `
+    <div class="bp-card">
+      <div class="row-between">
+        <span class="badge badge-mesh tabular">${m.id}</span>
+        <span class="tabular" style="font-size:11px; color:var(--ink-muted);">Modal / Bottom Sheet</span>
+      </div>
+      <div class="card-title" style="font-size:15px;">${m.title}</div>
+      <div class="bp-chip-wrap">
+        ${m.buttons.map(b => `<span class="bp-chip">${b}</span>`).join('')}
+      </div>
+      <button class="btn-secondary" style="margin-top:auto; min-height:40px;" onclick="setViewMode('sim'); openSheet('${m.id}')">Inspect ${m.id} Live →</button>
+    </div>
+  `).join('');
+
+  grid.innerHTML = screenCards + sheetCards;
+}
+
+function renderAll(fromParent) {
+  document.body.classList.toggle('skeleton-mode', STATE.skeleton);
+  document.body.classList.toggle('reduced-motion', STATE.reducedMotion);
+
+  document.getElementById('skBtn').textContent = `Skeleton Shimmer: ${STATE.skeleton ? 'ON' : 'OFF'}`;
+  document.getElementById('skBtn').classList.toggle('active', STATE.skeleton);
+  document.getElementById('miniBarBtn').textContent = `Mini-Ride Bar: ${STATE.miniBar ? 'ON' : 'OFF'}`;
+  document.getElementById('miniBarBtn').classList.toggle('active', STATE.miniBar);
+  document.getElementById('rmBtn').textContent = `Reduced Motion: ${STATE.reducedMotion ? 'ON' : 'OFF'}`;
+  document.getElementById('rmBtn').classList.toggle('active', STATE.reducedMotion);
+  document.getElementById('transportSelect').value = STATE.transport;
+
+  const meta = SCREENS_META.find(x => x.id === STATE.screen) || SCREENS_META[3];
+  document.getElementById('activeScreenBadge').textContent = `${meta.id} · ${meta.title}`;
+
+  document.querySelectorAll('.rail-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.scr === STATE.screen);
+  });
+  document.querySelectorAll('.nav-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.tab === STATE.screen);
+  });
+
+  const vp = document.getElementById('screenViewport');
+  vp.innerHTML = renderScreenHTML(STATE.screen);
+  attachHoldSos(document.getElementById('sosHoldBar'));
+
+  const hideBottomChrome = IMMERSIVE_SCREENS.has(STATE.screen);
+  document.getElementById('bottomNav').style.display = hideBottomChrome ? 'none' : 'grid';
+  document.getElementById('miniRidePill').style.display = (!hideBottomChrome && STATE.miniBar) ? 'flex' : 'none';
+  document.getElementById('miniTransportLabel').textContent =
+    STATE.transport === 'mesh' ? 'Offline Mesh · 4/6 · Max 5 Hops' : 'Cloud Intercom · Tap to Expand HUD';
+  document.getElementById('miniMuteBtn').textContent = STATE.muted ? '🔇' : '🎙️';
+
+  const backdrop = document.getElementById('sheetBackdrop');
+  const content = document.getElementById('sheetContent');
+  if (STATE.sheet) {
+    backdrop.style.display = 'flex';
+    content.innerHTML = renderSheetHTML(STATE.sheet);
+  } else {
+    backdrop.style.display = 'none';
+    content.innerHTML = '';
+  }
+
+  if (!fromParent) notifyParent();
+}
+
+if (window.location.search.includes('embed=1')) {
+  document.body.classList.add('embedded-frame');
+}
+renderBlueprintGrid();
+renderAll(true);
+</script>
+</body>
+</html>
+

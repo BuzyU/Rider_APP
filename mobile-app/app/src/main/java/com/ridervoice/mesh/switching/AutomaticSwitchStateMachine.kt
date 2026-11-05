@@ -140,9 +140,12 @@ class AutomaticSwitchStateMachine(
 
                 AutoSwitchState.OFFLINE_ACTIVE -> {
                     val inDwell = (now - lastSwitchTimeMs) < config.minDwellMs
-                    val inBackoff = (now - lastRecoveryAttemptMs) < config.recoveryStabilityMs * recoveryBackoffMultiplier
+                    val inBackoff = lastRecoveryAttemptMs > 0L &&
+                        (now - lastRecoveryAttemptMs) < config.recoveryStabilityMs * recoveryBackoffMultiplier
                     if (!signals.isMeshTransportAlive && signals.isOnlineRecoverable()) {
-                        pending = beginHandoff(Direction.TO_ONLINE, now)
+                        if (!inBackoff && !isFlappingSuppressed(now)) {
+                            pending = beginHandoff(Direction.TO_ONLINE, now)
+                        }
                     } else if (!inDwell && !inBackoff && signals.isOnlineRecoverable()) {
                         recoveryStartTimeMs = now
                         transitionTo(AutoSwitchState.ONLINE_RECOVERING, "Online recoverable, verifying stability")

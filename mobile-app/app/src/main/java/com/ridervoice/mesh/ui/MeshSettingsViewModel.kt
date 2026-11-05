@@ -58,10 +58,10 @@ class MeshSettingsViewModel(
 
     val uiState: StateFlow<MeshSettingsUiState> = combine(
         settings.settingsFlow,
-        availabilityFlow
-    ) { snapshot, availability ->
+        availabilityFlow,
+        sessionHolder.backup
+    ) { snapshot, availability, backup ->
         val now = System.currentTimeMillis()
-        val backup = sessionHolder.getBackup()
         val backupValid = backup != null && !backup.isExpired(now)
         val hasWifi = wifiCapability.isWifiHardwareAvailable()
         MeshSettingsUiState(
@@ -107,5 +107,9 @@ class MeshSettingsViewModel(
 
     fun setWarmStandbyEnabled(enabled: Boolean) {
         settings.setWarmStandbyEnabled(enabled)
+    }
+
+    fun clearAllOnSignOut() {
+        sessionHolder.clearAll()
     }
 }

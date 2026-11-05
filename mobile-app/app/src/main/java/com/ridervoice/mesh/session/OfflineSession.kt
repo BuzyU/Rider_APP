@@ -79,7 +79,8 @@ class OfflineSession private constructor(
         fun fromCode(
             rawCode: String,
             now: Long,
-            iterations: Int = SessionKdf.DEFAULT_ITERATIONS
+            iterations: Int = SessionKdf.DEFAULT_ITERATIONS,
+            expiresAtOverride: Long? = null
         ): OfflineSession? {
             val code = normalize(rawCode) ?: return null
             val derived = SessionKdf.derive(code, iterations)
@@ -89,7 +90,7 @@ class OfflineSession private constructor(
                 key = derived.authKey,
                 pKey = derived.payloadKey,
                 createdAt = now,
-                expiresAt = now + MeshConfig.SESSION_LIFETIME_MS
+                expiresAt = expiresAtOverride ?: (now + MeshConfig.SESSION_LIFETIME_MS)
             )
         }
 
@@ -142,6 +143,22 @@ class SessionManager(
             return Admission.ALREADY_MEMBER
         }
         if (lastSeen.size >= session.maxDevices) return Admission.REJECTED_FULL
+        return Admission.ADMITTED
+    }
+
+    /**
+     * Non-mutating joint admission check for pre-AEAD validation of relayed packets
+     * where both [sourceId] and [previousHopId] may be new members.
+     */
+    @Synchronized
+    fun canAdmitAll(deviceIds: Collection<String>): Admission {
+        val now = clock()
+        if (session.isExpired(now)) return Admission.REJECTED_EXPIRED
+        purgeStale(now)
+        val distinctIds = deviceIds.distinct()
+        val newCount = distinctIds.count { !lastSeen.containsKey(it) }
+        if (newCount == 0) return Admission.ALREADY_MEMBER
+        if (lastSeen.size + newCount > session.maxDevices) return Admission.REJECTED_FULL
         return Admission.ADMITTED
     }
 

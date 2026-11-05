@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.transport
 
+import com.ridervoice.mesh.util.runCatchingCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,29 +30,45 @@ class AudioOwnershipArbiter {
     private val _owner = MutableStateFlow(AudioOwner.NONE)
     val owner: StateFlow<AudioOwner> = _owner.asStateFlow()
 
+    @Volatile
+    private var pendingReset: Boolean = false
+
+    private fun applyPendingResetLocked() {
+        if (pendingReset) {
+            pendingReset = false
+            _owner.value = AudioOwner.NONE
+        }
+    }
+
     suspend fun claimLiveKit(onStopOfflineFirst: suspend () -> Unit = {}): Boolean = mutex.withLock {
+        applyPendingResetLocked()
         if (_owner.value == AudioOwner.OFFLINE_MESH) {
-            onStopOfflineFirst()
+            runCatchingCancellable { onStopOfflineFirst() }
             _owner.value = AudioOwner.NONE
         }
         _owner.value = AudioOwner.LIVEKIT
+        applyPendingResetLocked()
         true
     }
 
     suspend fun tryClaimOfflineMesh(): Boolean = mutex.withLock {
+        applyPendingResetLocked()
         if (_owner.value == AudioOwner.LIVEKIT) {
             return@withLock false
         }
         _owner.value = AudioOwner.OFFLINE_MESH
+        applyPendingResetLocked()
         true
     }
 
     suspend fun handoffLiveKitToOfflineMesh(onSuspendLiveKitCapture: suspend () -> Unit): Boolean = mutex.withLock {
+        applyPendingResetLocked()
         if (_owner.value != AudioOwner.OFFLINE_MESH) {
-            onSuspendLiveKitCapture()
+            runCatchingCancellable { onSuspendLiveKitCapture() }
             _owner.value = AudioOwner.NONE
         }
         _owner.value = AudioOwner.OFFLINE_MESH
+        applyPendingResetLocked()
         true
     }
 
@@ -59,28 +76,33 @@ class AudioOwnershipArbiter {
         onStopOfflineCapture: suspend () -> Unit,
         onResumeLiveKitCapture: suspend () -> Unit
     ): Boolean = mutex.withLock {
+        applyPendingResetLocked()
         if (_owner.value != AudioOwner.LIVEKIT) {
-            onStopOfflineCapture()
+            runCatchingCancellable { onStopOfflineCapture() }
             _owner.value = AudioOwner.NONE
         }
         _owner.value = AudioOwner.LIVEKIT
-        onResumeLiveKitCapture()
+        runCatchingCancellable { onResumeLiveKitCapture() }
+        applyPendingResetLocked()
         true
     }
 
     suspend fun release(expectedOwner: AudioOwner) = mutex.withLock {
+        applyPendingResetLocked()
         if (_owner.value == expectedOwner) {
             _owner.value = AudioOwner.NONE
         }
     }
 
     suspend fun releaseAll() = mutex.withLock {
+        pendingReset = false
         _owner.value = AudioOwner.NONE
     }
 
     fun releaseSync(expectedOwner: AudioOwner) {
         if (mutex.tryLock()) {
             try {
+                applyPendingResetLocked()
                 if (_owner.value == expectedOwner) {
                     _owner.value = AudioOwner.NONE
                 }
@@ -95,12 +117,13 @@ class AudioOwnershipArbiter {
     fun releaseAllSync() {
         if (mutex.tryLock()) {
             try {
+                pendingReset = false
                 _owner.value = AudioOwner.NONE
             } finally {
                 mutex.unlock()
             }
         } else {
-            _owner.value = AudioOwner.NONE
+            pendingReset = true
         }
     }
 }

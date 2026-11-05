@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,16 +40,21 @@ class LocalHealthSignalsProvider(
     private val validatedSource: ValidatedInternetSource? = null
 ) {
     private val probeDispatcher: CoroutineDispatcher = dispatcher
+    private val watcherScope = CoroutineScope(SupervisorJob() + dispatcher)
     private var lastInterfaceChangeMs: Long = 0L
 
     init {
         validatedSource?.let { vs ->
-            CoroutineScope(SupervisorJob() + dispatcher).launch {
+            watcherScope.launch {
                 vs.validatedFlow.collect {
                     lastInterfaceChangeMs = clock.nowMs()
                 }
             }
         }
+    }
+
+    fun close() {
+        watcherScope.cancel()
     }
 
     private val probeClient by lazy {

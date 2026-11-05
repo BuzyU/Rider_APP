@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,9 +59,15 @@ fun OfflineRoomScreen(
     val isVoxEnabled by (micController?.voxEnabled ?: voxBridge?.voxEnabled ?: MutableStateFlow(false)).collectAsState()
     val isPttActive by (micController?.pttHeld ?: voxBridge?.isPttActive ?: MutableStateFlow(false)).collectAsState()
     val activeRoute by (meshTransport?.audioRoute ?: MutableStateFlow(AudioRoute.SPEAKER)).collectAsState()
+    val transportDeafened by (meshTransport?.deafened ?: MutableStateFlow(false)).collectAsState()
 
-    var isDeafened by remember { mutableStateOf(false) }
+    var localDeafened by remember { mutableStateOf(false) }
+    val isDeafened = if (meshTransport != null) transportDeafened else localDeafened
     var showDiagDialog by remember { mutableStateOf(false) }
+
+    BackHandler {
+        onLeave()
+    }
 
     if (showDiagDialog) {
         MeshDiagnosticsDialog(
@@ -98,7 +105,7 @@ fun OfflineRoomScreen(
                 },
                 onToggleDeafen = {
                     val next = !isDeafened
-                    isDeafened = next
+                    localDeafened = next
                     coroutineScope.launch {
                         transport.setDeafened(next)
                     }

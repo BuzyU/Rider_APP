@@ -24,6 +24,7 @@ import com.ridervoice.mesh.link.AndroidWifiNetworkWatcher
 import com.ridervoice.mesh.link.NetworkLocks
 import com.ridervoice.mesh.link.UdpMeshLink
 import com.ridervoice.mesh.link.WifiNetworkWatcher
+import com.ridervoice.mesh.session.EncryptedPrefsBackupSessionStore
 import com.ridervoice.mesh.session.HolderOfflineSecretProvider
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSessionHolder
@@ -37,14 +38,20 @@ import com.ridervoice.mesh.transport.AudioOwnershipArbiter
 import com.ridervoice.mesh.transport.LiveKitVoiceTransport
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
+import com.ridervoice.mesh.ui.MeshApplicationScope
+import com.ridervoice.network.ConnectionState
 import com.ridervoice.network.LiveKitManager
 import com.ridervoice.network.NetworkObserver
+import com.ridervoice.security.SecurePreferences
 import com.ridervoice.state.ActiveRideRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import javax.inject.Singleton
 
 @Module
@@ -125,6 +132,18 @@ object MeshModule {
 
     @Provides
     @Singleton
+    @MeshApplicationScope
+    fun provideMeshApplicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Provides
+    @Singleton
+    fun provideOfflineSessionHolder(
+        @ApplicationContext context: Context
+    ): OfflineSessionHolder = OfflineSessionHolder(
+        backupStore = EncryptedPrefsBackupSessionStore(context),
+        restoreAsync = true
+    )
+
     fun provideOfflineSessionHolder(): OfflineSessionHolder = OfflineSessionHolder()
 
     @Provides
@@ -138,12 +157,28 @@ object MeshModule {
     fun provideLiveKitVoiceTransport(
         liveKitManager: LiveKitManager,
         arbiter: AudioOwnershipArbiter,
-        voxEngine: VoxEngine
+        voxEngine: VoxEngine,
+        securePreferences: SecurePreferences
     ): LiveKitVoiceTransport = LiveKitVoiceTransport(
         liveKitManager = liveKitManager,
         audioOwnershipArbiter = arbiter,
         voxStopper = { voxEngine.stop() },
-        voxRestarter = { voxEngine.start() }
+        voxRestarter = { voxEngine.start() },
+        voxRunningCheck = {
+            securePreferences.getBoolean("settings_open_mic", true) &&
+                liveKitManager.connectionState.value == ConnectionState.CONNECTED
+        }
+    )
+
+    fun provideLiveKitVoiceTransport(
+        liveKitManager: LiveKitManager,
+        arbiter: AudioOwnershipArbiter,
+        voxEngine: VoxEngine
+    ): LiveKitVoiceTransport = provideLiveKitVoiceTransport(
+        liveKitManager = liveKitManager,
+        arbiter = arbiter,
+        voxEngine = voxEngine,
+        securePreferences = SecurePreferences()
     )
 
     @Provides
@@ -242,14 +277,16 @@ object MeshModule {
         coordinator: VoiceSessionCoordinator,
         meshTransport: OfflineMeshVoiceTransport,
         healthSignalsProvider: LocalHealthSignalsProvider,
-        secretProvider: OfflineSecretProvider
+        secretProvider: OfflineSecretProvider,
+        sessionHolder: OfflineSessionHolder
     ): MeshAutoSwitchManager = MeshAutoSwitchManager(
         activeRideRepository = activeRideRepository,
         liveKitManager = liveKitManager,
         coordinator = coordinator,
         meshTransport = meshTransport,
         healthSignalsProvider = healthSignalsProvider,
-        secretProvider = secretProvider
+        secretProvider = secretProvider,
+        isStandaloneSessionActive = { sessionHolder.current.value != null }
     )
 
     @Provides

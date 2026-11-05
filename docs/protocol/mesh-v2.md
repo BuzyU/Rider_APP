@@ -2,7 +2,7 @@
 
 **Version:** 2.0.0  
 **Status:** Implemented and Audited  
-**Transport:** UDP Broadcast / Multicast / Unicast on Port 45454 (`MeshConfig.AUDIO_PORT`)  
+**Transport:** UDP Broadcast / Multicast / Unicast on Port 45454 (`MeshConfig.MESH_PORT`)  
 **Target Topology:** Up to 6 motorcycling intercom devices in ad-hoc P2P mesh  
 
 ---
@@ -20,7 +20,7 @@
    - Duplicate packets are dropped via a sliding-window duplicate packet cache.
 5. **Session Isolation:**
    - Sessions are identified by a 128-bit UUID derived from a 16-symbol pairing code.
-   - Keys are derived via Slow KDF (`PBKDF2WithHmacSHA256`, 120,000 iterations, salt `"rvmesh/v2/session"`, 80-byte output).
+   - Keys are derived via Slow KDF (`PBKDF2WithHmacSHA256`, 100,000 iterations, salt `"rvmesh/v2/session"`, 80-byte output).
 
 ---
 
@@ -79,7 +79,7 @@ Every datagram transmitted on the network adheres to the binary big-endian layou
 | 38..41 | `Sequence` | int32 | Monotonically incrementing sequence number for the `(sourceId, packetType)` stream. |
 | 42..49 | `Capture Timestamp` | int64 | Milliseconds elapsed since Unix epoch on sender. Verified by clock guard. |
 | 50 | `TTL` | uint8 | Time-To-Live hop counter. Decremented at each relay step. Default = 5 (`MeshConfig.DEFAULT_TTL`). |
-| 51 | `Hop Count` | uint8 | Number of hops traversed so far. Incremented at each relay step. Sanity bound = 7 (`MeshConfig.MAX_HOPS`). |
+| 51 | `Hop Count` | uint8 | Number of hops traversed so far. Incremented at each relay step. Maximum bound = 5 (`MeshConfig.MAX_HOPS`). |
 | 52..67 | `Previous Hop ID` | 16 bytes | 128-bit UUID of the node that transmitted this specific datagram. |
 | 68 | `Audio Format` | uint8 | `0x01` = PCM 16kHz 16-bit Mono (640 bytes / 20ms). |
 | 69..72 | `Epoch` | int32 | Incremented on sender restart to defeat replay across sessions. |
@@ -113,8 +113,8 @@ Upon receiving a UDP packet on port 45454, every node executes the following det
     - If `VOICE`: Proceed to audio decryption and local playout.
 13. **Voice Playout Decryption (VOICE only):** Decrypt sealed payload using AES-256-GCM with `payloadKey` and deterministic nonce. Unsealed PCM bytes are submitted to `MultiSourceJitterBufferManager` under `sourceId`.
 14. **TTL & Hop Count Policy Enforcement:** 
-    - Invariant: Drop and reject packet immediately if `ttl <= 0`, `hopCount > MAX_HOPS` (7), or `ttl + hopCount > DEFAULT_TTL` (5).
-    - Forwarding Stop Condition: If `ttl <= 1` or `hopCount >= MAX_HOPS` (7), do not relay further.
+    - Invariant: Drop and reject packet immediately if `ttl <= 0`, `hopCount > MAX_HOPS` (5), or `ttl + hopCount > DEFAULT_TTL` (5).
+    - Forwarding Stop Condition: If `ttl <= 1` or `hopCount >= MAX_HOPS` (5), do not relay further.
 15. **Candidate Neighbor Selection:** Retrieve direct radio neighbors from `MeshGraphRepository`. Exclude:
     - `previousHopId` (never bounce backward to the immediate transmitter).
     - `sourceId` (never send back to the original originator).
@@ -143,7 +143,7 @@ Sessions are established using a 16-character alphanumeric code formatted as `XX
 1. **Salt:** Fixed domain-separated salt:
    `salt = "rvmesh/v2/session".toByteArray(UTF_8)`.
 2. **PBKDF2 Output (80 bytes):**
-   `derivedBytes = PBKDF2WithHmacSHA256(normalizedCode, salt, iterations = 120_000, keyLength = 640 bits = 80 bytes)`.
+   `derivedBytes = PBKDF2WithHmacSHA256(normalizedCode, salt, iterations = 100_000, keyLength = 640 bits = 80 bytes)`.
 3. **Session ID (UUID):**
    `sessionId = UUID from derivedBytes[0..15]`.
 4. **Wire Authentication Key:**

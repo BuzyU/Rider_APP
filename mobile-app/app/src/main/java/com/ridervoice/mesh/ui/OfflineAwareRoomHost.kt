@@ -73,6 +73,8 @@ class OfflineAwareRoomViewModel @Inject constructor(
     val activeSpeakers = meshTransport.activeSpeakers
     val micState = meshTransport.micState
     val audioRoute = meshTransport.audioRoute
+    val deafened: StateFlow<Boolean> = meshTransport.deafened
+    val backupSession = coordinator.secretProvider.backupSession
     val micController = meshTransport.micController
     val voxBridge = meshTransport.voxBridge
 
@@ -102,7 +104,8 @@ fun OfflineAwareRoomHost(
     userName: String,
     onLeave: () -> Unit,
     onSosClick: () -> Unit,
-    viewModel: OfflineAwareRoomViewModel = hiltViewModel()
+    viewModel: OfflineAwareRoomViewModel = hiltViewModel(),
+    onPairBackupClick: (() -> Unit)? = null
 ) {
     val autoSwitchState by viewModel.autoSwitchState.collectAsState()
     val groupStatus by viewModel.groupStatus.collectAsState()
@@ -115,12 +118,13 @@ fun OfflineAwareRoomHost(
     val activeSpeakers by viewModel.activeSpeakers.collectAsState()
     val micState by viewModel.micState.collectAsState()
     val activeRoute by viewModel.audioRoute.collectAsState()
+    val isDeafened by viewModel.deafened.collectAsState()
+    val backupSession by viewModel.backupSession.collectAsState()
     val micController = viewModel.micController
     val micToggleOn by micController.micToggleOn.collectAsState()
     val isVoxEnabled by micController.voxEnabled.collectAsState()
     val isPttActive by micController.pttHeld.collectAsState()
 
-    var isDeafened by remember { mutableStateOf(false) }
     var showDiagDialog by remember { mutableStateOf(false) }
 
     val settingsSnapshot by OfflineMeshGate.settingsFlow.collectAsState()
@@ -173,7 +177,6 @@ fun OfflineAwareRoomHost(
                 },
                 onToggleDeafen = {
                     val next = !isDeafened
-                    isDeafened = next
                     viewModel.setDeafened(next)
                 },
                 onCycleAudioRoute = {
@@ -193,12 +196,14 @@ fun OfflineAwareRoomHost(
                 },
                 onViewDiagnostics = { showDiagDialog = true },
                 onLeave = onLeave,
-                onSosClick = onSosClick
+                onSosClick = onSosClick,
+                backupPairingCode = backupSession?.pairingCode?.let { com.ridervoice.mesh.session.OfflineSession.format(it) }
             )
         } else {
             if (showBackupNotReadyChip && !showTacticalBanner) {
                 OfflineBackupChip(
                     text = stringResource(R.string.mesh_backup_not_ready),
+                    onClick = onPairBackupClick,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .statusBarsPadding()
@@ -235,12 +240,13 @@ fun OfflineAwareRoomHost(
 @Composable
 private fun OfflineBackupChip(
     text: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     Surface(
         color = MeshColors.SurfaceDark,
         shape = RoundedCornerShape(12.dp),
-        modifier = modifier
+        modifier = if (onClick != null) modifier.clickable { onClick() } else modifier
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -371,7 +377,7 @@ fun TacticalBanner(
                 )
                 if (state == AutoSwitchState.OFFLINE_ACTIVE) {
                     Text(
-                        text = stringResource(R.string.mesh_status_summary, "$peerCount active", maxHops),
+                        text = stringResource(R.string.mesh_tactical_summary, peerCount, maxHops),
                         color = MeshColors.Indigo,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace

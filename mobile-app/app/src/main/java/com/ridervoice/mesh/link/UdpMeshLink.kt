@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -47,6 +48,7 @@ class UdpMeshLink(
     override val incomingFrames: Flow<MeshFrame> = _incomingFrames.asSharedFlow()
 
     private val endpointTimestamps = ConcurrentHashMap<MeshEndpoint, Long>()
+    private val resolvedAddresses = ConcurrentHashMap<String, InetAddress>()
 
     private val exceptionHandler = kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
         if (throwable is kotlinx.coroutines.CancellationException) throw throwable
@@ -117,16 +119,18 @@ class UdpMeshLink(
         _state.value = MeshLinkState.STOPPED
         receiveJob?.cancel()
         receiveJob = null
+        scope?.cancel()
         scope = null
         closeSocket()
         endpointTimestamps.clear()
+        resolvedAddresses.clear()
     }
 
     override fun send(endpoint: MeshEndpoint, payload: ByteArray): Boolean {
         if (!gateAllowed() || _state.value != MeshLinkState.RUNNING) return false
         val sock = socket ?: return false
         return try {
-            val addr = InetAddress.getByName(endpoint.host)
+            val addr = resolveEndpointAddress(endpoint.host)
             val pkt = DatagramPacket(payload, payload.size, addr, endpoint.port)
             sock.send(pkt)
             true
@@ -134,6 +138,25 @@ class UdpMeshLink(
             MeshLog.w("UdpMeshLink", "Send datagram failed: ${e.javaClass.simpleName}")
             false
         }
+    }
+
+    private fun resolveEndpointAddress(host: String): InetAddress {
+        resolvedAddresses[host]?.let { return it }
+        val parsed = parseIpv4Literal(host) ?: InetAddress.getByName(host)
+        resolvedAddresses[host] = parsed
+        return parsed
+    }
+
+    private fun parseIpv4Literal(host: String): InetAddress? {
+        val parts = host.split('.')
+        if (parts.size != 4) return null
+        val bytes = ByteArray(4)
+        for (i in 0..3) {
+            val octet = parts[i].toIntOrNull() ?: return null
+            if (octet !in 0..255) return null
+            bytes[i] = octet.toByte()
+        }
+        return InetAddress.getByAddress(host, bytes)
     }
 
     override fun endpoints(): Set<MeshEndpoint> {

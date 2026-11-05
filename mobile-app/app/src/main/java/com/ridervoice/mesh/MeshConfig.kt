@@ -5,7 +5,7 @@ object MeshConfig {
     const val MESH_PORT = 45454
 
     const val MAX_DEVICES = 6
-    const val MAX_HOPS = 7
+    const val MAX_HOPS = 5
     const val HELLO_INTERVAL_MS = 1_500L
     const val NEIGHBOR_TIMEOUT_MS = 5_000L
     /** Remote (multi-hop) adjacency reports live slightly longer: they arrive via relays. */

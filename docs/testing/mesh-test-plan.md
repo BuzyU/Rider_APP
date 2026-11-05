@@ -5,7 +5,7 @@
 
 ---
 
-## 1. Test Suite Census (280 Total Unit Tests)
+## 1. Test Suite Census (495 Total Unit Tests)
 
 | Test Class | Category | Test Count | Key Invariants Verified |
 |---|---|---|---|
@@ -13,7 +13,7 @@
 | `OfflineMeshGateTest` | Feature Flags | 2 | Zero sockets opened and zero threads spawned when flag is false |
 | `Stage2IntegrationTest` | Audio & Services | 8 | Microphone exclusivity, arbiter claims, service lifecycle |
 | `ImportIsolationTest` | Code Isolation | 2 | Zero imports of `com.ridervoice.mesh` in frozen online files |
-| `Stage3AutomaticSwitchingTest` | State Machine | 6 | 3s degraded debounce, 5s recovery confirmation, 10s cooldown |
+| `Stage3AutomaticSwitchingTest` | State Machine | 6 | 10s failure confirmation, 8s recovery stability, 20s min dwell |
 | `Stage5AcceptanceTest` | Full Acceptance | 6 | Convoy simulation, 6-device saturating mix, 7th device rejection |
 | `AdversarialTest` | Security | 6 | HMAC tampering rejection, corrupted IVs, replayed packets, oversized frames |
 | `AndroidNetworkingTest` | Network | 2 | UDP port binding, broadcast fallback addresses |
@@ -22,7 +22,7 @@
 | `PayloadCryptoTest` | Encryption | 2 | AES-256-GCM authenticated encryption, bit-flip detection |
 | `RelayAmplificationTest` | Forwarding | 4 | Relay redundancy in 6-clique: 5 datagrams (suppression on), 25 datagrams (suppression off, default) |
 | `ScheduledDeliveryScenarioTest` | Simulated Net | 8 | 6 network disruption scenarios, T23 chaos test, deterministic tie-breaking |
-| `SessionKdfTest` | Cryptography | 2 | Slow-KDF PBKDF2 100k iterations, Crockford Base32 normalization |
+| `SessionKdfTest` | Cryptography | 2 | Slow-KDF PBKDF2 120k iterations, Crockford Base32 normalization |
 | `StateMachineLivenessTest` | State Machine | 4 | D25 deadlock fix, D4 exception rollback, random walk invariant check |
 | `TransportPauseResumeTest` | Audio Hardware | 3 | Pause/resume mic release, mute state propagation |
 | `TransportRobustnessTest` | Sockets | 2 | Socket failure recovery, graceful teardown |
@@ -34,9 +34,11 @@
 | StateMachineLifecycleTest | Remediation v3 | 14 | Session lifecycle phase gating, probe throttling, Rule W-DEGRADED, group connectivity |
 | AudioHandoffRobustnessTest | Remediation v3 | 12 | Single-capture ownership, quiet guard window (400ms), EnableAudioResult sealed returns |
 | NetworkProtocolHardeningTest | Remediation v3 | 12 | Port consolidation (45454), TTL bounds (5), thread-safe routing, D22 endpoint learning |
-| StringsParityTest | Remediation v3 | 2 | 1:1 key parity across EN/HI/MR (97 keys), zero raw Color(0x) literals outside MeshColors |
+| StringsParityTest | Remediation v3 | 2 | 1:1 key parity across EN/HI/MR (102 keys), zero raw Color(0x) literals outside MeshColors |
+| Round3RemediationSuites | Remediation v3.5 | 44 | Composition root, fallback controls, hardware PTT, reachability, multi-hop stress |
+| `Round4RemediationTest` | Remediation v4 | 12 | Online hopCount=0, LiveKit mute sync, 8h backup store, joint admission, SCO/MediaSession safety, monotonic playout |
 | *Baseline App Tests* | Online App | 185 | LiveKit, RoomViewModel, ActiveRideRepository, Admin API, UI components |
-| **Total** | | **439** | **All 439 tests PASSING** |
+| **Total** | | **495** | **All 495 tests PASSING** |
 
 ---
 

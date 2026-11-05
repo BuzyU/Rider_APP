@@ -351,4 +351,9 @@
     <string name="mesh_diag_local_ip">स्थानिक IPv4</string>
     <string name="mesh_diag_broadcast">ब्रॉडकास्ट पत्ता</string>
     <string name="mesh_settings_no_wifi_hardware">डिव्हाइसमध्ये वाय-फाय हार्डवेअर नाही. ऑफलाइन मेश फॉलबॅकसाठी वाय-फाय आवश्यक आहे।</string>
+    <string name="mesh_backup_active_label">सक्रिय बॅकअप कोड: %1$s</string>
+    <string name="mesh_backup_clear_action">बॅकअप हटवा</string>
+    <string name="mesh_backup_saved_toast">ऑनलाइन राइडसाठी बॅकअप पेयरिंग कोड सेव्ह केला</string>
+    <string name="mesh_overlay_searching_peers">मेशवर जवळच्या रायडर्सचा शोध सुरू आहे…</string>
+    <string name="mesh_tactical_summary">%1$d साथी · कमाल %2$d हॉप</string>
 </resources>

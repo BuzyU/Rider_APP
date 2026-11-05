@@ -152,6 +152,14 @@ class MeshAudioRouteController @Inject constructor(
         if (!isCommunicationModeAcquired) return
         isCommunicationModeAcquired = false
 
+        if (arbiter.owner.value == AudioOwner.LIVEKIT) {
+            // LiveKit already claimed audio ownership; do NOT tear down Bluetooth SCO,
+            // communication device, or audio focus on top of the active online call.
+            priorMode = null
+            priorSpeakerphoneOn = null
+            return
+        }
+
         port.stopBluetoothSco()
         port.isBluetoothScoOn = false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

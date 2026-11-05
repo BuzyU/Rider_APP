@@ -1,23 +1,196 @@
 package com.ridervoice.mesh.session
 
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import com.ridervoice.mesh.MeshLog
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
+import kotlinx.coroutines.launch
+import java.io.File
+import java.security.KeyStore
 import javax.inject.Inject
 import javax.inject.Singleton
+
+data class StoredBackupMeta(
+    val pairingCode: String,
+    val createdAtMs: Long,
+    val expiresAtMs: Long
+)
+
+interface BackupSessionStore {
+    fun saveBackup(pairingCode: String, createdAtMs: Long, expiresAtMs: Long)
+    fun loadBackup(): StoredBackupMeta?
+    fun clearBackup()
+}
+
+object NoOpBackupSessionStore : BackupSessionStore {
+    override fun saveBackup(pairingCode: String, createdAtMs: Long, expiresAtMs: Long) {}
+    override fun loadBackup(): StoredBackupMeta? = null
+    override fun clearBackup() {}
+}
+
+class EncryptedPrefsBackupSessionStore(
+    context: Context
+) : BackupSessionStore {
+
+    private val prefs: SharedPreferences = createSafePreferences(context.applicationContext)
+
+    override fun saveBackup(pairingCode: String, createdAtMs: Long, expiresAtMs: Long) {
+        try {
+            prefs.edit()
+                .putString(KEY_CODE, pairingCode)
+                .putLong(KEY_CREATED_AT, createdAtMs)
+                .putLong(KEY_EXPIRES_AT, expiresAtMs)
+                .apply()
+        } catch (e: Exception) {
+            MeshLog.w(TAG, "Failed to save backup session metadata: ${e.message}")
+        }
+    }
+
+    override fun loadBackup(): StoredBackupMeta? {
+        return try {
+            val code = prefs.getString(KEY_CODE, null)?.takeIf { it.isNotBlank() } ?: return null
+            val created = prefs.getLong(KEY_CREATED_AT, 0L)
+            val expires = prefs.getLong(KEY_EXPIRES_AT, 0L)
+            if (created <= 0L || expires <= created) {
+                clearBackup()
+                null
+            } else {
+                StoredBackupMeta(code, created, expires)
+            }
+        } catch (e: Exception) {
+            MeshLog.w(TAG, "Failed to load backup session metadata: ${e.message}")
+            null
+        }
+    }
+
+    override fun clearBackup() {
+        try {
+            prefs.edit()
+                .remove(KEY_CODE)
+                .remove(KEY_CREATED_AT)
+                .remove(KEY_EXPIRES_AT)
+                .apply()
+        } catch (e: Exception) {
+            MeshLog.w(TAG, "Failed to clear backup session metadata: ${e.message}")
+        }
+    }
+
+    companion object {
+        private const val TAG = "EncryptedPrefsBackupSessionStore"
+        private const val PREFS_FILE = "mesh_backup_session_secure_prefs"
+        private const val FALLBACK_PREFS_FILE = "mesh_backup_session_fallback_prefs"
+        private const val KEY_CODE = "backup_pairing_code"
+        private const val KEY_CREATED_AT = "backup_created_at_ms"
+        private const val KEY_EXPIRES_AT = "backup_expires_at_ms"
+
+        private fun createSafePreferences(context: Context): SharedPreferences {
+            return try {
+                createEncryptedPrefs(context)
+            } catch (e: Exception) {
+                MeshLog.w(TAG, "EncryptedSharedPreferences init failed, self-healing: ${e.message}")
+                try {
+                    val parent = context.filesDir?.parentFile
+                    if (parent != null) {
+                        val prefsFile = File(parent, "shared_prefs/${PREFS_FILE}.xml")
+                        if (prefsFile.exists()) {
+                            prefsFile.delete()
+                        }
+                    }
+                    try {
+                        val keyStore = KeyStore.getInstance("AndroidKeyStore")
+                        keyStore.load(null)
+                        keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                    } catch (ksEx: Exception) {
+                        MeshLog.w(TAG, "Keystore entry cleanup skipped: ${ksEx.message}")
+                    }
+                    createEncryptedPrefs(context)
+                } catch (recoveryEx: Exception) {
+                    MeshLog.w(TAG, "Falling back to standard SharedPreferences: ${recoveryEx.message}")
+                    context.getSharedPreferences(FALLBACK_PREFS_FILE, Context.MODE_PRIVATE)
+                }
+            }
+        }
+
+        private fun createEncryptedPrefs(context: Context): SharedPreferences {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            return EncryptedSharedPreferences.create(
+                context,
+                PREFS_FILE,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }
+    }
+}
 
 /**
  * In-memory holder for the active offline mesh session and online ride backup session.
  * Retains session across Activity configuration changes (rotations)
- * without persisting secrets to disk or embedding them into navigation route arguments.
+ * and optionally restores unexpired backup metadata via [BackupSessionStore] off the main thread.
  */
 @Singleton
-class OfflineSessionHolder @Inject constructor() {
+class OfflineSessionHolder(
+    private val backupStore: BackupSessionStore = NoOpBackupSessionStore,
+    private val clock: () -> Long = { System.currentTimeMillis() },
+    private val kdfIterations: Int = SessionKdf.DEFAULT_ITERATIONS,
+    restoreAsync: Boolean = false,
+    dispatcher: CoroutineDispatcher = Dispatchers.Default
+) {
+    @Inject
+    constructor() : this(NoOpBackupSessionStore)
+
+    private val restoreScope = CoroutineScope(SupervisorJob() + dispatcher)
     private val _current = MutableStateFlow<OfflineSession?>(null)
     private val _backup = MutableStateFlow<OfflineSession?>(null)
     val current: StateFlow<OfflineSession?> = _current.asStateFlow()
     val backup: StateFlow<OfflineSession?> = _backup.asStateFlow()
+
+    init {
+        if (restoreAsync) {
+            restoreScope.launch {
+                restoreFromStoreIfValid()
+            }
+        } else {
+            restoreFromStoreIfValid()
+        }
+    }
+
+    fun restoreFromStoreIfValid() {
+        val meta = backupStore.loadBackup() ?: return
+        val now = clock()
+        if (now >= meta.expiresAtMs) {
+            backupStore.clearBackup()
+            return
+        }
+        val restored = OfflineSession.fromCode(
+            rawCode = meta.pairingCode,
+            now = meta.createdAtMs,
+            iterations = kdfIterations,
+            expiresAtOverride = meta.expiresAtMs
+        )
+        if (restored == null || restored.isExpired(now)) {
+            restored?.close()
+            backupStore.clearBackup()
+            return
+        }
+        // Only populate if user hasn't already set a newer backup in RAM
+        val updated = _backup.compareAndSet(null, restored)
+        if (!updated) {
+            restored.close()
+        }
+    }
 
     fun setCurrent(s: OfflineSession?) {
         val old = _current.getAndUpdate { s }
@@ -31,11 +204,23 @@ class OfflineSessionHolder @Inject constructor() {
     fun setBackup(s: OfflineSession?) {
         val old = _backup.getAndUpdate { s }
         if (old !== s) old?.close()
+        if (s != null && !s.isClosed && !s.isExpired(clock())) {
+            backupStore.saveBackup(s.pairingCode, s.createdAt, s.expiresAt)
+        } else {
+            backupStore.clearBackup()
+        }
     }
 
     fun get(): OfflineSession? = _current.value
     fun set(s: OfflineSession?) = setCurrent(s)
-    fun getBackup(): OfflineSession? = _backup.value
+    fun getBackup(): OfflineSession? {
+        val b = _backup.value ?: return null
+        if (b.isExpired(clock())) {
+            clearBackup()
+            return null
+        }
+        return b
+    }
 
     fun clearCurrent() = setCurrent(null)
     fun clearBackup() = setBackup(null)

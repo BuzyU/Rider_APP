@@ -11,24 +11,46 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
+
+interface AudioTrackSink {
+    val state: Int
+    fun play()
+    fun write(audioData: ByteArray, offsetInBytes: Int, sizeInBytes: Int): Int
+    fun stop()
+    fun release()
+}
+
+class AndroidAudioTrackSink(private val track: AudioTrack) : AudioTrackSink {
+    override val state: Int get() = track.state
+    override fun play() = track.play()
+    override fun write(audioData: ByteArray, offsetInBytes: Int, sizeInBytes: Int): Int =
+        track.write(audioData, offsetInBytes, sizeInBytes)
+    override fun stop() = track.stop()
+    override fun release() = track.release()
+}
 
 /**
  * Offline 16 kHz mono 16-bit PCM playback driven by [MultiSourceJitterBufferManager] at 20 ms ticks.
  *
  * Playout thread runs at [android.os.Process.THREAD_PRIORITY_URGENT_AUDIO].
- * Handles AudioTrack initialization failures and underruns gracefully.
+ * Enforces 20 ms monotonic tick pacing so buffered frames are never burst-drained when speech begins,
+ * and handles AudioTrack initialization failures and true mid-stream underruns gracefully.
  */
 class OfflineAudioPlayback(
     private val jitterManager: MultiSourceJitterBufferManager,
     private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val onUnderrun: (Long) -> Unit = {}
+    private val onUnderrun: (Long) -> Unit = {},
+    private val audioTrackFactory: (() -> AudioTrackSink?)? = null,
+    private val nanoClock: () -> Long = { System.nanoTime() }
 ) {
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -38,9 +60,11 @@ class OfflineAudioPlayback(
 
     @Volatile
     private var deafened: Boolean = false
+    private var playbackScope: CoroutineScope? = null
     private var playJob: Job? = null
-    private var audioTrack: AudioTrack? = null
-    private var underrunCount: Long = 0L
+    private var audioTrackSink: AudioTrackSink? = null
+    var underrunCount: Long = 0L
+        private set
 
     fun setDeafened(deafened: Boolean) {
         this.deafened = deafened
@@ -51,62 +75,98 @@ class OfflineAudioPlayback(
         if (!gateAllowed()) return false
         if (playJob?.isActive == true) return true
 
-        val minBuf = AudioTrack.getMinBufferSize(
-            MeshConfig.SAMPLE_RATE,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
-        )
-        if (minBuf <= 0) return false
+        val sink: AudioTrackSink = if (audioTrackFactory != null) {
+            audioTrackFactory.invoke() ?: return false
+        } else {
+            val minBuf = try {
+                AudioTrack.getMinBufferSize(
+                    MeshConfig.SAMPLE_RATE,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT
+                )
+            } catch (e: Exception) {
+                -1
+            }
+            if (minBuf <= 0) return false
 
-        val track = try {
-            AudioTrack.Builder()
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setSampleRate(MeshConfig.SAMPLE_RATE)
-                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                        .build()
-                )
-                .setBufferSizeInBytes((minBuf * 2).coerceAtLeast(MeshConfig.BYTES_PER_FRAME * 4))
-                .setTransferMode(AudioTrack.MODE_STREAM)
-                .build()
-        } catch (e: Exception) {
-            com.ridervoice.mesh.MeshLog.w("OfflineAudioPlayback", "AudioTrack creation failed: ${e.javaClass.simpleName}")
+            val track = try {
+                AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setSampleRate(MeshConfig.SAMPLE_RATE)
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                    )
+                    .setBufferSizeInBytes((minBuf * 2).coerceAtLeast(MeshConfig.BYTES_PER_FRAME * 4))
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .build()
+            } catch (e: Exception) {
+                com.ridervoice.mesh.MeshLog.w("OfflineAudioPlayback", "AudioTrack creation failed: ${e.javaClass.simpleName}")
+                return false
+            }
+            AndroidAudioTrackSink(track)
+        }
+
+        if (sink.state != AudioTrack.STATE_INITIALIZED) {
+            try { sink.release() } catch (_: Exception) {}
             return false
         }
 
-        if (track.state != AudioTrack.STATE_INITIALIZED) {
-            runCatching { track.release() }
-            return false
-        }
-
-        audioTrack = track
+        audioTrackSink = sink
         _isPlaying.value = true
         val scope = CoroutineScope(SupervisorJob() + dispatcher)
+        playbackScope = scope
+        val frameNs = MeshConfig.FRAME_MS.toLong() * 1_000_000L
+        val maxDriftNs = frameNs * 3L
+
         playJob = scope.launch {
-            runCatching {
-                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
-            }
-            val silenceBuf = ByteArray(MeshConfig.BYTES_PER_FRAME)
             try {
-                track.play()
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
+            } catch (_: Exception) {}
+            val silenceBuf = ByteArray(MeshConfig.BYTES_PER_FRAME)
+            var nextTickNs = nanoClock()
+            try {
+                sink.play()
                 while (isActive && gateAllowed()) {
-                    val (mixed, speakers) = jitterManager.pollMixedFrame()
-                    _activeSpeakers.value = speakers
-                    if (mixed != null && !deafened) {
-                        track.write(mixed, 0, mixed.size)
+                    val isDeaf = deafened
+                    val (mixed, speakers) = if (isDeaf) {
+                        jitterManager.pollMixedFrame() // advance jitter buffer while deafened
+                        Pair(null, emptySet())
                     } else {
-                        // Insert silence to keep AudioTrack buffer from starving
-                        track.write(silenceBuf, 0, silenceBuf.size)
+                        jitterManager.pollMixedFrame()
+                    }
+                    _activeSpeakers.value = speakers
+
+                    val toWrite = if (mixed != null && !isDeaf) mixed else silenceBuf
+                    val written = sink.write(toWrite, 0, toWrite.size)
+                    if (written < 0) {
                         underrunCount++
                         onUnderrun(underrunCount)
-                        delay(MeshConfig.FRAME_MS.toLong())
+                    } else if (!isDeaf && mixed != null && speakers.isEmpty()) {
+                        // A primed talker stream had to synthesize a concealed PLC frame mid-talkspurt
+                        underrunCount++
+                        onUnderrun(underrunCount)
+                    }
+
+                    nextTickNs += frameNs
+                    val nowNs = nanoClock()
+                    val remainingNs = nextTickNs - nowNs
+                    if (remainingNs > 0L) {
+                        val delayMs = (remainingNs / 1_000_000L).coerceAtLeast(1L)
+                        delay(delayMs)
+                    } else {
+                        if (nowNs - nextTickNs > maxDriftNs) {
+                            // Resync monotonic clock after OS thread scheduling hiccup or blocking write
+                            nextTickNs = nowNs
+                        }
+                        yield()
                     }
                 }
             } catch (ce: CancellationException) {
@@ -116,7 +176,7 @@ class OfflineAudioPlayback(
             } catch (e: IllegalStateException) {
                 com.ridervoice.mesh.MeshLog.w("OfflineAudioPlayback", "AudioTrack released or stopped: ${e.javaClass.simpleName}")
             } finally {
-                releaseInternal(track)
+                releaseInternal(sink)
             }
         }
         return true
@@ -128,14 +188,16 @@ class OfflineAudioPlayback(
         _activeSpeakers.value = emptySet()
         playJob?.cancel()
         playJob = null
-        audioTrack?.let { releaseInternal(it) }
-        audioTrack = null
+        playbackScope?.cancel()
+        playbackScope = null
+        audioTrackSink?.let { releaseInternal(it) }
+        audioTrackSink = null
         jitterManager.clear()
     }
 
-    private fun releaseInternal(track: AudioTrack) {
+    private fun releaseInternal(sink: AudioTrackSink) {
         _isPlaying.value = false
-        runCatching { track.stop() }
-        runCatching { track.release() }
+        try { sink.stop() } catch (_: Exception) {}
+        try { sink.release() } catch (_: Exception) {}
     }
 }

@@ -108,6 +108,7 @@ fun NavGraph(
 
         composable(Routes.HOME) {
             val authVm: com.ridervoice.ui.viewmodels.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val meshSettingsVm: com.ridervoice.mesh.ui.MeshSettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             HomeScreen(
                 onHostRideClick      = { navController.navigate(Routes.HOST_SETUP) },
                 onJoinRideClick      = { navController.navigate(Routes.JOIN_ROOM) },
@@ -124,6 +125,7 @@ fun NavGraph(
                     navController.navigate(Routes.deviceSetupPath(roomName, isHost = true))
                 },
                 onLogoutSuccess      = {
+                    meshSettingsVm.clearAllOnSignOut()
                     authVm.signOut()
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
@@ -232,6 +234,9 @@ fun NavGraph(
                 },
                 onSosClick = {
                     navController.navigate(Routes.sosPath(roomName))
+                },
+                onPairBackupClick = {
+                    navController.navigate(Routes.OFFLINE_MESH_LOBBY)
                 }
             )
         }

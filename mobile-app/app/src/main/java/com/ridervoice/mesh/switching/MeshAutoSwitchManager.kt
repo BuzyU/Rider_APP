@@ -3,9 +3,10 @@ package com.ridervoice.mesh.switching
 import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSecretProvider
-import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.transport.LiveKitVoiceTransport
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
+import com.ridervoice.mesh.transport.OnlineParticipant
+import com.ridervoice.mesh.transport.UnifiedVoicePeer
 import com.ridervoice.mesh.transport.VoiceSession
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import com.ridervoice.mesh.transport.VoiceTransportState
@@ -26,8 +27,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import javax.inject.Inject
-import javax.inject.Singleton
 
 class MeshAutoSwitchManager(
     private val activeRideRepository: ActiveRideRepository,
@@ -37,10 +36,11 @@ class MeshAutoSwitchManager(
     private val healthSignalsProvider: LocalHealthSignalsProvider,
     private val secretProvider: OfflineSecretProvider = NullOfflineSecretProvider(),
     private val clock: Clock = SystemClock,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val isStandaloneSessionActive: () -> Boolean = { false }
 ) {
 
-    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+    private var scope = CoroutineScope(SupervisorJob() + dispatcher)
 
     private val _lastTransitionReason = MutableStateFlow<String?>(null)
     val lastTransitionReason: StateFlow<String?> = _lastTransitionReason.asStateFlow()
@@ -66,7 +66,10 @@ class MeshAutoSwitchManager(
 
     fun start() {
         if (!OfflineMeshGate.isBuildGateOpen() || OfflineMeshGate.decision() == com.ridervoice.mesh.GateDecision.DISABLED_BY_BUILD) return
-        if (drivingJob != null) return
+        if (drivingJob?.isActive == true) return
+        if (!scope.isActive) {
+            scope = CoroutineScope(SupervisorJob() + dispatcher)
+        }
 
         drivingJob = scope.launch {
             var currentLiveRideId: String? = null
@@ -76,18 +79,14 @@ class MeshAutoSwitchManager(
                 OfflineMeshGate.settingsFlow
             ) { ride, _ -> ride }.collectLatest { ride ->
                 if (ride == null || ride.phase != ActiveRideRepository.Phase.LIVE) {
-                    // Phase.LOBBY / Phase.ENDING / null -> endSession, stop ticks, stop discovery, enable-nothing
+                    // Phase.LOBBY / Phase.ENDING / null -> endSession, stop ticks, stop discovery, restore online transport
                     if (currentLiveRideId != null) {
                         stateMachine.endSession()
                         currentLiveRideId = null
                     }
                     coordinator.setOnlineSession(null)
                     _groupStatus.value = GroupConnectivityStatus.ONLINE_ALL
-                    if (meshTransport.state.value != VoiceTransportState.STOPPED &&
-                        stateMachine.state.value == AutoSwitchState.ONLINE
-                    ) {
-                        meshTransport.stop()
-                    }
+                    coordinator.onOnlineRideEnded(keepStandaloneMesh = isStandaloneSessionActive())
                     return@collectLatest
                 }
 
@@ -120,7 +119,8 @@ class MeshAutoSwitchManager(
                         coordinator.ensureWarmStandbyDiscovery(backup)
                     }
                     if (backup == null && meshTransport.state.value == VoiceTransportState.CONNECTED &&
-                        stateMachine.state.value == AutoSwitchState.ONLINE
+                        stateMachine.state.value == AutoSwitchState.ONLINE &&
+                        !isStandaloneSessionActive()
                     ) {
                         meshTransport.stop()
                     }
@@ -143,8 +143,19 @@ class MeshAutoSwitchManager(
                     delay(1_000L)
                 }
 
-                if (meshTransport.state.value != VoiceTransportState.STOPPED &&
-                    stateMachine.state.value == AutoSwitchState.ONLINE
+                if (!OfflineMeshGate.isOfflineAllowed()) {
+                    if (currentLiveRideId != null) {
+                        stateMachine.endSession()
+                        currentLiveRideId = null
+                    }
+                    _groupStatus.value = GroupConnectivityStatus.ONLINE_ALL
+                    if (meshTransport.state.value != VoiceTransportState.STOPPED && !isStandaloneSessionActive()) {
+                        meshTransport.stop()
+                    }
+                    coordinator.onOnlineRideEnded(keepStandaloneMesh = false)
+                } else if (meshTransport.state.value != VoiceTransportState.STOPPED &&
+                    stateMachine.state.value == AutoSwitchState.ONLINE &&
+                    !isStandaloneSessionActive()
                 ) {
                     meshTransport.stop()
                 }
@@ -152,26 +163,22 @@ class MeshAutoSwitchManager(
         }
     }
 
-    private fun buildUnifiedParticipantList(isLocalOffline: Boolean): List<com.ridervoice.mesh.transport.UnifiedVoicePeer> {
+    private fun buildUnifiedParticipantList(isLocalOffline: Boolean): List<UnifiedVoicePeer> {
         val rawMesh = meshTransport.participants.value
-        val meshPeers = (rawMesh as? List<*>)?.filterIsInstance<com.ridervoice.mesh.transport.UnifiedVoicePeer>() ?: emptyList()
+        val meshPeers = (rawMesh as? List<*>)?.filterIsInstance<UnifiedVoicePeer>() ?: emptyList()
         if (isLocalOffline) {
             return meshPeers
         }
         val rawLk = liveKitManager.participants.value
         val lkParticipants = (rawLk as? List<*>)?.filterIsInstance<com.ridervoice.models.Participant>() ?: emptyList()
         val lkPeers = lkParticipants.map { p ->
-            com.ridervoice.mesh.transport.UnifiedVoicePeer(
-                id = p.identity,
-                name = p.displayName?.takeIf { it.isNotBlank() } ?: p.identity,
-                isOnline = !p.isGhost,
-                transport = com.ridervoice.mesh.transport.PeerTransportKind.ONLINE_LIVEKIT,
-                hopCount = 1,
-                nextHopId = null,
-                isDirect = true,
-                isRelayed = false,
-                routeAgeMs = 0L,
-                isSpeaking = false
+            UnifiedVoicePeer.fromOnline(
+                OnlineParticipant(
+                    identity = p.identity,
+                    displayName = p.displayName?.takeIf { it.isNotBlank() } ?: p.identity,
+                    isSpeaking = liveKitManager.activeSpeaker.value == p.identity,
+                    isConnected = !p.isGhost
+                )
             )
         }
         return if (meshPeers.isEmpty()) lkPeers else lkPeers + meshPeers
@@ -181,11 +188,12 @@ class MeshAutoSwitchManager(
         drivingJob?.cancel()
         drivingJob = null
         scope.launch {
-            try {
-                stateMachine.endSession()
-            } finally {
-                scope.cancel()
-            }
+            stateMachine.endSession()
         }
+    }
+
+    fun close() {
+        stop()
+        scope.cancel()
     }
 }

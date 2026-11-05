@@ -16,10 +16,11 @@ interface MeshRuntimeSettings {
     val offlineMeshEnabled: Boolean
     val automaticFallbackEnabled: Boolean
     val warmStandbyEnabled: Boolean
+    fun currentSnapshot(): MeshSettingsSnapshot =
+        MeshSettingsSnapshot(offlineMeshEnabled, automaticFallbackEnabled, warmStandbyEnabled)
+
     val settingsFlow: StateFlow<MeshSettingsSnapshot>
-        get() = MutableStateFlow(
-            MeshSettingsSnapshot(offlineMeshEnabled, automaticFallbackEnabled, warmStandbyEnabled)
-        ).asStateFlow()
+        get() = MutableStateFlow(currentSnapshot()).asStateFlow()
 
     fun setOfflineMeshEnabled(v: Boolean) {}
     fun setAutomaticFallbackEnabled(v: Boolean) {}
@@ -41,21 +42,22 @@ interface MeshRuntimeSettings {
 class PrefsMeshRuntimeSettings(context: Context) : MeshRuntimeSettings {
     private val p = context.applicationContext.getSharedPreferences("mesh_runtime_prefs", Context.MODE_PRIVATE)
 
-    private val _settingsFlow = MutableStateFlow(
-        MeshSettingsSnapshot(
-            offlineMeshEnabled = p.getBoolean("offline_mesh_enabled", false),
-            automaticFallbackEnabled = p.getBoolean("auto_fallback_enabled", false),
-            warmStandbyEnabled = p.getBoolean("warm_standby_enabled", false)
+    private fun readSanitizedSnapshot(): MeshSettingsSnapshot {
+        val enabled = p.getBoolean("offline_mesh_enabled", false)
+        val auto = enabled && p.getBoolean("auto_fallback_enabled", false)
+        val warm = enabled && p.getBoolean("warm_standby_enabled", false)
+        return MeshSettingsSnapshot(
+            offlineMeshEnabled = enabled,
+            automaticFallbackEnabled = auto,
+            warmStandbyEnabled = warm
         )
-    )
+    }
+
+    private val _settingsFlow = MutableStateFlow(readSanitizedSnapshot())
     override val settingsFlow: StateFlow<MeshSettingsSnapshot> = _settingsFlow.asStateFlow()
 
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-        _settingsFlow.value = MeshSettingsSnapshot(
-            offlineMeshEnabled = p.getBoolean("offline_mesh_enabled", false),
-            automaticFallbackEnabled = p.getBoolean("auto_fallback_enabled", false),
-            warmStandbyEnabled = p.getBoolean("warm_standby_enabled", false)
-        )
+        _settingsFlow.value = readSanitizedSnapshot()
     }
 
     init {
@@ -63,8 +65,8 @@ class PrefsMeshRuntimeSettings(context: Context) : MeshRuntimeSettings {
     }
 
     override val offlineMeshEnabled get() = p.getBoolean("offline_mesh_enabled", false)
-    override val automaticFallbackEnabled get() = p.getBoolean("auto_fallback_enabled", false)
-    override val warmStandbyEnabled get() = p.getBoolean("warm_standby_enabled", false)
+    override val automaticFallbackEnabled get() = offlineMeshEnabled && p.getBoolean("auto_fallback_enabled", false)
+    override val warmStandbyEnabled get() = offlineMeshEnabled && p.getBoolean("warm_standby_enabled", false)
 
     override fun setOfflineMeshEnabled(v: Boolean) {
         val editor = p.edit().putBoolean("offline_mesh_enabled", v)
@@ -83,12 +85,14 @@ class PrefsMeshRuntimeSettings(context: Context) : MeshRuntimeSettings {
     }
 
     override fun setAutomaticFallbackEnabled(v: Boolean) {
-        p.edit().putBoolean("auto_fallback_enabled", v).apply()
-        _settingsFlow.value = _settingsFlow.value.copy(automaticFallbackEnabled = v)
+        val effective = v && offlineMeshEnabled
+        p.edit().putBoolean("auto_fallback_enabled", effective).apply()
+        _settingsFlow.value = _settingsFlow.value.copy(automaticFallbackEnabled = effective)
     }
 
     override fun setWarmStandbyEnabled(v: Boolean) {
-        p.edit().putBoolean("warm_standby_enabled", v).apply()
-        _settingsFlow.value = _settingsFlow.value.copy(warmStandbyEnabled = v)
+        val effective = v && offlineMeshEnabled
+        p.edit().putBoolean("warm_standby_enabled", effective).apply()
+        _settingsFlow.value = _settingsFlow.value.copy(warmStandbyEnabled = effective)
     }
 }

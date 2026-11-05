@@ -37,3 +37,7 @@ io/
 .venv/
 venv/
 __pycache__/
+
+# Local tool caches
+.local/
+docs/implementation/mesh/_readledger.tmp

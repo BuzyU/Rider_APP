@@ -4,6 +4,8 @@ import com.ridervoice.audio.HardwarePTTManager
 
 interface HardwarePttPort {
     var onMicToggleRequest: ((Boolean) -> Unit)?
+    val isSessionActive: Boolean
+        get() = false
     fun activateSession()
     fun deactivateSession()
 }
@@ -15,6 +17,9 @@ class AndroidHardwarePttPort(
         get() = manager.onMicToggleRequest
         set(value) { manager.onMicToggleRequest = value }
 
+    override val isSessionActive: Boolean
+        get() = manager.isSessionActive()
+
     override fun activateSession() {
         manager.activateSession()
     }
@@ -23,4 +28,5 @@ class AndroidHardwarePttPort(
         manager.deactivateSession()
     }
 }
+
 

@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -71,6 +72,7 @@ class OfflineAudioCapture(
 
     @Volatile
     private var micEnabled: Boolean = false
+    private var captureScope: CoroutineScope? = null
     private var recordJob: Job? = null
     private companion object {
         const val MAX_EMPTY_READS = 50
@@ -153,6 +155,7 @@ class OfflineAudioCapture(
         audioRecordSource = recSource
         _isCapturing.value = true
         val scope = CoroutineScope(SupervisorJob() + dispatcher)
+        captureScope = scope
         recordJob = scope.launch {
             val previousPriority = runCatching { android.os.Process.getThreadPriority(0) }.getOrNull()
             runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO) }
@@ -217,6 +220,8 @@ class OfflineAudioCapture(
         _isCapturing.value = false
         recordJob?.cancel()
         recordJob = null
+        captureScope?.cancel()
+        captureScope = null
         audioRecordSource?.let { releaseInternal(it) }
         audioRecordSource = null
         releaseEffects()

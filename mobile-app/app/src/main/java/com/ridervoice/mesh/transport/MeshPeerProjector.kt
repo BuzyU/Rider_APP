@@ -4,8 +4,11 @@ import com.ridervoice.mesh.diagnostics.MeshDiagnosticsRepository
 import com.ridervoice.mesh.forwarding.ForwardingEngine
 import com.ridervoice.mesh.graph.MeshGraphSnapshot
 import com.ridervoice.mesh.identity.MeshIdentity
+import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.SessionManager
+import com.ridervoice.mesh.ui.MeshSelfTestInput
+import com.ridervoice.mesh.ui.MeshSelfTestMapper
 
 /**
  * Pure projection of mesh graph topology, routes, and speakers into unified peer lists and diagnostics (B24).
@@ -26,30 +29,58 @@ class MeshPeerProjector(
         sessionManager: SessionManager?,
         routingTable: RoutingTable?,
         forwardingEngine: ForwardingEngine?,
-        speakers: Set<String>
+        speakers: Set<String>,
+        linkState: MeshLinkState = MeshLinkState.RUNNING,
+        localIp: String = "",
+        broadcastAddress: String = "",
+        authenticatedNeighborsLast10s: Int = 0,
+        secondsWithZeroNeighbours: Long = 0L,
+        selfIdOverride: String? = null
     ): ProjectionResult? {
         val sManager = sessionManager ?: return null
         val rTable = routingTable ?: return null
         val fEngine = forwardingEngine ?: return null
         val now = clock()
         val routes = rTable.routes.value
-        val hasRoute = routes.isNotEmpty()
+        val hasRoute = routes.values.any { it.expiresAt > now }
 
         val offlineDevices = UnifiedVoicePeer.projectMeshGraph(snapshot, routes, speakers, now)
         val peers = offlineDevices.map { UnifiedVoicePeer.fromOffline(it, now) }
 
+        val selfId = selfIdOverride ?: identity.deviceId
+        val directAliveCount = snapshot.edges.count {
+            (it.from == selfId || it.to == selfId) && it.endpoint != null && it.expiresAt > now
+        }
+        val effectiveNeighbors10s = maxOf(authenticatedNeighborsLast10s, directAliveCount)
+        val effectiveZeroSecs = if (effectiveNeighbors10s > 0) 0L else secondsWithZeroNeighbours
+
+        val selfTestState = MeshSelfTestMapper.map(
+            MeshSelfTestInput(
+                linkState = linkState,
+                localIp = localIp.ifBlank { null },
+                broadcastAddress = broadcastAddress.ifBlank { null },
+                authenticatedNeighboursHeardLast10s = effectiveNeighbors10s,
+                secondsWithZeroNeighbours = effectiveZeroSecs
+            )
+        )
+
         val cnt = fEngine.counters()
         diagnosticsRepo.update(
-            selfDeviceId = identity.deviceId,
+            selfDeviceId = selfId,
             sessionId = sManager.session.sessionId,
             memberCount = sManager.members().size,
             graph = snapshot,
-            routes = routes,
+            routes = routes.filterValues { it.expiresAt > now },
             receivedVoiceFrames = cnt.received,
             forwardedVoiceFrames = cnt.forwarded,
             droppedDuplicates = cnt.dup,
             droppedInvalid = cnt.invalid,
-            droppedTtl = cnt.ttl
+            droppedTtl = cnt.ttl,
+            linkState = selfTestState.linkStateText,
+            localIp = localIp,
+            broadcastAddress = broadcastAddress,
+            authenticatedNeighborsLast10s = effectiveNeighbors10s,
+            isolationWarningHint = selfTestState.isolationWarningHint
         )
 
         return ProjectionResult(

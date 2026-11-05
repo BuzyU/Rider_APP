@@ -67,28 +67,30 @@ class MeshVoxBridge(
     val pttHeld: StateFlow<Boolean> get() = micController.pttHeld
     val voxEnabled: StateFlow<Boolean> get() = micController.voxEnabled
     val isPttActive: StateFlow<Boolean> get() = micController.pttHeld
-    val isGateOpen: StateFlow<Boolean>
-        get() {
-            _isGateOpen.value = isMicToggledOn || isPttHeld || (voxEnabled.value && isVoxSpeechActive)
-            return _isGateOpen.asStateFlow()
-        }
+    val isGateOpen: StateFlow<Boolean> = _isGateOpen.asStateFlow()
 
     val isMicToggledOn: Boolean get() = micController.micToggleOn.value
     val isPttHeld: Boolean get() = micController.pttHeld.value
     val isVoxSpeechActive: Boolean get() = micController.voxArmed.value
 
+    private fun refreshGateOpen() {
+        _isGateOpen.value = isMicToggledOn || isPttHeld || (voxEnabled.value && isVoxSpeechActive)
+    }
+
     @Synchronized
     fun attach(roomOwnsAudio: Boolean) {
         if (ownCallback != null) return
         val port = hardwarePttPort ?: return
-        previousCallback = port.onMicToggleRequest
+        val prior = port.onMicToggleRequest
+        previousCallback = prior
         val cb: (Boolean) -> Unit = { _ -> toggleMic() }
         ownCallback = cb
         port.onMicToggleRequest = cb
-        if (!roomOwnsAudio) {
+        if (!roomOwnsAudio && !port.isSessionActive) {
             port.activateSession()
             activatedByUs = true
         }
+        refreshGateOpen()
 
         // Wire optional VoxEngine speech detection if provided
         voxEngine?.let { vox ->
@@ -97,6 +99,7 @@ class MeshVoxBridge(
                 vox.isMicOpen.collectLatest { open ->
                     if (open) {
                         micController.setVoxEnabled(true)
+                        refreshGateOpen()
                     }
                 }
             }
@@ -120,26 +123,31 @@ class MeshVoxBridge(
         voxJob?.cancel()
         voxJob = null
         scope.coroutineContext.cancelChildren()
+        refreshGateOpen()
     }
 
     /** Direct manual PTT control (e.g. from UI buttons). */
     fun setPttPressed(pressed: Boolean) {
         micController.setPttPressed(pressed)
+        refreshGateOpen()
     }
 
     /** Toggle microphone state. */
     fun setMicToggled(toggled: Boolean) {
         micController.setMicToggled(toggled)
+        refreshGateOpen()
     }
 
     /** Flip microphone state (e.g. helmet PTT key). */
     fun toggleMic() {
         micController.toggleMic()
+        refreshGateOpen()
     }
 
     /** Set whether VOX gate detection is enabled. */
     fun setVoxEnabled(enabled: Boolean) {
         micController.setVoxEnabled(enabled)
+        refreshGateOpen()
     }
 
     /** Direct update of VOX speech active state (testing or external detector). */
@@ -148,6 +156,7 @@ class MeshVoxBridge(
             micController.setVoxEnabled(true)
         }
         micController.setVoxArmed(active)
+        refreshGateOpen()
     }
 
     /**
@@ -156,11 +165,12 @@ class MeshVoxBridge(
      */
     fun shouldTransmitPcmFrame(pcmBytes: ByteArray, nowMs: Long = System.currentTimeMillis()): Boolean {
         val res = micController.shouldTransmitPcmFrame(pcmBytes, nowMs)
-        _isGateOpen.value = isMicToggledOn || isPttHeld || (voxEnabled.value && isVoxSpeechActive)
+        refreshGateOpen()
         return res
     }
 
     override fun close() {
         detach()
+        scope.coroutineContext.cancelChildren()
     }
 }

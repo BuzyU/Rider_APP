@@ -78,6 +78,17 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | B25 | LOW | Lint | FIXED (WP-51) | `mobile-app/app/lint-baseline.xml:1` | ProductionWiringTest#autoSwitchManager_start_doesNothingWhenGateClosed |
 | B26 | LOW | Security | FIXED (WP-49) | `docs/security/mesh-threat-model.md:107` | SessionHygieneTest#offlineSession_toStringNeverLeaksCodeOrKeyBytes |
 | B27 | MEDIUM | Testing | FIXED (WP-52) | `StressSmokeTest.kt:1` | StressSmokeTest#sixNodeLinearMesh_fiveThousandVoiceFrames_fivePercentDrop_noDuplicatesAndReachesFarEnd |
+| C1 | CRITICAL | OnlineIsolation | FIXED (WP-53) | `LiveKitVoiceTransport.kt:212` | Round4RemediationTest#liveKitTransport_doesNotUnmuteOnlineRiderOnReconnectWhenNotPaused |
+| C2 | HIGH | OnlineIsolation | FIXED (WP-53) | `VoiceParticipantModels.kt:52` | Round4RemediationTest#onlinePeer_hasHopCountZero_andIsNotDirect |
+| C3 | HIGH | Session | FIXED (WP-54) | `OfflineSessionHolder.kt:65` | Round4RemediationTest#backupSession_persistsAndRestoresFromBackupSessionStore_andExpiresCleanly |
+| C4 | CRITICAL | Audio | FIXED (WP-55) | `OfflineAudioPlayback.kt:125` | Round4RemediationTest#offlineAudioPlayback_monotonicTickPacing_doesNotCountIdleSilenceAsUnderrun |
+| C5 | HIGH | Audio | FIXED (WP-55) | `MeshAudioRouteController.kt:64` | Round4RemediationTest#meshAudioRouteController_doesNotReleaseBluetoothScoWhenLiveKitOwnsAudio |
+| C6 | HIGH | Audio | FIXED (WP-55) | `MeshVoxBridge.kt:50` | Round4RemediationTest#meshVoxBridge_doesNotDeactivateMediaSessionWhenRoomOwnsAudio |
+| C7 | HIGH | Protocol | FIXED (WP-56) | `SessionManager.kt:40` | Round4RemediationTest#sessionManager_canAdmitAll_rejectsWhenAdmittingSourceAndPreviousHopExceedsCap |
+| C8 | MEDIUM | Graph | FIXED (WP-56) | `MeshGraphRepository.kt:75` | Round4RemediationTest#meshGraphRepository_onHello_refreshesTimestampsEvenWhenTopologyVersionUnchanged |
+| C9 | MEDIUM | Diagnostics | FIXED (WP-56) | `MeshPeerProjector.kt:45` | Round4RemediationTest#meshPeerProjector_hasValidRoute_checksExpiresAt_andProjectsDiagnostics |
+| C10 | HIGH | Switching | FIXED (WP-57) | `VoiceSessionCoordinator.kt:255` | Round4RemediationTest#voiceSessionCoordinator_onOnlineRideEnded_stopsMeshAndReleasesOwnership |
+| C11 | MEDIUM | Service | FIXED (WP-58) | `MeshForegroundService.kt:65` | Round4RemediationTest#meshForegroundService_actionDisconnect_returnsStopDecision |
 
 ## Architecture Rules (B20)
 The following test methods in `ArchitectureRulesTest` are named architecture rules enforcing module and manifest boundaries:

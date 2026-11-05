@@ -477,35 +477,39 @@ Located at: `mobile-app/app/src/main/java/com/ridervoice/`
 ---
 
 
-#### 4.3.5 Offline Mesh Subsystem (`mesh/`)
+#### 4.3.9 Offline Mesh Subsystem (`mesh/`)
 - **`mesh/audio/`**:
-  - `AudioOwnershipArbiter.kt`: Thread-safe arbiter preventing Android Audio HAL hardware contention between LiveKit WebRTC and offline mesh.
-  - `MultiSourceJitterBufferManager.kt`: Per-peer adaptive jitter buffer managing packet reordering and loss concealment.
+  - `JitterBuffer.kt` (`MultiSourceJitterBufferManager`): Per-peer adaptive jitter buffer managing packet reordering and loss concealment.
   - `OfflineAudioCapture.kt`: Interruptible event-driven 16kHz PCM capture loop.
-  - `OfflineAudioPlayback.kt`: Streams decoded PCM audio into Android `AudioTrack`.
+  - `OfflineAudioPlayback.kt`: Streams decoded PCM audio into Android `AudioTrack` at monotonic 20ms tick intervals.
+  - `MicController.kt`, `MeshVoxBridge.kt`, `MeshAudioRouteController.kt`: Serialized mic state arbitration, VOX/PTT bridging, and Bluetooth SCO routing.
 - **`mesh/forwarding/`**:
-  - `ForwardingEngine.kt`: 18-step forwarding pipeline with relay storm suppression (D26) and sliding-window deduplication.
-  - `TtlPolicy.kt`: Hop limits (`VOICE_TTL = 3`, `HELLO_TTL = 4`).
+  - `ForwardingEngine.kt`: 18-step forwarding pipeline with sliding-window deduplication and configurable relay redundancy suppression (`MeshConfig.SUPPRESS_REDUNDANT_RELAYS = false` by default).
+  - `TtlPolicy.kt`: Unified hop limits (`MeshConfig.DEFAULT_TTL = 5`, `MeshConfig.MAX_HOPS = 5`).
 - **`mesh/graph/` & `mesh/routing/`**:
-  - `MeshGraphRepository.kt`: Distance-vector shortest-path routing and deterministic tie-breaking.
-  - `RoutingTable.kt`: Next-hop lookup and stale neighbor pruning (D23).
+  - `MeshGraphRepository.kt`: Adjacency graph repository tracking bidirectional edges and epochs.
+  - `RouteCalculator.kt` & `RoutingTable.kt`: BFS shortest-path routing with deterministic tie-breaking and stale neighbor pruning.
 - **`mesh/identity/` & `mesh/link/`**:
-  - `MeshIdentity.kt`: Hardware-backed unique node identifier.
-  - `UdpMeshLink.kt`: Non-blocking DatagramSocket transport on UDP port 45454 with endpoint validation (D22).
-  - `NetworkLocks.kt`: Manages `WifiLock` and `MulticastLock` symmetric acquire/release.
+  - `MeshIdentity.kt` & `MeshIdentityRepository.kt`: Persistent unique node identifier and sanitized rider display name.
+  - `UdpMeshLink.kt`: Non-blocking DatagramSocket transport on UDP port 45454 (`MeshConfig.MESH_PORT`) with authenticated endpoint learning.
+  - `NetworkLocks.kt` & `WifiNetworkWatcher.kt`: Manages `MulticastLock` (discovery/standby), `WifiLock` (active audio), and Wi-Fi interface rebinds.
 - **`mesh/protocol/` & `mesh/session/`**:
-  - `MeshPacketCodec.kt`: 747-byte wire packet v2 encoder/decoder.
-  - `OfflineSession.kt`: PBKDF2-HMAC-SHA256 (120,000 iterations) key derivation.
-  - `DuplicatePacketCache.kt`: Sliding-window replay rejection (D8).
-  - `SessionManager.kt`: AES-256-GCM session key establishment.
-- **`mesh/switching/`**:
-  - `AutomaticSwitchStateMachine.kt`: 8-state automatic handoff machine with recovery deadlock fix (D25).
-  - `LocalHealthSignals.kt`: Cellular and WebRTC loss signal provider.
-- **`mesh/ui/` & `mesh/service/`**:
-  - `OfflineMeshLobbyScreen.kt`: Peer discovery, hotspot setup, and group pairing.
-  - `OfflineRoomScreen.kt`: Active offline intercom HUD with topology visualization and PTT.
-  - `MeshForegroundService.kt`: Persistent Android foreground service.
-  - `MeshModule.kt`: Dagger Hilt dependency injection.
+  - `MeshPacket.kt` (`MeshPacketCodec`): 747-byte wire packet v2 encoder/decoder.
+  - `PayloadCrypto.kt`: AES-256-GCM authenticated payload encryption with deterministic 12-byte nonces.
+  - `SessionKdf.kt` & `OfflineSession.kt`: PBKDF2-HMAC-SHA256 (`100,000` iterations, salt `"rvmesh/v2/session"`) key derivation from 16-character Crockford Base32 pairing codes.
+  - `OfflineSessionHolder.kt`: Active and encrypted-persisted backup session holder.
+  - `DuplicatePacketCache.kt`: Sliding-window replay rejection.
+  - `SessionManager.kt`: Enforces the 6-device session admission cap.
+- **`mesh/switching/` & `mesh/transport/`**:
+  - `AudioOwnershipArbiter.kt`: Thread-safe arbiter preventing Android Audio HAL hardware contention between LiveKit WebRTC and offline mesh.
+  - `VoiceSessionCoordinator.kt`: Coordinates atomic fallback to offline mesh (with 400ms quiet guard) and non-disruptive recovery to LiveKit.
+  - `AutomaticSwitchStateMachine.kt` & `MeshAutoSwitchManager.kt`: 8-state automatic handoff machine with exponential backoff and anti-flapping protection.
+  - `LocalHealthSignalsProvider.kt` & `ValidatedInternetSource.kt`: Cellular, validated internet, and WebRTC health signal sampling.
+- **`mesh/ui/`, `di/`, & `services/`**:
+  - `OfflineMeshLobbyScreen.kt` & `OfflineMeshViewModel.kt`: Guided hotspot setup, network self-test HUD, and group/backup pairing.
+  - `OfflineRoomScreen.kt`, `OfflineAwareRoomHost.kt`, & `MeshControls.kt`: Active offline intercom HUD, fallback overlay, and PTT controls.
+  - `services/MeshForegroundService.kt`: Persistent Android foreground service (`FOREGROUND_SERVICE_TYPE_MICROPHONE`).
+  - `di/MeshModule.kt`: Dagger Hilt dependency injection.
 
 ### 4.4 Backend API Service (`backend/`)
 

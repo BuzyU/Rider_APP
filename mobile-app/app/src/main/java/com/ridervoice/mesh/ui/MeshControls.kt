@@ -16,8 +16,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -45,7 +48,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -246,6 +252,7 @@ fun MeshTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -311,6 +318,13 @@ fun MeshBottomBar(
     onLeave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentOnPttPressChange by rememberUpdatedState(onPttPressChange)
+    DisposableEffect(Unit) {
+        onDispose {
+            currentOnPttPressChange(false)
+        }
+    }
+
     Surface(
         color = MeshColors.SurfaceDark,
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
@@ -319,6 +333,7 @@ fun MeshBottomBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -340,10 +355,12 @@ fun MeshBottomBar(
                 Surface(
                     color = MeshColors.SurfaceElevated,
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.clickable { onCycleAudioRoute() }
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable { onCycleAudioRoute() }
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(imageVector = routeIcon, contentDescription = null, tint = MeshColors.Cyan, modifier = Modifier.size(16.dp))
@@ -361,40 +378,55 @@ fun MeshBottomBar(
                 Surface(
                     color = if (isVoxEnabled) MeshColors.EmeraldDark else MeshColors.SurfaceElevated,
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.clickable { onToggleVox() }
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable { onToggleVox() }
                 ) {
-                    Text(
-                        text = if (isVoxEnabled) stringResource(R.string.mesh_vox_on) else stringResource(R.string.mesh_vox_off),
-                        color = if (isVoxEnabled) MeshColors.EmeraldLight else MeshColors.Slate,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-
-                // PTT Press-and-Hold Button
-                Surface(
-                    color = if (isPttActive) MeshColors.EmeraldActive else MeshColors.SurfaceElevated,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.pointerInput(Unit) {
-                        detectTapGestures(
-                            onPress = {
-                                onPttPressChange(true)
-                                tryAwaitRelease()
-                                onPttPressChange(false)
-                            }
+                    Box(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isVoxEnabled) stringResource(R.string.mesh_vox_on) else stringResource(R.string.mesh_vox_off),
+                            color = if (isVoxEnabled) MeshColors.EmeraldLight else MeshColors.Slate,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
                         )
                     }
+                }
+
+                // PTT Press-and-Hold Button (>= 56.dp height for gloved riders)
+                Surface(
+                    color = if (isPttActive) MeshColors.EmeraldActive else MeshColors.SurfaceElevated,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .heightIn(min = 56.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onPress = {
+                                    try {
+                                        currentOnPttPressChange(true)
+                                        tryAwaitRelease()
+                                    } finally {
+                                        currentOnPttPressChange(false)
+                                    }
+                                }
+                            )
+                        }
                 ) {
-                    Text(
-                        text = if (isPttActive) stringResource(R.string.mesh_ptt_transmitting) else stringResource(R.string.mesh_ptt_button),
-                        color = if (isPttActive) MeshColors.EmeraldLight else MeshColors.SlateLight,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
+                    Box(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isPttActive) stringResource(R.string.mesh_ptt_transmitting) else stringResource(R.string.mesh_ptt_button),
+                            color = if (isPttActive) MeshColors.EmeraldLight else MeshColors.SlateLight,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
                 }
             }
 
@@ -586,7 +618,8 @@ fun MeshActiveOverlay(
     onViewDiagnostics: () -> Unit,
     onLeave: () -> Unit,
     onSosClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    backupPairingCode: String? = null
 ) {
     val title = when (autoSwitchState) {
         AutoSwitchState.STARTING_OFFLINE_MESH -> stringResource(R.string.mesh_banner_starting_offline)
@@ -675,8 +708,13 @@ fun MeshActiveOverlay(
                             .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
+                        val searchingText = if (!backupPairingCode.isNullOrBlank()) {
+                            stringResource(R.string.mesh_peers_searching, backupPairingCode)
+                        } else {
+                            stringResource(R.string.mesh_overlay_searching_peers)
+                        }
                         Text(
-                            text = stringResource(R.string.mesh_peers_searching, title),
+                            text = searchingText,
                             color = MeshColors.SlateMuted,
                             fontSize = 14.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center

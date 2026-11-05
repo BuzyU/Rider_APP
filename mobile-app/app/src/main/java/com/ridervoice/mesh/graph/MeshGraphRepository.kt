@@ -96,7 +96,13 @@ class MeshGraphRepository(
                 if (sequence != 0) r.sequence = sequence
             }
         }
-        if (changed) publish()
+        if (changed) {
+            publish()
+        } else {
+            // Refresh edge lastSeenAt and expiresAt timestamps in the published snapshot
+            // without incrementing the structural graph version.
+            _snapshots.value = buildSnapshot()
+        }
         return changed
     }
 

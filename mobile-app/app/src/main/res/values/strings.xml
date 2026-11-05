@@ -351,4 +351,9 @@
     <string name="mesh_diag_local_ip">Local IPv4</string>
     <string name="mesh_diag_broadcast">Broadcast Address</string>
     <string name="mesh_settings_no_wifi_hardware">Device lacks Wi-Fi hardware. Offline mesh fallback requires Wi-Fi.</string>
+    <string name="mesh_backup_active_label">Active Backup Code: %1$s</string>
+    <string name="mesh_backup_clear_action">Clear Backup</string>
+    <string name="mesh_backup_saved_toast">Backup pairing code saved for online rides</string>
+    <string name="mesh_overlay_searching_peers">Searching for nearby riders on the mesh…</string>
+    <string name="mesh_tactical_summary">%1$d peers · Max %2$d hops</string>
 </resources>

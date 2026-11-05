@@ -1,6 +1,7 @@
 package com.ridervoice.mesh.transport
 
 import androidx.annotation.VisibleForTesting
+import com.ridervoice.mesh.audio.AudioTrackSink
 import com.ridervoice.mesh.audio.HardwarePttPort
 import com.ridervoice.mesh.audio.MeshAudioRouteController
 import com.ridervoice.mesh.audio.MeshVoxBridge
@@ -8,7 +9,6 @@ import com.ridervoice.mesh.audio.MicController
 import com.ridervoice.mesh.audio.MicControllerImpl
 import com.ridervoice.mesh.audio.MicRules
 import com.ridervoice.mesh.audio.MicInputs
-
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.MeshLog
 import com.ridervoice.mesh.OfflineMeshGate
@@ -36,12 +36,15 @@ import com.ridervoice.mesh.protocol.DuplicatePacketCache
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,7 +52,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -81,6 +83,7 @@ class OfflineMeshVoiceTransport(
     },
     private val hasMicPermission: () -> Boolean = { true },
     private val audioRecordFactory: (() -> AudioRecordSource?)? = null,
+    private val audioTrackFactory: (() -> AudioTrackSink?)? = null,
     val routeController: MeshAudioRouteController? = null,
     val hardwarePttPort: HardwarePttPort? = null,
     private val identityProvider: () -> MeshIdentity = { identity }
@@ -122,19 +125,27 @@ class OfflineMeshVoiceTransport(
     override val micController: MicController = MicControllerImpl(
         audioEnabled = { audioPlayback != null },
         applyCapture = { wantCapture ->
-            micWanted = wantCapture
-            val cap = audioCapture
-            if (cap != null) {
-                cap.setMicEnabled(wantCapture)
-                if (wantCapture) {
-                    val res = cap.start()
-                    _micState.value = res.toMicState()
+            startMutex.withLock {
+                micWanted = wantCapture
+                val cap = audioCapture
+                if (cap != null) {
+                    cap.setMicEnabled(wantCapture)
+                    if (wantCapture) {
+                        if (!paused && _state.value == VoiceTransportState.CONNECTED &&
+                            audioOwnershipArbiter.owner.value != AudioOwner.OFFLINE_MESH &&
+                            audioOwnershipArbiter.owner.value != AudioOwner.LIVEKIT
+                        ) {
+                            audioOwnershipArbiter.tryClaimOfflineMesh()
+                        }
+                        val res = cap.start()
+                        _micState.value = res.toMicState()
+                    } else {
+                        cap.stop()
+                        _micState.value = if (paused) MicState.MUTED else MicState.OFF
+                    }
                 } else {
-                    cap.stop()
-                    _micState.value = if (paused) MicState.MUTED else MicState.OFF
+                    _micState.value = if (wantCapture) (if (hasMicPermission()) MicState.STARTING else MicState.PERMISSION_DENIED) else MicState.OFF
                 }
-            } else {
-                _micState.value = if (wantCapture) (if (hasMicPermission()) MicState.STARTING else MicState.PERMISSION_DENIED) else MicState.OFF
             }
         },
         scope = scope
@@ -161,6 +172,13 @@ class OfflineMeshVoiceTransport(
     private var frameListenerJob: Job? = null
     private var peerProjectorJob: Job? = null
     private var expireJob: Job? = null
+    private var playbackSpeakersJob: Job? = null
+    private var voiceTxJob: Job? = null
+    private var voiceTxChannel: Channel<ByteArray>? = null
+
+    @Volatile private var cachedLocalIp: String = ""
+    @Volatile private var cachedBroadcastAddr: String = "255.255.255.255"
+    @Volatile private var zeroNeighborsSinceMs: Long = clock()
 
     private var sessionManager: SessionManager? = null
     private var link: MeshLink? = null
@@ -184,185 +202,210 @@ class OfflineMeshVoiceTransport(
                 if (currentSession?.sessionId == session.sessionId) return@withLock
             }
 
-        if (!gateAllowed()) {
-            _state.value = VoiceTransportState.FAILED
-            return@withLock
-        }
-
-        _state.value = VoiceTransportState.STARTING
-        currentSession = session
-
-        val currentIdentity = identityProvider()
-        identity = currentIdentity
-
-        val sManager = SessionManager(session, currentIdentity.deviceId, clock)
-        sessionManager = sManager
-
-        val gRepo = MeshGraphRepository(identity.deviceId, identity.displayName, clock)
-        graphRepository = gRepo
-
-        val rTable = RoutingTable()
-        routingTable = rTable
-
-        val dupCache = DuplicatePacketCache(clock = clock)
-        val ttlPolicy = TtlPolicy(clock = clock)
-
-        val jManager = MultiSourceJitterBufferManager(clock = clock)
-        jitterManager = jManager
-
-        val uLink = linkFactory()
-        link = uLink
-
-        val fEngine = ForwardingEngine(
-            selfId = identity.deviceId,
-            selfName = identity.displayName,
-            sessionManager = sManager,
-            graphRepository = gRepo,
-            routingTable = rTable,
-            duplicateCache = dupCache,
-            ttlPolicy = ttlPolicy,
-            link = uLink,
-            clock = clock,
-            onLocalVoicePacket = { pkt ->
-                jManager.onVoicePacket(pkt.sourceId, pkt.sequence, pkt.payload, pkt.epoch)
+            if (!gateAllowed()) {
+                _state.value = VoiceTransportState.FAILED
+                return@withLock
             }
-        )
-        forwardingEngine = fEngine
-        lastForwardingEngineForTest = fEngine
 
-        val scope = CoroutineScope(SupervisorJob() + dispatcher)
-        transportScope = scope
+            _state.value = VoiceTransportState.STARTING
+            currentSession = session
+            zeroNeighborsSinceMs = clock()
 
-        // Start incoming frame listener BEFORE starting link (D6)
-        frameListenerJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            uLink.incomingFrames.collect { frame: MeshFrame ->
-                fEngine.onIncomingFrame(frame)
+            val currentIdentity = identityProvider()
+            identity = currentIdentity
+
+            val sManager = SessionManager(session, currentIdentity.deviceId, clock)
+            sessionManager = sManager
+
+            val gRepo = MeshGraphRepository(identity.deviceId, identity.displayName, clock)
+            graphRepository = gRepo
+
+            val rTable = RoutingTable()
+            routingTable = rTable
+
+            val dupCache = DuplicatePacketCache(clock = clock)
+            val ttlPolicy = TtlPolicy(clock = clock)
+
+            val jManager = MultiSourceJitterBufferManager(clock = clock)
+            jitterManager = jManager
+
+            val uLink = linkFactory()
+            link = uLink
+
+            val fEngine = ForwardingEngine(
+                selfId = identity.deviceId,
+                selfName = identity.displayName,
+                sessionManager = sManager,
+                graphRepository = gRepo,
+                routingTable = rTable,
+                duplicateCache = dupCache,
+                ttlPolicy = ttlPolicy,
+                link = uLink,
+                clock = clock,
+                onLocalVoicePacket = { pkt ->
+                    jManager.onVoicePacket(pkt.sourceId, pkt.sequence, pkt.payload, pkt.epoch)
+                }
+            )
+            forwardingEngine = fEngine
+            lastForwardingEngineForTest = fEngine
+
+            val scope = CoroutineScope(SupervisorJob() + dispatcher)
+            transportScope = scope
+
+            // Start incoming frame listener BEFORE starting link (D6)
+            frameListenerJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                uLink.incomingFrames.collect { frame: MeshFrame ->
+                    fEngine.onIncomingFrame(frame)
+                }
             }
-        }
 
-        uLink.start()
-        if (uLink.state.value != com.ridervoice.mesh.link.MeshLinkState.RUNNING) {
-            frameListenerJob?.cancel()
-            frameListenerJob = null
-            scope.cancel()
-            transportScope = null
-            link = null
-            _state.value = VoiceTransportState.FAILED
-            _isLinkAlive.value = false
-            if (locksHeld) {
-                locks.release()
-                locksHeld = false
+            uLink.start()
+            if (uLink.state.value != com.ridervoice.mesh.link.MeshLinkState.RUNNING) {
+                frameListenerJob?.cancel()
+                frameListenerJob = null
+                scope.cancel()
+                transportScope = null
+                link = null
+                _state.value = VoiceTransportState.FAILED
+                _isLinkAlive.value = false
+                if (locksHeld) {
+                    locks.release()
+                    locksHeld = false
+                }
+                return@withLock
             }
-            return@withLock
-        }
 
+            locks.acquireMulticast()
+            multicastHeld = true
+            wifiWatcher.start()
 
-
-        locks.acquireMulticast()
-        multicastHeld = true
-        wifiWatcher.start()
-
-        linkSupervisorJob = scope.launch {
-            uLink.state.collectLatest { linkState ->
-                val isRunning = linkState == MeshLinkState.RUNNING
-                _isLinkAlive.value = isRunning
-                if (!isRunning && (_state.value == VoiceTransportState.CONNECTED || _state.value == VoiceTransportState.STARTING)) {
-                    var backoffMs = 250L
-                    val failureStartMs = clock()
-                    while (isActive && uLink.state.value != MeshLinkState.RUNNING && (_state.value == VoiceTransportState.CONNECTED || _state.value == VoiceTransportState.STARTING)) {
-                        val now = clock()
-                        if (now - failureStartMs >= 30_000L) {
-                            MeshLog.w("MeshTransport", "Link supervisor: persistent restart failure for 30s -> marking FAILED")
-                            _state.value = VoiceTransportState.FAILED
-                            _isLinkAlive.value = false
-                            break
+            linkSupervisorJob = scope.launch {
+                uLink.state.collectLatest { linkState ->
+                    val isRunning = linkState == MeshLinkState.RUNNING
+                    _isLinkAlive.value = isRunning
+                    if (!isRunning && (_state.value == VoiceTransportState.CONNECTED || _state.value == VoiceTransportState.STARTING)) {
+                        var backoffMs = 250L
+                        val failureStartMs = clock()
+                        while (isActive && uLink.state.value != MeshLinkState.RUNNING && (_state.value == VoiceTransportState.CONNECTED || _state.value == VoiceTransportState.STARTING)) {
+                            val now = clock()
+                            if (now - failureStartMs >= 30_000L) {
+                                MeshLog.w("MeshTransport", "Link supervisor: persistent restart failure for 30s -> marking FAILED")
+                                _state.value = VoiceTransportState.FAILED
+                                _isLinkAlive.value = false
+                                break
+                            }
+                            delay(backoffMs)
+                            backoffMs = (backoffMs * 2).coerceAtMost(4_000L)
+                            linkRestartMutex.withLock {
+                                try {
+                                    uLink.stop()
+                                    uLink.start()
+                                } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
+                                    MeshLog.w("MeshTransport", "Link supervisor restart failed: ${e.message}")
+                                }
+                            }
                         }
-                        delay(backoffMs)
-                        backoffMs = (backoffMs * 2).coerceAtMost(4_000L)
+                        _isLinkAlive.value = (uLink.state.value == MeshLinkState.RUNNING)
+                    }
+                    updateProjectedPeers(gRepo.currentSnapshot())
+                }
+            }
+
+            wifiWatcherJob = scope.launch {
+                @OptIn(kotlinx.coroutines.FlowPreview::class)
+                wifiWatcher.wifiEvents.debounce(500L).collect { event ->
+                    if (_state.value == VoiceTransportState.CONNECTED) {
+                        MeshLog.d("MeshTransport", "Wi-Fi change ($event): restarting link to rebind socket")
                         linkRestartMutex.withLock {
                             try {
                                 uLink.stop()
                                 uLink.start()
+                                _isLinkAlive.value = (uLink.state.value == MeshLinkState.RUNNING)
+                                cachedLocalIp = UdpMeshLink.getLocalIpAddress() ?: ""
+                                cachedBroadcastAddr = UdpMeshLink.getLocalBroadcastAddress()
                             } catch (e: Exception) {
                                 if (e is CancellationException) throw e
-                                MeshLog.w("MeshTransport", "Link supervisor restart failed: ${e.message}")
+                                MeshLog.w("MeshTransport", "Link restart on Wi-Fi change failed: ${e.message}")
                             }
                         }
                     }
-                    _isLinkAlive.value = (uLink.state.value == MeshLinkState.RUNNING)
                 }
             }
-        }
 
-        wifiWatcherJob = scope.launch {
-            @OptIn(kotlinx.coroutines.FlowPreview::class)
-            wifiWatcher.wifiEvents.debounce(500L).collect { event ->
-                if (_state.value == VoiceTransportState.CONNECTED) {
-                    MeshLog.d("MeshTransport", "Wi-Fi change ($event): restarting link to rebind socket")
-                    linkRestartMutex.withLock {
-                        try {
-                            uLink.stop()
-                            uLink.start()
-                            _isLinkAlive.value = (uLink.state.value == MeshLinkState.RUNNING)
-                        } catch (e: Exception) {
-                            if (e is CancellationException) throw e
-                            MeshLog.w("MeshTransport", "Link restart on Wi-Fi change failed: ${e.message}")
-                        }
+            // Periodic discovery / heartbeat job (every 1.5s)
+            heartbeatJob = scope.launch {
+                cachedLocalIp = UdpMeshLink.getLocalIpAddress() ?: ""
+                cachedBroadcastAddr = UdpMeshLink.getLocalBroadcastAddress()
+                while (isActive) {
+                    val broadcastEndpoints = broadcastProvider()
+                    cachedBroadcastAddr = broadcastEndpoints.firstOrNull()?.host ?: cachedBroadcastAddr
+                    if (cachedLocalIp.isBlank()) {
+                        cachedLocalIp = UdpMeshLink.getLocalIpAddress() ?: ""
                     }
+                    fEngine.originateHello(broadcastEndpoints)
+                    delay(helloIntervalMs.get())
                 }
             }
-        }
 
-        // Periodic discovery / heartbeat job (every 1.5s)
-        heartbeatJob = scope.launch {
-            while (isActive) {
-                val broadcastEndpoints = broadcastProvider()
-                fEngine.originateHello(broadcastEndpoints)
-                delay(helloIntervalMs.get())
-            }
-        }        // Periodic graph expiry sweep (every 1.0s)
-        expireJob = scope.launch {
-            while (isActive) {
-                delay(500L)
-                val expired = gRepo.expire()
-                if (expired) {
-                    rTable.recompute(gRepo.currentSnapshot(), clock())
+            // Periodic graph expiry sweep (every 500ms)
+            expireJob = scope.launch {
+                while (isActive) {
+                    delay(500L)
+                    val expired = gRepo.expire()
+                    if (expired) {
+                        rTable.recompute(gRepo.currentSnapshot(), clock())
+                    }
+                    updateProjectedPeers(gRepo.currentSnapshot())
                 }
-                updateProjectedPeers(gRepo.currentSnapshot())
             }
-        }
 
-        // Project mesh peers to UnifiedVoicePeer flow and monitor route availability
-        peerProjectorJob = scope.launch {
-            gRepo.snapshots.collect { snapshot ->
-                updateProjectedPeers(snapshot)
+            // Project mesh peers to UnifiedVoicePeer flow and monitor route availability
+            peerProjectorJob = scope.launch {
+                gRepo.snapshots.collect { snapshot ->
+                    updateProjectedPeers(snapshot)
+                }
             }
-        }
 
-        updateProjectedPeers(gRepo.currentSnapshot())
+            updateProjectedPeers(gRepo.currentSnapshot())
 
-        // Periodic session expiry sweep (WP-39 / A23)
-        val remaining = session.expiresAt - clock()
-        if (remaining > 0L) {
-            scope.launch {
-                delay(remaining)
-                MeshLog.w("MeshTransport", "session expired id=${session.sessionId.take(8)}")
-                stop()
+            // Periodic session expiry sweep (WP-39 / A23)
+            val remaining = session.expiresAt - clock()
+            if (remaining > 0L) {
+                scope.launch {
+                    delay(remaining)
+                    MeshLog.w("MeshTransport", "session expired id=${session.sessionId.take(8)}")
+                    stop()
+                }
             }
-        }
 
-        _state.value = VoiceTransportState.CONNECTED
+            _state.value = VoiceTransportState.CONNECTED
         }
     }
 
     private fun updateProjectedPeers(snapshot: com.ridervoice.mesh.graph.MeshGraphSnapshot) {
+        val now = clock()
         val speakers = audioPlayback?.activeSpeakers?.value ?: emptySet()
+        val directAlive = graphRepository?.directNeighbors()?.count { (now - it.lastSeen) <= 10_000L } ?: 0
+        val endpointAlive = link?.endpoints()?.size ?: 0
+        val authNeighbors10s = maxOf(directAlive, endpointAlive)
+        if (authNeighbors10s > 0) {
+            zeroNeighborsSinceMs = now
+        }
+        val zeroSecs = if (authNeighbors10s > 0) 0L else ((now - zeroNeighborsSinceMs) / 1000L).coerceAtLeast(0L)
+
         val result = peerProjector.project(
             snapshot = snapshot,
             sessionManager = sessionManager,
             routingTable = routingTable,
             forwardingEngine = forwardingEngine,
-            speakers = speakers
+            speakers = speakers,
+            linkState = link?.state?.value ?: MeshLinkState.STOPPED,
+            localIp = cachedLocalIp,
+            broadcastAddress = cachedBroadcastAddr,
+            authenticatedNeighborsLast10s = authNeighbors10s,
+            secondsWithZeroNeighbours = zeroSecs,
+            selfIdOverride = identity.deviceId
         ) ?: return
 
         _hasValidRoute.value = result.hasValidRoute
@@ -371,6 +414,12 @@ class OfflineMeshVoiceTransport(
     }
 
     private fun failEnable(failure: EnableAudioResult.Failure): EnableAudioResult.Failure {
+        playbackSpeakersJob?.cancel()
+        playbackSpeakersJob = null
+        voiceTxJob?.cancel()
+        voiceTxJob = null
+        voiceTxChannel?.close()
+        voiceTxChannel = null
         audioCapture?.stop()
         audioCapture = null
         audioPlayback?.stop()
@@ -393,6 +442,10 @@ class OfflineMeshVoiceTransport(
             return@withLock EnableAudioResult.Success // Already enabled
         }
 
+        val roomAlreadyOwnedPttSession = (hardwarePttPort?.isSessionActive == true) ||
+            (hardwarePttPort?.onMicToggleRequest != null) ||
+            (audioOwnershipArbiter.owner.value == AudioOwner.LIVEKIT)
+
         if (!audioOwnershipArbiter.tryClaimOfflineMesh()) {
             return@withLock failEnable(EnableAudioResult.Failure.OwnershipDenied)
         }
@@ -403,17 +456,48 @@ class OfflineMeshVoiceTransport(
         val aPlayback = OfflineAudioPlayback(
             jitterManager = jManager,
             gateAllowed = gateAllowed,
-            dispatcher = dispatcher
+            dispatcher = dispatcher,
+            audioTrackFactory = audioTrackFactory
         )
         audioPlayback = aPlayback
         aPlayback.setDeafened(_deafened.value)
-        aPlayback.start()
+        val playbackStarted = aPlayback.start()
+        val hasHardwareAudioTrack = try {
+            android.media.AudioTrack.getMinBufferSize(
+                MeshConfig.SAMPLE_RATE,
+                android.media.AudioFormat.CHANNEL_OUT_MONO,
+                android.media.AudioFormat.ENCODING_PCM_16BIT
+            ) > 0
+        } catch (_: Exception) {
+            false
+        }
+        if (!playbackStarted && (audioTrackFactory != null || hasHardwareAudioTrack)) {
+            return@withLock failEnable(EnableAudioResult.Failure.HardwareBusy)
+        }
+
+        playbackSpeakersJob?.cancel()
+        playbackSpeakersJob = transportScope?.launch {
+            aPlayback.activeSpeakers.collectLatest { speakers ->
+                _activeSpeakers.value = speakers
+                graphRepository?.currentSnapshot()?.let { updateProjectedPeers(it) }
+            }
+        }
 
         if (!locksHeld) {
             locks.acquire()
             locksHeld = true
         }
         routeController?.acquireCommunicationMode()
+        routeController?.activeRoute?.value?.let { _audioRoute.value = it }
+
+        val txChannel = Channel<ByteArray>(capacity = 8, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        voiceTxChannel = txChannel
+        voiceTxJob?.cancel()
+        voiceTxJob = transportScope?.launch {
+            for (pcm in txChannel) {
+                fEngine.originateVoice(pcm)
+            }
+        }
 
         val aCapture = OfflineAudioCapture(
             gateAllowed = gateAllowed,
@@ -421,16 +505,19 @@ class OfflineMeshVoiceTransport(
             hasMicPermission = hasMicPermission,
             onHardwareBusy = {
                 _micState.value = MicState.HARDWARE_BUSY
+                // Stop AudioRecord cleanly without nulling audioCapture so the next PTT press
+                // or mic toggle can self-heal and restart capture.
                 audioCapture?.stop()
-                audioCapture = null
-                transportScope?.launch {
-                    audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
-                }
             },
             dispatcher = dispatcher,
             audioRecordFactory = audioRecordFactory,
             onPcmFrame = { pcm ->
-                fEngine.originateVoice(pcm)
+                val ch = voiceTxChannel
+                if (ch != null) {
+                    ch.trySend(pcm)
+                } else {
+                    fEngine.originateVoice(pcm)
+                }
             }
         )
         aCapture.frameGate = { pcm: ByteArray -> micController.shouldTransmitPcmFrame(pcm) }
@@ -455,13 +542,19 @@ class OfflineMeshVoiceTransport(
                 return@withLock failEnable(EnableAudioResult.Failure.OwnershipDenied)
             }
         }
-        voxBridge.attach(audioOwnershipArbiter.owner.value == AudioOwner.LIVEKIT)
+        voxBridge.attach(roomAlreadyOwnedPttSession)
         EnableAudioResult.Success
     }
 
     override suspend fun disableAudio() = startMutex.withLock {
         voxBridge.detach()
         routeController?.releaseCommunicationMode()
+        playbackSpeakersJob?.cancel()
+        playbackSpeakersJob = null
+        voiceTxJob?.cancel()
+        voiceTxJob = null
+        voiceTxChannel?.close()
+        voiceTxChannel = null
         audioCapture?.stop()
         audioCapture = null
         _micState.value = MicState.OFF
@@ -535,6 +628,12 @@ class OfflineMeshVoiceTransport(
         peerProjectorJob = null
         expireJob?.cancel()
         expireJob = null
+        playbackSpeakersJob?.cancel()
+        playbackSpeakersJob = null
+        voiceTxJob?.cancel()
+        voiceTxJob = null
+        voiceTxChannel?.close()
+        voiceTxChannel = null
 
         audioCapture?.stop()
         audioCapture = null
@@ -612,6 +711,12 @@ class OfflineMeshVoiceTransport(
             val want = MicRules.captureWanted(MicInputs(true, enabled, micController.pttHeld.value, micController.voxEnabled.value, micController.voxArmed.value))
             cap.setMicEnabled(want)
             if (want) {
+                if (_state.value == VoiceTransportState.CONNECTED &&
+                    audioOwnershipArbiter.owner.value != AudioOwner.OFFLINE_MESH &&
+                    audioOwnershipArbiter.owner.value != AudioOwner.LIVEKIT
+                ) {
+                    audioOwnershipArbiter.tryClaimOfflineMesh()
+                }
                 val res = cap.start()
                 _micState.value = res.toMicState()
             } else {
@@ -636,7 +741,14 @@ class OfflineMeshVoiceTransport(
 
     fun isCapturing(): Boolean = audioCapture?.isCapturing?.value == true
     fun isPlaying(): Boolean = audioPlayback?.isPlaying?.value == true
+
+    fun close() {
+        voxBridge.close()
+        transportScope?.cancel()
+        scope.cancel()
+    }
 }
+
 private fun CaptureStart?.toMicState(paused: Boolean = false): MicState = when (this) {
     CaptureStart.Started -> MicState.ON
     CaptureStart.NoPermission -> MicState.PERMISSION_DENIED

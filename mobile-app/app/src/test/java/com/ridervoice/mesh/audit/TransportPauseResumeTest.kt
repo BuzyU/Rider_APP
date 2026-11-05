@@ -15,6 +15,7 @@ import com.ridervoice.mesh.transport.LiveKitVoiceTransport
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceSession
 import com.ridervoice.mesh.transport.VoiceTransportState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,7 +69,7 @@ class TransportPauseResumeTest {
     fun t13_liveKitPauseAndResumeMutesAndRestoresWithoutDisconnect() = runTest {
         val port = FakeLiveKitPort()
         val arbiter = AudioOwnershipArbiter()
-        val transport = LiveKitVoiceTransport(liveKitPort = port, audioOwnershipArbiter = arbiter)
+        val transport = LiveKitVoiceTransport(liveKitPort = port, audioOwnershipArbiter = arbiter, dispatcher = Dispatchers.Unconfined)
 
         transport.start(VoiceSession.Online("wss://test.livekit.io", "room-1", { "token" }))
         assertEquals("LIVEKIT owner expected", AudioOwner.LIVEKIT, arbiter.owner.value)
@@ -103,7 +104,7 @@ class TransportPauseResumeTest {
     fun liveKit_uiTapsWhilePaused_doNotReenableCapture() = runTest {
         val port = FakeLiveKitPort()
         val arbiter = AudioOwnershipArbiter()
-        val transport = LiveKitVoiceTransport(liveKitPort = port, audioOwnershipArbiter = arbiter)
+        val transport = LiveKitVoiceTransport(liveKitPort = port, audioOwnershipArbiter = arbiter, dispatcher = Dispatchers.Unconfined)
 
         transport.start(VoiceSession.Online("wss://test.livekit.io", "room-1", { "token" }))
         transport.pause()

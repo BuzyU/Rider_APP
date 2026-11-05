@@ -164,10 +164,12 @@ class LiveKitVoiceTransport(
                                 }
                             }
                         } else {
-                            // Online reconnect - restore user's intended mute state without overwriting
-                            liveKitPort.setUserMuted(!userMicEnabled)
-                            if (audioOwnershipArbiter.owner.value != AudioOwner.OFFLINE_MESH) {
-                                audioOwnershipArbiter.claimLiveKit()
+                            if (!pausedByCoordinator) {
+                                // Online reconnect - restore user's intended mute state without overwriting
+                                liveKitPort.setUserMuted(!userMicEnabled)
+                                if (audioOwnershipArbiter.owner.value != AudioOwner.OFFLINE_MESH) {
+                                    audioOwnershipArbiter.claimLiveKit()
+                                }
                             }
                         }
                     }

@@ -15,12 +15,16 @@ import java.net.DatagramSocket
 interface NetworkLocks {
     fun acquire()
     fun release()
+    fun acquireMulticast() {}
+    fun releaseMulticast() {}
     fun bindSocketToWifi(socket: DatagramSocket): Boolean = false
 }
 
 object NoNetworkLocks : NetworkLocks {
     override fun acquire() {}
     override fun release() {}
+    override fun acquireMulticast() {}
+    override fun releaseMulticast() {}
     override fun bindSocketToWifi(socket: DatagramSocket): Boolean = false
 }
 
@@ -52,13 +56,23 @@ class AndroidNetworkLocks(private val context: Context) : NetworkLocks {
     }
 
     @Synchronized
-    override fun acquire() {
+    override fun acquireMulticast() {
         if (multicast == null && wm != null) {
             multicast = wm.createMulticastLock("rider-mesh-mc").apply {
                 setReferenceCounted(false)
                 acquire()
             }
         }
+    }
+
+    @Synchronized
+    override fun releaseMulticast() {
+        runCatching { multicast?.release() }
+        multicast = null
+    }
+
+    @Synchronized
+    override fun acquire() {
         if (wifi == null && wm != null) {
             val mode = if (Build.VERSION.SDK_INT >= 29) {
                 WifiManager.WIFI_MODE_FULL_LOW_LATENCY
@@ -75,8 +89,6 @@ class AndroidNetworkLocks(private val context: Context) : NetworkLocks {
 
     @Synchronized
     override fun release() {
-        runCatching { multicast?.release() }
-        multicast = null
         runCatching { wifi?.release() }
         wifi = null
     }

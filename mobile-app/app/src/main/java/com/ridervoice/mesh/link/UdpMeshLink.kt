@@ -36,7 +36,8 @@ class UdpMeshLink(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val clock: () -> Long = { System.currentTimeMillis() },
     private val expiryWindowMs: Long = MeshConfig.NEIGHBOR_TIMEOUT_MS,
-    private val networkBinder: (DatagramSocket) -> Unit = {}
+    private val networkBinder: (DatagramSocket) -> Unit = {},
+    private val onBufferDropped: () -> Unit = {}
 ) : MeshLink {
 
     private val _state = MutableStateFlow(MeshLinkState.STOPPED)
@@ -88,7 +89,10 @@ class UdpMeshLink(
                         val host = packet.address?.hostAddress ?: continue
                         val from = MeshEndpoint(host, packet.port)
                         val copy = packet.data.copyOfRange(packet.offset, packet.offset + packet.length)
-                        _incomingFrames.tryEmit(MeshFrame(from, copy))
+                        val emitted = _incomingFrames.tryEmit(MeshFrame(from, copy))
+                        if (!emitted) {
+                            onBufferDropped()
+                        }
                     } catch (e: Exception) {
                         if (e is kotlinx.coroutines.CancellationException) throw e
                         if (!isActive || _state.value != MeshLinkState.RUNNING) break

@@ -94,6 +94,7 @@ fun MeshDiagnosticsDialog(
                     DiagRow(stringResource(R.string.mesh_diag_dropped_dups), "${snapshot.droppedDuplicates}")
                     DiagRow(stringResource(R.string.mesh_diag_dropped_invalid), "${snapshot.droppedInvalid}")
                     DiagRow(stringResource(R.string.mesh_diag_dropped_ttl), "${snapshot.droppedTtl}")
+                    DiagRow(stringResource(R.string.mesh_diag_dropped_buffer), "${snapshot.droppedAtLinkBuffer}")
                     DiagRow(stringResource(R.string.mesh_diag_graph_version), "${snapshot.graphVersion}")
                 }
             }

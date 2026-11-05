@@ -15,12 +15,15 @@ import com.ridervoice.mesh.audio.AndroidAudioManagerPort
 import com.ridervoice.mesh.audio.AndroidHardwarePttPort
 import com.ridervoice.mesh.audio.HardwarePttPort
 import com.ridervoice.mesh.audio.MeshAudioRouteController
+import com.ridervoice.mesh.diagnostics.MeshDiagnosticsRepository
 import com.ridervoice.mesh.identity.MeshIdentityRepository
 import com.ridervoice.mesh.identity.RiderNameProvider
 import com.ridervoice.mesh.identity.SharedPrefsMeshKeyValueStore
 import com.ridervoice.mesh.link.AndroidNetworkLocks
+import com.ridervoice.mesh.link.AndroidWifiNetworkWatcher
 import com.ridervoice.mesh.link.NetworkLocks
 import com.ridervoice.mesh.link.UdpMeshLink
+import com.ridervoice.mesh.link.WifiNetworkWatcher
 import com.ridervoice.mesh.session.HolderOfflineSecretProvider
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSessionHolder
@@ -144,12 +147,24 @@ object MeshModule {
 
     @Provides
     @Singleton
+    fun provideWifiNetworkWatcher(
+        @ApplicationContext context: Context
+    ): WifiNetworkWatcher = AndroidWifiNetworkWatcher(context)
+
+    @Provides
+    @Singleton
+    fun provideMeshDiagnosticsRepository(): MeshDiagnosticsRepository = MeshDiagnosticsRepository()
+
+    @Provides
+    @Singleton
     fun provideOfflineMeshVoiceTransport(
         identityRepo: MeshIdentityRepository,
         arbiter: AudioOwnershipArbiter,
         locks: NetworkLocks,
         routeController: MeshAudioRouteController,
         hardwarePttPort: HardwarePttPort,
+        wifiWatcher: WifiNetworkWatcher,
+        diagnosticsRepo: MeshDiagnosticsRepository,
         @ApplicationContext context: Context
     ): OfflineMeshVoiceTransport = OfflineMeshVoiceTransport(
         identity = identityRepo.get(),
@@ -158,13 +173,16 @@ object MeshModule {
         locks = locks,
         routeController = routeController,
         hardwarePttPort = hardwarePttPort,
+        wifiWatcher = wifiWatcher,
+        diagnosticsRepo = diagnosticsRepo,
         linkFactory = {
             UdpMeshLink(
                 bindPort = MeshConfig.MESH_PORT,
                 gateAllowed = { OfflineMeshGate.isOfflineAllowed() },
                 networkBinder = { socket ->
                     locks.bindSocketToWifi(socket)
-                }
+                },
+                onBufferDropped = { diagnosticsRepo.recordBufferDrop() }
             )
         },
         hasMicPermission = {

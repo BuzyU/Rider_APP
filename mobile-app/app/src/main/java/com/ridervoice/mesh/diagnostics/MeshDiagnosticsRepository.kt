@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+import java.util.concurrent.atomic.AtomicLong
+
 data class MeshDiagnosticsSnapshot(
     val selfDeviceId: String = "",
     val sessionId: String = "",
@@ -18,12 +20,20 @@ data class MeshDiagnosticsSnapshot(
     val droppedDuplicates: Long = 0L,
     val droppedInvalid: Long = 0L,
     val droppedTtl: Long = 0L,
+    val droppedAtLinkBuffer: Long = 0L,
     val graphVersion: Long = 0L
 )
 
 class MeshDiagnosticsRepository {
     private val _snapshot = MutableStateFlow(MeshDiagnosticsSnapshot())
     val snapshot: StateFlow<MeshDiagnosticsSnapshot> = _snapshot.asStateFlow()
+    private val _droppedAtLinkBuffer = AtomicLong(0L)
+
+    fun recordBufferDrop() {
+        _droppedAtLinkBuffer.incrementAndGet()
+    }
+
+    fun droppedAtLinkBuffer(): Long = _droppedAtLinkBuffer.get()
 
     fun update(
         selfDeviceId: String,
@@ -49,11 +59,13 @@ class MeshDiagnosticsRepository {
             droppedDuplicates = droppedDuplicates,
             droppedInvalid = droppedInvalid,
             droppedTtl = droppedTtl,
+            droppedAtLinkBuffer = _droppedAtLinkBuffer.get(),
             graphVersion = graph.version
         )
     }
 
     fun reset() {
+        _droppedAtLinkBuffer.set(0L)
         _snapshot.value = MeshDiagnosticsSnapshot()
     }
 }

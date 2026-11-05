@@ -314,6 +314,7 @@
     <string name="mesh_diag_dropped_dups">वगळलेले डुप्लिकेट</string>
     <string name="mesh_diag_dropped_invalid">वगळलेले अवैध</string>
     <string name="mesh_diag_dropped_ttl">वगळलेले टीटीएल</string>
+    <string name="mesh_diag_dropped_buffer">बफरवर सोडले</string>
     <string name="mesh_diag_graph_version">आलेख आवृत्ती</string>
 
     <!-- Settings Mesh Section -->

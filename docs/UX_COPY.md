@@ -88,6 +88,7 @@ This document serves as the single source of truth for all user-facing copy, ter
 | Settings Fallback Action | Pair Backup Code (HI: बैकअप कोड पेयर करें, MR: बेकअप कोड पेअर करा) | Button navigating to offline mesh lobby |
 | Room Screen Chip | Offline backup not ready (HI: ऑफलाइन बैकअप तैयार नहीं है, MR: ऑफलाइन बॅकअप तयार नाही) | Non-intrusive status chip during online ride |
 | Banner Reason: No Code | Offline mesh unavailable: no backup code (HI: ऑफलाइन मेश अनुपलब्ध: बैकअप कोड नहीं है, MR: ऑफलाइन मेश अनुपलब्ध: बॅकअप कोड नाही) | Displayed on fallback unavailable banner |
+| Diagnostics Buffer Drop | Dropped at Buffer (HI: बफ़र पर छोड़ा गया, MR: बफरवर सोडले) | Mesh diagnostics row counting frames dropped at incoming link buffer |
 | Banner Reason: No Riders | Offline mesh unavailable: no nearby riders (HI: ऑफलाइन मेश अनुपलब्ध: कोई आस-पास राइडर नहीं, MR: ऑफलाइन मेश अनुपलब्ध: जवळ कोणीही रायडर नाही) | Displayed when total loss occurs with no mesh peers |
 | Banner Reason: Handoff Failed | Offline mesh unavailable: handoff failed (HI: ऑफलाइन मेश अनुपलब्ध: हैंडऑफ विफल, MR: ऑफलाइन मेश अनुपलब्ध: हँडऑफ अयशस्वी) | Displayed when mesh transition execution fails |
 | Overlay SOS Action | SOS (HI: SOS, MR: SOS) | Emergency SOS trigger on fallback overlay |

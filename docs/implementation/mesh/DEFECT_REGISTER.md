@@ -59,10 +59,10 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | B6 | HIGH | Protocol | OPEN | `MeshConfig.kt:36` | None (pending WP-49) |
 | B7 | HIGH | Verification | FIXED | `DEFECT_REGISTER.md:1` | ImportIsolationTest#onlineCodeDoesNotImportMesh |
 | B8 | MEDIUM | Docs | OPEN | `docs/implementation/mesh/` | None (pending WP-51) |
-| B9 | HIGH | Transport | OPEN | `OfflineMeshVoiceTransport.kt:110` | None (pending WP-47) |
-| B10 | HIGH | Link | OPEN | `UdpMeshLink.kt:45` | None (pending WP-47) |
+| B9 | HIGH | Transport | FIXED (WP-47) | `OfflineMeshVoiceTransport.kt:258` | LinkSupervisorTest#linkSupervisor_recoversFromTransientLinkFailure_togglesIsLinkAlive |
+| B10 | HIGH | Link | FIXED (WP-47) | `WifiNetworkWatcher.kt:1` | WifiRebindTest#wifiChangeEvents_debouncedToSingleRestart |
 | B11 | HIGH | Coroutines | OPEN | `VoiceSessionCoordinator.kt:130` | None (pending WP-49) |
-| B12 | MEDIUM | Link | OPEN | `OfflineMeshVoiceTransport.kt:115` | None (pending WP-47) |
+| B12 | MEDIUM | Link | FIXED (WP-47) | `NetworkLocks.kt:25` | MulticastLockLifecycleTest#multicastLockAcquiredOnDiscoveryStart_releasedOnStop_wifiLockOnlyOnAudio |
 | B13 | MEDIUM | Resources | FIXED (WP-44) | `SettingsScreen.kt:265` | StringsParityTest#allRequiredMeshSettingsKeysPresentAcrossLocales |
 | B14 | MEDIUM | UI | FIXED (WP-44) | `SettingsScreen.kt:225` | OfflineAvailabilityUiTest#noSharedSecret_returnsNoBackupCodeState |
 | B15 | LOW | Switching | FIXED (WP-46) | `AutomaticSwitchStateMachine.kt:35` | FailedHandoffBackoffTest#failedHandoff_realDispatcherConcurrencyTest |

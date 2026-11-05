@@ -25,6 +25,9 @@ import com.ridervoice.mesh.identity.MeshIdentity
 import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
+import com.ridervoice.mesh.link.MeshLinkState
+import com.ridervoice.mesh.link.NoOpWifiNetworkWatcher
+import com.ridervoice.mesh.link.WifiNetworkWatcher
 import com.ridervoice.mesh.link.NetworkLocks
 import com.ridervoice.mesh.link.NoNetworkLocks
 import com.ridervoice.mesh.link.UdpMeshLink
@@ -43,6 +46,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -67,6 +73,8 @@ class OfflineMeshVoiceTransport(
         )
     },
     private val locks: NetworkLocks = NoNetworkLocks,
+    private val wifiWatcher: WifiNetworkWatcher = NoOpWifiNetworkWatcher,
+    val diagnosticsRepo: MeshDiagnosticsRepository = MeshDiagnosticsRepository(),
     private val broadcastProvider: () -> List<MeshEndpoint> = {
         UdpMeshLink.discoverBroadcastEndpoints(MeshConfig.MESH_PORT)
     },
@@ -80,10 +88,13 @@ class OfflineMeshVoiceTransport(
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val startMutex = Mutex()
     private var locksHeld = false
+    private var multicastHeld = false
+    private val linkRestartMutex = Mutex()
+    private var linkSupervisorJob: Job? = null
+    private var wifiWatcherJob: Job? = null
     private val _state = MutableStateFlow(VoiceTransportState.STOPPED)
     override val state: StateFlow<VoiceTransportState> = _state.asStateFlow()
 
-    private val diagnosticsRepo = MeshDiagnosticsRepository()
     val diagnostics: StateFlow<MeshDiagnosticsSnapshot> = diagnosticsRepo.snapshot
 
     private val _isLinkAlive = MutableStateFlow(true)
@@ -230,6 +241,7 @@ class OfflineMeshVoiceTransport(
             transportScope = null
             link = null
             _state.value = VoiceTransportState.FAILED
+            _isLinkAlive.value = false
             if (locksHeld) {
                 locks.release()
                 locksHeld = false
@@ -238,6 +250,61 @@ class OfflineMeshVoiceTransport(
         }
 
 
+
+        locks.acquireMulticast()
+        multicastHeld = true
+        wifiWatcher.start()
+
+        linkSupervisorJob = scope.launch {
+            uLink.state.collectLatest { linkState ->
+                val isRunning = linkState == MeshLinkState.RUNNING
+                _isLinkAlive.value = isRunning
+                if (!isRunning && (_state.value == VoiceTransportState.CONNECTED || _state.value == VoiceTransportState.STARTING)) {
+                    var backoffMs = 250L
+                    val failureStartMs = clock()
+                    while (isActive && uLink.state.value != MeshLinkState.RUNNING && (_state.value == VoiceTransportState.CONNECTED || _state.value == VoiceTransportState.STARTING)) {
+                        val now = clock()
+                        if (now - failureStartMs >= 30_000L) {
+                            MeshLog.w("MeshTransport", "Link supervisor: persistent restart failure for 30s -> marking FAILED")
+                            _state.value = VoiceTransportState.FAILED
+                            _isLinkAlive.value = false
+                            break
+                        }
+                        delay(backoffMs)
+                        backoffMs = (backoffMs * 2).coerceAtMost(4_000L)
+                        linkRestartMutex.withLock {
+                            try {
+                                uLink.stop()
+                                uLink.start()
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                MeshLog.w("MeshTransport", "Link supervisor restart failed: ${e.message}")
+                            }
+                        }
+                    }
+                    _isLinkAlive.value = (uLink.state.value == MeshLinkState.RUNNING)
+                }
+            }
+        }
+
+        wifiWatcherJob = scope.launch {
+            @OptIn(kotlinx.coroutines.FlowPreview::class)
+            wifiWatcher.wifiEvents.debounce(500L).collect { event ->
+                if (_state.value == VoiceTransportState.CONNECTED) {
+                    MeshLog.d("MeshTransport", "Wi-Fi change ($event): restarting link to rebind socket")
+                    linkRestartMutex.withLock {
+                        try {
+                            uLink.stop()
+                            uLink.start()
+                            _isLinkAlive.value = (uLink.state.value == MeshLinkState.RUNNING)
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            MeshLog.w("MeshTransport", "Link restart on Wi-Fi change failed: ${e.message}")
+                        }
+                    }
+                }
+            }
+        }
 
         // Periodic discovery / heartbeat job (every 1.5s)
         heartbeatJob = scope.launch {
@@ -457,6 +524,16 @@ class OfflineMeshVoiceTransport(
         _state.value = VoiceTransportState.STOPPED
         runCatching { forwardingEngine?.originateBye() }
 
+        linkSupervisorJob?.cancel()
+        linkSupervisorJob = null
+        wifiWatcherJob?.cancel()
+        wifiWatcherJob = null
+        wifiWatcher.stop()
+        if (multicastHeld) {
+            locks.releaseMulticast()
+            multicastHeld = false
+        }
+        _isLinkAlive.value = false
         heartbeatJob?.cancel()
         heartbeatJob = null
         frameListenerJob?.cancel()

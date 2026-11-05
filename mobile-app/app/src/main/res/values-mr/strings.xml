@@ -334,4 +334,13 @@
     <string name="mesh_notif_disconnect">डिस्कनेक्ट करा</string>
     <string name="mesh_use_as_ride_backup">ऑनलाइन राइडसाठी बॅकअप म्हणून हा कोड वापरा</string>
     <string name="mesh_invalid_code">अवैध पेअरिंग कोड</string>
+    <string name="mesh_settings_section_header">ऑफलाइन मेश इंटरकॉम</string>
+    <string name="mesh_settings_disabled">अक्षम</string>
+    <string name="mesh_settings_open_lobby">ऑफलाइन मेश लॉबी उघडा</string>
+    <string name="mesh_settings_pair_backup_code">राइडपूर्वी बॅकअप कोड पेअर करा</string>
+    <string name="mesh_settings_pair_code_action">बॅकअप कोड पेअर करा</string>
+    <string name="mesh_backup_not_ready">ऑफलाइन बॅकअप तयार नाही</string>
+    <string name="mesh_fallback_reason_no_backup_code">ऑफलाइन मेश अनुपलब्ध: बॅकअप कोड नाही</string>
+    <string name="mesh_fallback_reason_no_riders_nearby">ऑफलाइन मेश अनुपलब्ध: जवळ कोणीही रायडर नाही</string>
+    <string name="mesh_fallback_reason_handoff_failed">ऑफलाइन मेश अनुपलब्ध: हँडऑफ अयशस्वी</string>
 </resources>

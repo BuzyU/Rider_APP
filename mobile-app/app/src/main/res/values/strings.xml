@@ -334,4 +334,13 @@
     <string name="mesh_notif_disconnect">Disconnect</string>
     <string name="mesh_use_as_ride_backup">Use this code as backup for online rides</string>
     <string name="mesh_invalid_code">Invalid pairing code</string>
+    <string name="mesh_settings_section_header">OFFLINE MESH INTERCOM</string>
+    <string name="mesh_settings_disabled">Disabled</string>
+    <string name="mesh_settings_open_lobby">Open Offline Mesh Lobby</string>
+    <string name="mesh_settings_pair_backup_code">Pair a backup code before the ride</string>
+    <string name="mesh_settings_pair_code_action">Pair Backup Code</string>
+    <string name="mesh_backup_not_ready">Offline backup not ready</string>
+    <string name="mesh_fallback_reason_no_backup_code">Offline mesh unavailable: no backup code</string>
+    <string name="mesh_fallback_reason_no_riders_nearby">Offline mesh unavailable: no nearby riders</string>
+    <string name="mesh_fallback_reason_handoff_failed">Offline mesh unavailable: handoff failed</string>
 </resources>

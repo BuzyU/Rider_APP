@@ -55,7 +55,7 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | B2 | CRITICAL | UI | OPEN | `OfflineAwareRoomHost.kt:130` | None (pending WP-45) |
 | B3 | CRITICAL | Switching | OPEN | `AutomaticSwitchStateMachine.kt:105` | None (pending WP-46) |
 | B4 | CRITICAL | Audio | OPEN | `MicController.kt:95` | None (pending WP-45) |
-| B5 | HIGH | Settings | OPEN | `MeshRuntimeSettings.kt:40` | None (pending WP-44) |
+| B5 | HIGH | Settings | FIXED (WP-44) | `MeshRuntimeSettings.kt:40` | MeshSettingsViewModelTest#togglePropagatesToOfflineMeshGateThroughSingleInstance |
 | B6 | HIGH | Protocol | OPEN | `MeshConfig.kt:36` | None (pending WP-49) |
 | B7 | HIGH | Verification | FIXED | `DEFECT_REGISTER.md:1` | ImportIsolationTest#onlineCodeDoesNotImportMesh |
 | B8 | MEDIUM | Docs | OPEN | `docs/implementation/mesh/` | None (pending WP-51) |
@@ -63,8 +63,8 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | B10 | HIGH | Link | OPEN | `UdpMeshLink.kt:45` | None (pending WP-47) |
 | B11 | HIGH | Coroutines | OPEN | `VoiceSessionCoordinator.kt:130` | None (pending WP-49) |
 | B12 | MEDIUM | Link | OPEN | `OfflineMeshVoiceTransport.kt:115` | None (pending WP-47) |
-| B13 | MEDIUM | Resources | OPEN | `SettingsScreen.kt:265` | None (pending WP-44) |
-| B14 | MEDIUM | UI | OPEN | `SettingsScreen.kt:225` | None (pending WP-44) |
+| B13 | MEDIUM | Resources | FIXED (WP-44) | `SettingsScreen.kt:265` | StringsParityTest#allRequiredMeshSettingsKeysPresentAcrossLocales |
+| B14 | MEDIUM | UI | FIXED (WP-44) | `SettingsScreen.kt:225` | OfflineAvailabilityUiTest#noSharedSecret_returnsNoBackupCodeState |
 | B15 | LOW | Switching | OPEN | `AutomaticSwitchStateMachine.kt:35` | None (pending WP-46) |
 | B16 | HIGH | Switching | OPEN | `LocalHealthSignalsProvider.kt:40` | None (pending WP-46) |
 | B17 | HIGH | Security | OPEN | `ForwardingEngine.kt:496` | None (pending WP-49) |
@@ -73,7 +73,7 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | B20 | MEDIUM | Testing | OPEN | `ProtocolHardeningTest.kt:50` | None (pending WP-52) |
 | B21 | LOW | Testing | OPEN | `PHYSICAL_TEST_CHECKLIST.md:1` | None (pending WP-48) |
 | B22 | LOW | Settings | OPEN | `SETTINGS_CONTRACT.md:10` | None (pending WP-51) |
-| B23 | MEDIUM | UI | OPEN | `OfflineAwareRoomHost.kt:45` | None (pending WP-44) |
+| B23 | MEDIUM | UI | PARTIAL (WP-44/WP-46) | `OfflineAwareRoomHost.kt:45` | MeshSettingsViewModelTest#togglePropagatesToOfflineMeshGateThroughSingleInstance |
 | B24 | LOW | Transport | OPEN | `OfflineMeshVoiceTransport.kt:310` | None (pending WP-45) |
 | B25 | LOW | Lint | OPEN | `mobile-app/app/lint-baseline.xml:135` | None (pending WP-51) |
 | B26 | LOW | Security | OPEN | `docs/security/mesh-threat-model.md:60` | None (pending WP-49) |

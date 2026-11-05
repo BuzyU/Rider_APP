@@ -45,6 +45,7 @@ import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.switching.AutoSwitchState
 import com.ridervoice.mesh.switching.GroupConnectivityStatus
 import com.ridervoice.mesh.switching.MeshAutoSwitchManager
+import com.ridervoice.mesh.switching.OfflineAvailability
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import com.ridervoice.ui.screens.RoomScreen
@@ -62,6 +63,8 @@ class OfflineAwareRoomViewModel @Inject constructor(
     val groupStatus: StateFlow<GroupConnectivityStatus> = autoSwitchManager.groupStatus
     val meshParticipants = meshTransport.participants
     val meshDiagSnapshot = meshTransport.diagnostics
+    val lastTransitionReason: StateFlow<String?> = autoSwitchManager.lastTransitionReason
+    val offlineAvailability: StateFlow<OfflineAvailability> = coordinator.offlineAvailability
 }
 
 @Composable
@@ -76,14 +79,26 @@ fun OfflineAwareRoomHost(
     val groupStatus by viewModel.groupStatus.collectAsState()
     val meshParticipants by viewModel.meshParticipants.collectAsState()
     val diagSnapshot by viewModel.meshDiagSnapshot.collectAsState()
+    val lastTransitionReason by viewModel.lastTransitionReason.collectAsState()
+    val offlineAvailability by viewModel.offlineAvailability.collectAsState()
 
     var showDiagDialog by remember { mutableStateOf(false) }
 
-    val isMeshGateOpen = remember { OfflineMeshGate.isOfflineAllowed() }
+    val settingsSnapshot by OfflineMeshGate.settingsFlow.collectAsState()
+    val isMeshGateOpen = OfflineMeshGate.isOfflineAllowed(offlineMeshEnabled = settingsSnapshot.offlineMeshEnabled)
     val showTacticalBanner = isMeshGateOpen && (
         autoSwitchState != AutoSwitchState.ONLINE ||
         groupStatus == GroupConnectivityStatus.MIXED
     )
+
+    val showBackupNotReadyChip = isMeshGateOpen &&
+        settingsSnapshot.automaticFallbackEnabled &&
+        offlineAvailability == OfflineAvailability.NO_SHARED_SECRET &&
+        autoSwitchState == AutoSwitchState.ONLINE
+
+    val fallbackReason = remember(lastTransitionReason, offlineAvailability) {
+        mapTransitionReasonToFallbackReason(lastTransitionReason, offlineAvailability)
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         RoomScreen(
@@ -93,12 +108,23 @@ fun OfflineAwareRoomHost(
             onSosClick = onSosClick
         )
 
+        if (showBackupNotReadyChip && !showTacticalBanner) {
+            OfflineBackupChip(
+                text = stringResource(R.string.mesh_backup_not_ready),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 64.dp)
+            )
+        }
+
         if (showTacticalBanner) {
             TacticalBanner(
                 state = autoSwitchState,
                 groupStatus = groupStatus,
                 peerCount = meshParticipants.count { it.isOnline },
                 maxHops = meshParticipants.maxOfOrNull { it.hopCount } ?: 0,
+                fallbackReason = fallbackReason,
                 onViewDiagnostics = { showDiagDialog = true },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -118,11 +144,43 @@ fun OfflineAwareRoomHost(
 }
 
 @Composable
+private fun OfflineBackupChip(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = MeshColors.SurfaceDark,
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(MeshColors.Amber)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = text,
+                color = MeshColors.AmberYellow,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
 fun TacticalBanner(
     state: AutoSwitchState,
     groupStatus: GroupConnectivityStatus,
     peerCount: Int,
     maxHops: Int,
+    fallbackReason: FallbackReason = FallbackReason.UNKNOWN,
     onViewDiagnostics: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -132,7 +190,15 @@ fun TacticalBanner(
         AutoSwitchState.STARTING_OFFLINE_MESH -> stringResource(R.string.mesh_banner_starting_offline) to MeshColors.Amber
         AutoSwitchState.ONLINE_RECOVERING -> stringResource(R.string.mesh_banner_online_restored) to MeshColors.Emerald
         AutoSwitchState.HANDING_BACK_TO_LIVEKIT -> stringResource(R.string.mesh_banner_handing_back) to MeshColors.Cyan
-        AutoSwitchState.FALLBACK_UNAVAILABLE -> stringResource(R.string.mesh_banner_fallback_unavailable) to MeshColors.Red
+        AutoSwitchState.FALLBACK_UNAVAILABLE -> {
+            val text = when (fallbackReason) {
+                FallbackReason.NO_BACKUP_CODE -> stringResource(R.string.mesh_fallback_reason_no_backup_code)
+                FallbackReason.NO_RIDERS_NEARBY -> stringResource(R.string.mesh_fallback_reason_no_riders_nearby)
+                FallbackReason.HANDOFF_FAILED -> stringResource(R.string.mesh_fallback_reason_handoff_failed)
+                FallbackReason.UNKNOWN -> stringResource(R.string.mesh_banner_fallback_unavailable)
+            }
+            text to MeshColors.Red
+        }
         AutoSwitchState.ONLINE -> stringResource(R.string.mesh_state_connected) to MeshColors.Emerald
         AutoSwitchState.SESSION_ENDED -> stringResource(R.string.mesh_state_stopped) to MeshColors.Slate
     }
@@ -226,4 +292,3 @@ fun TacticalBanner(
         }
     }
 }
-

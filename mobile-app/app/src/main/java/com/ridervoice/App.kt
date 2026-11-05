@@ -36,6 +36,9 @@ class App : Application(), Configuration.Provider {
     @Inject
     lateinit var meshAutoSwitchManager: com.ridervoice.mesh.switching.MeshAutoSwitchManager
 
+    @Inject
+    lateinit var meshRuntimeSettings: com.ridervoice.mesh.MeshRuntimeSettings
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -51,7 +54,7 @@ class App : Application(), Configuration.Provider {
         // OfflineMeshGate.install must precede start() so start() uses installed settings (A45).
         // start() is called unconditionally; disabled-by-build builds return immediately inside start(),
         // while disabled-by-user builds observe settingsFlow and react dynamically when toggled on (A12).
-        com.ridervoice.mesh.OfflineMeshGate.install(com.ridervoice.mesh.PrefsMeshRuntimeSettings(this))
+        com.ridervoice.mesh.OfflineMeshGate.install(meshRuntimeSettings)
         meshAutoSwitchManager.start()
         setupCrashHandler()
         createNotificationChannels()

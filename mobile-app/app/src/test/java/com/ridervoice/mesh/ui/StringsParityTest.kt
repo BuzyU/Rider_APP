@@ -70,6 +70,36 @@ class StringsParityTest {
     }
 
     @Test
+    fun allRequiredMeshSettingsKeysPresentAcrossLocales() {
+        val root = findProjectRoot()
+        val enFile = File(root, "src/main/res/values/strings.xml")
+        val hiFile = File(root, "src/main/res/values-hi/strings.xml")
+        val mrFile = File(root, "src/main/res/values-mr/strings.xml")
+
+        val enKeys = extractMeshKeys(enFile)
+        val hiKeys = extractMeshKeys(hiFile)
+        val mrKeys = extractMeshKeys(mrFile)
+
+        val requiredKeys = setOf(
+            "mesh_settings_section_header",
+            "mesh_settings_disabled",
+            "mesh_settings_open_lobby",
+            "mesh_settings_pair_backup_code",
+            "mesh_settings_pair_code_action",
+            "mesh_backup_not_ready",
+            "mesh_fallback_reason_no_backup_code",
+            "mesh_fallback_reason_no_riders_nearby",
+            "mesh_fallback_reason_handoff_failed"
+        )
+
+        for (key in requiredKeys) {
+            assertTrue("Key $key missing from English strings", enKeys.contains(key))
+            assertTrue("Key $key missing from Hindi strings", hiKeys.contains(key))
+            assertTrue("Key $key missing from Marathi strings", mrKeys.contains(key))
+        }
+    }
+
+    @Test
     fun noHexColorLiteralsInMeshUiOutsideMeshColors() {
         val root = findProjectRoot()
         val uiDir = File(root, "src/main/java/com/ridervoice/mesh/ui")
@@ -89,4 +119,3 @@ class StringsParityTest {
         assertTrue("Found raw Color(0x... literals outside MeshColors.kt:\n${offendingLines.joinToString("\n")}", offendingLines.isEmpty())
     }
 }
-

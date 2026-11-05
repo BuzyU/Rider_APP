@@ -27,16 +27,17 @@ class SessionHygieneTest {
 
     @Test
     fun offlineSessionHolder_retainsAndClearsSession() {
-        OfflineSessionHolder.clear()
-        assertNull(OfflineSessionHolder.get())
+        val holder = OfflineSessionHolder()
+        holder.clearCurrent()
+        assertNull(holder.get())
 
         val session = OfflineSession.create(1000L)
-        OfflineSessionHolder.set(session)
-        assertEquals(session, OfflineSessionHolder.get())
-        assertEquals(session, OfflineSessionHolder.currentSession)
+        holder.set(session)
+        assertEquals(session, holder.get())
+        assertEquals(session, holder.current.value)
 
-        OfflineSessionHolder.clear()
-        assertNull(OfflineSessionHolder.get())
+        holder.clearCurrent()
+        assertNull(holder.get())
     }
 
     @Test
@@ -70,14 +71,16 @@ class SessionHygieneTest {
         val mockTransport = mockk<OfflineMeshVoiceTransport>(relaxed = true)
         val arbiter = AudioOwnershipArbiter()
 
+        val holder = OfflineSessionHolder()
         val viewModel = OfflineMeshViewModel(
             transport = mockTransport,
             arbiter = arbiter,
+            holder = holder,
             appScope = testAppScope
         )
 
         val session = OfflineSession.create(1000L)
-        OfflineSessionHolder.set(session)
+        holder.set(session)
 
         // Invoke protected onCleared via reflection
         val onClearedMethod = OfflineMeshViewModel::class.java.getDeclaredMethod("onCleared")
@@ -87,7 +90,7 @@ class SessionHygieneTest {
         testScheduler.runCurrent()
 
         coVerify(exactly = 1) { mockTransport.stop() }
-        assertNull("OfflineSessionHolder must be cleared on teardown", OfflineSessionHolder.get())
+        assertNull("OfflineSessionHolder must be cleared on teardown", holder.get())
     }
 }
 

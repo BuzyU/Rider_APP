@@ -62,5 +62,4 @@
 -keep class com.ridervoice.mesh.protocol.** { *; }
 -keep class com.ridervoice.mesh.discovery.** { *; }
 -keep class com.ridervoice.mesh.session.** { *; }
--keep class com.ridervoice.mesh.continuity.** { *; }
 -keep class com.ridervoice.mesh.diagnostics.** { *; }

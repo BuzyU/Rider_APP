@@ -45,6 +45,7 @@ import com.ridervoice.mesh.session.OfflineSessionHolder
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,7 +78,8 @@ private val TextSecondary = MeshColors.TextSecondary
 fun OfflineMeshLobbyScreen(
     onBackClick: () -> Unit,
     onEnterSession: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: OfflineMeshViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -377,7 +379,7 @@ fun OfflineMeshLobbyScreen(
                                 onClick = {
                                     if (useAsBackup) {
                                         val backup = OfflineSession.fromCode(session.pairingCode, System.currentTimeMillis())
-                                        OfflineSessionHolder.setBackup(backup)
+                                        viewModel.holder.setBackup(backup)
                                         Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
                                         onBackClick()
                                     } else {
@@ -452,7 +454,7 @@ fun OfflineMeshLobbyScreen(
                                 } else {
                                     if (useAsBackup) {
                                         val backup = OfflineSession.fromCode(session.pairingCode, System.currentTimeMillis())
-                                        OfflineSessionHolder.setBackup(backup)
+                                        viewModel.holder.setBackup(backup)
                                         Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
                                         onBackClick()
                                     } else {
@@ -497,7 +499,7 @@ fun OfflineMeshLobbyScreen(
                             } else {
                                 if (useAsBackup) {
                                     val backup = OfflineSession.fromCode(session.pairingCode, System.currentTimeMillis())
-                                    OfflineSessionHolder.setBackup(backup)
+                                    viewModel.holder.setBackup(backup)
                                     Toast.makeText(context, context.getString(R.string.mesh_use_as_ride_backup), Toast.LENGTH_SHORT).show()
                                     onBackClick()
                                 } else {

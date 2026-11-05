@@ -29,15 +29,17 @@ data class MeshSettingsUiState(
 class MeshSettingsViewModel(
     private val settings: MeshRuntimeSettings,
     private val availabilityFlow: StateFlow<OfflineAvailability>,
-    private val wifiCapability: WifiCapabilityChecker
+    private val wifiCapability: WifiCapabilityChecker,
+    private val sessionHolder: OfflineSessionHolder = OfflineSessionHolder()
 ) : ViewModel() {
 
     @Inject
     constructor(
         settings: MeshRuntimeSettings,
         coordinator: VoiceSessionCoordinator,
-        wifiCapability: WifiCapabilityChecker
-    ) : this(settings, coordinator.offlineAvailability, wifiCapability)
+        wifiCapability: WifiCapabilityChecker,
+        sessionHolder: OfflineSessionHolder
+    ) : this(settings, coordinator.offlineAvailability, wifiCapability, sessionHolder)
 
     constructor(
         settings: MeshRuntimeSettings,
@@ -59,7 +61,7 @@ class MeshSettingsViewModel(
         availabilityFlow
     ) { snapshot, availability ->
         val now = System.currentTimeMillis()
-        val backup = OfflineSessionHolder.getBackup()
+        val backup = sessionHolder.getBackup()
         val backupValid = backup != null && !backup.isExpired(now)
         val hasWifi = wifiCapability.isWifiHardwareAvailable()
         MeshSettingsUiState(
@@ -77,7 +79,7 @@ class MeshSettingsViewModel(
         initialValue = run {
             val now = System.currentTimeMillis()
             val s = settings.settingsFlow.value
-            val backup = OfflineSessionHolder.getBackup()
+            val backup = sessionHolder.getBackup()
             val hasWifi = wifiCapability.isWifiHardwareAvailable()
             MeshSettingsUiState(
                 buildGateOpen = OfflineMeshGate.isBuildGateOpen(),

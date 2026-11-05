@@ -119,6 +119,7 @@ class OfflineAudioCapture(
                     (minBuf * 2).coerceAtLeast(MeshConfig.BYTES_PER_FRAME * 4)
                 )
             } catch (e: Exception) {
+                com.ridervoice.mesh.MeshLog.w("OfflineAudioCapture", "AudioRecord creation failed: ${e.javaClass.simpleName}")
                 onCaptureError("AudioRecord creation failed: ${e.message}")
                 return CaptureStart.HardwareFailed
             }
@@ -189,17 +190,20 @@ class OfflineAudioCapture(
                         onPcmFrame(frameBuf.copyOf())
                     }
                 }
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: java.io.IOException) {
+                com.ridervoice.mesh.MeshLog.w("OfflineAudioCapture", "IOException: ${e.javaClass.simpleName}")
                 onCaptureError("IOException: ${e.message}")
                 onHardwareBusy()
             } catch (e: IllegalStateException) {
+                com.ridervoice.mesh.MeshLog.w("OfflineAudioCapture", "IllegalStateException: ${e.javaClass.simpleName}")
                 onCaptureError("IllegalStateException: ${e.message}")
                 onHardwareBusy()
             } catch (e: SecurityException) {
+                com.ridervoice.mesh.MeshLog.w("OfflineAudioCapture", "SecurityException: ${e.javaClass.simpleName}")
                 onCaptureError("SecurityException: ${e.message}")
                 onHardwareBusy()
-            } catch (ce: CancellationException) {
-                throw ce
             } finally {
                 previousPriority?.let { p -> runCatching { android.os.Process.setThreadPriority(p) } }
                 releaseInternal(recSource)

@@ -77,6 +77,7 @@ class OfflineAudioPlayback(
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
         } catch (e: Exception) {
+            com.ridervoice.mesh.MeshLog.w("OfflineAudioPlayback", "AudioTrack creation failed: ${e.javaClass.simpleName}")
             return false
         }
 
@@ -108,12 +109,12 @@ class OfflineAudioPlayback(
                         delay(MeshConfig.FRAME_MS.toLong())
                     }
                 }
-            } catch (e: java.io.IOException) {
-                // AudioTrack write I/O error
-            } catch (e: IllegalStateException) {
-                // AudioTrack released or stopped
             } catch (ce: CancellationException) {
                 throw ce
+            } catch (e: java.io.IOException) {
+                com.ridervoice.mesh.MeshLog.w("OfflineAudioPlayback", "AudioTrack write I/O error: ${e.javaClass.simpleName}")
+            } catch (e: IllegalStateException) {
+                com.ridervoice.mesh.MeshLog.w("OfflineAudioPlayback", "AudioTrack released or stopped: ${e.javaClass.simpleName}")
             } finally {
                 releaseInternal(track)
             }

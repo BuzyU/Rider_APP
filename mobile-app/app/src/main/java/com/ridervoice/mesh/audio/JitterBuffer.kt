@@ -228,20 +228,6 @@ class MultiSourceJitterBufferManager(
         buffers.clear()
     }
 
-    @Synchronized
-    fun getBufferStats(sourceId: String): JitterBufferStats? {
-        val buf = buffers[sourceId] ?: return null
-        return JitterBufferStats(
-            sourceId = buf.sourceId,
-            bufferedFrames = buf.bufferedFrameCount(),
-            isPrimed = buf.isPrimed(),
-            lateDropped = buf.lateDroppedCount,
-            overflowDropped = buf.overflowDroppedCount,
-            concealed = buf.concealedCount,
-            delivered = buf.deliveredCount
-        )
-    }
-
     private fun evictExpiredSources() {
         val now = clock()
         val it = buffers.entries.iterator()
@@ -272,13 +258,3 @@ class MultiSourceJitterBufferManager(
         return mixedOut
     }
 }
-
-data class JitterBufferStats(
-    val sourceId: String,
-    val bufferedFrames: Int,
-    val isPrimed: Boolean,
-    val lateDropped: Long,
-    val overflowDropped: Long,
-    val concealed: Long,
-    val delivered: Long
-)

@@ -38,6 +38,9 @@ class MeshForegroundService : Service() {
     @Inject
     lateinit var meshTransport: OfflineMeshVoiceTransport
 
+    @Inject
+    lateinit var sessionHolder: OfflineSessionHolder
+
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var observerJob: Job? = null
     private var stateJob: Job? = null
@@ -112,7 +115,7 @@ class MeshForegroundService : Service() {
             return START_NOT_STICKY
         }
 
-        val session = OfflineSessionHolder.currentSession
+        val session = sessionHolder.get()
         val sessionDisplay = session?.let { "ID: ${it.sessionId.take(8)}" } ?: "Active"
         val notification = buildNotification(sessionDisplay, currentPeerCount)
 

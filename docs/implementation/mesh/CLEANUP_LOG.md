@@ -82,3 +82,18 @@ Reconstructed report `docs/implementation/mesh/WP_REPORTS/WP-33.md` was created 
 | **`LocalHealthSignalsProvider.startDriving`** | `mobile-app/app/src/main/java/com/ridervoice/mesh/switching/LocalHealthSignalsProvider.kt` | **RETAINED** | Retained as a test harness driving seam for isolated component testing without requiring full `MeshAutoSwitchManager` lifecycle orchestration. Explicitly used in `WiringTest.kt`. Documented in KDoc. |
 | **`MeshAutoSwitchManager` Constructor Parameters** | `mobile-app/app/src/main/java/com/ridervoice/mesh/switching/MeshAutoSwitchManager.kt` | **RETAINED** | All 8 parameters (`activeRideRepository`, `liveKitManager`, `networkObserver`, `coordinator`, `meshTransport`, `identityRepo`, `healthSignalsProvider`, `secretProvider`) are required by DI (`MeshModule.kt`), unit tests (`MeshAutoSwitchManagerTest`, `WiringTest`), and runtime coordination logic. Constrained by `ProductionWiringTest`. |
 | **`FeatureFlags.localKillSwitch`** | `mobile-app/app/src/main/java/com/ridervoice/mesh/FeatureFlags.kt` | **RETAINED (Doc Patched)** | Kill switch is functional and fail-closed. KDoc was corrected to remove misleading "fail-open" statement (A1). |
+
+---
+
+## 4. WP-50 Dead Code & Dependency Removal
+
+| Item | Prior Location | Action | Grep Proof / Notes |
+| :--- | :--- | :--- | :--- |
+| **Stage 4 Continuity Stubs** | `com.ridervoice.mesh.continuity.*` (`ContinuityConfig.kt`, `ContinuityLeaseClient.kt`, `ContinuityModels.kt`) | **DELETED** | `git grep -nw "ContinuityConfig" -- mobile-app` -> 0 hits. `git grep -nw "ContinuityLeaseClient" -- mobile-app` -> 0 hits. `proguard-rules.pro` rule removed. Stage 4 recorded as not built in `DECISIONS.md`. |
+| **`FakeAudioManagerPort`** | `mobile-app/app/src/main/java/com/ridervoice/mesh/audio/AudioManagerPort.kt` | **MOVED TO TEST** | Moved to `src/test/java/com/ridervoice/mesh/audio/FakeAudioManagerPort.kt`. Zero occurrences in `src/main`. |
+| **`InMemoryMeshKeyValueStore`** | `mobile-app/app/src/main/java/com/ridervoice/mesh/identity/MeshIdentity.kt` | **MOVED TO TEST** | Moved to `src/test/java/com/ridervoice/mesh/identity/InMemoryMeshKeyValueStore.kt`. Zero occurrences in `src/main`. |
+| **`JitterBufferStats`** | `mobile-app/app/src/main/java/com/ridervoice/mesh/audio/JitterBuffer.kt` | **DELETED** | `git grep -nw "JitterBufferStats" -- mobile-app` -> 0 hits. Deleted with `getBufferStats`. |
+| **`OfflineSessionHolder` static facade** | `mobile-app/app/src/main/java/com/ridervoice/mesh/session/OfflineSessionHolder.kt` | **REMOVED** | Static companion methods and global instance eliminated. `MeshForegroundService`, `MeshSettingsViewModel`, `OfflineMeshViewModel`, `MeshDebugReceiver`, and tests migrated to Hilt singleton injection / constructor injection. `git grep -n "OfflineSessionHolder\." -- mobile-app` -> 0 hits. |
+| **Unused Mesh String Resources** | `strings.xml` in `values`, `values-hi`, `values-mr` | **DELETED** | Deleted `mesh_state_discovering`, `mesh_state_unavailable`, `mesh_cd_wifi_tethering`, `mesh_cd_group_add`, `mesh_peer_count`. String parity across all 3 locales verified by `StringsParityTest`. |
+| **Silent Catches in Mesh Code** | `OfflineAudioPlayback.kt`, `ValidatedInternetSource.kt`, `UdpMeshLink.kt`, `OfflineAudioCapture.kt` | **LOGGED** | Added `MeshLog.w(...)` with `e.javaClass.simpleName` to all catches and preserved `CancellationException` rethrowing. |
+

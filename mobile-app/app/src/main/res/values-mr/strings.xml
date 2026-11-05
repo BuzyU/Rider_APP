@@ -235,9 +235,7 @@
     <string name="mesh_mic_permission_needed">बोलण्यासाठी मायक्रोफोन परवानगी आवश्यक आहे</string>
     <string name="mesh_mic_open_settings">सेटिंग्ज उघडा</string>
     <string name="mesh_mic_busy">मायक्रोफोन इतर ॲपद्वारे वापरला जात आहे</string>
-    <string name="mesh_state_discovering">रायडर्स शोधत आहे</string>
     <string name="mesh_state_connected">कनेक्ट झाले</string>
-    <string name="mesh_state_unavailable">ऑफलाइन मेश अनुपलब्ध</string>
     <string name="mesh_lobby_header">रणनीतिक इंटरकॉम</string>
     <string name="mesh_lobby_title">ऑफलाइन मेश लॉबी</string>
     <string name="mesh_lobby_description">इंटरनेट किंवा सेल्युलर डेटाशिवाय स्थानिक वाय-फायवर जवळच्या रायडर्सशी थेट कनेक्ट व्हा. सर्व ऑडिओ एंड-टू-एंड एनक्रिप्टेड आहे.</string>
@@ -260,12 +258,6 @@
     <string name="mesh_cd_diagnostics">डायग्नोस्टिक्स</string>
     <string name="mesh_cd_toggle_mic">माइक टॉगल करा</string>
     <string name="mesh_cd_toggle_deafen">म्यूट टॉगल करा</string>
-    <string name="mesh_cd_wifi_tethering">मेश इंटरकॉम</string>
-    <string name="mesh_cd_group_add">सत्रात सामील व्हा</string>
-    <plurals name="mesh_peer_count">
-        <item quantity="one">%1$d सहकारी</item>
-        <item quantity="other">%1$d सहकारी</item>
-    </plurals>
     <!-- Offline Mesh Stage 2.5 & 3.5 UI & Tactical Banner -->
     <string name="mesh_banner_offline_active">ऑफलाइन मेश सक्रिय आहे</string>
     <string name="mesh_banner_online_restored">ऑनलाइन आवाज पूर्ववत झाला</string>

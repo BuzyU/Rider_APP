@@ -34,26 +34,37 @@ class MeshDebugReceiver(
 
         when (action) {
             ACTION_DUMP_STATE -> {
-                val session = OfflineSessionHolder.currentSession
+                val entryPoint = try {
+                    EntryPointAccessors.fromApplication(
+                        context.applicationContext,
+                        MeshDebugEntryPoint::class.java
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not resolve entry point in debug receiver: ${e.message}")
+                    null
+                }
+                val session = entryPoint?.offlineSessionHolder()?.get()
                 val gateOpen = OfflineMeshGate.isOfflineAllowed()
                 val sessionTruncated = session?.let { it.sessionId.take(8) } ?: "none"
                 // Security rule (A20): log only truncated sessionId, NEVER session code or secret keys
                 Log.i(TAG, "Debug State Dump: GateOpen=$gateOpen, SessionId=$sessionTruncated")
+                val transport = entryPoint?.offlineMeshVoiceTransport()
+                if (transport != null) {
+                    val diag = transport.diagnostics.value
+                    Log.i(TAG, "Transport state: ${transport.state.value}, Diag: members=${diag.memberCount}, routes=${diag.routeCount}")
+                }
+            }
+            ACTION_CLEAR_SESSION -> {
                 try {
                     val entryPoint = EntryPointAccessors.fromApplication(
                         context.applicationContext,
                         MeshDebugEntryPoint::class.java
                     )
-                    val transport = entryPoint.offlineMeshVoiceTransport()
-                    val diag = transport.diagnostics.value
-                    Log.i(TAG, "Transport state: ${transport.state.value}, Diag: members=${diag.memberCount}, routes=${diag.routeCount}")
+                    entryPoint.offlineSessionHolder().clearAll()
+                    Log.i(TAG, "Cleared OfflineSessionHolder via debug broadcast")
                 } catch (e: Exception) {
-                    Log.w(TAG, "Could not resolve transport entry point in debug receiver: ${e.message}")
+                    Log.w(TAG, "Could not resolve entry point in debug receiver: ${e.message}")
                 }
-            }
-            ACTION_CLEAR_SESSION -> {
-                OfflineSessionHolder.clearAll()
-                Log.i(TAG, "Cleared OfflineSessionHolder via debug broadcast")
             }
             ACTION_SET_PEER_FILTER, ACTION_LEGACY_SET_PEER_FILTER -> {
                 val allowExtra = intent.getStringExtra(EXTRA_ALLOW) ?: intent.getStringExtra(EXTRA_ALLOWED_PEERS)
@@ -80,4 +91,5 @@ class MeshDebugReceiver(
 @dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
 interface MeshDebugEntryPoint {
     fun offlineMeshVoiceTransport(): OfflineMeshVoiceTransport
+    fun offlineSessionHolder(): OfflineSessionHolder
 }

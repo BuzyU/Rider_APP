@@ -1,10 +1,5 @@
 package com.ridervoice.mesh
 
-import com.ridervoice.mesh.continuity.ContinuityConfig
-import com.ridervoice.mesh.continuity.ContinuityLeaseRequest
-import com.ridervoice.mesh.continuity.ContinuityLeaseResponse
-import com.ridervoice.mesh.continuity.ContinuityLeaseResult
-import com.ridervoice.mesh.continuity.DefaultContinuityLeaseClient
 import com.ridervoice.mesh.forwarding.ForwardingEngine
 import com.ridervoice.mesh.forwarding.ReceiveOutcome
 import com.ridervoice.mesh.forwarding.TtlPolicy
@@ -355,41 +350,5 @@ class Stage5AcceptanceTest {
         assertFalse(OfflineMeshGate.isOfflineAllowed(buildFlag = false, offlineMeshEnabled = true))
         assertFalse(OfflineMeshGate.isAutomaticFallbackAllowed(buildFlag = false, offlineMeshEnabled = true, automaticFallbackEnabled = true))
         assertFalse(OfflineMeshGate.isWarmStandbyAllowed(buildFlag = false, offlineMeshEnabled = true, warmStandbyEnabled = true))
-    }
-
-    // ========================================================================
-    // 5.6 Stage 4 Backend Continuity Acceptance
-    // ========================================================================
-
-    @Test
-    fun `backendContinuityAcceptance_featureFlaggedAndDefaultOff`() = runTest {
-        // Assert default configuration is false
-        assertFalse("Backend continuity must be disabled by default", ContinuityConfig.BACKEND_CONTINUITY_ENABLED)
-
-        val clientDefaultOff = DefaultContinuityLeaseClient(
-            isFeatureEnabled = { false },
-            leaseRequester = { ContinuityLeaseResponse("ride-1", 1000L, true) }
-        )
-
-        // When feature is off, request immediately returns FeatureDisabled without network
-        val resultOff = clientDefaultOff.requestLease("ride-1", "device-1")
-        assertEquals(ContinuityLeaseResult.FeatureDisabled, resultOff)
-        assertEquals(null, clientDefaultOff.activeLeaseUntil.value)
-
-        // When feature is explicitly enabled
-        val clientOn = DefaultContinuityLeaseClient(
-            isFeatureEnabled = { true },
-            leaseRequester = { ContinuityLeaseResponse("ride-1", 999999L, true) },
-            leaseReleaser = { _, _ -> true }
-        )
-
-        val resultOn = clientOn.requestLease("ride-1", "device-1")
-        assertTrue(resultOn is ContinuityLeaseResult.Granted)
-        assertEquals(999999L, (resultOn as ContinuityLeaseResult.Granted).leaseUntilEpochSec)
-        assertEquals(999999L, clientOn.activeLeaseUntil.value)
-
-        // Release lease
-        assertTrue(clientOn.releaseLease("ride-1", "device-1"))
-        assertEquals(null, clientOn.activeLeaseUntil.value)
     }
 }

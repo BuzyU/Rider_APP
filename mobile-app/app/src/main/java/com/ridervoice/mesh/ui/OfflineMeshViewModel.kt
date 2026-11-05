@@ -23,16 +23,21 @@ import javax.inject.Inject
 class OfflineMeshViewModel @Inject constructor(
     val transport: OfflineMeshVoiceTransport,
     val arbiter: AudioOwnershipArbiter,
-    val holder: OfflineSessionHolder = OfflineSessionHolder.getHolder()
+    val holder: OfflineSessionHolder
 ) : ViewModel() {
 
     private var appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     constructor(
         transport: OfflineMeshVoiceTransport,
+        arbiter: AudioOwnershipArbiter
+    ) : this(transport, arbiter, OfflineSessionHolder())
+
+    constructor(
+        transport: OfflineMeshVoiceTransport,
         arbiter: AudioOwnershipArbiter,
         appScope: CoroutineScope
-    ) : this(transport, arbiter) {
+    ) : this(transport, arbiter, OfflineSessionHolder()) {
         this.appScope = appScope
     }
 

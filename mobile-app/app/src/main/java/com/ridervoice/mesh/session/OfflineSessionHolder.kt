@@ -33,39 +33,14 @@ class OfflineSessionHolder @Inject constructor() {
         if (old !== s) old?.close()
     }
 
+    fun get(): OfflineSession? = _current.value
+    fun set(s: OfflineSession?) = setCurrent(s)
+    fun getBackup(): OfflineSession? = _backup.value
+
     fun clearCurrent() = setCurrent(null)
     fun clearBackup() = setBackup(null)
     fun clearAll() {
         setCurrent(null)
         setBackup(null)
-    }
-
-    companion object {
-        @Volatile
-        private var globalInstance: OfflineSessionHolder? = null
-
-        fun getHolder(): OfflineSessionHolder {
-            return globalInstance ?: synchronized(this) {
-                globalInstance ?: OfflineSessionHolder().also { globalInstance = it }
-            }
-        }
-
-        var currentSession: OfflineSession?
-            get() = getHolder().current.value
-            set(value) { getHolder().setCurrent(value) }
-
-        fun set(session: OfflineSession?) { getHolder().setCurrent(session) }
-        fun get(): OfflineSession? = getHolder().current.value
-        fun clear() { getHolder().clearCurrent() }
-        fun clearCurrent() { getHolder().clearCurrent() }
-        fun clearBackup() { getHolder().clearBackup() }
-        fun clearAll() { getHolder().clearAll() }
-
-        fun setBackup(session: OfflineSession?) { getHolder().setBackup(session) }
-        fun getBackup(): OfflineSession? = getHolder().backup.value
-    }
-
-    init {
-        globalInstance = this
     }
 }

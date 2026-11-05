@@ -34,7 +34,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionLifecycleTest {
 
-    private val holder = OfflineSessionHolder.getHolder()
+    private val holder = OfflineSessionHolder()
 
     @Before
     fun setUp() {
@@ -124,9 +124,10 @@ class SessionLifecycleTest {
      */
     @Test
     fun holder_isSingleton() {
-        val h1 = OfflineSessionHolder.getHolder()
-        val h2 = OfflineSessionHolder.getHolder()
-        assertTrue("OfflineSessionHolder.getHolder() must return singleton instance", h1 === h2)
+        assertTrue(
+            "OfflineSessionHolder must be annotated with @Singleton",
+            OfflineSessionHolder::class.java.isAnnotationPresent(javax.inject.Singleton::class.java)
+        )
     }
 
     /**

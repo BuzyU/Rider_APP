@@ -22,12 +22,6 @@ interface MeshKeyValueStore {
     fun putString(key: String, value: String)
 }
 
-class InMemoryMeshKeyValueStore : MeshKeyValueStore {
-    private val map = HashMap<String, String>()
-    override fun getString(key: String): String? = map[key]
-    override fun putString(key: String, value: String) { map[key] = value }
-}
-
 /**
  * Plain (non-encrypted) private preferences in a dedicated file. Deliberately NOT SecurePreferences:
  * its clear() on sign-out would reset the mesh identity. The device id is not a secret.

@@ -105,7 +105,9 @@ class UdpMeshLink(
                     }
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            MeshLog.w("UdpMeshLink", "Socket setup failed: ${e.javaClass.simpleName}")
             _state.value = MeshLinkState.FAILED
             closeSocket()
         }
@@ -128,7 +130,8 @@ class UdpMeshLink(
             val pkt = DatagramPacket(payload, payload.size, addr, endpoint.port)
             sock.send(pkt)
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            MeshLog.w("UdpMeshLink", "Send datagram failed: ${e.javaClass.simpleName}")
             false
         }
     }

@@ -34,7 +34,7 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | A28 | HIGH | Audio | FIXED | `LiveKitVoiceTransport.kt:135` | MicAudioControlPathTest#resume_whileDisconnected_doesNotStartVox |
 | A29 | MEDIUM | Security | FIXED | `MeshDebugReceiver.kt:33` | SessionHygieneTest#offlineSession_toStringNeverLeaksCodeOrKeyBytes |
 | A30 | MEDIUM | Service | FIXED | `MeshForegroundService.kt:96` | ProductionWiringTest#meshAudioRouteController_isProvidedAndInjectedIntoTransport |
-| A31 | MEDIUM | Continuity | FIXED | `ContinuityLeaseClient.kt:35` | HonestStateTest#captureLoopDoesNotSpinOnNegativeReadAndReportsHardwareBusy |
+| A31 | MEDIUM | Continuity | FIXED (WP-50) | `CLEANUP_LOG.md:88` | HonestStateTest#captureLoopDoesNotSpinOnNegativeReadAndReportsHardwareBusy |
 | A32 | LOW | Protocol | FIXED | `SwitchingModels.kt:40` | NetworkProtocolHardeningTest#controlAndAudioShareTtlRule |
 | A33 | MEDIUM | Session | FIXED | `VoiceSessionCoordinator.kt:55` | Stage3ReachabilityTest#backupSessionReactiveAvailabilityAndExpiryTimer |
 | A34 | LOW | Resources | FIXED | `res/values/strings.xml:335` | StringsParityTest#meshStringKeysHaveExactParityAcrossEnglishHindiAndMarathi |

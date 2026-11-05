@@ -125,12 +125,13 @@ object MeshModule {
 
     @Provides
     @Singleton
-    fun provideOfflineSessionHolder(): OfflineSessionHolder = OfflineSessionHolder.getHolder()
+    fun provideOfflineSessionHolder(): OfflineSessionHolder = OfflineSessionHolder()
 
     @Provides
     @Singleton
-    fun provideOfflineSecretProvider(): OfflineSecretProvider =
-        HolderOfflineSecretProvider(OfflineSessionHolder.getHolder())
+    fun provideOfflineSecretProvider(
+        holder: OfflineSessionHolder
+    ): OfflineSecretProvider = HolderOfflineSecretProvider(holder)
 
     @Provides
     @Singleton

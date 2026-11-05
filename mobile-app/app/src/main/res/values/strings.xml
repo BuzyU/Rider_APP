@@ -235,9 +235,7 @@
     <string name="mesh_mic_permission_needed">Microphone permission is needed to talk</string>
     <string name="mesh_mic_open_settings">Open settings</string>
     <string name="mesh_mic_busy">Microphone is in use by another app</string>
-    <string name="mesh_state_discovering">Looking for riders</string>
     <string name="mesh_state_connected">Connected</string>
-    <string name="mesh_state_unavailable">Offline mesh unavailable</string>
     <string name="mesh_lobby_header">Tactical Intercom</string>
     <string name="mesh_lobby_title">Offline Mesh Lobby</string>
     <string name="mesh_lobby_description">Connect directly with nearby riders over local Wi-Fi without internet or cellular data. All audio is end-to-end encrypted.</string>
@@ -260,12 +258,6 @@
     <string name="mesh_cd_diagnostics">Diagnostics</string>
     <string name="mesh_cd_toggle_mic">Toggle Mic</string>
     <string name="mesh_cd_toggle_deafen">Toggle Deafen</string>
-    <string name="mesh_cd_wifi_tethering">Mesh Intercom</string>
-    <string name="mesh_cd_group_add">Join Session</string>
-    <plurals name="mesh_peer_count">
-        <item quantity="one">%1$d peer</item>
-        <item quantity="other">%1$d peers</item>
-    </plurals>
     <!-- Offline Mesh Stage 2.5 & 3.5 UI & Tactical Banner -->
     <string name="mesh_banner_offline_active">Offline mesh active</string>
     <string name="mesh_banner_online_restored">Online voice restored</string>

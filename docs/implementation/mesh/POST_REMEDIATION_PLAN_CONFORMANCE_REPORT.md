@@ -5,7 +5,7 @@
 **Base Commit (Frozen Anchor):** `a37ef09`  
 **Starting Baseline:** `7f8314e3c4bd8130dfbc9863fc600996c71f7f69`  
 **Pushed HEAD Commit:** `e3c40fe`  
-**Authoritative Plan:** `rider-app-offline-mesh-three-stage-plan.md` (repo root)
+**Authoritative Plan:** `docs/plan/OFFLINE_MESH_PLAN.md`
 
 ---
 
@@ -26,7 +26,7 @@ All verification steps mandated by the GitHub Actions workflow (`.github/workflo
 
 ---
 
-## 2. Recheck Against the Original Plan (`rider-app-offline-mesh-three-stage-plan.md`)
+## 2. Recheck Against the Original Plan (`docs/plan/OFFLINE_MESH_PLAN.md`)
 
 ### Stage 0: Baseline & Online-System Protection
 - **Status:** **Conforming (Stage 0 baseline)**.

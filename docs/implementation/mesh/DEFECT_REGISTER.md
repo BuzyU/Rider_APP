@@ -1,53 +1,80 @@
-# RiderVoice Offline Mesh — Defect Register (WP-34 through WP-42)
+# RiderVoice Offline Mesh — Defect Register
 
-Columns: `ID | Severity | Status | File:Line | Quoted Snippet / Description`
+Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 
-| ID | Severity | Status | File:Line | Quoted Snippet / Description |
-|---|---|---|---|---|
-| **A1** | CRITICAL | FIXED (WP-41) | `MeshConfig.kt:24` vs `docs/protocol/mesh-v2.md:81` | Reconciled docs to match code TTL = 5 across all protocol, audit, and plan documents. |
-| **A2** | CRITICAL | FIXED (WP-37) | `MeshAutoSwitchManager.kt:135`, `MeshModule.kt:156` | Stage 3 unreachable: `val companionSession: OfflineSession? = null`, bound `NullOfflineSecretProvider`. |
-| **A3** | CRITICAL | FIXED | `LocalHealthSignalsProvider.kt:78`, `ValidatedInternetSource.kt` | WP-35 / `ValidatedInternetAndStandingRulesTest` (`wifiConnectedButNotValidated_isNotValidated`) | Added ValidatedInternetSource checking NET_CAPABILITY_VALIDATED; removed blind isConnected fallback |
-| **A4** | HIGH | FIXED | `OfflineRoomScreen.kt`, `MicController.kt` | WP-36 / `MicAudioControlPathTest` | UI routes via MicController; PTT release never closes toggle mic. |
-| **A5** | HIGH | FIXED | `OfflineMeshVoiceTransport.kt`, `MicRules.kt` | WP-36 / `MicAudioControlPathTest` | AudioRecord capture runs whenever audioEnabled && (micToggleOn || pttHeld || voxEnabled). |
-| **A6** | HIGH | FIXED | `MeshVoxBridge.kt` | WP-36 / `WP34RedTests`, `MicAudioControlPathTest` | Removed listener registration in init; attach/detach lifecycle with reference identity check. |
-| **A7** | HIGH | FIXED | `LiveKitVoiceTransport.kt` | WP-36 / `MicAudioControlPathTest` | isVoxRunning tracks active connection state and VOX stopped state faithfully. |
-| **A8** | HIGH | FIXED | VoiceSessionCoordinator.kt:190-205 | pauseCaptureOnly() stops AudioRecord but keeps playback until LiveKit CONNECTED confirmed; rollback on timeout restores capture. (WP-38) |
-| **A9** | HIGH | FIXED | `VoiceSessionCoordinator.kt:175` | WP-36 / `VoiceSessionCoordinatorTest`, `AudioHandoffRobustnessTest` | Removed liveKitTransport.stop() from fallbackToMesh(); LiveKit remains paused. |
-| **A10** | HIGH | FIXED (WP-39) | `NavGraph.kt:371-373` | `OfflineSession.fromCode(sessionCode, ...) ?: OfflineSession.create(...)` derives on UI thread and creates fallback session on invalid code. |
-| **A11** | HIGH | FIXED (WP-39) | `NavGraph.kt:420` | `DisposableEffect(session.sessionId) { onDispose { viewModel.stopSession() } }` terminates offline session on screen rotation. |
-| **A12** | MEDIUM | FIXED (WP-37) | `App.kt:52` | `if (OfflineMeshGate.decision() == GateDecision.ENABLED) meshAutoSwitchManager.start()` — enabling at runtime does nothing if disabled at startup. |
-| **A13** | MEDIUM | FIXED (WP-37) | `MeshModule.kt:146` | `identity = identityRepo.get()` evaluated once at DI composition time instead of per-session start. |
-| **A14** | MEDIUM | FIXED (WP-37) | `UdpMeshLink.kt:130` | `endpoints()` returns empty set because `registerEndpoint()` has no production caller. |
-| **A15** | MEDIUM | FIXED (WP-39) | `MeshForegroundService.kt:103`, `AutomaticSwitchStateMachine.kt:187` | `catch (_: Throwable)` swallows CancellationException and logs nothing; CoroutineExceptionHandlers silent. |
-| **A16** | MEDIUM | FIXED (WP-39) | `OfflineSessionHolder.kt:9`, `OfflineSession.kt:15` | Plain object not Hilt singleton, no session zeroing or `.close()`; PBKDF2 `out` buffer not zeroed. |
-| **A17** | MEDIUM | FIXED (WP-40) | `MeshGraphRepository.kt:85` | `isStaleReport` compares epoch & sequence; different epoch always replaces restarted peers. |
-| **A18** | LOW | FIXED (WP-40) | `ForwardingEngine.kt:348` | `ACCEPT_LEGACY_NONCE = false` by default; fallback guarded behind opt-in config flag. |
-| **A19** | LOW | FIXED (WP-40) | `AndroidManifest.xml:6, 9` | Removed unreferenced `CHANGE_WIFI_STATE` and `NEARBY_WIFI_DEVICES`; documented Wi-Fi permissions rationale. |
-| **A20** | LOW | FIXED (WP-40) | `MeshDebugReceiver.kt:24`, `debug/AndroidManifest.xml:4` | Added `android.permission.DUMP` guard, peer prefix filtering, truncated session IDs. |
-| **A21** | LOW | FIXED (WP-41) | `docs/implementation/mesh/AUDIT_FACTS.md`, root audit docs | Stale documents deleted, legacy reports archived, overclaims and banned words purged. |
-| **A22** | LOW | CLOSED | `LocalHealthSignalsProvider.kt:45` | WP-35 / DECISIONS.md | Design limit: `LiveKitManager.reconnectAttempts` is private (NO PUBLIC SOURCE); lambda left at 0; no loss/RTT sampling added per instruction |
-| **A23** | LOW | FIXED (WP-39) | `MeshForegroundService.kt:57`, `Routes.kt:27` | Unused `sessionCode` overloads in service and routes. |
-| **A24** | LOW | FIXED (WP-37) | `SwitchingModels.kt:72-73` | `if (meshCount > 0 \|\| offlineOrGhostCount > 0) GroupConnectivityStatus.MIXED` treats left LiveKit participant as MIXED. |
-| **A25** | HIGH | FIXED | `AutomaticSwitchStateMachine.kt:95-102` | WP-36 / `WP34RedTests` | offlineAvailable check restricted to entry states (ONLINE, ONLINE_SUSPECT, FALLBACK_UNAVAILABLE). |
-| **A26** | CRITICAL | FIXED | `AutomaticSwitchStateMachine.kt:115, 136` | WP-35 / `ValidatedInternetAndStandingRulesTest` (`partialRecovery_resetsSuspectTimer`, `internetBackLiveKitReconnecting_staysOnline`) | Suspect timer resets whenever !isTotalLoss(); FALLBACK_UNAVAILABLE requires isTotalLoss() |
-| **A27** | HIGH | FIXED | `AutomaticSwitchStateMachine.kt` | WP-36 / `WP34RedTests` | Non-blocking handoff with generation ticket per CODE-2; endSession returns promptly. |
-| **A28** | HIGH | FIXED | `LiveKitVoiceTransport.kt` | WP-36 / `MicAudioControlPathTest` | restartVoxIfPreviouslyRunning() only starts VOX when connectionState == CONNECTED. |
-| **A29** | MEDIUM | FIXED (WP-40) | `MeshDebugReceiver.kt:33` | Leaked pairingCode prefix removed; only truncated sessionId is logged. |
-| **A30** | MEDIUM | FIXED (WP-39) | `MeshForegroundService.kt:96-103` | No-mic path on API>=29 calls `startForeground` with no type, throwing SecurityException against manifest microphone type. |
-| **A31** | MEDIUM | FIXED | ContinuityLeaseClient.kt:35, 48 | Rethrows CancellationException before catching Exception; logs warning with MeshLog.w. (WP-38) |
-| **A32** | LOW | FIXED (WP-41) | `SwitchingModels.kt:40`, `MeshConfig.kt:6` | Dead code `PartialMeshPeer` deleted; `AUDIO_PORT` alias replaced by `MESH_PORT` and deleted. |
-| **A33** | MEDIUM | FIXED (WP-37) | `VoiceSessionCoordinator.kt:55-61` | `computeAvailability()` not reactive to secretProvider flow or backup session expiry. |
-| **A34** | LOW | FIXED (WP-37) | `values/strings.xml`, `values-hi`, `values-mr` | `mesh_invalid_code` and `mesh_use_as_ride_backup` string resources missing. |
-| **A35** | MEDIUM | FIXED (WP-39) | `NavGraph.kt:418`, `OfflineMeshVoiceTransport.kt:119` | Activity rotation re-triggers LaunchedEffect; `startSession`/`transport.start` must be idempotent for same sessionId. |
-| **A36** | LOW | FIXED (WP-42) | `.github/workflows/build.yml` | Updated CI test census floor to 439 and added mesh-invariants.sh guard step. |
-| **A37** | LOW | FIXED (WP-41) | `app/build.gradle:14` vs `README.md:1` | Version drift reconciled to v0.0.3.19 in README.md matching build.gradle. |
-| **A38** | LOW | FIXED (WP-40) | `MeshConfig.kt:26` | Confirmed 6-node chain full topology learning via `sixChain_everyNodeLearnsFullTopology` simulation test. |
-| **A39** | HIGH | FIXED | `OfflineMeshVoiceTransport.kt:460` | WP-36 / `WP34RedTests` | stop() resets micController, micWanted, and paused flags. |
-| **A40** | HIGH | FIXED | `OfflineMeshVoiceTransport.kt:294` | WP-36 / `WP34RedTests` | failEnable() cleanly rolls back playback, locks, and ownership. |
-| **A41** | MEDIUM | FIXED | `OfflineMeshVoiceTransport.kt:154` | WP-36 / `WP34RedTests` | Replaces different session ID; updates projected peers synchronously. |
-| **A42** | HIGH | FIXED | `OfflineAudioCapture.kt:175` | WP-36 / `WP34RedTests` | Preserves frame offset on read == 0; MAX_EMPTY_READS = 50 breaks cleanly. |
-| **A43** | MEDIUM | FIXED (WP-39) | `OfflineMeshLobbyScreen.kt:233`, `NavGraph.kt:371` | Pairing code passed via UI callback `onEnterSession(session.pairingCode)`. |
-| **A44** | INFO | VERIFIED (WP-42) | `ProductionWiringTest.kt`, `ImportIsolationTest.kt` | All guard tests honored and continuously passing across entire test suite. |
-| **A45** | MEDIUM | FIXED (WP-37) | `App.kt:51-52` | Ordering dependency: `OfflineMeshGate.install` must precede `meshAutoSwitchManager.start()`. |
-| **A46** | LOW | FIXED | `OfflineMeshVoiceTransport.kt`, `OfflineRoomScreen.kt` | WP-36 / `MicAudioControlPathTest` | Transport exposes StateFlow<Boolean> deafened; default voxEnabled is false. |
-| **A47** | LOW | FIXED | `MicController.kt` | WP-36 / `MicAudioControlPathTest` | Channel(Channel.CONFLATED) in MicController preserves order and collapses rapid states. |
+| ID | Sev | Class | Status | Code evidence (file:line) | Test reference |
+|---|---|---|---|---|---|
+| A1 | CRITICAL | Protocol | FIXED | `MeshConfig.kt:24` vs `docs/protocol/mesh-v2.md:81` | NetworkProtocolHardeningTest#ttlHopSumAbove_isDropped |
+| A2 | CRITICAL | Switching | FIXED | `MeshAutoSwitchManager.kt:135` | Stage3ReachabilityTest#backupSessionReactiveAvailabilityAndExpiryTimer |
+| A3 | CRITICAL | Connectivity | FIXED | `LocalHealthSignalsProvider.kt:78` | ValidatedInternetAndStandingRulesTest#wifiConnectedButNotValidated_isNotValidated |
+| A4 | HIGH | Audio | FIXED | `OfflineRoomScreen.kt:151` | MicAudioControlPathTest#pttRelease_keepsToggleMic |
+| A5 | HIGH | Audio | FIXED | `OfflineMeshVoiceTransport.kt:320` | MicAudioControlPathTest#truthTable32_exhaustive |
+| A6 | HIGH | Audio | FIXED | `MeshVoxBridge.kt:85` | MicAudioControlPathTest#attach_detach_restoresRoomCallback |
+| A7 | HIGH | Audio | FIXED | `LiveKitVoiceTransport.kt:120` | MicAudioControlPathTest#pause_remembersVoxWhenConnected |
+| A8 | HIGH | Audio | FIXED | `VoiceSessionCoordinator.kt:195` | HandoffCorrectnessTest#recovery_noDeadAir |
+| A9 | HIGH | Audio | FIXED | `VoiceSessionCoordinator.kt:175` | HandoffCorrectnessTest#hardwareBusy_neverDisconnects |
+| A10 | HIGH | Session | FIXED | `NavGraph.kt:371` | SessionLifecycleTest#toString_hasNoSecret |
+| A11 | HIGH | Session | FIXED | `NavGraph.kt:420` | SessionHygieneTest#offlineSessionHolder_retainsAndClearsSession |
+| A12 | MEDIUM | Gate | FIXED | `App.kt:52` | OfflineMeshGateTest#installedSettingsControlGateWhenNoParameterPassed |
+| A13 | MEDIUM | Identity | FIXED | `MeshModule.kt:146` | CompositionRootTest#noProductionFileOtherThanMeshModuleCallsSingleSourceConstructors |
+| A14 | MEDIUM | Link | FIXED | `UdpMeshLink.kt:130` | Stage3ReachabilityTest#authenticatedDirect_registers |
+| A15 | MEDIUM | Coroutines | REOPENED | `MeshForegroundService.kt:103` | None (pending WP-49) |
+| A16 | MEDIUM | Session | PARTIAL | `OfflineSessionHolder.kt:9` | SessionLifecycleTest#close_zeroizesKeys |
+| A17 | MEDIUM | Graph | FIXED | `MeshGraphRepository.kt:85` | ProtocolHardeningTest#restartedPeer_epochChange_acceptsNewReport |
+| A18 | LOW | Security | FIXED | `ForwardingEngine.kt:348` | PayloadCryptoTest#aadTamperFailsDecryption |
+| A19 | LOW | Permissions | FIXED | `AndroidManifest.xml:6` | ProductionWiringTest#autoSwitchManager_start_doesNothingWhenGateClosed |
+| A20 | LOW | Security | FIXED | `MeshDebugReceiver.kt:24` | WiringTest#t10_flagOffOpensNoSocketAndPortStaysBindable |
+| A21 | LOW | Docs | PARTIAL | `docs/implementation/mesh/` | None (pending WP-51) |
+| A22 | LOW | Switching | REOPENED | `LocalHealthSignalsProvider.kt:45` | None (pending WP-46) |
+| A23 | LOW | Navigation | FIXED | `MeshForegroundService.kt:57` | SessionHygieneTest#routes_offlineMeshHudRouteContainsNoArguments |
+| A24 | LOW | Switching | FIXED | `SwitchingModels.kt:72` | Stage3ReachabilityTest#ghostLiveKit_treatedAsLeft_notMixed |
+| A25 | HIGH | Switching | FIXED | `AutomaticSwitchStateMachine.kt:95` | StateMachineLifecycleTest#noSecret_neverLeavesOnline |
+| A26 | CRITICAL | Switching | FIXED | `AutomaticSwitchStateMachine.kt:115` | ValidatedInternetAndStandingRulesTest#degradedOnly_neverTotalLoss |
+| A27 | HIGH | Switching | FIXED | `AutomaticSwitchStateMachine.kt:140` | HandoffCorrectnessTest#endSession_duringHandoff_returnsPromptly |
+| A28 | HIGH | Audio | FIXED | `LiveKitVoiceTransport.kt:135` | MicAudioControlPathTest#resume_whileDisconnected_doesNotStartVox |
+| A29 | MEDIUM | Security | FIXED | `MeshDebugReceiver.kt:33` | SessionHygieneTest#offlineSession_toStringNeverLeaksCodeOrKeyBytes |
+| A30 | MEDIUM | Service | FIXED | `MeshForegroundService.kt:96` | ProductionWiringTest#meshAudioRouteController_isProvidedAndInjectedIntoTransport |
+| A31 | MEDIUM | Continuity | FIXED | `ContinuityLeaseClient.kt:35` | HonestStateTest#captureLoopDoesNotSpinOnNegativeReadAndReportsHardwareBusy |
+| A32 | LOW | Protocol | FIXED | `SwitchingModels.kt:40` | NetworkProtocolHardeningTest#controlAndAudioShareTtlRule |
+| A33 | MEDIUM | Session | FIXED | `VoiceSessionCoordinator.kt:55` | Stage3ReachabilityTest#backupSessionReactiveAvailabilityAndExpiryTimer |
+| A34 | LOW | Resources | FIXED | `res/values/strings.xml:335` | StringsParityTest#meshStringKeysHaveExactParityAcrossEnglishHindiAndMarathi |
+| A35 | MEDIUM | Navigation | FIXED | `NavGraph.kt:418` | HandoffCorrectnessTest#recovery_keepsMeshAudioUntilLiveKitConfirmed |
+| A36 | LOW | CI | FIXED | `.github/workflows/build.yml:48` | ProductionWiringTest#meshVoxBridge_receivesHardwarePttPort |
+| A37 | LOW | Docs | PARTIAL | `README.md:1` | None (pending WP-51) |
+| A38 | LOW | Simulation | FIXED | `MeshConfig.kt:26` | MeshStage1SimulationTest#setChain |
+| A39 | HIGH | Audio | FIXED | `OfflineMeshVoiceTransport.kt:460` | MicAudioControlPathTest#defaultVoxIsOff |
+| A40 | HIGH | Audio | FIXED | `OfflineMeshVoiceTransport.kt:294` | AudioHandoffRobustnessTest#handoff_rollsBackOwner |
+| A41 | MEDIUM | Transport | FIXED | `OfflineMeshVoiceTransport.kt:154` | HandoffCorrectnessTest#offlineActive_meshDied_handsBack |
+| A42 | HIGH | Audio | FIXED | `OfflineAudioCapture.kt:175` | MicAudioControlPathTest#emptyReads50_reportHardwareBusy |
+| A43 | MEDIUM | UI | FIXED | `OfflineMeshLobbyScreen.kt:233` | OfflineMeshViewModelTest#createNewSessionOffloadsPBKDF2AndPopulatesActiveSession |
+| A44 | INFO | Architecture | VERIFIED | `mobile-app/app/build.gradle:1` | ImportIsolationTest#onlineCodeDoesNotImportMesh |
+| A45 | MEDIUM | Startup | FIXED | `App.kt:51` | Stage3ReachabilityTest#startAfterInstall_usesInstalledSettings |
+| A46 | LOW | Audio | FIXED | `OfflineMeshVoiceTransport.kt:80` | MicAudioControlPathTest#deafen_survivesRecreate |
+| A47 | LOW | Audio | REOPENED | `MicController.kt:95` | MicAudioControlPathTest#rapidPressRelease_endsReleased |
+| B1 | HIGH | Link | OPEN | `UdpMeshLink.kt:33` | None (pending WP-48) |
+| B2 | CRITICAL | UI | OPEN | `OfflineAwareRoomHost.kt:130` | None (pending WP-45) |
+| B3 | CRITICAL | Switching | OPEN | `AutomaticSwitchStateMachine.kt:105` | None (pending WP-46) |
+| B4 | CRITICAL | Audio | OPEN | `MicController.kt:95` | None (pending WP-45) |
+| B5 | HIGH | Settings | OPEN | `MeshRuntimeSettings.kt:40` | None (pending WP-44) |
+| B6 | HIGH | Protocol | OPEN | `MeshConfig.kt:36` | None (pending WP-49) |
+| B7 | HIGH | Verification | FIXED | `DEFECT_REGISTER.md:1` | ImportIsolationTest#onlineCodeDoesNotImportMesh |
+| B8 | MEDIUM | Docs | OPEN | `docs/implementation/mesh/` | None (pending WP-51) |
+| B9 | HIGH | Transport | OPEN | `OfflineMeshVoiceTransport.kt:110` | None (pending WP-47) |
+| B10 | HIGH | Link | OPEN | `UdpMeshLink.kt:45` | None (pending WP-47) |
+| B11 | HIGH | Coroutines | OPEN | `VoiceSessionCoordinator.kt:130` | None (pending WP-49) |
+| B12 | MEDIUM | Link | OPEN | `OfflineMeshVoiceTransport.kt:115` | None (pending WP-47) |
+| B13 | MEDIUM | Resources | OPEN | `SettingsScreen.kt:265` | None (pending WP-44) |
+| B14 | MEDIUM | UI | OPEN | `SettingsScreen.kt:225` | None (pending WP-44) |
+| B15 | LOW | Switching | OPEN | `AutomaticSwitchStateMachine.kt:35` | None (pending WP-46) |
+| B16 | HIGH | Switching | OPEN | `LocalHealthSignalsProvider.kt:40` | None (pending WP-46) |
+| B17 | HIGH | Security | OPEN | `ForwardingEngine.kt:496` | None (pending WP-49) |
+| B18 | HIGH | Security | OPEN | `FeatureFlags.kt:28` | None (pending WP-49) |
+| B19 | MEDIUM | CI | OPEN | `.github/workflows/build.yml:45` | None (pending WP-51) |
+| B20 | MEDIUM | Testing | OPEN | `ProtocolHardeningTest.kt:50` | None (pending WP-52) |
+| B21 | LOW | Testing | OPEN | `PHYSICAL_TEST_CHECKLIST.md:1` | None (pending WP-48) |
+| B22 | LOW | Settings | OPEN | `SETTINGS_CONTRACT.md:10` | None (pending WP-51) |
+| B23 | MEDIUM | UI | OPEN | `OfflineAwareRoomHost.kt:45` | None (pending WP-44) |
+| B24 | LOW | Transport | OPEN | `OfflineMeshVoiceTransport.kt:310` | None (pending WP-45) |
+| B25 | LOW | Lint | OPEN | `mobile-app/app/lint-baseline.xml:135` | None (pending WP-51) |
+| B26 | LOW | Security | OPEN | `docs/security/mesh-threat-model.md:60` | None (pending WP-49) |
+| B27 | MEDIUM | Testing | OPEN | `mobile-app/app/src/test/` | None (pending WP-52) |

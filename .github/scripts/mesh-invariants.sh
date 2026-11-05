@@ -14,7 +14,7 @@ check "fromCode(sessionCode in nav" grep -rn "fromCode(sessionCode" $M/navigatio
 check "removed symbols"            grep -rnE "fromOnlineRoom|BOOTSTRAP_KEY|DISCOVERY_PORT|setPttHeld|AUDIO_PORT" $M
 check "Thread.sleep in mesh tests" grep -rn "Thread.sleep" mobile-app/app/src/test/java/com/ridervoice/mesh
 check "pairing code in debug src"  grep -rn "pairingCode" mobile-app/app/src/debug
-check "TTL 7 claims"               bash -c "grep -rnE 'DEFAULT_TTL = 7|TTL.*= 7|Default = 7' docs *.md rider-app-offline-mesh-three-stage-plan.md | grep -v CORRECTED"
+check "TTL 7 claims"               bash -c "grep -rnE 'DEFAULT_TTL = 7|TTL.*= 7|Default = 7' docs README.md ARCHITECTURE.md CODE_DEPTH_STRUCTURE.md | grep -v CORRECTED"
 check "banned doc words"           bash -c "grep -rniE 'seamless|production-ready|fully verified|100%' docs README.md ARCHITECTURE.md | grep -v CORRECTED"
 grep -q "NET_CAPABILITY_VALIDATED" -r $M/mesh || { echo "VIOLATION: ValidatedInternetSource missing"; fail=1; }
 exit $fail

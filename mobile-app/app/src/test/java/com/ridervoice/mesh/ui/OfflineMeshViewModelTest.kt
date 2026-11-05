@@ -159,7 +159,7 @@ class OfflineMeshViewModelTest {
 
         viewModel.stopSession()
         withTimeout(5_000L) {
-            while (transport.state.value != VoiceTransportState.STOPPED) {
+            while (transport.state.value != VoiceTransportState.STOPPED || viewModel.activeSession.value != null) {
                 delay(20L)
             }
         }

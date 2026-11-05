@@ -131,18 +131,18 @@ class OfflineMeshViewModel @Inject constructor(
     }
 
     fun stopSession() {
+        holder.clearCurrent()
         appScope.launch {
             transport.stop()
             arbiter.release(AudioOwner.OFFLINE_MESH)
-            holder.clearCurrent()
         }
     }
 
     fun leave() {
+        holder.clearCurrent()
         appScope.launch {
             transport.stop()
             arbiter.release(AudioOwner.OFFLINE_MESH)
-            holder.clearCurrent()
         }
     }
 

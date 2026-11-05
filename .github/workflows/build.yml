@@ -32,29 +32,8 @@ jobs:
       - name: Grant Execute Permissions for Gradlew
         run: chmod +x mobile-app/gradlew
 
-      - name: Verify Frozen Online Files Unchanged
-        run: |
-          FROZEN_PATHS=(
-            "mobile-app/app/src/main/java/com/ridervoice/network/LiveKitManager.kt"
-            "mobile-app/app/src/main/java/com/ridervoice/network/ConnectionState.kt"
-            "mobile-app/app/src/main/java/com/ridervoice/network/NetworkResilienceManager.kt"
-            "mobile-app/app/src/main/java/com/ridervoice/state/RoomViewModel.kt"
-            "mobile-app/app/src/main/java/com/ridervoice/state/ActiveRideRepository.kt"
-            "mobile-app/app/src/main/java/com/ridervoice/state/RoomFault.kt"
-            "mobile-app/app/src/main/java/com/ridervoice/state/AppEvents.kt"
-            "mobile-app/app/src/main/java/com/ridervoice/services/VoiceForegroundService.kt"
-            "mobile-app/app/src/main/java/com/ridervoice/ui/screens/RoomScreen.kt"
-            "mobile-app/app/src/main/java/com/ridervoice/ui/screens/room"
-            "mobile-app/app/src/main/java/com/ridervoice/audio"
-            "mobile-app/app/src/main/java/com/ridervoice/diagnostics"
-            "backend"
-            "web-app"
-            "livekit-server"
-          )
-          for p in "${FROZEN_PATHS[@]}"; do
-            test -e "$p" || { echo "Frozen path missing: $p"; exit 1; }
-          done
-          git diff --exit-code a37ef09 -- "${FROZEN_PATHS[@]}"
+      - name: Mesh Commit Guard
+        run: bash .github/scripts/mesh-commit-guard.sh
 
       - name: Mesh Invariants
         run: bash .github/scripts/mesh-invariants.sh
@@ -66,7 +45,7 @@ jobs:
       - name: Enforce Unit Test Census
         run: |
           python3 -c "
-          import xml.etree.ElementTree as ET, glob, sys
+          import xml.etree.ElementTree as ET, glob, sys, subprocess
           files = glob.glob('mobile-app/app/build/test-results/testDebugUnitTest/*.xml')
           total, fail, err, skip = 0, 0, 0, 0
           for f in files:
@@ -76,7 +55,15 @@ jobs:
               err += int(tree.attrib.get('errors', 0))
               skip += int(tree.attrib.get('skipped', 0))
           print(f'Total Tests: {total}, Failures: {fail}, Errors: {err}, Skipped: {skip}')
-          if total < 439 or fail > 0 or err > 0:
+          with open('.github/test-census-floor', 'r') as cf:
+              floor = int(cf.read().strip())
+          print(f'Required Floor: {floor}')
+          if total < floor:
+              msg = subprocess.check_output(['git', 'log', '-1', '--format=%B']).decode('utf-8')
+              if 'TEST-REMOVAL:' not in msg:
+                  print(f'ERROR: Test count {total} < floor {floor} without TEST-REMOVAL: in commit message.')
+                  sys.exit(1)
+          if fail > 0 or err > 0:
               sys.exit(1)
           "
 

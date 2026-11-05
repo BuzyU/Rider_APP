@@ -40,9 +40,9 @@ import kotlinx.coroutines.launch
 fun OfflineRoomScreen(
     sessionCode: String,
     transport: VoiceTransport,
-    diagnosticsRepo: MeshDiagnosticsRepository? = null,
     onLeave: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    diagnosticsRepo: MeshDiagnosticsRepository? = null
 ) {
     val transportState by transport.state.collectAsState()
     val peers by transport.participants.collectAsState()

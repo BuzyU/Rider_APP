@@ -5,6 +5,13 @@ on:
     tags:
       - 'v*'
       - 'V*'
+  workflow_dispatch:
+    inputs:
+      enableOfflineMeshInRelease:
+        description: 'Enable offline mesh in release build for internal testers'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -113,9 +120,14 @@ jobs:
       - name: Build Release APK
         working-directory: mobile-app
         run: |
+          EXTRA_FLAGS=""
+          if [ "${{ inputs.enableOfflineMeshInRelease || github.event.inputs.enableOfflineMeshInRelease }}" = "true" ]; then
+            EXTRA_FLAGS="-PenableOfflineMeshInRelease=true"
+          fi
           ./gradlew assembleRelease \
             -PversionName="${{ env.VERSION_NAME }}" \
             -PversionCode="${{ env.VERSION_CODE }}" \
+            $EXTRA_FLAGS \
             --stacktrace
 
       - name: Prepare Versioned Assets & Verify Cryptographic Identity

@@ -18,14 +18,14 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | A12 | MEDIUM | Gate | FIXED | `App.kt:52` | OfflineMeshGateTest#installedSettingsControlGateWhenNoParameterPassed |
 | A13 | MEDIUM | Identity | FIXED | `MeshModule.kt:146` | CompositionRootTest#noProductionFileOtherThanMeshModuleCallsSingleSourceConstructors |
 | A14 | MEDIUM | Link | FIXED | `UdpMeshLink.kt:130` | Stage3ReachabilityTest#authenticatedDirect_registers |
-| A15 | MEDIUM | Coroutines | REOPENED | `MeshForegroundService.kt:103` | None (pending WP-49) |
-| A16 | MEDIUM | Session | PARTIAL | `OfflineSessionHolder.kt:9` | SessionLifecycleTest#close_zeroizesKeys |
+| A15 | MEDIUM | Coroutines | FIXED (WP-49) | `Cancellable.kt:3` | VoiceSessionCoordinatorTest#cancellationDuringEnableAudio_rethrowsAndCancelsJob |
+| A16 | MEDIUM | Session | FIXED (WP-49) | `ForwardingEngine.kt:502` | KeyZeroizationTest#forwardingEngine_closeZeroizesKeyArrays |
 | A17 | MEDIUM | Graph | FIXED | `MeshGraphRepository.kt:85` | ProtocolHardeningTest#restartedPeer_epochChange_acceptsNewReport |
 | A18 | LOW | Security | FIXED | `ForwardingEngine.kt:348` | PayloadCryptoTest#aadTamperFailsDecryption |
 | A19 | LOW | Permissions | FIXED | `AndroidManifest.xml:6` | ProductionWiringTest#autoSwitchManager_start_doesNothingWhenGateClosed |
 | A20 | LOW | Security | FIXED | `MeshDebugReceiver.kt:24` | WiringTest#t10_flagOffOpensNoSocketAndPortStaysBindable |
-| A21 | LOW | Docs | PARTIAL | `docs/implementation/mesh/` | None (pending WP-51) |
-| A22 | LOW | Switching | REOPENED | `LocalHealthSignalsProvider.kt:45` | None (pending WP-46) |
+| A21 | LOW | Docs | FIXED (WP-51) | `docs/implementation/mesh/README.md:1` | StringsParityTest#meshStringKeysHaveExactParityAcrossEnglishHindiAndMarathi |
+| A22 | LOW | Switching | FIXED (WP-46) | `LocalHealthSignalsProvider.kt:85` | WiringTest#localHealthSignalsProviderSamplesLocalSignalsAccurately |
 | A23 | LOW | Navigation | FIXED | `MeshForegroundService.kt:57` | SessionHygieneTest#routes_offlineMeshHudRouteContainsNoArguments |
 | A24 | LOW | Switching | FIXED | `SwitchingModels.kt:72` | Stage3ReachabilityTest#ghostLiveKit_treatedAsLeft_notMixed |
 | A25 | HIGH | Switching | FIXED | `AutomaticSwitchStateMachine.kt:95` | StateMachineLifecycleTest#noSecret_neverLeavesOnline |
@@ -34,13 +34,13 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | A28 | HIGH | Audio | FIXED | `LiveKitVoiceTransport.kt:135` | MicAudioControlPathTest#resume_whileDisconnected_doesNotStartVox |
 | A29 | MEDIUM | Security | FIXED | `MeshDebugReceiver.kt:33` | SessionHygieneTest#offlineSession_toStringNeverLeaksCodeOrKeyBytes |
 | A30 | MEDIUM | Service | FIXED | `MeshForegroundService.kt:96` | ProductionWiringTest#meshAudioRouteController_isProvidedAndInjectedIntoTransport |
-| A31 | MEDIUM | Continuity | FIXED (WP-50) | `CLEANUP_LOG.md:88` | HonestStateTest#captureLoopDoesNotSpinOnNegativeReadAndReportsHardwareBusy |
+| A31 | MEDIUM | Continuity | FIXED (WP-50) | `CHANGELOG.md:12` | HonestStateTest#captureLoopDoesNotSpinOnNegativeReadAndReportsHardwareBusy |
 | A32 | LOW | Protocol | FIXED | `SwitchingModels.kt:40` | NetworkProtocolHardeningTest#controlAndAudioShareTtlRule |
 | A33 | MEDIUM | Session | FIXED | `VoiceSessionCoordinator.kt:55` | Stage3ReachabilityTest#backupSessionReactiveAvailabilityAndExpiryTimer |
 | A34 | LOW | Resources | FIXED | `res/values/strings.xml:335` | StringsParityTest#meshStringKeysHaveExactParityAcrossEnglishHindiAndMarathi |
 | A35 | MEDIUM | Navigation | FIXED | `NavGraph.kt:418` | HandoffCorrectnessTest#recovery_keepsMeshAudioUntilLiveKitConfirmed |
 | A36 | LOW | CI | FIXED | `.github/workflows/build.yml:48` | ProductionWiringTest#meshVoxBridge_receivesHardwarePttPort |
-| A37 | LOW | Docs | PARTIAL | `README.md:1` | None (pending WP-51) |
+| A37 | LOW | Docs | FIXED (WP-51) | `README.md:1` | StringsParityTest#meshStringKeysHaveExactParityAcrossEnglishHindiAndMarathi |
 | A38 | LOW | Simulation | FIXED | `MeshConfig.kt:26` | MeshStage1SimulationTest#setChain |
 | A39 | HIGH | Audio | FIXED | `OfflineMeshVoiceTransport.kt:460` | MicAudioControlPathTest#defaultVoxIsOff |
 | A40 | HIGH | Audio | FIXED | `OfflineMeshVoiceTransport.kt:294` | AudioHandoffRobustnessTest#handoff_rollsBackOwner |
@@ -58,7 +58,7 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | B5 | HIGH | Settings | FIXED (WP-44) | `MeshRuntimeSettings.kt:40` | MeshSettingsViewModelTest#togglePropagatesToOfflineMeshGateThroughSingleInstance |
 | B6 | HIGH | Protocol | FIXED (WP-49) | `ForwardingEngine.kt:72` | RelayAmplificationTest#fullyConnectedSixDevices_defaultNoSuppression_sendsTwentyFiveDatagramsAndAllHearIt |
 | B7 | HIGH | Verification | FIXED | `DEFECT_REGISTER.md:1` | ImportIsolationTest#onlineCodeDoesNotImportMesh |
-| B8 | MEDIUM | Docs | OPEN | `docs/implementation/mesh/` | None (pending WP-51) |
+| B8 | MEDIUM | Docs | FIXED (WP-51) | `docs/implementation/mesh/README.md:1` | StringsParityTest#meshStringKeysHaveExactParityAcrossEnglishHindiAndMarathi |
 | B9 | HIGH | Transport | FIXED (WP-47) | `OfflineMeshVoiceTransport.kt:258` | LinkSupervisorTest#linkSupervisor_recoversFromTransientLinkFailure_togglesIsLinkAlive |
 | B10 | HIGH | Link | FIXED (WP-47) | `WifiNetworkWatcher.kt:1` | WifiRebindTest#wifiChangeEvents_debouncedToSingleRestart |
 | B11 | HIGH | Coroutines | FIXED (WP-49) | `Cancellable.kt:3` | VoiceSessionCoordinatorTest#cancellationDuringEnableAudio_rethrowsAndCancelsJob |
@@ -69,12 +69,12 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | B16 | HIGH | Switching | FIXED (WP-46) | `LocalHealthSignalsProvider.kt:85` | WiringTest#localHealthSignalsProviderSamplesLocalSignalsAccurately |
 | B17 | HIGH | Security | FIXED (WP-49) | `ForwardingEngine.kt:502` | KeyZeroizationTest#forwardingEngine_closeZeroizesKeyArrays |
 | B18 | HIGH | Security | FIXED (WP-49) | `FeatureFlags.kt:32` | NetworkProtocolHardeningTest#debugPeerFilter_noopInRelease |
-| B19 | MEDIUM | CI | OPEN | `.github/workflows/build.yml:45` | None (pending WP-51) |
+| B19 | MEDIUM | CI | FIXED (WP-51) | `.github/workflows/build.yml:35` | ProductionWiringTest#autoSwitchManager_start_doesNothingWhenGateClosed |
 | B20 | MEDIUM | Testing | OPEN | `ProtocolHardeningTest.kt:50` | None (pending WP-52) |
 | B21 | LOW | Testing | FIXED (WP-48) | `PHYSICAL_TEST_CHECKLIST.md:1` | MeshSettingsViewModelTest#whenWifiHardwareMissing_automaticFallbackCannotBeEnabled |
-| B22 | LOW | Settings | OPEN | `SETTINGS_CONTRACT.md:10` | None (pending WP-51) |
+| B22 | LOW | Settings | FIXED (WP-51) | `docs/SETTINGS_CONTRACT.md:23` | MeshSettingsViewModelTest#togglePropagatesToOfflineMeshGateThroughSingleInstance |
 | B23 | MEDIUM | UI | FIXED (WP-44/WP-46) | `OfflineAwareRoomHost.kt:45` | MeshSettingsViewModelTest#togglePropagatesToOfflineMeshGateThroughSingleInstance |
 | B24 | LOW | Transport | FIXED (WP-45/WP-49) | `MeshPeerProjector.kt:12` | FallbackControlsTest#hostState_overlayActiveStatesMatchPlanSpecification |
-| B25 | LOW | Lint | OPEN | `mobile-app/app/lint-baseline.xml:135` | None (pending WP-51) |
+| B25 | LOW | Lint | FIXED (WP-51) | `mobile-app/app/lint-baseline.xml:1` | ProductionWiringTest#autoSwitchManager_start_doesNothingWhenGateClosed |
 | B26 | LOW | Security | FIXED (WP-49) | `docs/security/mesh-threat-model.md:107` | SessionHygieneTest#offlineSession_toStringNeverLeaksCodeOrKeyBytes |
 | B27 | MEDIUM | Testing | OPEN | `mobile-app/app/src/test/` | None (pending WP-52) |

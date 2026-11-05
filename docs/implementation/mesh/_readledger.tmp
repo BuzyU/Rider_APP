@@ -1,0 +1,166 @@
+# Read Ledger (Mandatory Full-Repository Read)
+Generated: 2026-11-05
+
+## A. Contract & Evidence
+path | lines | read-in-full (Y/N) | one-line summary
+rider-app-offline-mesh-three-stage-plan.md | 1132 | Y | Original plan (lines 1-1089) + unvetted amendments (lines 1092-1132).
+MESH_AUDIT_REPORT_517cfee.md | 126 | Y | Comprehensive independent audit detailing defects B1-B27 and false claims.
+docs/implementation/mesh/DECISIONS.md | 38 | Y | Architecture decision log with status and rationale.
+docs/implementation/mesh/DEFECT_REGISTER.md | 53 | Y | Register tracking previous A1-A47 and current defect items.
+docs/implementation/mesh/README.md | 107 | Y | Mesh package overview, module structure, and testing entrypoints.
+docs/implementation/mesh/NEARBY_LINK_DESIGN.md | 56 | Y | Architecture design doc for Nearby Connections v2 link with P2P_CLUSTER.
+docs/implementation/mesh/state-machine.md | 128 | Y | Formal state machine documentation for automatic online/offline switching.
+docs/implementation/mesh/CLEANUP_LOG.md | 84 | Y | Record of dead code removals and refactoring log from previous rounds.
+docs/implementation/mesh/FINAL_AUDIT.md | 154 | Y | Previous round audit summary with test count claims and checklist.
+docs/implementation/mesh/POST_REMEDIATION_PLAN_CONFORMANCE_REPORT.md | 139 | Y | Conformance evaluation against 3-stage plan requirements.
+docs/protocol/mesh-v2.md | 152 | Y | Protocol packet specification, packet headers, framing, and crypto format.
+docs/security/mesh-threat-model.md | 119 | Y | Threat model, trust assumptions, key hierarchy, and attack surfaces.
+docs/testing/PHYSICAL_TEST_CHECKLIST.md | 59 | Y | 18 physical test scenarios (all marked NOT EXECUTED).
+docs/testing/mesh-test-plan.md | 77 | Y | Unit, integration, and simulation test strategy and coverage areas.
+docs/SETTINGS_CONTRACT.md | 31 | Y | Settings contract defining persistent preference keys and types.
+docs/UX_COPY.md | 86 | Y | UX copy dictionary across English, Hindi, and Marathi locales.
+README.md | 238 | Y | Root repository guide, feature list, and developer instructions.
+ARCHITECTURE.md | 385 | Y | High-level system architecture, layered design, and subsystem boundaries.
+CODE_DEPTH_STRUCTURE.md | 418 | Y | Codebase depth structure, file map, and structural relationships.
+RIDERVOICE_SYSTEM_EXPLANATION.md | 644 | Y | System explanation document; mesh sections 3.7 and 4.3.5 read in detail.
+
+## B. Build & CI
+path | lines | read-in-full (Y/N) | one-line summary
+mobile-app/app/build.gradle | 236 | Y | App module build configuration, dependencies, ProGuard rules, and build flags.
+mobile-app/build.gradle | 8 | Y | Root project build file configuring plugin repositories and versions.
+mobile-app/gradle.properties | 8 | Y | Gradle properties controlling JVM arguments, AndroidX, and jetifier.
+mobile-app/app/proguard-rules.pro | 66 | Y | ProGuard / R8 keep rules for LiveKit, coroutines, and serialization.
+mobile-app/app/lint-baseline.xml | 2819 | Y | Lint baseline containing 134 baseline issues (1 mesh ModifierParameter issue).
+.github/workflows/build.yml | 166 | Y | CI build workflow running tests, lint, APK assembly, and mesh invariants.
+.github/workflows/release.yml | 253 | Y | Release pipeline compiling signed release artifacts and integrity checks.
+.github/workflows/validate-signing.yml | 99 | Y | Workflow verifying debug/release signing keystore integrity and certificates.
+.github/scripts/mesh-invariants.sh | 21 | Y | Script checking mesh invariant violations and test census freeze.
+mobile-app/app/src/main/AndroidManifest.xml | 99 | Y | Main manifest with network, audio, and foreground service declarations.
+mobile-app/app/src/debug/AndroidManifest.xml | 15 | Y | Debug manifest registering MeshDebugReceiver for test broadcasts.
+
+## C. Mesh Production Code
+path | lines | read-in-full (Y/N) | one-line summary
+mobile-app/app/src/main/java/com/ridervoice/mesh/FeatureFlags.kt | 39 | Y | Feature flags controlling offline mesh rollout and local debug overrides.
+mobile-app/app/src/main/java/com/ridervoice/mesh/MeshConfig.kt | 59 | Y | Protocol and network configuration parameters, port constants, and buffer sizes.
+mobile-app/app/src/main/java/com/ridervoice/mesh/MeshLog.kt | 20 | Y | Internal tag-based logging wrapper for mesh telemetry and errors.
+mobile-app/app/src/main/java/com/ridervoice/mesh/MeshRuntimeSettings.kt | 75 | Y | Runtime settings wrapper and SharedPreferences backed settings implementation.
+mobile-app/app/src/main/java/com/ridervoice/mesh/OfflineMeshGate.kt | 57 | Y | Build and runtime gate checking feature flag and settings state.
+mobile-app/app/src/main/java/com/ridervoice/mesh/audio/AudioManagerPort.kt | 180 | Y | Port abstraction for Android AudioManager audio routing, focus, and mode.
+mobile-app/app/src/main/java/com/ridervoice/mesh/audio/HardwarePttPort.kt | 26 | Y | Hardware PTT key event listener interface and state dispatcher.
+mobile-app/app/src/main/java/com/ridervoice/mesh/audio/JitterBuffer.kt | 284 | Y | Jitter buffer queuing, reordering, and concealment for raw PCM frames.
+mobile-app/app/src/main/java/com/ridervoice/mesh/audio/MeshAudioRouteController.kt | 169 | Y | Audio routing controller managing speaker, bluetooth SCO, and wired headset.
+mobile-app/app/src/main/java/com/ridervoice/mesh/audio/MeshVoxBridge.kt | 165 | Y | Bridge connecting VOX energy detector to MicController capture requests.
+mobile-app/app/src/main/java/com/ridervoice/mesh/audio/MicController.kt | 122 | Y | Mic controller evaluating mic rules for PTT, VOX, mute, and deafen flags.
+mobile-app/app/src/main/java/com/ridervoice/mesh/audio/OfflineAudioCapture.kt | 236 | Y | AudioRecord-based PCM audio capture engine with coroutine dispatch.
+mobile-app/app/src/main/java/com/ridervoice/mesh/audio/OfflineAudioPlayback.kt | 140 | Y | AudioTrack-based PCM audio playback pipeline feeding jitter buffer frames.
+mobile-app/app/src/main/java/com/ridervoice/mesh/continuity/ContinuityConfig.kt | 13 | Y | Lease configuration constants for stage 4 mesh session continuity.
+mobile-app/app/src/main/java/com/ridervoice/mesh/continuity/ContinuityLeaseClient.kt | 58 | Y | Client handling HTTP lease renewals with backend for continuity.
+mobile-app/app/src/main/java/com/ridervoice/mesh/continuity/ContinuityModels.kt | 23 | Y | Data models representing continuity leases and token responses.
+mobile-app/app/src/main/java/com/ridervoice/mesh/diagnostics/MeshDiagnosticsRepository.kt | 60 | Y | Repository aggregating packet counts, drop metrics, and link telemetry.
+mobile-app/app/src/main/java/com/ridervoice/mesh/discovery/HelloCodec.kt | 39 | Y | Encoder and decoder for discovery HELLO packets and neighbor payloads.
+mobile-app/app/src/main/java/com/ridervoice/mesh/forwarding/ForwardingEngine.kt | 496 | Y | Forwarding engine managing packet routing, TTL, duplicate suppression, and relays.
+mobile-app/app/src/main/java/com/ridervoice/mesh/forwarding/TtlPolicy.kt | 57 | Y | TTL decrement, hop validation, and maximum relay limit enforcement.
+mobile-app/app/src/main/java/com/ridervoice/mesh/graph/MeshGraphRepository.kt | 192 | Y | In-memory topology graph tracking active peers, routes, and link costs.
+mobile-app/app/src/main/java/com/ridervoice/mesh/identity/MeshIdentity.kt | 78 | Y | Peer identity generation, persistent device ID, and ephemeral session IDs.
+mobile-app/app/src/main/java/com/ridervoice/mesh/link/MeshEndpoint.kt | 13 | Y | IP address and UDP port value class representing a network peer endpoint.
+mobile-app/app/src/main/java/com/ridervoice/mesh/link/MeshLink.kt | 26 | Y | Link layer interface defining packet sending, receiving flows, and link state.
+mobile-app/app/src/main/java/com/ridervoice/mesh/link/NetworkLocks.kt | 83 | Y | Wi-Fi and multicast lock manager holding wake locks for broadcast packets.
+mobile-app/app/src/main/java/com/ridervoice/mesh/link/UdpMeshLink.kt | 169 | Y | DatagramSocket UDP link handling multicast/broadcast datagrams over Wi-Fi.
+mobile-app/app/src/main/java/com/ridervoice/mesh/link/WifiNetworkWatcher.kt | 45 | Y | ConnectivityManager NetworkCallback watcher observing Wi-Fi network availability and loss.
+mobile-app/app/src/main/java/com/ridervoice/mesh/protocol/DuplicatePacketCache.kt | 58 | Y | Sliding window LRU cache filtering duplicate packet IDs within time window.
+mobile-app/app/src/main/java/com/ridervoice/mesh/protocol/MeshPacket.kt | 134 | Y | Packet header definition, magic bytes, packet types, and wire framing.
+mobile-app/app/src/main/java/com/ridervoice/mesh/protocol/PayloadCrypto.kt | 80 | Y | AES-GCM-256 payload encryption and HMAC-SHA256 frame integrity verifier.
+mobile-app/app/src/main/java/com/ridervoice/mesh/routing/RouteCalculator.kt | 105 | Y | Shortest path route calculator finding next hop towards destination peer.
+mobile-app/app/src/main/java/com/ridervoice/mesh/session/OfflineSecretProvider.kt | 25 | Y | Provider interface supplying shared secrets and pairing credentials.
+mobile-app/app/src/main/java/com/ridervoice/mesh/session/OfflineSession.kt | 172 | Y | Offline session model containing session ID, timestamps, and active state.
+mobile-app/app/src/main/java/com/ridervoice/mesh/session/OfflineSessionHolder.kt | 71 | Y | Static holder and singleton accessor for current active offline session.
+mobile-app/app/src/main/java/com/ridervoice/mesh/session/SessionKdf.kt | 42 | Y | PBKDF2 with HMAC-SHA256 key derivation function producing auth and enc keys.
+mobile-app/app/src/main/java/com/ridervoice/mesh/switching/AutomaticSwitchStateMachine.kt | 272 | Y | State machine controlling automatic handoff between LiveKit and offline mesh.
+mobile-app/app/src/main/java/com/ridervoice/mesh/switching/Clock.kt | 14 | Y | Wall clock abstraction enabling deterministic time control in unit tests.
+mobile-app/app/src/main/java/com/ridervoice/mesh/switching/LocalHealthSignalsProvider.kt | 186 | Y | Provider aggregating connectivity, packet loss, and peer signals for state machine.
+mobile-app/app/src/main/java/com/ridervoice/mesh/switching/MeshAutoSwitchManager.kt | 212 | Y | Manager orchestrating background health monitoring and state transitions.
+mobile-app/app/src/main/java/com/ridervoice/mesh/switching/SwitchingModels.kt | 129 | Y | Data models representing switch states, health signals, and config parameters.
+mobile-app/app/src/main/java/com/ridervoice/mesh/switching/ValidatedInternetSource.kt | 106 | Y | HTTP probe validating actual internet reachability beyond local network links.
+mobile-app/app/src/main/java/com/ridervoice/mesh/transport/AudioOwnershipArbiter.kt | 106 | Y | Arbiter preventing concurrent audio focus contention between online and mesh.
+mobile-app/app/src/main/java/com/ridervoice/mesh/transport/LiveKitPort.kt | 24 | Y | Port abstraction wrapping LiveKitManager audio pause and resume methods.
+mobile-app/app/src/main/java/com/ridervoice/mesh/transport/LiveKitVoiceTransport.kt | 280 | Y | Voice transport adapter wrapping LiveKit room audio session.
+mobile-app/app/src/main/java/com/ridervoice/mesh/transport/MeshControl.kt | 48 | Y | Control interface for inspecting mesh link state and peer reachability.
+mobile-app/app/src/main/java/com/ridervoice/mesh/transport/OfflineMeshVoiceTransport.kt | 590 | Y | Primary offline voice transport handling UDP link, capture, playback, and peer tracking.
+mobile-app/app/src/main/java/com/ridervoice/mesh/transport/VoiceParticipantModels.kt | 108 | Y | Data models for voice participants, speaker states, and peer presence.
+mobile-app/app/src/main/java/com/ridervoice/mesh/transport/VoiceSessionCoordinator.kt | 245 | Y | Coordinator arbitrating between LiveKitVoiceTransport and OfflineMeshVoiceTransport.
+mobile-app/app/src/main/java/com/ridervoice/mesh/transport/VoiceTransport.kt | 60 | Y | Core transport abstraction defining common audio controls and lifecycle states.
+mobile-app/app/src/main/java/com/ridervoice/mesh/ui/MeshColors.kt | 51 | Y | Compose color palette and theme tokens for mesh UI components.
+mobile-app/app/src/main/java/com/ridervoice/mesh/ui/MeshControls.kt | 385 | Y | Extracted composable controls for mesh fallback overlay and offline room screens.
+mobile-app/app/src/main/java/com/ridervoice/mesh/ui/OfflineAvailabilityUi.kt | 78 | Y | Pure mapper functions translating mesh availability and transition reasons to UI models.
+mobile-app/app/src/main/java/com/ridervoice/mesh/ui/MeshSettingsViewModel.kt | 52 | Y | ViewModel exposing reactive MeshSettingsUiState backed by MeshRuntimeSettings.
+mobile-app/app/src/main/java/com/ridervoice/mesh/ui/OfflineAwareRoomHost.kt | 229 | Y | Top-level host composing room screen with fallback status banner overlay.
+mobile-app/app/src/main/java/com/ridervoice/mesh/ui/OfflineMeshLobbyScreen.kt | 402 | Y | Offline mesh lobby Composable for creating, joining, and sharing pairing codes.
+mobile-app/app/src/main/java/com/ridervoice/mesh/ui/MeshSelfTestMapper.kt | 42 | Y | Pure mapper function mapping link state and neighbour counts to self-test UI state.
+mobile-app/app/src/main/java/com/ridervoice/mesh/ui/WifiCapabilityChecker.kt | 25 | Y | Interface and system implementation checking hardware Wi-Fi feature availability.
+mobile-app/app/src/main/java/com/ridervoice/mesh/ui/OfflineMeshViewModel.kt | 152 | Y | ViewModel for mesh lobby screen handling pairing code generation and join logic.
+mobile-app/app/src/main/java/com/ridervoice/mesh/ui/OfflineRoomScreen.kt | 663 | Y | Full standalone offline room UI with peer list, audio controls, and telemetry.
+mobile-app/app/src/main/java/com/ridervoice/services/MeshForegroundService.kt | 224 | Y | Foreground service keeping mesh network sockets and audio alive in background.
+mobile-app/app/src/main/java/com/ridervoice/di/MeshModule.kt | 242 | Y | Dagger/Hilt module providing singletons for mesh transports, engines, and settings.
+mobile-app/app/src/main/java/com/ridervoice/App.kt | 153 | Y | Application entrypoint initializing OfflineMeshGate and global app singletons.
+mobile-app/app/src/main/java/com/ridervoice/navigation/NavGraph.kt | 443 | Y | Navigation graph defining destinations, route arguments, and screen composables.
+mobile-app/app/src/main/java/com/ridervoice/navigation/Routes.kt | 71 | Y | Route constants for navigation destinations including offline mesh routes.
+mobile-app/app/src/main/java/com/ridervoice/ui/screens/SettingsScreen.kt | 738 | Y | Settings screen with offline mesh toggle, automatic fallback, and warm standby.
+mobile-app/app/src/main/java/com/ridervoice/network/LiveKitManager.kt | 1341 | Y | Core LiveKit client managing room connection, audio tracks, and reconnect loops (read-only).
+mobile-app/app/src/main/java/com/ridervoice/network/ConnectionState.kt | 2 | Y | Enum defining LiveKit connection states (read-only).
+mobile-app/app/src/main/java/com/ridervoice/network/NetworkObserver.kt | 12 | Y | Network observer interface for monitoring active data connectivity (read-only).
+mobile-app/app/src/main/java/com/ridervoice/state/ActiveRideRepository.kt | 251 | Y | Repository tracking active ride state, token, and participant metadata (read-only).
+mobile-app/app/src/main/java/com/ridervoice/state/RoomViewModel.kt | 439 | Y | ViewModel managing online room lifecycle, mic controls, and ride state (read-only).
+mobile-app/app/src/main/java/com/ridervoice/ui/screens/RoomScreen.kt | 343 | Y | Composable rendering online ride room UI and audio control controls (read-only).
+mobile-app/app/src/main/java/com/ridervoice/audio/VoxEngine.kt | 440 | Y | Low-level energy-based voice activity detector processing PCM audio buffers (read-only).
+mobile-app/app/src/main/java/com/ridervoice/audio/VoxDetector.kt | 224 | Y | VOX speech detector wrapping energy thresholds and attack/decay timers (read-only).
+mobile-app/app/src/main/java/com/ridervoice/audio/HardwarePTTManager.kt | 99 | Y | Manager listening to hardware button events for push-to-talk actuation (read-only).
+mobile-app/app/src/main/java/com/ridervoice/services/VoiceForegroundService.kt | 347 | Y | Foreground service hosting online LiveKit audio session (read-only).
+mobile-app/app/src/main/res/values/strings.xml | 337 | Y | English application string resources including mesh strings.
+mobile-app/app/src/main/res/values-hi/strings.xml | 337 | Y | Hindi translation string resources including mesh strings.
+mobile-app/app/src/main/res/values-mr/strings.xml | 337 | Y | Marathi translation string resources including mesh strings.
+
+## D. Tests
+path | lines | read-in-full (Y/N) | one-line summary
+mobile-app/app/src/test/java/com/ridervoice/mesh/AudioHandoffRobustnessTest.kt | 556 | Y | Tests transitions between LiveKit and mesh audio states, mic ducking, and packet loss tolerance during handoff (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/HandoffCorrectnessTest.kt | 553 | Y | Tests state machine handoff sequences, rollback on failure, and coordinator pause/resume (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ImportIsolationTest.kt | 77 | Y | Asserts com.ridervoice.mesh does not import forbidden online LiveKit packages by checking file contents (SOURCE-TEXT).
+mobile-app/app/src/test/java/com/ridervoice/mesh/MeshStage1SimulationTest.kt | 547 | Y | Simulates 6-node topologies, packet delivery, TTL decrements, and duplicate suppression (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/MicAudioControlPathTest.kt | 400 | Y | Tests mic capture flags, VOX detection, PTT mute rules, and hardware button events (TEST-DISPATCHER-ONLY, real dispatcher in hardware manager).
+mobile-app/app/src/test/java/com/ridervoice/mesh/NetworkProtocolHardeningTest.kt | 270 | Y | Validates packet serialization, header validation, boundary limits, and malformed frames (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/OfflineMeshGateTest.kt | 181 | Y | Tests gate conditions checking build config flags and local settings overrides (SOURCE-TEXT / BEHAVIORAL).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ProductionWiringTest.kt | 139 | Y | Asserts Hilt module bindings, manifest permissions, and exported service flags via reflection and file inspection (SOURCE-TEXT).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ProtocolHardeningTest.kt | 352 | Y | Asserts protocol constants (TTL, port, magic bytes) and packet constraints (SOURCE-TEXT / BEHAVIORAL).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ScheduledNet.kt | 71 | Y | Virtual network simulation utility providing deterministic in-memory packet dispatch for tests (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/SessionHygieneTest.kt | 93 | Y | Asserts key material cleanup and session holder state reset across session boundaries (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/SessionLifecycleTest.kt | 295 | Y | Tests creation, joining, expiry, and secret derivation of offline mesh sessions (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/Stage2IntegrationTest.kt | 133 | Y | End-to-end simulation of mesh discovery, pairing, and audio packet routing across nodes (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/Stage3AutomaticSwitchingTest.kt | 243 | Y | Tests auto-switch state transitions between ONLINE, OFFLINE, and RECOVERING based on health signals (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/Stage3ReachabilityTest.kt | 590 | Y | Tests peer reachability graphs, route recalculation, and hop count tracking (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/Stage5AcceptanceTest.kt | 393 | Y | Comprehensive integration test verifying multi-hop audio relay, late joiners, and network repartitioning (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/StateMachineLifecycleTest.kt | 589 | Y | Exhaustive state transition tests for AutomaticSwitchStateMachine with mocked timers and triggers (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ValidatedInternetAndStandingRulesTest.kt | 272 | Y | Validates internet probe rules, flapping detection, and switch hysteresis (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/WP34RedTests.kt | 459 | Y | Regression tests for audio ducking, mic arbitration, and recovery race conditions (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/AdversarialTest.kt | 380 | Y | Tests replay attacks, corrupted signatures, out-of-order nonces, and packet tampering (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/AndroidNetworkingTest.kt | 189 | Y | Tests socket binding, multicast lock acquisition, and link lifecycle with mocks (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/AudioOwnershipArbiterTest.kt | 80 | Y | Tests concurrent acquisition and release of audio focus between online and mesh (REAL-DISPATCHER).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/CompositionRootTest.kt | 179 | Y | Verifies Dagger/Hilt graph dependencies and module scoping for mesh classes (SOURCE-TEXT).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/HonestStateTest.kt | 383 | Y | Validates that state reporting reflects actual underlying link and session status (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/MeshAudioTest.kt | 190 | Y | Verifies PCM encoding/decoding, jitter buffer queueing, and audio packet sizing (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/PayloadCryptoTest.kt | 178 | Y | Verifies AES-GCM encryption/decryption, HMAC authentication, and tamper resistance (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/ProtocolSpecVectorTest.kt | 124 | Y | Validates packet binary layout and serialization against frozen byte vectors (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/RelayAmplificationTest.kt | 189 | Y | Measures packet duplication counts across mesh topologies and redundant relay suppression (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/ScheduledDeliveryScenarioTest.kt | 456 | Y | Simulates complex multi-node packet delivery timing under variable jitter and packet loss (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/SessionKdfTest.kt | 129 | Y | Tests PBKDF2 key derivation and Crockford Base32 pairing code decoding vectors (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/StateMachineLivenessTest.kt | 130 | Y | Tests that state machine cannot deadlock on rapid signal changes (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/TransportPauseResumeTest.kt | 131 | Y | Tests pause and resume lifecycle of LiveKit and Mesh voice transports (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/TransportRobustnessTest.kt | 120 | Y | Verifies transport recovery after network exceptions and unexpected disconnects (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/VoiceSessionCoordinatorTest.kt | 291 | Y | Tests coordinator arbitration between LiveKit and mesh transports (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/WiringTest.kt | 352 | Y | Tests signal plumbing between LocalHealthSignalsProvider and AutomaticSwitchStateMachine (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ui/OfflineMeshViewModelTest.kt | 169 | Y | Tests lobby UI state, pairing code generation, session creation, and error display (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ui/StringsParityTest.kt | 92 | Y | Asserts string resource parity across en, hi, and mr resource files (SOURCE-TEXT).
+mobile-app/app/src/test/java/com/ridervoice/mesh/audio/MicControllerOrderingTest.kt | 98 | Y | Stress test for MicController ordering and single-consumer serialization (REAL-DISPATCHER).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ui/FallbackControlsTest.kt | 490 | Y | Tests fallback overlay UI state activation, PTT and mic toggle routing, and VOX/mic carryover (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ui/MeshSettingsViewModelTest.kt | 85 | Y | Tests reactive propagation of MeshRuntimeSettings mutations to UI state (TEST-DISPATCHER-ONLY).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ui/OfflineAvailabilityUiTest.kt | 65 | Y | Unit tests for availability and fallback reason UI copy mapping (TEST-DISPATCHER-ONLY).
+.github/scripts/mesh-commit-guard.sh | 37 | Y | Mesh commit guard script enforcing LiveKit contract freeze.
+.github/test-census-floor | 1 | Y | Single integer storing unit test census floor (477).

@@ -80,13 +80,21 @@ class MeshAutoSwitchManager(
             ) { ride, _ -> ride }.collectLatest { ride ->
                 if (ride == null || ride.phase != ActiveRideRepository.Phase.LIVE) {
                     // Phase.LOBBY / Phase.ENDING / null -> endSession, stop ticks, stop discovery, restore online transport
-                    if (currentLiveRideId != null) {
+                    val wasRideLive = currentLiveRideId != null
+                    if (wasRideLive) {
                         stateMachine.endSession()
                         currentLiveRideId = null
                     }
                     coordinator.setOnlineSession(null)
                     _groupStatus.value = GroupConnectivityStatus.ONLINE_ALL
-                    coordinator.onOnlineRideEnded(keepStandaloneMesh = isStandaloneSessionActive())
+                    if (wasRideLive) {
+                        coordinator.onOnlineRideEnded(keepStandaloneMesh = isStandaloneSessionActive())
+                    } else if (!isStandaloneSessionActive() &&
+                        meshTransport.state.value != VoiceTransportState.STOPPED &&
+                        stateMachine.state.value == AutoSwitchState.ONLINE
+                    ) {
+                        meshTransport.stop()
+                    }
                     return@collectLatest
                 }
 
@@ -144,15 +152,17 @@ class MeshAutoSwitchManager(
                 }
 
                 if (!OfflineMeshGate.isOfflineAllowed()) {
-                    if (currentLiveRideId != null) {
-                        stateMachine.endSession()
-                        currentLiveRideId = null
+                    val wasOffOnline = stateMachine.state.value != AutoSwitchState.ONLINE
+                    if (wasOffOnline) {
+                        stateMachine.beginSession(ride.roomId, clock.nowMs())
                     }
                     _groupStatus.value = GroupConnectivityStatus.ONLINE_ALL
                     if (meshTransport.state.value != VoiceTransportState.STOPPED && !isStandaloneSessionActive()) {
                         meshTransport.stop()
                     }
-                    coordinator.onOnlineRideEnded(keepStandaloneMesh = false)
+                    if (wasOffOnline) {
+                        coordinator.onOnlineRideEnded(keepStandaloneMesh = false)
+                    }
                 } else if (meshTransport.state.value != VoiceTransportState.STOPPED &&
                     stateMachine.state.value == AutoSwitchState.ONLINE &&
                     !isStandaloneSessionActive()

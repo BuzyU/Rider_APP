@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.forwarding
 
+import androidx.annotation.VisibleForTesting
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.discovery.HelloCodec
 import com.ridervoice.mesh.discovery.HelloPayload
@@ -67,7 +68,11 @@ class ForwardingEngine(
     private val link: MeshLink,
     private val clock: () -> Long,
     private val onLocalVoicePacket: (MeshPacket) -> Unit = {},
-    private val localEpoch: Int = SecureRandom().nextInt()
+    private val localEpoch: Int = SecureRandom().nextInt(),
+    private val suppressRedundantRelays: Boolean = MeshConfig.SUPPRESS_REDUNDANT_RELAYS,
+    private val acceptLegacyNonce: Boolean = false,
+    private val isDebugBuild: Boolean = com.ridervoice.BuildConfig.DEBUG,
+    private val debugPeerFilter: ((String) -> Boolean)? = null
 ) {
     private val voiceSeqGen = AtomicInteger(0)
     private val controlSeqGen = AtomicInteger(0)
@@ -268,7 +273,7 @@ class ForwardingEngine(
         }
 
         // Enforce debug peer filter (Fixes H5)
-        val filter = MeshConfig.debugPeerFilter
+        val filter = if (isDebugBuild) debugPeerFilter else null
         if (filter != null && !filter(decoded.previousHopId)) {
             droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID)
@@ -344,7 +349,7 @@ class ForwardingEngine(
         )
         val nonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code, decoded.sourceId)
         var plain = PayloadCrypto.open(payloadKey, nonce, aad, decoded.payload)
-        if (plain == null && MeshConfig.ACCEPT_LEGACY_NONCE) {
+        if (plain == null && acceptLegacyNonce) {
             val fallbackNonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code)
             plain = PayloadCrypto.open(payloadKey, fallbackNonce, aad, decoded.payload)
         }
@@ -455,7 +460,7 @@ class ForwardingEngine(
         now: Long
     ): List<com.ridervoice.mesh.graph.DirectNeighbor> {
         val alreadyCovered: Set<String> =
-            if (MeshConfig.SUPPRESS_REDUNDANT_RELAYS) coveredByDirectHearing(sourceId, previousHopId, now) else emptySet()
+            if (suppressRedundantRelays) coveredByDirectHearing(sourceId, previousHopId, now) else emptySet()
         val liveDirect = graphRepository.directNeighbors().filter { neighbor ->
             neighbor.deviceId != previousHopId &&
                 neighbor.deviceId != sourceId &&
@@ -492,5 +497,16 @@ class ForwardingEngine(
             if (e.to == sourceId || e.to == previousHopId) covered.add(e.from)
         }
         return covered
+    }
+
+    fun close() {
+        authKey.fill(0)
+        payloadKey.fill(0)
+    }
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    fun isZeroized(): Boolean {
+        return authKey.isNotEmpty() && authKey.all { it == 0.toByte() } &&
+               payloadKey.isNotEmpty() && payloadKey.all { it == 0.toByte() }
     }
 }

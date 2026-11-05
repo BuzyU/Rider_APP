@@ -16,6 +16,7 @@ import com.ridervoice.mesh.transport.VoiceTransportState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -81,7 +82,10 @@ class VoiceSessionCoordinatorTest {
             _state.value = VoiceTransportState.CONNECTED
         }
 
+        var enableAudioLatch: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
         override suspend fun enableAudio(): EnableAudioResult {
+            enableAudioLatch?.await()
             if (failOnEnableAudio) {
                 return EnableAudioResult.Failure.HardwareBusy
             }
@@ -287,5 +291,29 @@ class VoiceSessionCoordinatorTest {
         assertFalse("Mute state restored to pre-fallback value (false)", mutedState)
         assertFalse("Deafen state restored to pre-fallback value (false)", deafenedState)
         assertEquals(AudioOwner.LIVEKIT, arbiter.owner.value)
+    }
+
+    @Test
+    fun cancellationDuringEnableAudio_rethrowsAndCancelsJob() = runTest {
+        val arbiter = AudioOwnershipArbiter()
+        val liveKit = FakeLiveKitTransport()
+        val mesh = FakeMeshTransport()
+        mesh._hasValidRoute.value = true
+        val latch = kotlinx.coroutines.CompletableDeferred<Unit>()
+        mesh.enableAudioLatch = latch
+
+        val coordinator = VoiceSessionCoordinator(liveKit, mesh, arbiter)
+
+        val job = launch {
+            coordinator.fallbackToMesh()
+        }
+
+        testScheduler.runCurrent()
+        assertTrue("Job should be active and suspended in enableAudio", job.isActive)
+
+        job.cancel()
+        testScheduler.runCurrent()
+
+        assertTrue("Job must be cancelled without swallowing CancellationException (B11)", job.isCancelled)
     }
 }

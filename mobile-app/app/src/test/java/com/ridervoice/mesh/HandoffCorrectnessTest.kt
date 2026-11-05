@@ -355,9 +355,7 @@ class HandoffCorrectnessTest {
             liveKitTransport = liveKit,
             meshTransport = mesh,
             audioOwnershipArbiter = arbiter,
-            secretProvider = object : OfflineSecretProvider {
-                override fun getSecretForOnlineRide(roomId: String) = ByteArray(32) { 1 }
-            },
+            secretProvider = NullOfflineSecretProvider(),
             dispatcher = StandardTestDispatcher(testScheduler)
         )
 

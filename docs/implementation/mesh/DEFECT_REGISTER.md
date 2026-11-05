@@ -56,25 +56,25 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | B3 | CRITICAL | Switching | FIXED (WP-46) | `AutomaticSwitchStateMachine.kt:133` | FailedHandoffBackoffTest#failedHandoff_backsOffAndSuppressesFlapping_atMostFourAttemptsInTwoMinutes |
 | B4 | CRITICAL | Audio | FIXED (WP-45) | `MicController.kt:95` | MicControllerOrderingTest#multiThreadedOrderingAndConcurrencyTest |
 | B5 | HIGH | Settings | FIXED (WP-44) | `MeshRuntimeSettings.kt:40` | MeshSettingsViewModelTest#togglePropagatesToOfflineMeshGateThroughSingleInstance |
-| B6 | HIGH | Protocol | OPEN | `MeshConfig.kt:36` | None (pending WP-49) |
+| B6 | HIGH | Protocol | FIXED (WP-49) | `ForwardingEngine.kt:72` | RelayAmplificationTest#fullyConnectedSixDevices_defaultNoSuppression_sendsTwentyFiveDatagramsAndAllHearIt |
 | B7 | HIGH | Verification | FIXED | `DEFECT_REGISTER.md:1` | ImportIsolationTest#onlineCodeDoesNotImportMesh |
 | B8 | MEDIUM | Docs | OPEN | `docs/implementation/mesh/` | None (pending WP-51) |
 | B9 | HIGH | Transport | FIXED (WP-47) | `OfflineMeshVoiceTransport.kt:258` | LinkSupervisorTest#linkSupervisor_recoversFromTransientLinkFailure_togglesIsLinkAlive |
 | B10 | HIGH | Link | FIXED (WP-47) | `WifiNetworkWatcher.kt:1` | WifiRebindTest#wifiChangeEvents_debouncedToSingleRestart |
-| B11 | HIGH | Coroutines | OPEN | `VoiceSessionCoordinator.kt:130` | None (pending WP-49) |
+| B11 | HIGH | Coroutines | FIXED (WP-49) | `Cancellable.kt:3` | VoiceSessionCoordinatorTest#cancellationDuringEnableAudio_rethrowsAndCancelsJob |
 | B12 | MEDIUM | Link | FIXED (WP-47) | `NetworkLocks.kt:25` | MulticastLockLifecycleTest#multicastLockAcquiredOnDiscoveryStart_releasedOnStop_wifiLockOnlyOnAudio |
 | B13 | MEDIUM | Resources | FIXED (WP-44) | `SettingsScreen.kt:265` | StringsParityTest#allRequiredMeshSettingsKeysPresentAcrossLocales |
 | B14 | MEDIUM | UI | FIXED (WP-44) | `SettingsScreen.kt:225` | OfflineAvailabilityUiTest#noSharedSecret_returnsNoBackupCodeState |
 | B15 | LOW | Switching | FIXED (WP-46) | `AutomaticSwitchStateMachine.kt:35` | FailedHandoffBackoffTest#failedHandoff_realDispatcherConcurrencyTest |
 | B16 | HIGH | Switching | FIXED (WP-46) | `LocalHealthSignalsProvider.kt:85` | WiringTest#localHealthSignalsProviderSamplesLocalSignalsAccurately |
-| B17 | HIGH | Security | OPEN | `ForwardingEngine.kt:496` | None (pending WP-49) |
-| B18 | HIGH | Security | OPEN | `FeatureFlags.kt:28` | None (pending WP-49) |
+| B17 | HIGH | Security | FIXED (WP-49) | `ForwardingEngine.kt:502` | KeyZeroizationTest#forwardingEngine_closeZeroizesKeyArrays |
+| B18 | HIGH | Security | FIXED (WP-49) | `FeatureFlags.kt:32` | NetworkProtocolHardeningTest#debugPeerFilter_noopInRelease |
 | B19 | MEDIUM | CI | OPEN | `.github/workflows/build.yml:45` | None (pending WP-51) |
 | B20 | MEDIUM | Testing | OPEN | `ProtocolHardeningTest.kt:50` | None (pending WP-52) |
 | B21 | LOW | Testing | FIXED (WP-48) | `PHYSICAL_TEST_CHECKLIST.md:1` | MeshSettingsViewModelTest#whenWifiHardwareMissing_automaticFallbackCannotBeEnabled |
 | B22 | LOW | Settings | OPEN | `SETTINGS_CONTRACT.md:10` | None (pending WP-51) |
 | B23 | MEDIUM | UI | FIXED (WP-44/WP-46) | `OfflineAwareRoomHost.kt:45` | MeshSettingsViewModelTest#togglePropagatesToOfflineMeshGateThroughSingleInstance |
-| B24 | LOW | Transport | FIXED (WP-45) | `OfflineMeshVoiceTransport.kt:310` | FallbackControlsTest#hostState_overlayActiveStatesMatchPlanSpecification |
+| B24 | LOW | Transport | FIXED (WP-45/WP-49) | `MeshPeerProjector.kt:12` | FallbackControlsTest#hostState_overlayActiveStatesMatchPlanSpecification |
 | B25 | LOW | Lint | OPEN | `mobile-app/app/lint-baseline.xml:135` | None (pending WP-51) |
-| B26 | LOW | Security | OPEN | `docs/security/mesh-threat-model.md:60` | None (pending WP-49) |
+| B26 | LOW | Security | FIXED (WP-49) | `docs/security/mesh-threat-model.md:107` | SessionHygieneTest#offlineSession_toStringNeverLeaksCodeOrKeyBytes |
 | B27 | MEDIUM | Testing | OPEN | `mobile-app/app/src/test/` | None (pending WP-52) |

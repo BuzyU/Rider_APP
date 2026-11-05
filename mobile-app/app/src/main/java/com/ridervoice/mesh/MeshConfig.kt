@@ -18,7 +18,7 @@ object MeshConfig {
      * Without this, 6 fully connected devices produced 25 datagrams per voice frame instead of 5.
      * Trade-off: removes accidental redundancy, so measure packet loss on real hardware (device scenario 13/35).
      */
-    const val SUPPRESS_REDUNDANT_RELAYS = true
+    const val SUPPRESS_REDUNDANT_RELAYS = false
     /** Number of times a packet may still be forwarded. 5 reaches 6 hops, the max chain for 6 devices. */
     const val DEFAULT_TTL = 5
     /** HELLO floods are kept shorter than audio. */
@@ -42,18 +42,4 @@ object MeshConfig {
 
     const val SESSION_LIFETIME_MS = 8L * 60 * 60 * 1000
 
-    /** Whether to accept legacy nonces without sourceId prefix. False by default for protocol hardening (A18). */
-    var ACCEPT_LEGACY_NONCE: Boolean = false
-
-    var isDebugBuild: Boolean = com.ridervoice.BuildConfig.DEBUG
-
-    /** Debug peer filter for test hooks / partition testing. Operates only in debug builds. */
-    @Volatile private var _debugPeerFilter: ((String) -> Boolean)? = null
-    var debugPeerFilter: ((String) -> Boolean)?
-        get() = if (isDebugBuild) _debugPeerFilter else null
-        set(value) {
-            if (isDebugBuild) {
-                _debugPeerFilter = value
-            }
-        }
 }

@@ -24,7 +24,6 @@ class OfflineSession private constructor(
 
     fun isExpired(now: Long): Boolean = now >= expiresAt
 
-    val secret: ByteArray get() = payloadKey()
 
     /** DISPLAY ONLY (lobby). Empty after close(). */
     val pairingCode: String get() = if (closed) "" else String(code)

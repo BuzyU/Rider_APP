@@ -53,7 +53,8 @@ class AdversarialTest {
         val id: String,
         val host: String,
         val session: OfflineSession,
-        val clock: () -> Long
+        val clock: () -> Long,
+        val debugPeerFilter: ((String) -> Boolean)? = null
     ) {
         val ep = MeshEndpoint(host, MeshConfig.MESH_PORT)
         val link = FakeLink()
@@ -69,7 +70,8 @@ class AdversarialTest {
             duplicateCache = DuplicatePacketCache(clock = clock),
             ttlPolicy = TtlPolicy(clock = clock),
             link = link,
-            clock = clock
+            clock = clock,
+            debugPeerFilter = debugPeerFilter
         )
     }
 
@@ -348,33 +350,27 @@ class AdversarialTest {
         val aId = UUID.randomUUID().toString()
         val cId = UUID.randomUUID().toString()
 
-        val c = Node(cId, "10.0.0.3", s, clock)
+        val c = Node(cId, "10.0.0.3", s, clock, debugPeerFilter = { previousHopId -> previousHopId != aId })
 
-        // Set peer filter on C to ignore direct frames from A
-        MeshConfig.debugPeerFilter = { previousHopId -> previousHopId != aId }
-        try {
-            val directFrameFromA = MeshFrame(
-                MeshEndpoint("10.0.0.1", MeshConfig.MESH_PORT),
-                MeshPacketCodec.encode(
-                    MeshPacket(
-                        type = MeshPacketType.VOICE,
-                        sessionId = s.sessionId,
-                        sourceId = aId,
-                        sequence = 1,
-                        captureTimestamp = t,
-                        ttl = 5,
-                        hopCount = 0,
-                        previousHopId = aId,
-                        payload = ByteArray(656)
-                    ),
-                    s.authKey()
-                )
+        val directFrameFromA = MeshFrame(
+            MeshEndpoint("10.0.0.1", MeshConfig.MESH_PORT),
+            MeshPacketCodec.encode(
+                MeshPacket(
+                    type = MeshPacketType.VOICE,
+                    sessionId = s.sessionId,
+                    sourceId = aId,
+                    sequence = 1,
+                    captureTimestamp = t,
+                    ttl = 5,
+                    hopCount = 0,
+                    previousHopId = aId,
+                    payload = ByteArray(656)
+                ),
+                s.authKey()
             )
-            val dropOutcome = c.engine.onIncomingFrame(directFrameFromA)
-            assertTrue("Direct packet from A must be filtered: $dropOutcome", dropOutcome is ReceiveOutcome.Dropped)
-            assertEquals(ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID, (dropOutcome as ReceiveOutcome.Dropped).reason)
-        } finally {
-            MeshConfig.debugPeerFilter = null
-        }
+        )
+        val dropOutcome = c.engine.onIncomingFrame(directFrameFromA)
+        assertTrue("Direct packet from A must be filtered: $dropOutcome", dropOutcome is ReceiveOutcome.Dropped)
+        assertEquals(ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID, (dropOutcome as ReceiveOutcome.Dropped).reason)
     }
 }

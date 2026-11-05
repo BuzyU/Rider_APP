@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.transport
 
+import androidx.annotation.VisibleForTesting
 import com.ridervoice.mesh.audio.HardwarePttPort
 import com.ridervoice.mesh.audio.MeshAudioRouteController
 import com.ridervoice.mesh.audio.MeshVoxBridge
@@ -98,6 +99,11 @@ class OfflineMeshVoiceTransport(
     val diagnostics: StateFlow<MeshDiagnosticsSnapshot> = diagnosticsRepo.snapshot
 
     private val _isLinkAlive = MutableStateFlow(true)
+    private val peerProjector by lazy { MeshPeerProjector(identity, diagnosticsRepo, clock) }
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal var lastForwardingEngineForTest: ForwardingEngine? = null
+
     override val isLinkAlive: StateFlow<Boolean> = _isLinkAlive.asStateFlow()
 
     val helloIntervalMs = java.util.concurrent.atomic.AtomicLong(MeshConfig.HELLO_INTERVAL_MS)
@@ -222,6 +228,7 @@ class OfflineMeshVoiceTransport(
             }
         )
         forwardingEngine = fEngine
+        lastForwardingEngineForTest = fEngine
 
         val scope = CoroutineScope(SupervisorJob() + dispatcher)
         transportScope = scope
@@ -349,32 +356,18 @@ class OfflineMeshVoiceTransport(
     }
 
     private fun updateProjectedPeers(snapshot: com.ridervoice.mesh.graph.MeshGraphSnapshot) {
-        val sManager = sessionManager ?: return
-        val rTable = routingTable ?: return
-        val fEngine = forwardingEngine ?: return
-        val now = clock()
-        val routes = rTable.routes.value
-        _hasValidRoute.value = routes.isNotEmpty()
-
         val speakers = audioPlayback?.activeSpeakers?.value ?: emptySet()
-        _activeSpeakers.value = speakers
+        val result = peerProjector.project(
+            snapshot = snapshot,
+            sessionManager = sessionManager,
+            routingTable = routingTable,
+            forwardingEngine = forwardingEngine,
+            speakers = speakers
+        ) ?: return
 
-        val offlineDevices = com.ridervoice.mesh.transport.UnifiedVoicePeer.projectMeshGraph(snapshot, routes, speakers, now)
-        _participants.value = offlineDevices.map { com.ridervoice.mesh.transport.UnifiedVoicePeer.fromOffline(it, now) }
-
-        val cnt = fEngine.counters()
-        diagnosticsRepo.update(
-            selfDeviceId = identity.deviceId,
-            sessionId = sManager.session.sessionId,
-            memberCount = sManager.members().size,
-            graph = snapshot,
-            routes = routes,
-            receivedVoiceFrames = cnt.received,
-            forwardedVoiceFrames = cnt.forwarded,
-            droppedDuplicates = cnt.dup,
-            droppedInvalid = cnt.invalid,
-            droppedTtl = cnt.ttl
-        )
+        _hasValidRoute.value = result.hasValidRoute
+        _activeSpeakers.value = result.activeSpeakers
+        _participants.value = result.participants
     }
 
     private fun failEnable(failure: EnableAudioResult.Failure): EnableAudioResult.Failure {
@@ -558,6 +551,7 @@ class OfflineMeshVoiceTransport(
         sessionManager = null
         graphRepository = null
         routingTable = null
+        forwardingEngine?.close()
         forwardingEngine = null
         jitterManager = null
         currentSession = null

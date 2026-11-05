@@ -208,7 +208,6 @@ class FallbackControlsTest {
     private class FakeSecretProvider(var session: OfflineSession? = null) : OfflineSecretProvider {
         private val _flow = MutableStateFlow(session)
         override val backupSession: StateFlow<OfflineSession?> = _flow.asStateFlow()
-        override fun getSecretForOnlineRide(roomId: String): ByteArray? = ByteArray(32) { 1 }
     }
 
     @Test

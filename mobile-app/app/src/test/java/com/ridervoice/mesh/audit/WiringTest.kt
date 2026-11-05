@@ -192,7 +192,7 @@ class WiringTest {
      */
     @Test
     fun t24_debugPeerFilterDefaultsToNull() {
-        assertNull("debugPeerFilter must be null by default", MeshConfig.debugPeerFilter)
+        assertNull("debugPeerFilter must be null by default", com.ridervoice.mesh.MeshDebugReceiver.debugPeerFilter)
     }
 
     /**

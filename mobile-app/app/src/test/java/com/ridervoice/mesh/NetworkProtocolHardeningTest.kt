@@ -1,6 +1,12 @@
 package com.ridervoice.mesh
 
+import com.ridervoice.mesh.forwarding.ForwardingEngine
+import com.ridervoice.mesh.forwarding.ReceiveOutcome
 import com.ridervoice.mesh.forwarding.TtlPolicy
+import com.ridervoice.mesh.link.MeshFrame
+import com.ridervoice.mesh.link.MeshLink
+import com.ridervoice.mesh.session.OfflineSession
+import com.ridervoice.mesh.session.SessionManager
 import com.ridervoice.mesh.graph.MeshGraphRepository
 import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.UdpMeshLink
@@ -251,20 +257,73 @@ class NetworkProtocolHardeningTest {
 
     @Test
     fun debugPeerFilter_noopInRelease() {
-        val originalDebug = MeshConfig.isDebugBuild
-        try {
-            MeshConfig.isDebugBuild = false
-            MeshConfig.debugPeerFilter = { false }
-            assertNull("debugPeerFilter must be null when isDebugBuild is false", MeshConfig.debugPeerFilter)
-
-            MeshConfig.isDebugBuild = true
-            MeshConfig.debugPeerFilter = { it == "allowed" }
-            assertNotNull("debugPeerFilter must be settable when isDebugBuild is true", MeshConfig.debugPeerFilter)
-            assertTrue(MeshConfig.debugPeerFilter!!.invoke("allowed"))
-            assertFalse(MeshConfig.debugPeerFilter!!.invoke("blocked"))
-        } finally {
-            MeshConfig.isDebugBuild = originalDebug
-            MeshConfig.debugPeerFilter = null
+        val now = 10_000L
+        val selfId = UUID.randomUUID().toString()
+        val peerId = UUID.randomUUID().toString()
+        val session = OfflineSession.create(now)
+        val mockLink = object : MeshLink {
+            override val linkId = "mock"
+            override val state = kotlinx.coroutines.flow.MutableStateFlow(com.ridervoice.mesh.link.MeshLinkState.RUNNING)
+            override val incomingFrames = kotlinx.coroutines.flow.MutableSharedFlow<MeshFrame>()
+            override fun endpoints(): Set<MeshEndpoint> = emptySet()
+            override suspend fun start() {}
+            override suspend fun stop() {}
+            override fun send(endpoint: MeshEndpoint, payload: ByteArray) = true
         }
+
+        fun makeEngine(isDebug: Boolean, filter: ((String) -> Boolean)?): ForwardingEngine {
+            val sManager = SessionManager(session, selfId, clock = { now })
+            val repo = MeshGraphRepository(selfId, "Self", clock = { now })
+            val table = RoutingTable()
+            val dup = DuplicatePacketCache(clock = { now })
+            val ttl = TtlPolicy(clock = { now })
+            return ForwardingEngine(
+                selfId = selfId,
+                selfName = "Self",
+                sessionManager = sManager,
+                graphRepository = repo,
+                routingTable = table,
+                duplicateCache = dup,
+                ttlPolicy = ttl,
+                link = mockLink,
+                clock = { now },
+                isDebugBuild = isDebug,
+                debugPeerFilter = filter
+            )
+        }
+
+        val frame = MeshFrame(
+            MeshEndpoint("10.0.0.1", MeshConfig.MESH_PORT),
+            MeshPacketCodec.encode(
+                MeshPacket(
+                    type = MeshPacketType.VOICE,
+                    sessionId = session.sessionId,
+                    sourceId = peerId,
+                    sequence = 1,
+                    captureTimestamp = now,
+                    ttl = 5,
+                    hopCount = 0,
+                    previousHopId = peerId,
+                    payload = ByteArray(656)
+                ),
+                session.authKey()
+            )
+        )
+
+        // When isDebugBuild = false, debugPeerFilter is completely ignored (no-op in release)
+        val releaseEngine = makeEngine(isDebug = false, filter = { false })
+        val releaseOutcome = releaseEngine.onIncomingFrame(frame)
+        assertFalse(
+            "Release engine must ignore debugPeerFilter and not drop on PREVIOUS_HOP_INVALID",
+            releaseOutcome is ReceiveOutcome.Dropped && releaseOutcome.reason == ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID
+        )
+
+        // When isDebugBuild = true, debugPeerFilter is enforced
+        val debugEngine = makeEngine(isDebug = true, filter = { false })
+        val debugOutcome = debugEngine.onIncomingFrame(frame)
+        assertTrue(
+            "Debug engine must enforce debugPeerFilter and drop on PREVIOUS_HOP_INVALID",
+            debugOutcome is ReceiveOutcome.Dropped && debugOutcome.reason == ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID
+        )
     }
 }

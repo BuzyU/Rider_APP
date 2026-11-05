@@ -1,0 +1,61 @@
+package com.ridervoice.mesh.transport
+
+import com.ridervoice.mesh.diagnostics.MeshDiagnosticsRepository
+import com.ridervoice.mesh.forwarding.ForwardingEngine
+import com.ridervoice.mesh.graph.MeshGraphSnapshot
+import com.ridervoice.mesh.identity.MeshIdentity
+import com.ridervoice.mesh.routing.RoutingTable
+import com.ridervoice.mesh.session.SessionManager
+
+/**
+ * Pure projection of mesh graph topology, routes, and speakers into unified peer lists and diagnostics (B24).
+ */
+class MeshPeerProjector(
+    private val identity: MeshIdentity,
+    private val diagnosticsRepo: MeshDiagnosticsRepository,
+    private val clock: () -> Long
+) {
+    data class ProjectionResult(
+        val hasValidRoute: Boolean,
+        val activeSpeakers: Set<String>,
+        val participants: List<UnifiedVoicePeer>
+    )
+
+    fun project(
+        snapshot: MeshGraphSnapshot,
+        sessionManager: SessionManager?,
+        routingTable: RoutingTable?,
+        forwardingEngine: ForwardingEngine?,
+        speakers: Set<String>
+    ): ProjectionResult? {
+        val sManager = sessionManager ?: return null
+        val rTable = routingTable ?: return null
+        val fEngine = forwardingEngine ?: return null
+        val now = clock()
+        val routes = rTable.routes.value
+        val hasRoute = routes.isNotEmpty()
+
+        val offlineDevices = UnifiedVoicePeer.projectMeshGraph(snapshot, routes, speakers, now)
+        val peers = offlineDevices.map { UnifiedVoicePeer.fromOffline(it, now) }
+
+        val cnt = fEngine.counters()
+        diagnosticsRepo.update(
+            selfDeviceId = identity.deviceId,
+            sessionId = sManager.session.sessionId,
+            memberCount = sManager.members().size,
+            graph = snapshot,
+            routes = routes,
+            receivedVoiceFrames = cnt.received,
+            forwardedVoiceFrames = cnt.forwarded,
+            droppedDuplicates = cnt.dup,
+            droppedInvalid = cnt.invalid,
+            droppedTtl = cnt.ttl
+        )
+
+        return ProjectionResult(
+            hasValidRoute = hasRoute,
+            activeSpeakers = speakers,
+            participants = peers
+        )
+    }
+}

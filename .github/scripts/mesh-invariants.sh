@@ -16,6 +16,7 @@ check "Thread.sleep in mesh tests" grep -rn "Thread.sleep" mobile-app/app/src/te
 check "pairing code in debug src"  grep -rn "pairingCode" mobile-app/app/src/debug
 check "TTL 7 claims"               bash -c "grep -rnE 'DEFAULT_TTL = 7|TTL.*= 7|Default = 7' docs README.md ARCHITECTURE.md CODE_DEPTH_STRUCTURE.md | grep -v CORRECTED"
 check "banned doc words"           bash -c "grep -rniE 'seamless|production-ready|fully verified|100%' docs README.md ARCHITECTURE.md | grep -v CORRECTED"
+check "runCatching around suspend in mesh" bash -c "grep -rnE '\brunCatching\b.*(enableAudio|disableAudio|resume|pause|start\(|stop\(|setMicrophoneEnabled)' $M/mesh/transport; grep -rnE '\brunCatching\b.*(enableAudio|disableAudio|resume|pause|setMicrophoneEnabled)' $M/mesh/audio"
 grep -q "NET_CAPABILITY_VALIDATED" -r $M/mesh || { echo "VIOLATION: ValidatedInternetSource missing"; fail=1; }
 exit $fail
 

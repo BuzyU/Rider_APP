@@ -22,10 +22,12 @@ internal fun parsePeerFilter(allow: String?): ((String) -> Boolean)? {
  * adb shell am broadcast -a com.ridervoice.mesh.DEBUG_CLEAR_SESSION
  * adb shell am broadcast -a com.ridervoice.debug.MESH_SET_PEER_FILTER --es allow "peer1,peer2"
  */
-class MeshDebugReceiver : BroadcastReceiver() {
+class MeshDebugReceiver(
+    private val isDebug: Boolean = BuildConfig.DEBUG
+) : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (!BuildConfig.DEBUG || !MeshConfig.isDebugBuild) return
+        if (!BuildConfig.DEBUG || !isDebug) return
 
         val action = intent.action ?: return
         Log.i(TAG, "Received debug action: $action")
@@ -55,13 +57,15 @@ class MeshDebugReceiver : BroadcastReceiver() {
             }
             ACTION_SET_PEER_FILTER, ACTION_LEGACY_SET_PEER_FILTER -> {
                 val allowExtra = intent.getStringExtra(EXTRA_ALLOW) ?: intent.getStringExtra(EXTRA_ALLOWED_PEERS)
-                MeshConfig.debugPeerFilter = parsePeerFilter(allowExtra)
-                Log.i(TAG, "Updated debugPeerFilter: ${MeshConfig.debugPeerFilter != null}")
+                debugPeerFilter = parsePeerFilter(allowExtra)
+                Log.i(TAG, "Updated debugPeerFilter: ${debugPeerFilter != null}")
             }
         }
     }
 
     companion object {
+        @Volatile
+        var debugPeerFilter: ((String) -> Boolean)? = null
         private const val TAG = "MeshDebugReceiver"
         const val ACTION_DUMP_STATE = "com.ridervoice.mesh.DEBUG_DUMP_STATE"
         const val ACTION_CLEAR_SESSION = "com.ridervoice.mesh.DEBUG_CLEAR_SESSION"

@@ -12,6 +12,7 @@ import com.ridervoice.mesh.audio.MeshVoxBridge
 import com.ridervoice.mesh.audio.OfflineAudioCapture
 import com.ridervoice.mesh.audio.PlayoutFrame
 import com.ridervoice.mesh.audio.SourceJitterBuffer
+import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.switching.OfflineAvailability
@@ -178,9 +179,7 @@ class AudioHandoffRobustnessTest {
             liveKitTransport = liveKit,
             meshTransport = mesh,
             audioOwnershipArbiter = arbiter,
-            secretProvider = object : OfflineSecretProvider {
-                override fun getSecretForOnlineRide(roomId: String) = ByteArray(32) { 1 }
-            },
+            secretProvider = NullOfflineSecretProvider(),
             clock = {
                 virtualTime += 1_000L
                 virtualTime
@@ -217,9 +216,7 @@ class AudioHandoffRobustnessTest {
             liveKitTransport = liveKit,
             meshTransport = mesh,
             audioOwnershipArbiter = arbiter,
-            secretProvider = object : OfflineSecretProvider {
-                override fun getSecretForOnlineRide(roomId: String) = ByteArray(32) { 1 }
-            }
+            secretProvider = NullOfflineSecretProvider()
         )
 
         coordinator.setOnlineSession(VoiceSession.Online("wss://livekit", "room1", { "tok" }, "room1"))
@@ -369,9 +366,7 @@ class AudioHandoffRobustnessTest {
             liveKitTransport = liveKit,
             meshTransport = mesh,
             audioOwnershipArbiter = arbiter,
-            secretProvider = object : OfflineSecretProvider {
-                override fun getSecretForOnlineRide(roomId: String) = ByteArray(32) { 1 }
-            }
+            secretProvider = NullOfflineSecretProvider()
         )
 
         coordinator.setOnlineSession(VoiceSession.Online("wss://livekit", "room1", { "tok" }, "room1"))

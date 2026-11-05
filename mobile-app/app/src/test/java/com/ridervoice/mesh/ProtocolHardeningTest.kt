@@ -40,18 +40,10 @@ class ProtocolHardeningTest {
     private var now = 10_000L
 
     @Before
-    fun setUp() {
-        MeshConfig.ACCEPT_LEGACY_NONCE = false
-        MeshConfig.debugPeerFilter = null
-        MeshConfig.isDebugBuild = true
-    }
+    fun setUp() {}
 
     @After
-    fun tearDown() {
-        MeshConfig.ACCEPT_LEGACY_NONCE = false
-        MeshConfig.debugPeerFilter = null
-        MeshConfig.isDebugBuild = true
-    }
+    fun tearDown() {}
 
     /**
      * WP-40.1 (A17): MeshGraphRepository report staleness pure function tests (CODE-15).
@@ -142,8 +134,6 @@ class ProtocolHardeningTest {
      */
     @Test
     fun legacyNonce_rejectedByDefault() {
-        assertFalse("ACCEPT_LEGACY_NONCE must be false by default", MeshConfig.ACCEPT_LEGACY_NONCE)
-
         val selfId = UUID.randomUUID().toString()
         val peerA = UUID.randomUUID().toString()
 
@@ -164,7 +154,8 @@ class ProtocolHardeningTest {
             duplicateCache = dupCache,
             ttlPolicy = ttl,
             link = mockLink,
-            clock = { now }
+            clock = { now },
+            acceptLegacyNonce = false
         )
 
         // Encode a valid HELLO payload
@@ -234,7 +225,8 @@ class ProtocolHardeningTest {
             duplicateCache = dupCache,
             ttlPolicy = ttl,
             link = mockLink,
-            clock = { now }
+            clock = { now },
+            acceptLegacyNonce = true
         )
 
         val helloBytes = HelloCodec.encode(HelloPayload(name = "peerA", graphVersion = 1, neighborIds = listOf(selfId)))
@@ -272,16 +264,11 @@ class ProtocolHardeningTest {
 
         val frame = MeshFrame(endpoint, MeshPacketCodec.encode(packet, session.authKey()))
 
-        try {
-            MeshConfig.ACCEPT_LEGACY_NONCE = true
-            val outcome = engine.onIncomingFrame(frame)
-            assertTrue(
-                "Legacy nonce packet must be accepted when ACCEPT_LEGACY_NONCE is true",
-                outcome is ReceiveOutcome.Accepted
-            )
-        } finally {
-            MeshConfig.ACCEPT_LEGACY_NONCE = false
-        }
+        val outcome = engine.onIncomingFrame(frame)
+        assertTrue(
+            "Legacy nonce packet must be accepted when acceptLegacyNonce is true",
+            outcome is ReceiveOutcome.Accepted
+        )
     }
 
     /**
@@ -333,20 +320,16 @@ class ProtocolHardeningTest {
      */
     @Test
     fun debugFilter_noopWhenNotDebug() {
-        val receiver = MeshDebugReceiver()
+        val receiver = MeshDebugReceiver(isDebug = false)
+        MeshDebugReceiver.debugPeerFilter = null
         val mockContext = mockk<Context>(relaxed = true)
 
-        try {
-            MeshConfig.isDebugBuild = false
-            val intent = mockk<Intent>()
-            every { intent.action } returns MeshDebugReceiver.ACTION_SET_PEER_FILTER
-            every { intent.getStringExtra(MeshDebugReceiver.EXTRA_ALLOW) } returns "node-1,node-2"
-            every { intent.getStringExtra(MeshDebugReceiver.EXTRA_ALLOWED_PEERS) } returns null
+        val intent = mockk<Intent>()
+        every { intent.action } returns MeshDebugReceiver.ACTION_SET_PEER_FILTER
+        every { intent.getStringExtra(MeshDebugReceiver.EXTRA_ALLOW) } returns "node-1,node-2"
+        every { intent.getStringExtra(MeshDebugReceiver.EXTRA_ALLOWED_PEERS) } returns null
 
-            receiver.onReceive(mockContext, intent)
-            assertNull("debugPeerFilter must not be modified when isDebugBuild is false", MeshConfig.debugPeerFilter)
-        } finally {
-            MeshConfig.isDebugBuild = true
-        }
+        receiver.onReceive(mockContext, intent)
+        assertNull("debugPeerFilter must not be modified when isDebug is false", MeshDebugReceiver.debugPeerFilter)
     }
 }

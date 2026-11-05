@@ -121,7 +121,10 @@ class SessionKdfTest {
     @Test
     fun nullOfflineSecretProviderReturnsNullAndOnlineRoomDerivationIsAbsent() {
         val provider = NullOfflineSecretProvider()
-        assertNull("NullOfflineSecretProvider must return null secret for any online room", provider.getSecretForOnlineRide("convoy_abc_123"))
+        assertNull("NullOfflineSecretProvider must return null session for any online room", provider.getSessionForOnlineRide("convoy_abc_123"))
+
+        val hasSecret = OfflineSession::class.java.declaredMethods.any { it.name == "getSecret" }
+        assertFalse("OfflineSession.secret must be deleted for key hygiene", hasSecret)
 
         val hasFromOnlineRoom = OfflineSession::class.java.declaredMethods.any { it.name == "fromOnlineRoom" }
         assertFalse("OfflineSession.fromOnlineRoom must be deleted to prevent insecure derivation", hasFromOnlineRoom)

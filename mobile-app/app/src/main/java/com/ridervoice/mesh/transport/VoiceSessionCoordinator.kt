@@ -6,6 +6,7 @@ import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.switching.OfflineAvailability
+import com.ridervoice.mesh.util.runCatchingCancellable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -58,11 +59,7 @@ class VoiceSessionCoordinator(
     private fun availability(ride: VoiceSession.Online?, s: OfflineSession?, now: Long): OfflineAvailability = when {
         !OfflineMeshGate.isOfflineAllowed() -> OfflineAvailability.DISABLED
         ride != null && s != null && !s.isExpired(now) -> OfflineAvailability.AVAILABLE
-        else -> {
-            val roomId = ride?.roomId
-            val secret = if (roomId != null) secretProvider.getSecretForOnlineRide(roomId) else null
-            if (ride != null && secret != null) OfflineAvailability.AVAILABLE else OfflineAvailability.NO_SHARED_SECRET
-        }
+        else -> OfflineAvailability.NO_SHARED_SECRET
     }
 
     private val _offlineAvailability = MutableStateFlow(availability(null, secretProvider.backupSession.value, clock()))
@@ -165,12 +162,12 @@ class VoiceSessionCoordinator(
         liveKitTransport.pause()
         if (!verifyLiveKitQuiet(2_000L)) { rollbackToLiveKit(); return@withLock false }
         if (!audioOwnershipArbiter.handoffLiveKitToOfflineMesh { }) { rollbackToLiveKit(); return@withLock false }
-        val ok = runCatching { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(it.javaClass.simpleName) } is EnableAudioResult.Success &&
+        val ok = runCatchingCancellable { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(it.javaClass.simpleName) } is EnableAudioResult.Success &&
             meshTransport.micState.value != MicState.HARDWARE_BUSY
         if (!ok) { rollbackToLiveKit(); return@withLock false } // NEVER liveKitTransport.stop() here (A9)
         _activeKind.value = PeerTransportKind.OFFLINE_MESH
         _activeTransport.value = meshTransport
-        if (priorMicWanted) runCatching { meshTransport.setMicrophoneEnabled(true) }
+        if (priorMicWanted) runCatchingCancellable { meshTransport.setMicrophoneEnabled(true) }
         if (priorVoxActive) {
             (meshTransport as? MeshControl)?.micController?.setVoxEnabled(true)
             (meshTransport as? MeshControl)?.setHelloIntervalMs(750L)
@@ -180,10 +177,10 @@ class VoiceSessionCoordinator(
 
     private suspend fun rollbackToLiveKit() = withContext(NonCancellable) {
         (meshTransport as? MeshControl)?.setHelloIntervalMs(1500L)
-        (meshTransport as? MeshControl)?.let { runCatching { it.disableAudio() } }
+        (meshTransport as? MeshControl)?.let { runCatchingCancellable { it.disableAudio() } }
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
         audioOwnershipArbiter.claimLiveKit()
-        runCatching { liveKitTransport.resume() }
+        runCatchingCancellable { liveKitTransport.resume() }
     }
 
     private suspend fun verifyLiveKitQuiet(timeoutMs: Long = 2_000L): Boolean {
@@ -228,7 +225,7 @@ class VoiceSessionCoordinator(
         mesh.pauseCaptureOnly() // (a) stop offline AudioRecord, KEEP playback (no dead air)
         if (liveKitTransport.state.value != VoiceTransportState.CONNECTED) { // (b)
             if (liveKitTransport is LiveKitVoiceTransport) liveKitTransport.triggerBackgroundReconnect()
-            else if (online != null) runCatching { liveKitTransport.start(online) }
+            else if (online != null) runCatchingCancellable { liveKitTransport.start(online) }
         }
         val connected = withTimeoutOrNull(RECOVERY_CONNECT_TIMEOUT_MS) { // (c) 15_000
             liveKitTransport.state.first { it == VoiceTransportState.CONNECTED }
@@ -242,7 +239,7 @@ class VoiceSessionCoordinator(
         val meshMicCtrl = (meshTransport as? MeshControl)?.micController
         if (meshMicCtrl != null) {
             val meshMicWanted = meshMicCtrl.micToggleOn.value || meshMicCtrl.pttHeld.value
-            runCatching { liveKitTransport.setMicrophoneEnabled(meshMicWanted) }
+            runCatchingCancellable { liveKitTransport.setMicrophoneEnabled(meshMicWanted) }
         }
         withContext(NonCancellable) { mesh.disableAudio() } // (e) offline playback stops only now
         (meshTransport as? MeshControl)?.setHelloIntervalMs(1500L)

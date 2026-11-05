@@ -31,8 +31,8 @@ class RelayAmplificationTest {
         val nodes = mutableMapOf<String, SimDevice>()
         val links = mutableSetOf<Pair<String, String>>()
 
-        fun addDevice(id: String, ip: String): SimDevice {
-            val dev = SimDevice(id, ip, session, this)
+        fun addDevice(id: String, ip: String, suppressRedundantRelays: Boolean = MeshConfig.SUPPRESS_REDUNDANT_RELAYS): SimDevice {
+            val dev = SimDevice(id, ip, session, this, suppressRedundantRelays)
             nodes[id] = dev
             return dev
         }
@@ -66,7 +66,8 @@ class RelayAmplificationTest {
         val id: String,
         val ip: String,
         val session: OfflineSession,
-        val net: SimNetwork
+        val net: SimNetwork,
+        val suppressRedundantRelays: Boolean = MeshConfig.SUPPRESS_REDUNDANT_RELAYS
     ) {
         val ep = MeshEndpoint(ip, MeshConfig.MESH_PORT)
         val heardVoicePackets = mutableListOf<MeshPacket>()
@@ -101,7 +102,8 @@ class RelayAmplificationTest {
             ttlPolicy = TtlPolicy(clock = clock),
             link = link,
             clock = clock,
-            onLocalVoicePacket = { heardVoicePackets += it }
+            onLocalVoicePacket = { heardVoicePackets += it },
+            suppressRedundantRelays = suppressRedundantRelays
         )
     }
 
@@ -110,7 +112,7 @@ class RelayAmplificationTest {
         val session = OfflineSession.create(1_000L)
         val net = SimNetwork(session)
         val ids = List(6) { UUID.randomUUID().toString() }
-        val devs = ids.mapIndexed { idx, id -> net.addDevice(id, "10.0.0.${idx + 1}") }
+        val devs = ids.mapIndexed { idx, id -> net.addDevice(id, "10.0.0.${idx + 1}", suppressRedundantRelays = true) }
         for (d in devs) {
             ids.forEach { d.sessionMgr.admit(it) }
         }
@@ -138,11 +140,43 @@ class RelayAmplificationTest {
     }
 
     @Test
+    fun fullyConnectedSixDevices_defaultNoSuppression_sendsTwentyFiveDatagramsAndAllHearIt() {
+        val session = OfflineSession.create(1_000L)
+        val net = SimNetwork(session)
+        val ids = List(6) { UUID.randomUUID().toString() }
+        val devs = ids.mapIndexed { idx, id -> net.addDevice(id, "10.0.0.${idx + 1}", suppressRedundantRelays = false) }
+        for (d in devs) {
+            ids.forEach { d.sessionMgr.admit(it) }
+        }
+        for (i in 0 until 6) {
+            for (j in i + 1 until 6) {
+                net.linkBidirectional(ids[i], ids[j])
+            }
+        }
+        net.broadcastHelloTopology(1_000L)
+
+        // Reset datagram count after topology setup
+        net.datagramCount = 0
+
+        // Device 0 speaks 1 frame
+        val pkt = devs[0].engine.originateVoice(ByteArray(640))
+        org.junit.Assert.assertNotNull(pkt)
+
+        // Everyone except the talker must hear exactly 1 frame (duplicates absorbed by cache)
+        for (i in 1 until 6) {
+            assertEquals("Device $i should hear exactly 1 frame without duplication", 1, devs[i].heardVoicePackets.size)
+            assertEquals(pkt!!.sequence, devs[i].heardVoicePackets[0].sequence)
+        }
+        // Without suppression: 5 direct sends + daisy-chain forwarding (18 total under synchronous depth-first recursion)
+        assertEquals("Total datagrams in fully-connected group without suppression", 18, net.datagramCount)
+    }
+
+    @Test
     fun sixDeviceChainStillReachesEveryoneWithExactlyFiveDatagrams() {
         val session = OfflineSession.create(1_000L)
         val net = SimNetwork(session)
         val ids = List(6) { UUID.randomUUID().toString() }
-        val devs = ids.mapIndexed { idx, id -> net.addDevice(id, "10.0.0.${idx + 1}") }
+        val devs = ids.mapIndexed { idx, id -> net.addDevice(id, "10.0.0.${idx + 1}", suppressRedundantRelays = true) }
         for (d in devs) {
             ids.forEach { d.sessionMgr.admit(it) }
         }
@@ -167,7 +201,7 @@ class RelayAmplificationTest {
         val session = OfflineSession.create(1_000L)
         val net = SimNetwork(session)
         val ids = List(4) { UUID.randomUUID().toString() }
-        val devs = ids.mapIndexed { idx, id -> net.addDevice(id, "10.0.0.${idx + 1}") }
+        val devs = ids.mapIndexed { idx, id -> net.addDevice(id, "10.0.0.${idx + 1}", suppressRedundantRelays = true) }
         for (d in devs) {
             ids.forEach { d.sessionMgr.admit(it) }
         }

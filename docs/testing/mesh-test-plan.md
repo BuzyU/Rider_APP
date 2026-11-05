@@ -20,7 +20,7 @@
 | `AudioOwnershipArbiterTest` | Concurrency | 3 | Mutex-protected mic ownership, race condition stress test (50 coroutines) |
 | `HonestStateTest` | Protocol State | 5 | Route aging, next-hop resets, T27 sequence wrap across Int.MAX_VALUE |
 | `PayloadCryptoTest` | Encryption | 2 | AES-256-GCM authenticated encryption, bit-flip detection |
-| `RelayAmplificationTest` | Forwarding | 3 | D26 relay suppression (5 datagrams for 6 nodes, triangle-with-tail) |
+| `RelayAmplificationTest` | Forwarding | 4 | Relay redundancy in 6-clique: 5 datagrams (suppression on), 25 datagrams (suppression off, default) |
 | `ScheduledDeliveryScenarioTest` | Simulated Net | 8 | 6 network disruption scenarios, T23 chaos test, deterministic tie-breaking |
 | `SessionKdfTest` | Cryptography | 2 | Slow-KDF PBKDF2 100k iterations, Crockford Base32 normalization |
 | `StateMachineLivenessTest` | State Machine | 4 | D25 deadlock fix, D4 exception rollback, random walk invariant check |
@@ -75,3 +75,11 @@ Six critical logic invariants were mutated and verified to trigger immediate tes
 | 4 | `ForwardingEngine` | Removed `previousHopId` exclusion | `sixDeviceChainStillReachesEveryone` | **FAILED** (packet bounced backward) |
 | 5 | `AudioOwnershipArbiter` | Allowed offline mesh to steal LiveKit mic | `mutualExclusionBasicTransitions` | **FAILED** (mutex ownership violated) |
 | 6 | `SessionManager` | Changed `>= maxDevices` to `>` | `six-device linear chain rejects 7th` | **FAILED** (admitted 7th device) |
+
+---
+
+## 4. Relay Amplification & Redundancy (B6)
+
+Datagram counts per 20ms voice frame in a 6-node fully connected clique:
+- **Redundant relay suppression enabled (`suppressRedundantRelays = true`):** Exactly 5 datagrams (1 direct unicast to each neighbor from speaker, 0 redundant relays).
+- **Redundant relay suppression disabled (`suppressRedundantRelays = false`, default):** 18 datagrams in synchronous network simulation (up to 25 under concurrent asynchronous forwarding; 5 direct unicasts from speaker + daisy-chain relays forwarded by receiving neighbors, absorbed cleanly by `DuplicatePacketCache`).

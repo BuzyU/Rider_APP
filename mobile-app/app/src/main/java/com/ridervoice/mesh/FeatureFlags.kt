@@ -29,11 +29,10 @@ object FeatureFlags {
 
     val OFFLINE_MESH_ENABLED: Boolean
         get() {
-            if (localKillSwitch) return false
-            // In release builds, localOverride is ignored; mesh is hard disabled
-            if (!BuildConfig.DEBUG && !BuildConfig.OFFLINE_MESH_BUILD_ENABLED) {
-                return false
+            if (!BuildConfig.DEBUG) {
+                return BuildConfig.OFFLINE_MESH_BUILD_ENABLED && !localKillSwitch
             }
+            if (localKillSwitch) return false
             return localOverride ?: BuildConfig.OFFLINE_MESH_BUILD_ENABLED
         }
 }

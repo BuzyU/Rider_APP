@@ -4,6 +4,7 @@ import com.ridervoice.audio.VoxDetector
 import com.ridervoice.audio.VoxEngine
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceTransport
+import com.ridervoice.mesh.util.runCatchingCancellable
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -49,7 +50,7 @@ class MeshVoxBridge(
             audioEnabled = { true },
             applyCapture = { _ ->
                 val shouldOpen = isMicToggledOn || isPttHeld || (voxEnabled.value && isVoxSpeechActive)
-                runCatching { transport.setMicrophoneEnabled(shouldOpen) }
+                runCatchingCancellable { transport.setMicrophoneEnabled(shouldOpen) }
             },
             voxDetector = voxDetector,
             scope = scope,

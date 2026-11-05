@@ -38,6 +38,7 @@ interface MicController {
     fun setVoxArmed(armed: Boolean)
     fun shouldTransmitPcmFrame(pcm: ByteArray, nowMs: Long = System.currentTimeMillis()): Boolean
     fun reset()                           // called from transport.stop()
+    fun close() {}
 }
 
 class MicControllerImpl(
@@ -59,17 +60,21 @@ class MicControllerImpl(
     private val _armed = MutableStateFlow(false)
     override val voxArmed: StateFlow<Boolean> = _armed.asStateFlow()
 
-    // CONFLATED: only the latest desired capture state matters, and order is preserved (A47).
+    // CONFLATED: only the latest desired capture state matters, and order is preserved (A47 / B4).
     private val desired = Channel<Boolean>(Channel.CONFLATED)
+
+    init {
+        scope.launch {
+            for (want in desired) {
+                applyCapture(want)
+            }
+        }
+    }
 
     private fun inputs() = MicInputs(audioEnabled(), _toggle.value, _ptt.value, _vox.value, _armed.value)
 
     private fun publish() {
-        val want = MicRules.captureWanted(inputs())
-        desired.trySend(want)
-        scope.launch {
-            applyCapture(want)
-        }
+        desired.trySend(MicRules.captureWanted(inputs()))
     }
 
     override fun setMicToggled(on: Boolean) {
@@ -118,5 +123,9 @@ class MicControllerImpl(
         _vox.value = false
         _armed.value = false
         publish()
+    }
+
+    override fun close() {
+        desired.close()
     }
 }

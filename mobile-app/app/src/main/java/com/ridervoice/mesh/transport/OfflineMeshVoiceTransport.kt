@@ -94,7 +94,7 @@ class OfflineMeshVoiceTransport(
 
     val currentIdentity: MeshIdentity get() = identity
 
-    val micController: MicController = MicControllerImpl(
+    override val micController: MicController = MicControllerImpl(
         audioEnabled = { audioPlayback != null && audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH },
         applyCapture = { wantCapture ->
             micWanted = wantCapture
@@ -103,13 +103,7 @@ class OfflineMeshVoiceTransport(
                 cap.setMicEnabled(wantCapture)
                 if (wantCapture) {
                     val res = cap.start()
-                    _micState.value = when (res) {
-                        CaptureStart.Started -> MicState.ON
-                        CaptureStart.NoPermission -> MicState.PERMISSION_DENIED
-                        CaptureStart.NotOwner -> MicState.OWNERSHIP_DENIED
-                        CaptureStart.HardwareFailed -> MicState.HARDWARE_BUSY
-                        CaptureStart.GateClosed -> MicState.OFF
-                    }
+                    _micState.value = res.toMicState()
                 } else {
                     cap.stop()
                     _micState.value = if (paused) MicState.MUTED else MicState.OFF
@@ -379,13 +373,7 @@ class OfflineMeshVoiceTransport(
         if (wantCapture) {
             _micState.value = MicState.STARTING
             val res = aCapture.start()
-            _micState.value = when (res) {
-                CaptureStart.Started -> MicState.ON
-                CaptureStart.NoPermission -> MicState.PERMISSION_DENIED
-                CaptureStart.NotOwner -> MicState.OWNERSHIP_DENIED
-                CaptureStart.HardwareFailed -> MicState.HARDWARE_BUSY
-                CaptureStart.GateClosed -> MicState.OFF
-            }
+            _micState.value = res.toMicState()
             if (res == CaptureStart.HardwareFailed) {
                 return@withLock failEnable(EnableAudioResult.Failure.HardwareBusy)
             }
@@ -436,13 +424,7 @@ class OfflineMeshVoiceTransport(
                     if (wantCapture) {
                         _micState.value = MicState.STARTING
                         val res = cap.start()
-                        _micState.value = when (res) {
-                            CaptureStart.Started -> MicState.ON
-                            CaptureStart.NoPermission -> MicState.PERMISSION_DENIED
-                            CaptureStart.NotOwner -> MicState.OWNERSHIP_DENIED
-                            CaptureStart.HardwareFailed -> MicState.HARDWARE_BUSY
-                            CaptureStart.GateClosed -> MicState.OFF
-                        }
+                        _micState.value = res.toMicState()
                     } else {
                         _micState.value = MicState.OFF
                     }
@@ -538,13 +520,7 @@ class OfflineMeshVoiceTransport(
         audioPlayback?.start()
         if (micWanted) {
             val res = audioCapture?.start()
-            _micState.value = when (res) {
-                CaptureStart.Started -> MicState.ON
-                CaptureStart.NoPermission -> MicState.PERMISSION_DENIED
-                CaptureStart.NotOwner -> MicState.OWNERSHIP_DENIED
-                CaptureStart.HardwareFailed -> MicState.HARDWARE_BUSY
-                CaptureStart.GateClosed, null -> MicState.OFF
-            }
+            _micState.value = res.toMicState()
         }
     }
 
@@ -558,13 +534,7 @@ class OfflineMeshVoiceTransport(
             cap.setMicEnabled(want)
             if (want) {
                 val res = cap.start()
-                _micState.value = when (res) {
-                    CaptureStart.Started -> MicState.ON
-                    CaptureStart.NoPermission -> MicState.PERMISSION_DENIED
-                    CaptureStart.NotOwner -> MicState.OWNERSHIP_DENIED
-                    CaptureStart.HardwareFailed -> MicState.HARDWARE_BUSY
-                    CaptureStart.GateClosed -> MicState.OFF
-                }
+                _micState.value = res.toMicState()
             } else {
                 cap.stop()
                 _micState.value = if (paused) MicState.MUTED else MicState.OFF
@@ -587,4 +557,11 @@ class OfflineMeshVoiceTransport(
 
     fun isCapturing(): Boolean = audioCapture?.isCapturing?.value == true
     fun isPlaying(): Boolean = audioPlayback?.isPlaying?.value == true
+}
+private fun CaptureStart?.toMicState(paused: Boolean = false): MicState = when (this) {
+    CaptureStart.Started -> MicState.ON
+    CaptureStart.NoPermission -> MicState.PERMISSION_DENIED
+    CaptureStart.NotOwner -> MicState.OWNERSHIP_DENIED
+    CaptureStart.HardwareFailed -> MicState.HARDWARE_BUSY
+    CaptureStart.GateClosed, null -> if (paused) MicState.MUTED else MicState.OFF
 }

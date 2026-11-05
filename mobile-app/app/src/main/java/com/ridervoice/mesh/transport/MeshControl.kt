@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.transport
 
+import com.ridervoice.mesh.audio.MicController
 import com.ridervoice.mesh.session.OfflineSession
 import kotlinx.coroutines.flow.StateFlow
 
@@ -24,6 +25,9 @@ sealed interface EnableAudioResult {
 interface MeshControl {
     /** Whether the mesh currently has at least one valid multi-hop or direct route. */
     val hasValidRoute: StateFlow<Boolean>
+
+    /** Optional mic controller for the mesh audio subsystem. */
+    val micController: MicController? get() = null
 
     /**
      * Starts UDP socket, heartbeat, and topology discovery only.

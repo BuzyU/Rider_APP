@@ -160,6 +160,8 @@ class VoiceSessionCoordinator(
         val mesh = meshTransport as? MeshControl ?: return@withLock false
         if (!mesh.hasValidRoute.value) return@withLock false
         val priorMicWanted = liveKitTransport.micState.value == MicState.ON
+        val lk = liveKitTransport as? LiveKitVoiceTransport
+        val priorVoxActive = lk?.isVoxRunning == true || lk?.savedVoxRunningBeforePause == true
         liveKitTransport.pause()
         if (!verifyLiveKitQuiet(2_000L)) { rollbackToLiveKit(); return@withLock false }
         if (!audioOwnershipArbiter.handoffLiveKitToOfflineMesh { }) { rollbackToLiveKit(); return@withLock false }
@@ -169,6 +171,9 @@ class VoiceSessionCoordinator(
         _activeKind.value = PeerTransportKind.OFFLINE_MESH
         _activeTransport.value = meshTransport
         if (priorMicWanted) runCatching { meshTransport.setMicrophoneEnabled(true) }
+        if (priorVoxActive) {
+            (meshTransport as? MeshControl)?.micController?.setVoxEnabled(true)
+        }
         true
     }
 
@@ -215,7 +220,8 @@ class VoiceSessionCoordinator(
     suspend fun recoverToLiveKit(): Boolean = switchMutex.withLock {
         val mesh = meshTransport as? MeshControl ?: return@withLock false
         val online = lastOnlineSession
-        val meshMicWanted = meshTransport.micState.value == MicState.ON
+
+
 
         mesh.pauseCaptureOnly() // (a) stop offline AudioRecord, KEEP playback (no dead air)
         if (liveKitTransport.state.value != VoiceTransportState.CONNECTED) { // (b)
@@ -231,7 +237,11 @@ class VoiceSessionCoordinator(
         }
         audioOwnershipArbiter.claimLiveKit() // (d)
         liveKitTransport.resume()
-        if (meshMicWanted) runCatching { liveKitTransport.setMicrophoneEnabled(true) }
+        val meshMicCtrl = (meshTransport as? MeshControl)?.micController
+        if (meshMicCtrl != null) {
+            val meshMicWanted = meshMicCtrl.micToggleOn.value || meshMicCtrl.pttHeld.value
+            runCatching { liveKitTransport.setMicrophoneEnabled(meshMicWanted) }
+        }
         withContext(NonCancellable) { mesh.disableAudio() } // (e) offline playback stops only now
         _activeKind.value = PeerTransportKind.ONLINE_LIVEKIT // (f)
         _activeTransport.value = liveKitTransport

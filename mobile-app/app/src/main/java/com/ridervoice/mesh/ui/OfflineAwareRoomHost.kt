@@ -40,17 +40,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.ridervoice.R
 import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.switching.AutoSwitchState
 import com.ridervoice.mesh.switching.GroupConnectivityStatus
 import com.ridervoice.mesh.switching.MeshAutoSwitchManager
 import com.ridervoice.mesh.switching.OfflineAvailability
+import com.ridervoice.mesh.transport.AudioRoute
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import com.ridervoice.ui.screens.RoomScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -65,8 +68,34 @@ class OfflineAwareRoomViewModel @Inject constructor(
     val meshDiagSnapshot = meshTransport.diagnostics
     val lastTransitionReason: StateFlow<String?> = autoSwitchManager.lastTransitionReason
     val offlineAvailability: StateFlow<OfflineAvailability> = coordinator.offlineAvailability
+
+    val transportState = meshTransport.state
+    val activeSpeakers = meshTransport.activeSpeakers
+    val micState = meshTransport.micState
+    val audioRoute = meshTransport.audioRoute
+    val micController = meshTransport.micController
+    val voxBridge = meshTransport.voxBridge
+
+    fun setMicrophoneEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            meshTransport.setMicrophoneEnabled(enabled)
+        }
+    }
+
+    fun setDeafened(deafened: Boolean) {
+        viewModelScope.launch {
+            meshTransport.setDeafened(deafened)
+        }
+    }
+
+    fun setAudioRoute(route: AudioRoute) {
+        viewModelScope.launch {
+            meshTransport.setAudioRoute(route)
+        }
+    }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun OfflineAwareRoomHost(
     roomName: String,
@@ -82,16 +111,35 @@ fun OfflineAwareRoomHost(
     val lastTransitionReason by viewModel.lastTransitionReason.collectAsState()
     val offlineAvailability by viewModel.offlineAvailability.collectAsState()
 
+    val transportState by viewModel.transportState.collectAsState()
+    val activeSpeakers by viewModel.activeSpeakers.collectAsState()
+    val micState by viewModel.micState.collectAsState()
+    val activeRoute by viewModel.audioRoute.collectAsState()
+    val micController = viewModel.micController
+    val micToggleOn by micController.micToggleOn.collectAsState()
+    val isVoxEnabled by micController.voxEnabled.collectAsState()
+    val isPttActive by micController.pttHeld.collectAsState()
+
+    var isDeafened by remember { mutableStateOf(false) }
     var showDiagDialog by remember { mutableStateOf(false) }
 
     val settingsSnapshot by OfflineMeshGate.settingsFlow.collectAsState()
     val isMeshGateOpen = OfflineMeshGate.isOfflineAllowed(offlineMeshEnabled = settingsSnapshot.offlineMeshEnabled)
-    val showTacticalBanner = isMeshGateOpen && (
+
+    val isMeshOverlayActive = isMeshGateOpen && autoSwitchState in setOf(
+        AutoSwitchState.STARTING_OFFLINE_MESH,
+        AutoSwitchState.OFFLINE_ACTIVE,
+        AutoSwitchState.ONLINE_RECOVERING,
+        AutoSwitchState.HANDING_BACK_TO_LIVEKIT
+    )
+
+    val showTacticalBanner = isMeshGateOpen && !isMeshOverlayActive && (
         autoSwitchState != AutoSwitchState.ONLINE ||
         groupStatus == GroupConnectivityStatus.MIXED
     )
 
     val showBackupNotReadyChip = isMeshGateOpen &&
+        !isMeshOverlayActive &&
         settingsSnapshot.automaticFallbackEnabled &&
         offlineAvailability == OfflineAvailability.NO_SHARED_SECRET &&
         autoSwitchState == AutoSwitchState.ONLINE
@@ -108,30 +156,71 @@ fun OfflineAwareRoomHost(
             onSosClick = onSosClick
         )
 
-        if (showBackupNotReadyChip && !showTacticalBanner) {
-            OfflineBackupChip(
-                text = stringResource(R.string.mesh_backup_not_ready),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = 64.dp)
-            )
-        }
-
-        if (showTacticalBanner) {
-            TacticalBanner(
-                state = autoSwitchState,
-                groupStatus = groupStatus,
-                peerCount = meshParticipants.count { it.isOnline },
-                maxHops = meshParticipants.maxOfOrNull { it.hopCount } ?: 0,
-                fallbackReason = fallbackReason,
+        if (isMeshOverlayActive) {
+            MeshActiveOverlay(
+                autoSwitchState = autoSwitchState,
+                transportState = transportState,
+                peers = meshParticipants,
+                activeSpeakers = activeSpeakers,
+                micState = micState,
+                micToggleOn = micToggleOn,
+                isPttActive = isPttActive,
+                isVoxEnabled = isVoxEnabled,
+                isDeafened = isDeafened,
+                activeRoute = activeRoute,
+                onToggleMic = {
+                    micController.setMicToggled(!micToggleOn)
+                },
+                onToggleDeafen = {
+                    val next = !isDeafened
+                    isDeafened = next
+                    viewModel.setDeafened(next)
+                },
+                onCycleAudioRoute = {
+                    val nextRoute = when (activeRoute) {
+                        AudioRoute.SPEAKER -> AudioRoute.BLUETOOTH
+                        AudioRoute.BLUETOOTH -> AudioRoute.WIRED
+                        AudioRoute.WIRED -> AudioRoute.EARPIECE
+                        AudioRoute.EARPIECE -> AudioRoute.SPEAKER
+                    }
+                    viewModel.setAudioRoute(nextRoute)
+                },
+                onToggleVox = {
+                    micController.setVoxEnabled(!isVoxEnabled)
+                },
+                onPttPressChange = { held ->
+                    micController.setPttPressed(held)
+                },
                 onViewDiagnostics = { showDiagDialog = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = 64.dp, start = 12.dp, end = 12.dp, bottom = 6.dp)
+                onLeave = onLeave,
+                onSosClick = onSosClick
             )
+        } else {
+            if (showBackupNotReadyChip && !showTacticalBanner) {
+                OfflineBackupChip(
+                    text = stringResource(R.string.mesh_backup_not_ready),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 64.dp)
+                )
+            }
+
+            if (showTacticalBanner) {
+                TacticalBanner(
+                    state = autoSwitchState,
+                    groupStatus = groupStatus,
+                    peerCount = meshParticipants.count { it.isOnline },
+                    maxHops = meshParticipants.maxOfOrNull { it.hopCount } ?: 0,
+                    fallbackReason = fallbackReason,
+                    onViewDiagnostics = { showDiagDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 64.dp, start = 12.dp, end = 12.dp, bottom = 6.dp)
+                )
+            }
         }
 
         if (showDiagDialog) {

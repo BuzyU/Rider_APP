@@ -100,6 +100,27 @@ class TransportPauseResumeTest {
     }
 
     @Test
+    fun liveKit_uiTapsWhilePaused_doNotReenableCapture() = runTest {
+        val port = FakeLiveKitPort()
+        val arbiter = AudioOwnershipArbiter()
+        val transport = LiveKitVoiceTransport(liveKitPort = port, audioOwnershipArbiter = arbiter)
+
+        transport.start(VoiceSession.Online("wss://test.livekit.io", "room-1", { "token" }))
+        transport.pause()
+        assertEquals("setUserMuted(true)", port.callLog.last())
+
+        // Taps while paused calling setMicrophoneEnabled(true) must NOT un-mute LiveKit port
+        port.callLog.clear()
+        transport.setMicrophoneEnabled(true)
+        assertFalse("setMicrophoneEnabled while paused must not call setUserMuted(false)", port.callLog.contains("setUserMuted(false)"))
+
+        // If something else mutates port, reassertPauseMute forces it back to muted
+        port.setUserMuted(false)
+        transport.reassertPauseMute()
+        assertEquals("reassertPauseMute forces muted", "setUserMuted(true)", port.callLog.last())
+    }
+
+    @Test
     fun t14_meshPauseReleasesAudioOwnerAndResumeReclaims() = runTest {
         val arbiter = AudioOwnershipArbiter()
         val identity = MeshIdentity(UUID.randomUUID().toString(), "test-rider")

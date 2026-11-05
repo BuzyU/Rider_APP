@@ -300,6 +300,47 @@ class HandoffCorrectnessTest {
     }
 
     @Test
+    fun micToggledOnMesh_survivesRecoveryAttemptThatFails() = runTest {
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val lkPort = TestLiveKitPort()
+        val arbiter = AudioOwnershipArbiter()
+        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, dispatcher = testDispatcher)
+        val mesh = TestMeshTransport()
+
+        val coordinator = VoiceSessionCoordinator(
+            liveKitTransport = liveKit,
+            meshTransport = mesh,
+            audioOwnershipArbiter = arbiter,
+            dispatcher = testDispatcher
+        )
+
+        coordinator.switchToTransport(PeerTransportKind.OFFLINE_MESH, VoiceSession.Offline(OfflineSession.create(1000L)))
+        arbiter.tryClaimOfflineMesh()
+        mesh.enableAudio()
+
+        // User toggles mic on while on mesh
+        mesh.setMicrophoneEnabled(true)
+        assertEquals(MicState.ON, mesh.micState.value)
+
+        // LiveKit stays in RECONNECTING forever (times out after 15s)
+        lkPort.connectionStateFlow.value = ConnectionState.RECONNECTING
+
+        var recoverResult: Boolean? = null
+        launch {
+            recoverResult = coordinator.recoverToLiveKit()
+        }
+        testScheduler.runCurrent()
+
+        // Advance 16 seconds to exceed 15s recovery timeout
+        testScheduler.advanceTimeBy(16_000L)
+
+        assertEquals("Recovery must fail on timeout", false, recoverResult)
+        assertFalse("Mesh capture must be resumed after recovery failure", mesh.capturePaused)
+        assertEquals("Mic state toggled on mesh must survive failed recovery attempt", MicState.ON, mesh.micState.value)
+        assertEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+    }
+
+    @Test
     fun hardwareBusy_neverDisconnects() = runTest {
         val lkPort = TestLiveKitPort()
         lkPort.isUserMutedFlow.value = true

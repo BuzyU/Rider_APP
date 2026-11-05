@@ -343,4 +343,5 @@
     <string name="mesh_fallback_reason_no_backup_code">ऑफलाइन मेश अनुपलब्ध: बॅकअप कोड नाही</string>
     <string name="mesh_fallback_reason_no_riders_nearby">ऑफलाइन मेश अनुपलब्ध: जवळ कोणीही रायडर नाही</string>
     <string name="mesh_fallback_reason_handoff_failed">ऑफलाइन मेश अनुपलब्ध: हँडऑफ अयशस्वी</string>
+    <string name="mesh_sos">SOS</string>
 </resources>

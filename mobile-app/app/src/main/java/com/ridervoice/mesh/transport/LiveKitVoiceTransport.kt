@@ -112,7 +112,12 @@ class LiveKitVoiceTransport(
 
     @Volatile private var savedUserMutedBeforePause: Boolean = false
     @Volatile private var savedDeafenedBeforePause: Boolean = false
-    @Volatile private var savedVoxRunningBeforePause: Boolean = false
+    @Volatile var savedVoxRunningBeforePause: Boolean = false
+        private set
+    val isVoxRunning: Boolean
+        get() = liveKitPort.isVoxRunning
+    val savedVoxRunning: Boolean
+        get() = savedVoxRunningBeforePause
     @Volatile var pausedByCoordinator: Boolean = false
         private set
 

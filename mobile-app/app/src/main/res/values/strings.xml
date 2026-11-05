@@ -343,4 +343,5 @@
     <string name="mesh_fallback_reason_no_backup_code">Offline mesh unavailable: no backup code</string>
     <string name="mesh_fallback_reason_no_riders_nearby">Offline mesh unavailable: no nearby riders</string>
     <string name="mesh_fallback_reason_handoff_failed">Offline mesh unavailable: handoff failed</string>
+    <string name="mesh_sos">SOS</string>
 </resources>

@@ -90,3 +90,4 @@ This document serves as the single source of truth for all user-facing copy, ter
 | Banner Reason: No Code | Offline mesh unavailable: no backup code (HI: ऑफलाइन मेश अनुपलब्ध: बैकअप कोड नहीं है, MR: ऑफलाइन मेश अनुपलब्ध: बॅकअप कोड नाही) | Displayed on fallback unavailable banner |
 | Banner Reason: No Riders | Offline mesh unavailable: no nearby riders (HI: ऑफलाइन मेश अनुपलब्ध: कोई आस-पास राइडर नहीं, MR: ऑफलाइन मेश अनुपलब्ध: जवळ कोणीही रायडर नाही) | Displayed when total loss occurs with no mesh peers |
 | Banner Reason: Handoff Failed | Offline mesh unavailable: handoff failed (HI: ऑफलाइन मेश अनुपलब्ध: हैंडऑफ विफल, MR: ऑफलाइन मेश अनुपलब्ध: हँडऑफ अयशस्वी) | Displayed when mesh transition execution fails |
+| Overlay SOS Action | SOS (HI: SOS, MR: SOS) | Emergency SOS trigger on fallback overlay |

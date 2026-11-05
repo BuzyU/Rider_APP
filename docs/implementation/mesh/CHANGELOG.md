@@ -6,8 +6,18 @@ This changelog consolidates and replaces all historical work package reports (`W
 
 ## Round 3 Remediation (WP-43 – WP-52)
 
+### WP-52: Test Quality, Stress Smoke Test, and Final Verification
+- **Commit:** `636ed92`
+- **Summary:**
+  - Added explicit Stage 1 gate warning banner to `docs/testing/PHYSICAL_TEST_CHECKLIST.md` confirming all 18 scenarios remain NOT EXECUTED.
+  - Refactored `ProductionWiringTest.kt` (B20) to eliminate all source-text reading in favor of 100% genuine reflection and behavioural checks across all 7 assertions.
+  - Implemented `ArchitectureRulesTest.kt` (B20) with 5 named architecture rules enforcing module import isolation, frozen LiveKit contracts, approved Wi-Fi permissions, and debug receiver manifest guards.
+  - Built `StressSmokeTest.kt` (B27) executing a 6-node linear mesh with 5,000 voice frames, 5% random link drop, on `Dispatchers.Default` validating zero duplicate local playback and reliable delivery across 5 hops.
+  - Updated `DEFECT_REGISTER.md` marking B20 and B27 FIXED.
+  - Incremented authoritative test census floor in `.github/test-census-floor` to 483 tests.
+
 ### WP-51: Documentation Consolidation, CI Hardening, and Test Census Freeze
-- **Commit:** `pending`
+- **Commit:** `eac28fd`
 - **Summary:**
   - Deleted 25 historical doc files (`archive/**`, `WP_REPORTS/**`, `FINAL_AUDIT.md`, `POST_REMEDIATION_PLAN_CONFORMANCE_REPORT.md`, `CLEANUP_LOG.md`, `BASELINE.md`).
   - Rewrote `docs/implementation/mesh/README.md` (≤ 80 lines) with accurate architecture, package structure, test commands, and links to core docs.

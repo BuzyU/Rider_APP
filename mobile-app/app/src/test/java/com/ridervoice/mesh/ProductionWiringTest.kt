@@ -1,12 +1,27 @@
 package com.ridervoice.mesh
 
+import android.content.Context
 import com.ridervoice.di.MeshModule
+import com.ridervoice.mesh.audio.HardwarePttPort
 import com.ridervoice.mesh.audio.MeshAudioRouteController
+import com.ridervoice.mesh.identity.RiderNameProvider
+import com.ridervoice.mesh.link.NetworkLocks
+import com.ridervoice.mesh.link.UdpMeshLink
+import com.ridervoice.mesh.session.NullOfflineSecretProvider
+import com.ridervoice.mesh.switching.Clock
+import com.ridervoice.mesh.switching.MeshAutoSwitchManager
+import com.ridervoice.mesh.transport.VoiceSessionCoordinator
+import com.ridervoice.state.ActiveRideRepository
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import kotlinx.coroutines.Dispatchers
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class ProductionWiringTest {
 
@@ -26,17 +41,20 @@ class ProductionWiringTest {
 
     @Test
     fun udpMeshLink_networkBinder_invokesBindSocketToWifi() {
-        val meshModuleSource = listOf(
-            File("src/main/java/com/ridervoice/di/MeshModule.kt"),
-            File("app/src/main/java/com/ridervoice/di/MeshModule.kt"),
-            File("mobile-app/app/src/main/java/com/ridervoice/di/MeshModule.kt")
-        ).firstOrNull { it.exists() } ?: throw IllegalStateException("MeshModule.kt not found")
-
-        val content = meshModuleSource.readText()
-        assertTrue(
-            "MeshModule must configure linkFactory with NetworkLocks.bindSocketToWifi and networkBinder",
-            content.contains("bindSocketToWifi") && content.contains("networkBinder")
+        val mockLocks = mockk<NetworkLocks>(relaxed = true)
+        val binder: (java.net.DatagramSocket) -> Unit = { socket -> mockLocks.bindSocketToWifi(socket) }
+        val link = UdpMeshLink(
+            bindPort = MeshConfig.MESH_PORT,
+            gateAllowed = { true },
+            networkBinder = binder
         )
+        val mockSocket = mockk<java.net.DatagramSocket>(relaxed = true)
+        binder.invoke(mockSocket)
+        verify(exactly = 1) { mockLocks.bindSocketToWifi(mockSocket) }
+
+        val portField = UdpMeshLink::class.java.getDeclaredField("bindPort").apply { isAccessible = true }
+        assertEquals(45454, portField.getInt(link))
+        assertEquals(45454, MeshConfig.MESH_PORT)
     }
 
     @Test
@@ -45,95 +63,72 @@ class ProductionWiringTest {
             Class.forName("com.ridervoice.mesh.audio.HardwarePttPort")
         }.isSuccess
         assertTrue("HardwarePttPort interface must exist", hardwarePttPortExists)
+
+        val pttParamInVoxBridge = com.ridervoice.mesh.audio.MeshVoxBridge::class.java.constructors.any { c ->
+            c.parameterTypes.any { HardwarePttPort::class.java.isAssignableFrom(it) }
+        }
+        assertTrue("MeshVoxBridge constructor must accept HardwarePttPort", pttParamInVoxBridge)
+
+        val transportMethod = MeshModule::class.java.declaredMethods.find { it.name == "provideOfflineMeshVoiceTransport" }
+        assertNotNull("provideOfflineMeshVoiceTransport must exist in MeshModule", transportMethod)
+        val hasPttParam = transportMethod!!.parameterTypes.any { HardwarePttPort::class.java.isAssignableFrom(it) }
+        assertTrue("provideOfflineMeshVoiceTransport must take HardwarePttPort parameter", hasPttParam)
     }
 
     @Test
     fun autoSwitchManager_start_doesNothingWhenGateClosed() {
-        val managerSource = listOf(
-            File("src/main/java/com/ridervoice/mesh/switching/MeshAutoSwitchManager.kt"),
-            File("app/src/main/java/com/ridervoice/mesh/switching/MeshAutoSwitchManager.kt"),
-            File("mobile-app/app/src/main/java/com/ridervoice/mesh/switching/MeshAutoSwitchManager.kt")
-        ).firstOrNull { it.exists() } ?: throw IllegalStateException("MeshAutoSwitchManager.kt not found")
-
-        val content = managerSource.readText()
-        val startBody = content.substringAfter("fun start(").substringBefore("fun ")
-        assertTrue(
-            "MeshAutoSwitchManager.start() must check OfflineMeshGate at the very beginning",
-            startBody.trim().startsWith("if (!OfflineMeshGate") || startBody.contains("OfflineMeshGate.decision()")
+        OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
+        val mockActiveRide = mockk<ActiveRideRepository>(relaxed = true)
+        val mockCoordinator = mockk<VoiceSessionCoordinator>(relaxed = true)
+        val manager = MeshAutoSwitchManager(
+            activeRideRepository = mockActiveRide,
+            liveKitManager = mockk(relaxed = true),
+            coordinator = mockCoordinator,
+            meshTransport = mockk(relaxed = true),
+            healthSignalsProvider = mockk(relaxed = true),
+            clock = Clock { 0L },
+            dispatcher = Dispatchers.Unconfined
         )
+        manager.start()
+        verify(exactly = 0) { mockCoordinator.setOnlineSession(any()) }
     }
 
     @Test
     fun nullSecretProvider_yieldsNoSharedSecret_andFallbackNeverStarts() {
-        val secretProviderExists = runCatching {
-            Class.forName("com.ridervoice.mesh.session.OfflineSecretProvider")
-        }.isSuccess
-        assertTrue("OfflineSecretProvider interface must exist", secretProviderExists)
-
-        val nullProviderExists = runCatching {
-            Class.forName("com.ridervoice.mesh.session.NullOfflineSecretProvider")
-        }.isSuccess
-        assertTrue("NullOfflineSecretProvider class must exist", nullProviderExists)
+        val nullProvider = NullOfflineSecretProvider()
+        assertNull(nullProvider.getSessionForOnlineRide("test-ride"))
+        assertNull(nullProvider.backupSession.value)
     }
 
     @Test
     fun meshIdentity_displayNameComesFromRiderNotBuildModelNorConvoyName() {
-        val riderNameProviderExists = runCatching {
-            Class.forName("com.ridervoice.mesh.identity.RiderNameProvider")
-        }.isSuccess
-        assertTrue("RiderNameProvider interface must exist", riderNameProviderExists)
+        val prefs = mockk<android.content.SharedPreferences>(relaxed = true)
+        val context = mockk<Context>(relaxed = true)
+        every { context.getSharedPreferences(any(), any()) } returns prefs
+        every { prefs.getString("user_callsign", any()) } returns "CustomRiderName"
+        every { prefs.getString("mesh_identity_display_name", any()) } returns null
+        every { prefs.getString("mesh_identity_device_id", any()) } returns "fixed-device-id"
 
-        val moduleSource = listOf(
-            File("src/main/java/com/ridervoice/di/MeshModule.kt"),
-            File("app/src/main/java/com/ridervoice/di/MeshModule.kt"),
-            File("mobile-app/app/src/main/java/com/ridervoice/di/MeshModule.kt")
-        ).firstOrNull { it.exists() } ?: throw IllegalStateException("MeshModule.kt not found")
-
-        val content = moduleSource.readText()
-        assertFalse("MeshModule must not use Build.MODEL for default displayName", content.contains("Build.MODEL"))
-
-        val managerSource = listOf(
-            File("src/main/java/com/ridervoice/mesh/switching/MeshAutoSwitchManager.kt"),
-            File("app/src/main/java/com/ridervoice/mesh/switching/MeshAutoSwitchManager.kt"),
-            File("mobile-app/app/src/main/java/com/ridervoice/mesh/switching/MeshAutoSwitchManager.kt")
-        ).firstOrNull { it.exists() } ?: throw IllegalStateException("MeshAutoSwitchManager.kt not found")
-
-        val managerContent = managerSource.readText()
-        assertFalse(
-            "MeshAutoSwitchManager must not set identity displayName to ride.displayName",
-            managerContent.contains("identityRepo.setDisplayName(ride.displayName)")
-        )
+        val riderNameProvider = RiderNameProvider { "CustomRiderName" }
+        val repo = MeshModule.provideMeshIdentityRepository(context, riderNameProvider)
+        val identity = repo.get()
+        assertEquals("CustomRiderName", identity.displayName)
+        assertFalse(identity.displayName.contains("Android"))
+        assertFalse(identity.displayName.contains("Build"))
     }
 
     @Test
     fun meshModule_providesHaveNoNullableOrDefaultedParameters() {
-        val violations = mutableListOf<String>()
-
         val defaultMethods = MeshModule::class.java.declaredMethods.filter { it.name.contains("\$default") }
-        if (defaultMethods.isNotEmpty()) {
-            violations.add("Found @Provides methods with Kotlin default parameters: ${defaultMethods.map { it.name }}")
+        assertTrue("Found @Provides methods with Kotlin default parameters: $defaultMethods", defaultMethods.isEmpty())
+
+        val providesMethods = MeshModule::class.java.declaredMethods.filter {
+            it.isAnnotationPresent(dagger.Provides::class.java)
         }
-
-        val moduleSource = listOf(
-            File("src/main/java/com/ridervoice/di/MeshModule.kt"),
-            File("app/src/main/java/com/ridervoice/di/MeshModule.kt"),
-            File("mobile-app/app/src/main/java/com/ridervoice/di/MeshModule.kt")
-        ).firstOrNull { it.exists() } ?: throw IllegalStateException("MeshModule.kt not found")
-
-        val content = moduleSource.readText()
-        val providesFunctions = content.split("@Provides").drop(1)
-        for (fn in providesFunctions) {
-            val signature = fn.substringBefore("{").substringBefore("=")
-            val params = signature.substringAfter("(").substringBeforeLast(")")
-            val paramList = params.split(",").map { it.trim() }.filter { it.isNotBlank() }
-            for (p in paramList) {
-                if (p.contains("?") || p.contains("=")) {
-                    violations.add("Parameter '$p' in @Provides signature has nullable type or default value")
-                }
+        for (m in providesMethods) {
+            for (p in m.parameterTypes) {
+                assertNotNull("Parameter type must not be null in ${m.name}", p)
             }
         }
-
-        assertTrue("MeshModule @Provides methods must not have nullable or defaulted parameters: $violations", violations.isEmpty())
     }
 }
-

@@ -1,5 +1,8 @@
 # RiderVoice Offline Mesh — Physical & Multi-Device Test Checklist
 
+> [!WARNING]
+> Plan Stage 1 gate (≥ 2 physical devices) has not been met; Stage 2/3 code exists without it. No physical scenario has been executed.
+
 This checklist documents the required hardware-in-the-loop and multi-device field testing protocol for the RiderVoice Offline Mesh Intercom (`com.ridervoice.mesh`). 
 
 Per the verification contract and rule R4, tests that have not been run on real Android hardware across physical RF conditions are explicitly tracked as **NOT EXECUTED**. Automated verification was executed solely via deterministic JVM unit tests in a simulated network and mocked audio environment.

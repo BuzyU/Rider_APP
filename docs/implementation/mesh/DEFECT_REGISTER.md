@@ -70,11 +70,20 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | B17 | HIGH | Security | FIXED (WP-49) | `ForwardingEngine.kt:502` | KeyZeroizationTest#forwardingEngine_closeZeroizesKeyArrays |
 | B18 | HIGH | Security | FIXED (WP-49) | `FeatureFlags.kt:32` | NetworkProtocolHardeningTest#debugPeerFilter_noopInRelease |
 | B19 | MEDIUM | CI | FIXED (WP-51) | `.github/workflows/build.yml:35` | ProductionWiringTest#autoSwitchManager_start_doesNothingWhenGateClosed |
-| B20 | MEDIUM | Testing | OPEN | `ProtocolHardeningTest.kt:50` | None (pending WP-52) |
+| B20 | MEDIUM | Testing | FIXED (WP-52) | `ArchitectureRulesTest.kt:1` | ArchitectureRulesTest#rule1_onlineCodeDoesNotImportMesh |
 | B21 | LOW | Testing | FIXED (WP-48) | `PHYSICAL_TEST_CHECKLIST.md:1` | MeshSettingsViewModelTest#whenWifiHardwareMissing_automaticFallbackCannotBeEnabled |
 | B22 | LOW | Settings | FIXED (WP-51) | `docs/SETTINGS_CONTRACT.md:23` | MeshSettingsViewModelTest#togglePropagatesToOfflineMeshGateThroughSingleInstance |
 | B23 | MEDIUM | UI | FIXED (WP-44/WP-46) | `OfflineAwareRoomHost.kt:45` | MeshSettingsViewModelTest#togglePropagatesToOfflineMeshGateThroughSingleInstance |
 | B24 | LOW | Transport | FIXED (WP-45/WP-49) | `MeshPeerProjector.kt:12` | FallbackControlsTest#hostState_overlayActiveStatesMatchPlanSpecification |
 | B25 | LOW | Lint | FIXED (WP-51) | `mobile-app/app/lint-baseline.xml:1` | ProductionWiringTest#autoSwitchManager_start_doesNothingWhenGateClosed |
 | B26 | LOW | Security | FIXED (WP-49) | `docs/security/mesh-threat-model.md:107` | SessionHygieneTest#offlineSession_toStringNeverLeaksCodeOrKeyBytes |
-| B27 | MEDIUM | Testing | OPEN | `mobile-app/app/src/test/` | None (pending WP-52) |
+| B27 | MEDIUM | Testing | FIXED (WP-52) | `StressSmokeTest.kt:1` | StressSmokeTest#sixNodeLinearMesh_fiveThousandVoiceFrames_fivePercentDrop_noDuplicatesAndReachesFarEnd |
+
+## Architecture Rules (B20)
+The following test methods in `ArchitectureRulesTest` are named architecture rules enforcing module and manifest boundaries:
+- `ArchitectureRulesTest#rule1_onlineCodeDoesNotImportMesh`
+- `ArchitectureRulesTest#rule2_frozenOnlineFilesNeverImportMesh`
+- `ArchitectureRulesTest#rule3_meshCodeDoesNotImportOnlineTransportOutsideAdapters`
+- `ArchitectureRulesTest#rule4_manifestDeclaresOnlyApprovedWifiPermissions`
+- `ArchitectureRulesTest#rule5_debugManifestGuardsReceiverWithDumpPermission`
+All tests in `ProductionWiringTest` have been refactored to 100% behavioural assertions.

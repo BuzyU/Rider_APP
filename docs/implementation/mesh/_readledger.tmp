@@ -128,7 +128,7 @@ mobile-app/app/src/test/java/com/ridervoice/mesh/MeshStage1SimulationTest.kt | 5
 mobile-app/app/src/test/java/com/ridervoice/mesh/MicAudioControlPathTest.kt | 400 | Y | Tests mic capture flags, VOX detection, PTT mute rules, and hardware button events (TEST-DISPATCHER-ONLY, real dispatcher in hardware manager).
 mobile-app/app/src/test/java/com/ridervoice/mesh/NetworkProtocolHardeningTest.kt | 270 | Y | Validates packet serialization, header validation, boundary limits, and malformed frames (TEST-DISPATCHER-ONLY).
 mobile-app/app/src/test/java/com/ridervoice/mesh/OfflineMeshGateTest.kt | 181 | Y | Tests gate conditions checking build config flags and local settings overrides (SOURCE-TEXT / BEHAVIORAL).
-mobile-app/app/src/test/java/com/ridervoice/mesh/ProductionWiringTest.kt | 139 | Y | Asserts Hilt module bindings, manifest permissions, and exported service flags via reflection and file inspection (SOURCE-TEXT).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ProductionWiringTest.kt | 134 | Y | Asserts Hilt module bindings, network binders, PTT ports, and gate-closed behavior via reflection and runtime mocks (BEHAVIORAL/REFLECTION).
 mobile-app/app/src/test/java/com/ridervoice/mesh/ProtocolHardeningTest.kt | 352 | Y | Asserts protocol constants (TTL, port, magic bytes) and packet constraints (SOURCE-TEXT / BEHAVIORAL).
 mobile-app/app/src/test/java/com/ridervoice/mesh/ScheduledNet.kt | 71 | Y | Virtual network simulation utility providing deterministic in-memory packet dispatch for tests (TEST-DISPATCHER-ONLY).
 mobile-app/app/src/test/java/com/ridervoice/mesh/SessionHygieneTest.kt | 93 | Y | Asserts key material cleanup and session holder state reset across session boundaries (TEST-DISPATCHER-ONLY).
@@ -163,4 +163,6 @@ mobile-app/app/src/test/java/com/ridervoice/mesh/ui/FallbackControlsTest.kt | 49
 mobile-app/app/src/test/java/com/ridervoice/mesh/ui/MeshSettingsViewModelTest.kt | 85 | Y | Tests reactive propagation of MeshRuntimeSettings mutations to UI state (TEST-DISPATCHER-ONLY).
 mobile-app/app/src/test/java/com/ridervoice/mesh/ui/OfflineAvailabilityUiTest.kt | 65 | Y | Unit tests for availability and fallback reason UI copy mapping (TEST-DISPATCHER-ONLY).
 .github/scripts/mesh-commit-guard.sh | 37 | Y | Mesh commit guard script enforcing LiveKit contract freeze.
-.github/test-census-floor | 1 | Y | Single integer storing unit test census floor (477).
+.github/test-census-floor | 1 | Y | Single integer storing unit test census floor (483).
+mobile-app/app/src/test/java/com/ridervoice/mesh/ArchitectureRulesTest.kt | 111 | Y | 5 named architecture rules enforcing isolation, manifest boundaries, and debug receiver permissions.
+mobile-app/app/src/test/java/com/ridervoice/mesh/audit/StressSmokeTest.kt | 165 | Y | 6-node linear mesh stress test with 5,000 voice frames, 5% drop, verifying zero duplicates and far-end delivery.

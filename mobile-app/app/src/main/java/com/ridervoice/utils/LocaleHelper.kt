@@ -1,7 +1,10 @@
 package com.ridervoice.utils
 
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.res.AssetManager
 import android.content.res.Configuration
+import android.content.res.Resources
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import java.util.Locale
@@ -33,6 +36,10 @@ object LocaleHelper {
         config.setLocale(locale)
         config.setLayoutDirection(locale)
 
-        return context.createConfigurationContext(config)
+        val configContext = context.createConfigurationContext(config)
+        return object : ContextWrapper(context) {
+            override fun getResources(): Resources = configContext.resources
+            override fun getAssets(): AssetManager = configContext.assets
+        }
     }
 }

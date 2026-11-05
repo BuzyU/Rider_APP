@@ -88,7 +88,8 @@ class MainActivity : ComponentActivity() {
                 com.ridervoice.utils.LocaleHelper.getLocalizedContext(this@MainActivity, appLang)
             }
             androidx.compose.runtime.CompositionLocalProvider(
-                androidx.compose.ui.platform.LocalContext provides localizedContext
+                androidx.compose.ui.platform.LocalContext provides localizedContext,
+                androidx.compose.ui.platform.LocalConfiguration provides localizedContext.resources.configuration
             ) {
                 com.ridervoice.ui.theme.RiderVoiceTheme {
                 val showUpdateSuccessDialog = remember { mutableStateOf(false) }

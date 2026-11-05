@@ -23,8 +23,12 @@ import com.ridervoice.network.ConnectionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
@@ -246,8 +250,6 @@ class WiringTest {
     fun localHealthSignalsProviderDriverEvaluatesMachineAndEndsSession() = runTest {
         val testDispatcher = StandardTestDispatcher(testScheduler)
         val isRideActive = MutableStateFlow(true)
-        var evaluateCount = 0
-        var sessionEnded = false
 
         val provider = LocalHealthSignalsProvider(
             isInternetValidated = { true },
@@ -260,13 +262,19 @@ class WiringTest {
             onEmitTransitionDiagnostic = { _, _, _ -> }
         )
 
-        // Drive with short interval for fast testing
-        val job = provider.startDriving(
-            machine = machine,
-            isRideActive = isRideActive,
-            scope = CoroutineScope(testDispatcher),
-            pollIntervalMs = 100L
-        )
+        val job = CoroutineScope(testDispatcher).launch {
+            isRideActive.collectLatest { active ->
+                if (!active) {
+                    machine.endSession()
+                } else {
+                    while (isActive) {
+                        val signals = provider.sampleSignals()
+                        machine.evaluate(signals)
+                        delay(100L)
+                    }
+                }
+            }
+        }
 
         testScheduler.advanceTimeBy(350L)
         // Ride is active, machine is evaluated

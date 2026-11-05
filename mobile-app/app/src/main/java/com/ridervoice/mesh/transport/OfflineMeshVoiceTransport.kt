@@ -86,6 +86,14 @@ class OfflineMeshVoiceTransport(
     private val diagnosticsRepo = MeshDiagnosticsRepository()
     val diagnostics: StateFlow<MeshDiagnosticsSnapshot> = diagnosticsRepo.snapshot
 
+    private val _isLinkAlive = MutableStateFlow(true)
+    override val isLinkAlive: StateFlow<Boolean> = _isLinkAlive.asStateFlow()
+
+    val helloIntervalMs = java.util.concurrent.atomic.AtomicLong(MeshConfig.HELLO_INTERVAL_MS)
+    override fun setHelloIntervalMs(intervalMs: Long) {
+        helloIntervalMs.set(intervalMs)
+    }
+
     private val _audioRoute = MutableStateFlow(AudioRoute.SPEAKER)
     val audioRoute: StateFlow<AudioRoute> = routeController?.activeRoute ?: _audioRoute.asStateFlow()
 
@@ -236,7 +244,7 @@ class OfflineMeshVoiceTransport(
             while (isActive) {
                 val broadcastEndpoints = broadcastProvider()
                 fEngine.originateHello(broadcastEndpoints)
-                delay(MeshConfig.HELLO_INTERVAL_MS)
+                delay(helloIntervalMs.get())
             }
         }        // Periodic graph expiry sweep (every 1.0s)
         expireJob = scope.launch {

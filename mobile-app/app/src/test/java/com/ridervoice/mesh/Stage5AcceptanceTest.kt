@@ -228,7 +228,8 @@ class Stage5AcceptanceTest {
             isLiveKitReconnecting = true,
             liveKitReconnectAttempts = 2,
             isHealthProbeSuccessful = false,
-            hasValidMeshRoute = true
+            hasValidMeshRoute = true,
+            isMeshTransportAlive = true
         )
 
         val failingNoMesh = failingWithMesh.copy(hasValidMeshRoute = false)
@@ -287,7 +288,8 @@ class Stage5AcceptanceTest {
             isLiveKitReconnecting = false,
             liveKitReconnectAttempts = 0,
             isHealthProbeSuccessful = true,
-            hasValidMeshRoute = true
+            hasValidMeshRoute = true,
+            isMeshTransportAlive = true
         )
 
         val failing = healthy.copy(isValidatedInternet = false, isLiveKitConnected = false, isHealthProbeSuccessful = false)

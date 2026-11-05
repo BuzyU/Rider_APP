@@ -54,8 +54,7 @@ class ValidatedInternetAndStandingRulesTest {
             liveKitReconnectAttempts = 0,
             isHealthProbeSuccessful = true,
             hasValidMeshRoute = false,
-            packetLossPercent = 50f,
-            rttMs = 2500L
+            isMeshTransportAlive = true
         )
         assertFalse(sig.isTotalLoss())
         assertFalse(sig.isOnlineFailing())
@@ -82,7 +81,8 @@ class ValidatedInternetAndStandingRulesTest {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(down)
         assertEquals(AutoSwitchState.ONLINE_SUSPECT, sm.state.value)
@@ -96,7 +96,8 @@ class ValidatedInternetAndStandingRulesTest {
             liveKitReconnectAttempts = 1,
             isHealthProbeSuccessful = true,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(partial)
         assertEquals(AutoSwitchState.ONLINE, sm.state.value)
@@ -117,7 +118,8 @@ class ValidatedInternetAndStandingRulesTest {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         val partial = LocalHealthSignals(
             isValidatedInternet = true,
@@ -126,7 +128,8 @@ class ValidatedInternetAndStandingRulesTest {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = true,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(down)
         assertEquals(AutoSwitchState.ONLINE_SUSPECT, sm.state.value)
@@ -156,7 +159,8 @@ class ValidatedInternetAndStandingRulesTest {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         val healthy = LocalHealthSignals(
             isValidatedInternet = true,
@@ -165,7 +169,8 @@ class ValidatedInternetAndStandingRulesTest {
             liveKitReconnectAttempts = 0,
             isHealthProbeSuccessful = true,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
 
         sm.evaluate(down)
@@ -197,7 +202,8 @@ class ValidatedInternetAndStandingRulesTest {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
 
         sm.evaluate(down)
@@ -224,7 +230,8 @@ class ValidatedInternetAndStandingRulesTest {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = false,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         val internetBack = LocalHealthSignals(
             isValidatedInternet = true,
@@ -233,7 +240,8 @@ class ValidatedInternetAndStandingRulesTest {
             liveKitReconnectAttempts = 1,
             isHealthProbeSuccessful = true,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
 
         sm.evaluate(noMeshTotalLoss)
@@ -261,9 +269,8 @@ class ValidatedInternetAndStandingRulesTest {
             liveKitReconnectAttempts = 0,
             isHealthProbeSuccessful = true,
             hasValidMeshRoute = false,
-            packetLossPercent = 75f,
-            rttMs = 3000L,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
 
         sm.evaluate(degraded)

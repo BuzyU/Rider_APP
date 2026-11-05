@@ -109,6 +109,9 @@ class LiveKitVoiceTransport(
     override val micState: StateFlow<MicState> = _micState.asStateFlow()
 
     private var userMicEnabled = true
+    private val reconnectHistory = ArrayDeque<Long>()
+    private val _reconnectAttempts = MutableStateFlow(0)
+    val reconnectAttempts: StateFlow<Int> = _reconnectAttempts.asStateFlow()
 
     @Volatile private var savedUserMutedBeforePause: Boolean = false
     @Volatile private var savedDeafenedBeforePause: Boolean = false
@@ -134,7 +137,15 @@ class LiveKitVoiceTransport(
                 _state.value = when (conn) {
                     ConnectionState.CONNECTED -> VoiceTransportState.CONNECTED
                     ConnectionState.CONNECTING -> VoiceTransportState.STARTING
-                    ConnectionState.RECONNECTING -> VoiceTransportState.RECONNECTING
+                    ConnectionState.RECONNECTING -> {
+                        val now = System.currentTimeMillis()
+                        reconnectHistory.addLast(now)
+                        while (reconnectHistory.isNotEmpty() && now - reconnectHistory.first() > 60_000L) {
+                            reconnectHistory.removeFirst()
+                        }
+                        _reconnectAttempts.value = reconnectHistory.size
+                        VoiceTransportState.RECONNECTING
+                    }
                     ConnectionState.FAILED -> VoiceTransportState.FAILED
                     ConnectionState.DISCONNECTED -> VoiceTransportState.STOPPED
                 }

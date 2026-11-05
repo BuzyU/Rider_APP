@@ -113,7 +113,8 @@ class WP34RedTests {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(down)
         assertEquals(AutoSwitchState.ONLINE_SUSPECT, sm.state.value)
@@ -126,7 +127,8 @@ class WP34RedTests {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = true,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         now += 12_000L
         sm.evaluate(partial)
@@ -152,7 +154,8 @@ class WP34RedTests {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = false,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(noMeshTotalLoss)
         now += 12_000L
@@ -167,7 +170,8 @@ class WP34RedTests {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = true,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(internetBackWithRoute)
 
@@ -194,7 +198,8 @@ class WP34RedTests {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(down)
         now += 12_000L
@@ -209,7 +214,8 @@ class WP34RedTests {
             liveKitReconnectAttempts = 0,
             isHealthProbeSuccessful = true,
             hasValidMeshRoute = true,
-            offlineAvailable = false
+            offlineAvailable = false,
+            isMeshTransportAlive = true
         )
         now += 25_000L
         sm.evaluate(recoverableNoOffline, offlineAvailable = false)
@@ -242,7 +248,8 @@ class WP34RedTests {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(down)
         now += 12_000L

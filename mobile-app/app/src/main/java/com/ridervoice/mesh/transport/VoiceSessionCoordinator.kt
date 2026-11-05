@@ -173,11 +173,13 @@ class VoiceSessionCoordinator(
         if (priorMicWanted) runCatching { meshTransport.setMicrophoneEnabled(true) }
         if (priorVoxActive) {
             (meshTransport as? MeshControl)?.micController?.setVoxEnabled(true)
+            (meshTransport as? MeshControl)?.setHelloIntervalMs(750L)
         }
         true
     }
 
     private suspend fun rollbackToLiveKit() = withContext(NonCancellable) {
+        (meshTransport as? MeshControl)?.setHelloIntervalMs(1500L)
         (meshTransport as? MeshControl)?.let { runCatching { it.disableAudio() } }
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
         audioOwnershipArbiter.claimLiveKit()
@@ -243,6 +245,7 @@ class VoiceSessionCoordinator(
             runCatching { liveKitTransport.setMicrophoneEnabled(meshMicWanted) }
         }
         withContext(NonCancellable) { mesh.disableAudio() } // (e) offline playback stops only now
+        (meshTransport as? MeshControl)?.setHelloIntervalMs(1500L)
         _activeKind.value = PeerTransportKind.ONLINE_LIVEKIT // (f)
         _activeTransport.value = liveKitTransport
         true

@@ -27,51 +27,32 @@ import kotlinx.coroutines.withTimeout
 class AutomaticSwitchStateMachine(
     private val config: AntiFlappingConfig = AntiFlappingConfig(),
     private val isGateAllowed: () -> Boolean = { OfflineMeshGate.isAutomaticFallbackAllowed() },
-    private val clock: () -> Long = { System.currentTimeMillis() },
+    private val clock: Clock = SystemClock,
     private val onHandoffToOffline: suspend () -> Boolean = { true },
     private val onHandoffToOnline: suspend () -> Boolean = { true },
     private val onEmitTransitionDiagnostic: (from: AutoSwitchState, to: AutoSwitchState, reason: String) -> Unit = { _, _, _ -> },
     private val onProbeMesh: (suspend () -> Unit)? = null
 ) {
-    constructor(
-        config: AntiFlappingConfig = AntiFlappingConfig(),
-        isGateAllowed: () -> Boolean = { OfflineMeshGate.isAutomaticFallbackAllowed() },
-        clock: Clock,
-        onHandoffToOffline: suspend () -> Boolean = { true },
-        onHandoffToOnline: suspend () -> Boolean = { true },
-        onEmitTransitionDiagnostic: (from: AutoSwitchState, to: AutoSwitchState, reason: String) -> Unit = { _, _, _ -> },
-        onProbeMesh: (suspend () -> Unit)? = null
-    ) : this(
-        config = config,
-        isGateAllowed = isGateAllowed,
-        clock = { clock.nowMs() },
-        onHandoffToOffline = onHandoffToOffline,
-        onHandoffToOnline = onHandoffToOnline,
-        onEmitTransitionDiagnostic = onEmitTransitionDiagnostic,
-        onProbeMesh = onProbeMesh
-    )
-
     private val mutex = Mutex()
     private val _state = MutableStateFlow(AutoSwitchState.ONLINE)
     val state: StateFlow<AutoSwitchState> = _state.asStateFlow()
 
     private enum class Direction { TO_OFFLINE, TO_ONLINE }
-    private class Pending(val dir: Direction, val ticket: Long)
-    private var ticket = 0L
+    private class Pending(val dir: Direction)
     private companion object {
         const val HANDOFF_TIMEOUT_MS = 20_000L
         const val TAG = "SwitchSM"
     }
 
-    private var activeRideId: String? = null
     private var suspectStartTimeMs: Long = 0L
     private var recoveryStartTimeMs: Long = 0L
     private var lastSwitchTimeMs: Long = 0L
-    private var startingSinceMs: Long = 0L
-    private var handingBackSinceMs: Long = 0L
     private var lastRecoveryAttemptMs: Long = 0L
+    private var lastOfflineFailureMs: Long = 0L
+    private var offlineRetryMultiplier: Int = 1
 
     private val switchHistory = ArrayDeque<Long>()
+    private val failureHistory = ArrayDeque<Long>()
     private var backoffMultiplier: Int = 1
     private var recoveryBackoffMultiplier: Int = 1
 
@@ -80,16 +61,15 @@ class AutomaticSwitchStateMachine(
      * Clears all anti-flapping timers, backoff counters, and hysteresis windows.
      * Sets state to ONLINE (stable online start). Never carries state between rides.
      */
-    suspend fun beginSession(rideId: String, nowMs: Long = clock()) = mutex.withLock {
-        ticket++
-        activeRideId = rideId
+    suspend fun beginSession(rideId: String, nowMs: Long = clock.nowMs()) = mutex.withLock {
         suspectStartTimeMs = 0L
         recoveryStartTimeMs = 0L
         lastSwitchTimeMs = 0L
-        startingSinceMs = 0L
-        handingBackSinceMs = 0L
         lastRecoveryAttemptMs = 0L
+        lastOfflineFailureMs = 0L
+        offlineRetryMultiplier = 1
         switchHistory.clear()
+        failureHistory.clear()
         backoffMultiplier = 1
         recoveryBackoffMultiplier = 1
         _state.value = AutoSwitchState.ONLINE
@@ -101,7 +81,7 @@ class AutomaticSwitchStateMachine(
     ) {
         var pending: Pending? = null
         mutex.withLock {
-            val now = clock()
+            val now = clock.nowMs()
             val current = _state.value
 
             if (current == AutoSwitchState.SESSION_ENDED) return
@@ -146,9 +126,16 @@ class AutomaticSwitchStateMachine(
                 }
 
                 AutoSwitchState.FALLBACK_UNAVAILABLE -> when {
-                    !signals.isTotalLoss() -> transitionTo(AutoSwitchState.ONLINE, "Total loss cleared")
-                    signals.hasValidMeshRoute && isGateAllowed() && !isFlappingSuppressed(now) ->
+                    !signals.isTotalLoss() -> {
+                        offlineRetryMultiplier = 1
+                        transitionTo(AutoSwitchState.ONLINE, "Total loss cleared")
+                    }
+                    signals.hasValidMeshRoute && isGateAllowed() &&
+                        (now - lastOfflineFailureMs >= config.offlineRetryBaseMs * offlineRetryMultiplier) &&
+                        !isFailureSuppressed(now) &&
+                        !isFlappingSuppressed(now) -> {
                         pending = beginHandoff(Direction.TO_OFFLINE, now)
+                    }
                 }
 
                 AutoSwitchState.OFFLINE_ACTIVE -> {
@@ -167,6 +154,9 @@ class AutomaticSwitchStateMachine(
                         recoveryStartTimeMs = 0L
                         transitionTo(AutoSwitchState.OFFLINE_ACTIVE, "Online unstable; staying on mesh")
                     }
+                    signals.lastInterfaceChangeMs > recoveryStartTimeMs -> {
+                        recoveryStartTimeMs = signals.lastInterfaceChangeMs
+                    }
                     now - recoveryStartTimeMs >= config.recoveryStabilityMs -> {
                         pending = beginHandoff(Direction.TO_ONLINE, now)
                     }
@@ -179,13 +169,12 @@ class AutomaticSwitchStateMachine(
     }
 
     private fun beginHandoff(dir: Direction, now: Long): Pending {
-        ticket++
         if (dir == Direction.TO_OFFLINE) {
             transitionTo(AutoSwitchState.STARTING_OFFLINE_MESH, "Starting offline mesh")
         } else {
             transitionTo(AutoSwitchState.HANDING_BACK_TO_LIVEKIT, "Recovery window satisfied")
         }
-        return Pending(dir, ticket)
+        return Pending(dir)
     }
 
     private suspend fun runHandoff(p: Pending) {
@@ -204,15 +193,19 @@ class AutomaticSwitchStateMachine(
         }
 
         mutex.withLock {
-            if (p.ticket != ticket || _state.value == AutoSwitchState.SESSION_ENDED) return
-            val now = clock()
+            if (_state.value == AutoSwitchState.SESSION_ENDED) return
+            val now = clock.nowMs()
             if (p.dir == Direction.TO_OFFLINE) {
                 if (ok) {
                     recordSwitch(now)
                     lastSwitchTimeMs = now
                     backoffMultiplier = 1
+                    offlineRetryMultiplier = 1
                     transitionTo(AutoSwitchState.OFFLINE_ACTIVE, "Offline mesh active")
                 } else {
+                    lastOfflineFailureMs = now
+                    recordFailure(now)
+                    offlineRetryMultiplier = (offlineRetryMultiplier * 2).coerceAtMost(8)
                     transitionTo(AutoSwitchState.FALLBACK_UNAVAILABLE, "Offline handoff failed")
                 }
             } else {
@@ -232,15 +225,14 @@ class AutomaticSwitchStateMachine(
     }
 
     suspend fun endSession() = mutex.withLock {
-        ticket++
-        activeRideId = null
         suspectStartTimeMs = 0L
         recoveryStartTimeMs = 0L
         lastSwitchTimeMs = 0L
-        startingSinceMs = 0L
-        handingBackSinceMs = 0L
         lastRecoveryAttemptMs = 0L
+        lastOfflineFailureMs = 0L
+        offlineRetryMultiplier = 1
         switchHistory.clear()
+        failureHistory.clear()
         backoffMultiplier = 1
         recoveryBackoffMultiplier = 1
         transitionTo(AutoSwitchState.SESSION_ENDED, "Session ended")
@@ -267,6 +259,22 @@ class AutomaticSwitchStateMachine(
     private fun pruneSwitchHistory(now: Long) {
         while (switchHistory.isNotEmpty() && now - switchHistory.first() > config.windowMs) {
             switchHistory.removeFirst()
+        }
+    }
+
+    private fun recordFailure(now: Long) {
+        failureHistory.addLast(now)
+        pruneFailureHistory(now)
+    }
+
+    private fun isFailureSuppressed(now: Long): Boolean {
+        pruneFailureHistory(now)
+        return failureHistory.size >= config.maxTransitionsPerWindow
+    }
+
+    private fun pruneFailureHistory(now: Long) {
+        while (failureHistory.isNotEmpty() && now - failureHistory.first() > config.windowMs) {
+            failureHistory.removeFirst()
         }
     }
 }

@@ -203,13 +203,16 @@ object MeshModule {
     fun provideLocalHealthSignalsProvider(
         networkObserver: NetworkObserver,
         liveKitManager: LiveKitManager,
+        liveKitVoiceTransport: LiveKitVoiceTransport,
         meshTransport: OfflineMeshVoiceTransport,
         validated: ValidatedInternetSource
     ): LocalHealthSignalsProvider = LocalHealthSignalsProvider(
         networkObserver = networkObserver,
         liveKitConnectionState = liveKitManager.connectionState,
+        liveKitReconnectAttempts = { liveKitVoiceTransport.reconnectAttempts.value },
         meshControl = meshTransport,
-        isInternetValidated = { validated.isValidated() }
+        isInternetValidated = { validated.isValidated() },
+        validatedSource = validated
     )
 
     @Provides
@@ -217,19 +220,15 @@ object MeshModule {
     fun provideMeshAutoSwitchManager(
         activeRideRepository: ActiveRideRepository,
         liveKitManager: LiveKitManager,
-        networkObserver: NetworkObserver,
         coordinator: VoiceSessionCoordinator,
         meshTransport: OfflineMeshVoiceTransport,
-        identityRepo: MeshIdentityRepository,
         healthSignalsProvider: LocalHealthSignalsProvider,
         secretProvider: OfflineSecretProvider
     ): MeshAutoSwitchManager = MeshAutoSwitchManager(
         activeRideRepository = activeRideRepository,
         liveKitManager = liveKitManager,
-        networkObserver = networkObserver,
         coordinator = coordinator,
         meshTransport = meshTransport,
-        identityRepo = identityRepo,
         healthSignalsProvider = healthSignalsProvider,
         secretProvider = secretProvider
     )

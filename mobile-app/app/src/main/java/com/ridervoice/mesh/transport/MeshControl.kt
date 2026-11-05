@@ -26,6 +26,12 @@ interface MeshControl {
     /** Whether the mesh currently has at least one valid multi-hop or direct route. */
     val hasValidRoute: StateFlow<Boolean>
 
+    /** Whether the underlying mesh network link is currently active/running. */
+    val isLinkAlive: StateFlow<Boolean> get() = kotlinx.coroutines.flow.MutableStateFlow(true)
+
+    /** Sets the periodic discovery HELLO beacon interval. */
+    fun setHelloIntervalMs(intervalMs: Long) {}
+
     /** Optional mic controller for the mesh audio subsystem. */
     val micController: MicController? get() = null
 

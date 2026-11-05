@@ -461,10 +461,8 @@ class Stage3ReachabilityTest {
         val manager = MeshAutoSwitchManager(
             activeRideRepository = rideRepo,
             liveKitManager = lkManager,
-            networkObserver = netObserver,
             coordinator = coordinator,
             meshTransport = mockMeshTransport,
-            identityRepo = identityRepo,
             healthSignalsProvider = healthSignalsProvider,
             secretProvider = secretProvider,
             dispatcher = testDispatcher
@@ -512,10 +510,8 @@ class Stage3ReachabilityTest {
         val manager = MeshAutoSwitchManager(
             activeRideRepository = rideRepo,
             liveKitManager = lkManager,
-            networkObserver = netObserver,
             coordinator = coordinator,
             meshTransport = mockMeshTransport,
-            identityRepo = identityRepo,
             healthSignalsProvider = healthSignalsProvider,
             secretProvider = secretProvider,
             dispatcher = testDispatcher
@@ -568,10 +564,8 @@ class Stage3ReachabilityTest {
         val manager = MeshAutoSwitchManager(
             activeRideRepository = rideRepo,
             liveKitManager = lkManager,
-            networkObserver = netObserver,
             coordinator = coordinator,
             meshTransport = mockMeshTransport,
-            identityRepo = identityRepo,
             healthSignalsProvider = healthSignalsProvider,
             secretProvider = secretProvider,
             dispatcher = testDispatcher

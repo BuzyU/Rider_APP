@@ -82,10 +82,9 @@ data class LocalHealthSignals(
     val liveKitReconnectAttempts: Int,
     val isHealthProbeSuccessful: Boolean,
     val hasValidMeshRoute: Boolean,
-    val packetLossPercent: Float = 0f,
-    val rttMs: Long = 0L,
+    val isMeshTransportAlive: Boolean,
     val offlineAvailable: Boolean = true,
-    val isMeshTransportAlive: Boolean = true
+    val lastInterfaceChangeMs: Long = 0L
 ) {
     /**
      * W-DEGRADED: True ONLY if confirmed total loss of online connectivity.
@@ -125,5 +124,6 @@ data class AntiFlappingConfig(
     val recoveryStabilityMs: Long = 8_000L,
     val minDwellMs: Long = 20_000L,
     val maxTransitionsPerWindow: Int = 3,
-    val windowMs: Long = 120_000L
+    val windowMs: Long = 120_000L,
+    val offlineRetryBaseMs: Long = failureConfirmationMs
 )

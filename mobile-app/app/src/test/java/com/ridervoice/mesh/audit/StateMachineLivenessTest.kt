@@ -24,7 +24,7 @@ class StateMachineLivenessTest {
             onHandoffToOffline = { !handoffShouldFail }
         )
         // Move to FALLBACK_UNAVAILABLE
-        val noMeshSig = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = false)
+        val noMeshSig = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = false, isMeshTransportAlive = true)
         sm.evaluate(noMeshSig)
         now += 10_500L
         sm.evaluate(noMeshSig)
@@ -32,7 +32,7 @@ class StateMachineLivenessTest {
 
         // Route appears, but handoff returns false
         handoffShouldFail = true
-        val withMeshSig = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = true)
+        val withMeshSig = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = true, isMeshTransportAlive = true)
         sm.evaluate(withMeshSig)
         assertNotEquals("Should not be stuck in STARTING_OFFLINE_MESH", AutoSwitchState.STARTING_OFFLINE_MESH, sm.state.value)
         assertEquals(AutoSwitchState.FALLBACK_UNAVAILABLE, sm.state.value)
@@ -47,14 +47,14 @@ class StateMachineLivenessTest {
             clock = { now },
             onHandoffToOffline = { if (shouldThrow) error("boom") else true }
         )
-        val noMeshSig = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = false)
+        val noMeshSig = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = false, isMeshTransportAlive = true)
         sm.evaluate(noMeshSig)
         now += 10_500L
         sm.evaluate(noMeshSig)
         assertEquals(AutoSwitchState.FALLBACK_UNAVAILABLE, sm.state.value)
 
         shouldThrow = true
-        val withMeshSig = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = true)
+        val withMeshSig = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = true, isMeshTransportAlive = true)
         sm.evaluate(withMeshSig)
         assertNotEquals("Should not be stuck in STARTING_OFFLINE_MESH", AutoSwitchState.STARTING_OFFLINE_MESH, sm.state.value)
         assertEquals(AutoSwitchState.FALLBACK_UNAVAILABLE, sm.state.value)
@@ -70,7 +70,7 @@ class StateMachineLivenessTest {
             onHandoffToOnline = { error("LiveKit connection failure") }
         )
         // Transition to OFFLINE_ACTIVE
-        val failing = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = true)
+        val failing = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = true, isMeshTransportAlive = true)
         sm.evaluate(failing)
         now += 10_500L
         sm.evaluate(failing)
@@ -78,7 +78,7 @@ class StateMachineLivenessTest {
 
         // Past dwell, online healthy signals arrive
         now += 25_000L
-        val recovered = LocalHealthSignals(true, true, false, 0, true, hasValidMeshRoute = true)
+        val recovered = LocalHealthSignals(true, true, false, 0, true, hasValidMeshRoute = true, isMeshTransportAlive = true)
         sm.evaluate(recovered)
         assertEquals(AutoSwitchState.ONLINE_RECOVERING, sm.state.value)
 
@@ -102,7 +102,7 @@ class StateMachineLivenessTest {
                 true
             }
         )
-        val failing = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = true)
+        val failing = LocalHealthSignals(false, false, false, 0, false, hasValidMeshRoute = true, isMeshTransportAlive = true)
         sm.evaluate(failing)
         now += 10_500L
         sm.evaluate(failing)
@@ -116,7 +116,8 @@ class StateMachineLivenessTest {
             isLiveKitReconnecting = false,
             liveKitReconnectAttempts = 0,
             isHealthProbeSuccessful = true,
-            hasValidMeshRoute = true
+            hasValidMeshRoute = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(internetBackSignal)
         assertEquals("Should enter ONLINE_RECOVERING when internet & probe are recoverable", AutoSwitchState.ONLINE_RECOVERING, sm.state.value)

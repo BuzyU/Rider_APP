@@ -1,7 +1,6 @@
 package com.ridervoice.mesh.switching
 
 import com.ridervoice.mesh.OfflineMeshGate
-import com.ridervoice.mesh.identity.MeshIdentityRepository
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSession
@@ -11,7 +10,6 @@ import com.ridervoice.mesh.transport.VoiceSession
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import com.ridervoice.mesh.transport.VoiceTransportState
 import com.ridervoice.network.LiveKitManager
-import com.ridervoice.network.NetworkObserver
 import com.ridervoice.state.ActiveRideRepository
 import com.ridervoice.utils.Constants
 import kotlinx.coroutines.CoroutineDispatcher
@@ -19,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,42 +29,16 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@Singleton
 class MeshAutoSwitchManager(
     private val activeRideRepository: ActiveRideRepository,
     private val liveKitManager: LiveKitManager,
-    private val networkObserver: NetworkObserver,
     private val coordinator: VoiceSessionCoordinator,
     private val meshTransport: OfflineMeshVoiceTransport,
-    private val identityRepo: MeshIdentityRepository,
     private val healthSignalsProvider: LocalHealthSignalsProvider,
     private val secretProvider: OfflineSecretProvider = NullOfflineSecretProvider(),
     private val clock: Clock = SystemClock,
     dispatcher: CoroutineDispatcher = Dispatchers.Default
 ) {
-
-    @Inject
-    constructor(
-        activeRideRepository: ActiveRideRepository,
-        liveKitManager: LiveKitManager,
-        networkObserver: NetworkObserver,
-        coordinator: VoiceSessionCoordinator,
-        meshTransport: OfflineMeshVoiceTransport,
-        identityRepo: MeshIdentityRepository,
-        healthSignalsProvider: LocalHealthSignalsProvider,
-        secretProvider: OfflineSecretProvider
-    ) : this(
-        activeRideRepository,
-        liveKitManager,
-        networkObserver,
-        coordinator,
-        meshTransport,
-        identityRepo,
-        healthSignalsProvider,
-        secretProvider,
-        SystemClock,
-        Dispatchers.Default
-    )
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
 
@@ -79,7 +52,7 @@ class MeshAutoSwitchManager(
 
     val stateMachine: AutomaticSwitchStateMachine = LocalHealthSignalsProvider.createMachine(
         coordinator = coordinator,
-        clock = { clock.nowMs() },
+        clock = clock,
         onEmitTransitionDiagnostic = { from, to, reason ->
             _lastTransitionReason.value = "$from -> $to ($reason)"
         },
@@ -207,6 +180,12 @@ class MeshAutoSwitchManager(
     fun stop() {
         drivingJob?.cancel()
         drivingJob = null
-        scope.launch { stateMachine.endSession() }
+        scope.launch {
+            try {
+                stateMachine.endSession()
+            } finally {
+                scope.cancel()
+            }
+        }
     }
 }

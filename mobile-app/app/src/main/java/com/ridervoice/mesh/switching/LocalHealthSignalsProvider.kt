@@ -8,12 +8,8 @@ import com.ridervoice.utils.Constants
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -24,7 +20,7 @@ import java.util.concurrent.TimeUnit
  * Stage 3 Health Signals Provider.
  *
  * Samples local connectivity signals:
- * - validated Internet capability (via NetworkObserver)
+ * - validated Internet capability (via NetworkObserver / ValidatedInternetSource)
  * - LiveKit connection state & reconnect attempts
  * - Active 3s HEAD health probe to backend (throttled to at most once per 5s on IO dispatcher)
  * - Mesh routing state (via MeshControl)
@@ -39,29 +35,21 @@ class LocalHealthSignalsProvider(
     private val healthProbe: (suspend () -> Boolean)? = null,
     private val isInternetValidated: (() -> Boolean)? = null,
     private val clock: Clock = SystemClock,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val validatedSource: ValidatedInternetSource? = null
 ) {
     private val probeDispatcher: CoroutineDispatcher = dispatcher
+    private var lastInterfaceChangeMs: Long = 0L
 
-    constructor(
-        networkObserver: NetworkObserver? = null,
-        liveKitConnectionState: StateFlow<ConnectionState>? = null,
-        liveKitReconnectAttempts: () -> Int = { 0 },
-        meshControl: MeshControl? = null,
-        healthProbe: (suspend () -> Boolean)? = null,
-        isInternetValidated: (() -> Boolean)? = null,
-        clock: () -> Long,
-        dispatcher: CoroutineDispatcher = Dispatchers.IO
-    ) : this(
-        networkObserver,
-        liveKitConnectionState,
-        liveKitReconnectAttempts,
-        meshControl,
-        healthProbe,
-        isInternetValidated,
-        Clock { clock() },
-        dispatcher
-    )
+    init {
+        validatedSource?.let { vs ->
+            CoroutineScope(SupervisorJob() + dispatcher).launch {
+                vs.validatedFlow.collect {
+                    lastInterfaceChangeMs = clock.nowMs()
+                }
+            }
+        }
+    }
 
     private val probeClient by lazy {
         OkHttpClient.Builder()
@@ -105,6 +93,7 @@ class LocalHealthSignalsProvider(
         }
 
         val validMeshRoute = meshControl?.hasValidRoute?.value ?: false
+        val isMeshAlive = meshControl?.isLinkAlive?.value ?: true
 
         return LocalHealthSignals(
             isValidatedInternet = validatedInternet,
@@ -112,7 +101,10 @@ class LocalHealthSignalsProvider(
             isLiveKitReconnecting = isLkReconnecting,
             liveKitReconnectAttempts = reconnectAttempts,
             isHealthProbeSuccessful = probeOk,
-            hasValidMeshRoute = validMeshRoute
+            hasValidMeshRoute = validMeshRoute,
+            isMeshTransportAlive = isMeshAlive,
+            offlineAvailable = true,
+            lastInterfaceChangeMs = lastInterfaceChangeMs
         )
     }
 
@@ -126,30 +118,6 @@ class LocalHealthSignalsProvider(
         }
     }.getOrDefault(false)
 
-    /**
-     * Test harness seam: drives the state machine evaluation loop once per second while [isRideActive] is true.
-     * Retained for isolated component testing (e.g. WiringTest) without full MeshAutoSwitchManager orchestration.
-     * When [isRideActive] becomes false, ends the session.
-     */
-    fun startDriving(
-        machine: AutomaticSwitchStateMachine,
-        isRideActive: StateFlow<Boolean>,
-        scope: CoroutineScope = CoroutineScope(SupervisorJob() + probeDispatcher),
-        pollIntervalMs: Long = 1_000L
-    ): Job = scope.launch {
-        isRideActive.collectLatest { active ->
-            if (active) {
-                while (isActive && isRideActive.value) {
-                    val signals = sampleSignals()
-                    machine.evaluate(signals)
-                    delay(pollIntervalMs)
-                }
-            } else {
-                machine.endSession()
-            }
-        }
-    }
-
     companion object {
         fun buildHealthUrl(baseUrl: String = Constants.BASE_URL): String =
             baseUrl.trimEnd('/') + "/health"
@@ -157,7 +125,7 @@ class LocalHealthSignalsProvider(
         fun createMachine(
             coordinator: VoiceSessionCoordinator,
             config: AntiFlappingConfig = AntiFlappingConfig(),
-            clock: () -> Long = { System.currentTimeMillis() },
+            clock: Clock = SystemClock,
             onEmitTransitionDiagnostic: (from: AutoSwitchState, to: AutoSwitchState, reason: String) -> Unit = { _, _, _ -> },
             onProbeMesh: (suspend () -> Unit)? = null
         ): AutomaticSwitchStateMachine = AutomaticSwitchStateMachine(
@@ -165,20 +133,6 @@ class LocalHealthSignalsProvider(
             clock = clock,
             onHandoffToOffline = { coordinator.fallbackToMesh() },
             onHandoffToOnline = { coordinator.recoverToLiveKit() },
-            onEmitTransitionDiagnostic = onEmitTransitionDiagnostic,
-            onProbeMesh = onProbeMesh
-        )
-
-        fun createMachine(
-            coordinator: VoiceSessionCoordinator,
-            config: AntiFlappingConfig = AntiFlappingConfig(),
-            clock: Clock,
-            onEmitTransitionDiagnostic: (from: AutoSwitchState, to: AutoSwitchState, reason: String) -> Unit = { _, _, _ -> },
-            onProbeMesh: (suspend () -> Unit)? = null
-        ): AutomaticSwitchStateMachine = createMachine(
-            coordinator = coordinator,
-            config = config,
-            clock = { clock.nowMs() },
             onEmitTransitionDiagnostic = onEmitTransitionDiagnostic,
             onProbeMesh = onProbeMesh
         )

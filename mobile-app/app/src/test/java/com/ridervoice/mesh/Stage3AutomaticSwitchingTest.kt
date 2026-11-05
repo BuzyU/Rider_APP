@@ -30,7 +30,8 @@ class Stage3AutomaticSwitchingTest {
         isLiveKitReconnecting = false,
         liveKitReconnectAttempts = 0,
         isHealthProbeSuccessful = true,
-        hasValidMeshRoute = true
+        hasValidMeshRoute = true,
+        isMeshTransportAlive = true
     )
 
     private val failingOnlineWithMesh = LocalHealthSignals(
@@ -39,7 +40,8 @@ class Stage3AutomaticSwitchingTest {
         isLiveKitReconnecting = true,
         liveKitReconnectAttempts = 3,
         isHealthProbeSuccessful = false,
-        hasValidMeshRoute = true
+        hasValidMeshRoute = true,
+        isMeshTransportAlive = true
     )
 
     private val failingOnlineNoMesh = LocalHealthSignals(
@@ -48,7 +50,8 @@ class Stage3AutomaticSwitchingTest {
         isLiveKitReconnecting = true,
         liveKitReconnectAttempts = 3,
         isHealthProbeSuccessful = false,
-        hasValidMeshRoute = false
+        hasValidMeshRoute = false,
+        isMeshTransportAlive = true
     )
 
     @Test

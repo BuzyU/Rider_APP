@@ -45,7 +45,8 @@ class StateMachineLifecycleTest {
         liveKitReconnectAttempts = 0,
         isHealthProbeSuccessful = true,
         hasValidMeshRoute = true,
-        offlineAvailable = true
+        offlineAvailable = true,
+        isMeshTransportAlive = true
     )
 
     private val totalLossSignals = LocalHealthSignals(
@@ -55,7 +56,8 @@ class StateMachineLifecycleTest {
         liveKitReconnectAttempts = 3,
         isHealthProbeSuccessful = false,
         hasValidMeshRoute = true,
-        offlineAvailable = true
+        offlineAvailable = true,
+        isMeshTransportAlive = true
     )
 
     @Before
@@ -157,7 +159,6 @@ class StateMachineLifecycleTest {
         every { rideRepo.state } returns rideStateFlow
 
         val healthSignalsProvider = LocalHealthSignalsProvider(
-            networkObserver = netObserver,
             liveKitConnectionState = lkManager.connectionState,
             healthProbe = { false },
             clock = { virtualTime }
@@ -167,10 +168,8 @@ class StateMachineLifecycleTest {
         val manager = MeshAutoSwitchManager(
             activeRideRepository = rideRepo,
             liveKitManager = lkManager,
-            networkObserver = netObserver,
             coordinator = coordinator,
             meshTransport = mockMeshTransport,
-            identityRepo = identityRepo,
             healthSignalsProvider = healthSignalsProvider,
             clock = Clock { virtualTime },
             dispatcher = testDispatcher
@@ -240,9 +239,8 @@ class StateMachineLifecycleTest {
             liveKitReconnectAttempts = 5,
             isHealthProbeSuccessful = true,
             hasValidMeshRoute = true,
-            packetLossPercent = 65f,
-            rttMs = 1200L,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
 
         assertFalse("Degraded only is NOT total loss", degradedSignals.isTotalLoss())
@@ -374,10 +372,8 @@ class StateMachineLifecycleTest {
         val manager = MeshAutoSwitchManager(
             activeRideRepository = rideRepo,
             liveKitManager = lkManager,
-            networkObserver = netObserver,
             coordinator = coordinator,
             meshTransport = mockMeshTransport,
-            identityRepo = identityRepo,
             healthSignalsProvider = LocalHealthSignalsProvider()
         )
 

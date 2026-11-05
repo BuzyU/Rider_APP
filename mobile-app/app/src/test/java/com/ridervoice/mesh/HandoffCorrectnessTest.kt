@@ -422,7 +422,8 @@ class HandoffCorrectnessTest {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(totalLoss) // ONLINE -> ONLINE_SUSPECT
         virtualTime += 15_000L
@@ -438,7 +439,8 @@ class HandoffCorrectnessTest {
             liveKitReconnectAttempts = 0,
             isHealthProbeSuccessful = true,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(recoverable) // OFFLINE_ACTIVE -> ONLINE_RECOVERING
         assertEquals(AutoSwitchState.ONLINE_RECOVERING, sm.state.value)
@@ -481,7 +483,8 @@ class HandoffCorrectnessTest {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(totalLoss)
         virtualTime += 15_000L
@@ -521,7 +524,8 @@ class HandoffCorrectnessTest {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(totalLoss)
         virtualTime += 15_000L
@@ -565,7 +569,8 @@ class HandoffCorrectnessTest {
             liveKitReconnectAttempts = 3,
             isHealthProbeSuccessful = false,
             hasValidMeshRoute = true,
-            offlineAvailable = true
+            offlineAvailable = true,
+            isMeshTransportAlive = true
         )
         sm.evaluate(totalLoss)
         virtualTime += 15_000L

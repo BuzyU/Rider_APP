@@ -51,7 +51,7 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | A45 | MEDIUM | Startup | FIXED | `App.kt:51` | Stage3ReachabilityTest#startAfterInstall_usesInstalledSettings |
 | A46 | LOW | Audio | FIXED | `OfflineMeshVoiceTransport.kt:80` | MicAudioControlPathTest#deafen_survivesRecreate |
 | A47 | LOW | Audio | FIXED (WP-45) | `MicController.kt:95` | MicControllerOrderingTest#multiThreadedOrderingAndConcurrencyTest |
-| B1 | HIGH | Link | OPEN | `UdpMeshLink.kt:33` | None (pending WP-48) |
+| B1 | HIGH | Link | FIXED (WP-48) | `MeshSelfTestMapper.kt:1` | MeshSelfTestMapperTest#whenZeroNeighboursForMoreThan20Seconds_showsIsolationWarningHint |
 | B2 | CRITICAL | UI | FIXED (WP-45) | `OfflineAwareRoomHost.kt:130` | FallbackControlsTest#offlineActive_overlayPttDrivesOfflineCapture_notLiveKit |
 | B3 | CRITICAL | Switching | FIXED (WP-46) | `AutomaticSwitchStateMachine.kt:133` | FailedHandoffBackoffTest#failedHandoff_backsOffAndSuppressesFlapping_atMostFourAttemptsInTwoMinutes |
 | B4 | CRITICAL | Audio | FIXED (WP-45) | `MicController.kt:95` | MicControllerOrderingTest#multiThreadedOrderingAndConcurrencyTest |
@@ -71,7 +71,7 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | B18 | HIGH | Security | OPEN | `FeatureFlags.kt:28` | None (pending WP-49) |
 | B19 | MEDIUM | CI | OPEN | `.github/workflows/build.yml:45` | None (pending WP-51) |
 | B20 | MEDIUM | Testing | OPEN | `ProtocolHardeningTest.kt:50` | None (pending WP-52) |
-| B21 | LOW | Testing | OPEN | `PHYSICAL_TEST_CHECKLIST.md:1` | None (pending WP-48) |
+| B21 | LOW | Testing | FIXED (WP-48) | `PHYSICAL_TEST_CHECKLIST.md:1` | MeshSettingsViewModelTest#whenWifiHardwareMissing_automaticFallbackCannotBeEnabled |
 | B22 | LOW | Settings | OPEN | `SETTINGS_CONTRACT.md:10` | None (pending WP-51) |
 | B23 | MEDIUM | UI | FIXED (WP-44/WP-46) | `OfflineAwareRoomHost.kt:45` | MeshSettingsViewModelTest#togglePropagatesToOfflineMeshGateThroughSingleInstance |
 | B24 | LOW | Transport | FIXED (WP-45) | `OfflineMeshVoiceTransport.kt:310` | FallbackControlsTest#hostState_overlayActiveStatesMatchPlanSpecification |

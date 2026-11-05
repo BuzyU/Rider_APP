@@ -211,7 +211,10 @@ fun SettingsScreen(
                         }
                     )
 
+                    val hasWifiHardware = meshUiState.hasWifiHardware
+                    val canEnableFallback = isBuildGateOpen && isMeshEnabled && hasWifiHardware
                     val fallbackSubtitle = when {
+                        !hasWifiHardware -> stringResource(R.string.mesh_settings_no_wifi_hardware)
                         !isBuildGateOpen -> stringResource(R.string.mesh_disabled_in_build)
                         !isMeshEnabled -> stringResource(R.string.mesh_settings_fallback_disabled_hint)
                         !isAutoFallbackEnabled -> stringResource(R.string.mesh_settings_disabled)
@@ -223,11 +226,11 @@ fun SettingsScreen(
                     SettingsItemToggle(
                         label = stringResource(R.string.mesh_settings_fallback_title),
                         icon = Icons.Default.NetworkCheck,
-                        checked = isBuildGateOpen && isMeshEnabled && isAutoFallbackEnabled,
-                        enabled = isBuildGateOpen && isMeshEnabled,
+                        checked = canEnableFallback && isAutoFallbackEnabled,
+                        enabled = canEnableFallback,
                         subtitle = fallbackSubtitle,
                         onCheckedChange = { enable ->
-                            if (isBuildGateOpen && isMeshEnabled) {
+                            if (canEnableFallback) {
                                 meshSettingsViewModel.setAutomaticFallbackEnabled(enable)
                             }
                         }

@@ -345,4 +345,18 @@
     <string name="mesh_fallback_reason_no_riders_nearby">Offline mesh unavailable: no nearby riders</string>
     <string name="mesh_fallback_reason_handoff_failed">Offline mesh unavailable: handoff failed</string>
     <string name="mesh_sos">SOS</string>
+    <string name="mesh_network_setup_instructions_title">Network Setup</string>
+    <string name="mesh_network_step_1">1. One rider turns on their phone\'s Wi-Fi hotspot</string>
+    <string name="mesh_network_step_2">2. Other riders connect to that Wi-Fi hotspot</string>
+    <string name="mesh_network_step_3">3. All riders enter the same pairing code and tap Start</string>
+    <string name="mesh_backup_setup_instructions">Before riding: One rider enables Wi-Fi hotspot, others connect to it, and all save the same pairing code.</string>
+    <string name="mesh_selftest_hud_title">Network Self-Test</string>
+    <string name="mesh_selftest_link_state">Link: %1$s</string>
+    <string name="mesh_selftest_local_addresses">Local: %1$s | Broadcast: %2$s</string>
+    <string name="mesh_selftest_neighbours_heard">Authenticated neighbours (last 10s): %1$d</string>
+    <string name="mesh_selftest_no_neighbours_hint">No nearby riders on this network. Are you on the same hotspot/Wi-Fi? Some networks block device-to-device traffic.</string>
+    <string name="mesh_diag_link_state">Link State</string>
+    <string name="mesh_diag_local_ip">Local IPv4</string>
+    <string name="mesh_diag_broadcast">Broadcast Address</string>
+    <string name="mesh_settings_no_wifi_hardware">Device lacks Wi-Fi hardware. Offline mesh fallback requires Wi-Fi.</string>
 </resources>

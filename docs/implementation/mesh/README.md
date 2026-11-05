@@ -1,7 +1,8 @@
 # RiderVoice Offline Mesh Package Architecture
 
 **Package:** `com.ridervoice.mesh`  
-**Purpose:** Zero-infrastructure local radio voice intercom and automatic network switching fallback.
+**Purpose:** Zero-infrastructure local radio voice intercom and automatic network switching fallback.  
+**Transport Truth:** v1 transport = UDP over a Wi-Fi/hotspot network that all riders are already connected to. The app does not create or join that network.
 
 ---
 
@@ -27,7 +28,7 @@ com.ridervoice.mesh/
 │   ├── MeshEndpoint.kt                # Socket address abstraction (IP:Port)
 │   ├── MeshFrame.kt                   # Inbound raw packet wrapper
 │   ├── MeshLink.kt                    # Transport interface abstraction
-│   └── UdpMeshLink.kt                 # Non-blocking UDP socket, Wi-Fi Direct interface detection, broadcast fallback
+│   └── UdpMeshLink.kt                 # Non-blocking UDP socket over shared Wi-Fi/hotspot network, subnet broadcast
 ├── protocol/
 │   ├── DuplicatePacketCache.kt        # 5-tuple LRU duplicate filter with TTL
 │   ├── HelloCodec.kt                  # Binary encoder/decoder for HELLO packets
@@ -74,7 +75,7 @@ com.ridervoice.mesh/
         ▼
 [UdpMeshLink.send] (UDP broadcast/unicast datagram on port 45454)
         │
-       ~~~ Radio Link (Wi-Fi Direct / Local AP) ~~~
+       ~~~ Radio Link (Shared Wi-Fi / Hotspot Subnet) ~~~
         │
         ▼
 [UdpMeshLink.incomingFrames] (Receives UDP datagram)

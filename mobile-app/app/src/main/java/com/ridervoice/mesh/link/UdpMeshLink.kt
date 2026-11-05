@@ -153,6 +153,23 @@ class UdpMeshLink(
     }
 
     companion object {
+        fun getLocalIpAddress(): String? {
+            return runCatching {
+                NetworkInterface.getNetworkInterfaces()?.asSequence()
+                    ?.filter { it.isUp && !it.isLoopback && !it.isVirtual }
+                    ?.flatMap { nif ->
+                        nif.interfaceAddresses.asSequence()
+                            .filter { it.address is Inet4Address }
+                            .mapNotNull { it.address?.hostAddress }
+                    }
+                    ?.firstOrNull()
+            }.getOrNull()
+        }
+
+        fun getLocalBroadcastAddress(): String {
+            return discoverBroadcastEndpoints().firstOrNull()?.host ?: "255.255.255.255"
+        }
+
         fun discoverBroadcastEndpoints(port: Int = MeshConfig.MESH_PORT): List<MeshEndpoint> {
             return runCatching {
                 NetworkInterface.getNetworkInterfaces()?.asSequence()

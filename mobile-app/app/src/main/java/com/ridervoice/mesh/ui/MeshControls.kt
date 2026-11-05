@@ -39,6 +39,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -96,6 +97,17 @@ fun MeshDiagnosticsDialog(
                     DiagRow(stringResource(R.string.mesh_diag_dropped_ttl), "${snapshot.droppedTtl}")
                     DiagRow(stringResource(R.string.mesh_diag_dropped_buffer), "${snapshot.droppedAtLinkBuffer}")
                     DiagRow(stringResource(R.string.mesh_diag_graph_version), "${snapshot.graphVersion}")
+                    DiagRow(stringResource(R.string.mesh_diag_link_state), snapshot.linkState)
+                    DiagRow(stringResource(R.string.mesh_diag_local_ip), if (snapshot.localIp.isNotBlank()) snapshot.localIp else "None")
+                    DiagRow(stringResource(R.string.mesh_diag_broadcast), if (snapshot.broadcastAddress.isNotBlank()) snapshot.broadcastAddress else "None")
+                    if (snapshot.isolationWarningHint != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.mesh_selftest_no_neighbours_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MeshColors.AlertRed
+                        )
+                    }
                 }
             }
         },

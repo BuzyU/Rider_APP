@@ -308,7 +308,7 @@ The offline mesh subsystem provides an autonomous, multi-hop peer-to-peer voice 
   - `SwitchingModels.kt`: Ingests packet loss, RTT spikes, and cellular outage signals to trigger automatic handoff.
 
 - **UI & Presentation (`mesh/ui/`)**:
-  - `OfflineMeshLobbyScreen.kt` & `OfflineMeshLobbyViewModel.kt`: Local hotspot setup, peer discovery list, group code entry, and session pairing.
+  - `OfflineMeshLobbyScreen.kt` & `OfflineMeshViewModel.kt`: Shared network setup instructions, peer discovery list, group code entry, and session pairing.
   - `OfflineRoomScreen.kt` & `OfflineRoomViewModel.kt`: Active offline intercom HUD displaying mesh topology, hop counts, signal quality, and PTT controls.
   - `di/MeshModule.kt`: Dagger Hilt module wiring the offline mesh singleton graph.
   - `service/MeshForegroundService.kt`: Persistent foreground service maintaining network locks and audio loops when the app is backgrounded.

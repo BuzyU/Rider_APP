@@ -345,4 +345,18 @@
     <string name="mesh_fallback_reason_no_riders_nearby">ऑफ़लाइन मेश अनुपलब्ध: कोई आस-पास राइडर नहीं</string>
     <string name="mesh_fallback_reason_handoff_failed">ऑफ़लाइन मेश अनुपलब्ध: हैंडऑफ विफल</string>
     <string name="mesh_sos">SOS</string>
+        <string name="mesh_network_setup_instructions_title">नेटवर्क सेटअप</string>
+    <string name="mesh_network_step_1">1. एक राइडर अपने फ़ोन का वाई-फ़ाई हॉटस्पॉट चालू करे</string>
+    <string name="mesh_network_step_2">2. अन्य राइडर्स उस वाई-फ़ाई हॉटस्पॉट से कनेक्ट करें</string>
+    <string name="mesh_network_step_3">3. सभी राइडर्स समान पेयरिंग कोड दर्ज करें और स्टार्ट दबाएं</string>
+    <string name="mesh_backup_setup_instructions">सवारी से पहले: एक राइडर वाई-फ़ाई हॉटस्पॉट चालू करे, अन्य उससे कनेक्ट करें, और सभी समान पेयरिंग कोड सहेजें।</string>
+    <string name="mesh_selftest_hud_title">नेटवर्क सेल्फ़-टेस्ट</string>
+    <string name="mesh_selftest_link_state">लिंक: %1$s</string>
+    <string name="mesh_selftest_local_addresses">लोकल: %1$s | ब्रॉडकास्ट: %2$s</string>
+    <string name="mesh_selftest_neighbours_heard">सत्यापित पड़ोसी (पिछले 10 सेकंड): %1$d</string>
+    <string name="mesh_selftest_no_neighbours_hint">इस नेटवर्क पर कोई आस-पास का राइडर नहीं मिला। क्या आप एक ही हॉटस्पॉट/वाई-फ़ाई पर हैं? कुछ नेटवर्क डिवाइस-टू-डिवाइस ट्रैफ़िक को ब्लॉक करते हैं।</string>
+    <string name="mesh_diag_link_state">लिंक स्थिति</string>
+    <string name="mesh_diag_local_ip">लोकल IPv4</string>
+    <string name="mesh_diag_broadcast">ब्रॉडकास्ट पता</string>
+    <string name="mesh_settings_no_wifi_hardware">डिवाइस में वाई-फ़ाई हार्डवेयर नहीं है। ऑफ़लाइन मेश फ़ॉलबैक के लिए वाई-फ़ाई आवश्यक है।</string>
 </resources>

@@ -113,4 +113,28 @@ class MeshSettingsViewModelTest {
         assertEquals(collector1After, collector2After)
         assertEquals(true, collector1After.warmStandby)
     }
+
+    @Test
+    fun whenWifiHardwareMissing_automaticFallbackCannotBeEnabled() = runTest {
+        val noWifiCapability = object : WifiCapabilityChecker {
+            override fun isWifiHardwareAvailable(): Boolean = false
+        }
+        val vm = MeshSettingsViewModel(
+            settings = settings,
+            availabilityFlow = MutableStateFlow(com.ridervoice.mesh.switching.OfflineAvailability.AVAILABLE),
+            wifiCapability = noWifiCapability
+        )
+
+        assertFalse(vm.uiState.value.hasWifiHardware)
+        vm.setAutomaticFallbackEnabled(true)
+        assertFalse(vm.uiState.value.autoFallback)
+        assertFalse(settings.automaticFallbackEnabled)
+    }
+
+    @Test
+    fun whenWifiHardwareAvailable_automaticFallbackCanBeEnabled() = runTest {
+        viewModel.setAutomaticFallbackEnabled(true)
+        assertTrue(viewModel.uiState.value.autoFallback)
+        assertTrue(settings.automaticFallbackEnabled)
+    }
 }

@@ -39,6 +39,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import com.ridervoice.mesh.link.MeshLinkState
+import com.ridervoice.mesh.link.UdpMeshLink
 import com.ridervoice.mesh.session.OfflineSessionHolder
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
@@ -84,6 +86,9 @@ fun OfflineMeshLobbyScreen(
     var joinCodeInput by remember { mutableStateOf("") }
     var joinError by remember { mutableStateOf<String?>(null) }
     var useAsBackup by remember { mutableStateOf(false) }
+    val localIp = remember { UdpMeshLink.getLocalIpAddress() }
+    val bcastAddr = remember { UdpMeshLink.getLocalBroadcastAddress() }
+    val zeroNeighboursStartMs = remember { System.currentTimeMillis() }
 
     val scrollState = rememberScrollState()
 
@@ -134,8 +139,101 @@ fun OfflineMeshLobbyScreen(
                 text = stringResource(R.string.mesh_lobby_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
-                modifier = Modifier.padding(bottom = 24.dp)
+                modifier = Modifier.padding(bottom = 16.dp)
             )
+
+            // Numbered Setup Instructions Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CardDark),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(12.dp))
+                    .padding(bottom = 16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.mesh_network_setup_instructions_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = NeonOrange,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.mesh_network_step_1),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.mesh_network_step_2),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.mesh_network_step_3),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextPrimary
+                    )
+                }
+            }
+
+            // Self-Test HUD Card
+            val selfTestInput = remember(localIp, bcastAddr) {
+                MeshSelfTestInput(
+                    linkState = MeshLinkState.STOPPED,
+                    localIp = localIp,
+                    broadcastAddress = bcastAddr,
+                    authenticatedNeighboursHeardLast10s = 0,
+                    secondsWithZeroNeighbours = (System.currentTimeMillis() - zeroNeighboursStartMs) / 1000L
+                )
+            }
+            val selfTestState = MeshSelfTestMapper.map(selfTestInput)
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CardDark),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(12.dp))
+                    .padding(bottom = 16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.mesh_selftest_hud_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = ElectricGreen,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.mesh_selftest_link_state, selfTestState.linkStateText),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.mesh_selftest_local_addresses, localIp ?: "None", bcastAddr),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.mesh_selftest_neighbours_heard, selfTestState.authenticatedNeighboursCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                    if (selfTestState.isolationWarningHint != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.mesh_selftest_no_neighbours_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AlertRed
+                        )
+                    }
+                }
+            }
 
             // Backup mode toggle
             Row(
@@ -159,6 +257,24 @@ fun OfflineMeshLobbyScreen(
                     checked = useAsBackup,
                     onCheckedChange = { useAsBackup = it }
                 )
+            }
+
+            if (useAsBackup) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = CardDark),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, NeonOrange.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                ) {
+                    Text(
+                        text = stringResource(R.string.mesh_backup_setup_instructions),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

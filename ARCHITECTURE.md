@@ -82,7 +82,7 @@ graph TB
         VoxEngine["VoxEngine\n(VAD + 300Hz HPF + PTT logic)"]
         PTT["HardwarePTTManager\n(headset button)"]
         AudioFocus["AudioFocusManager"]
-        Mesh["OfflineMeshVoiceTransport\n(Wi-Fi Direct / Local UDP mesh)"]
+        Mesh["OfflineMeshVoiceTransport\n(Shared Wi-Fi/Hotspot UDP mesh)"]
         Handoff["AutomaticSwitchStateMachine\n(cellular ↔ offline fallback)"]
     end
 

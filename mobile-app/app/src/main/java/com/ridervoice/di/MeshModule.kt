@@ -256,4 +256,10 @@ object MeshModule {
     fun provideAutomaticSwitchStateMachine(
         autoSwitchManager: MeshAutoSwitchManager
     ): AutomaticSwitchStateMachine = autoSwitchManager.stateMachine
+
+    @Provides
+    @Singleton
+    fun provideWifiCapabilityChecker(
+        @ApplicationContext context: Context
+    ): com.ridervoice.mesh.ui.WifiCapabilityChecker = com.ridervoice.mesh.ui.SystemWifiCapabilityChecker(context)
 }

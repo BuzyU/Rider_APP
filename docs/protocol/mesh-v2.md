@@ -9,7 +9,7 @@
 
 ## 1. Architectural Principles
 
-1. **Zero Centralized Infrastructure:** Operates entirely over local radio links (Wi-Fi ad-hoc / Local Wi-Fi AP) without internet, cellular reception, or cloud relays.
+1. **Zero Centralized Infrastructure:** Operates entirely over local radio links without internet, cellular reception, or cloud relays. (v1 transport = UDP over a Wi-Fi/hotspot network that all riders are already connected to. The app does not create or join that network.)
 2. **Daisy-Hop Routing:** Messages are forwarded over multi-hop paths using BFS shortest-path routing, bounded to at most 6 nodes and 5 hops.
 3. **End-to-End Encryption & Hop Authentication:**
    - **Hop Authentication:** Every UDP datagram carries a 16-byte outer authentication tag (truncated HMAC-SHA256) calculated over the header and sealed payload using the session `authKey`.

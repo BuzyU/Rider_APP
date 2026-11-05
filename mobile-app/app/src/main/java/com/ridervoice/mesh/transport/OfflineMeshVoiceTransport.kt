@@ -114,7 +114,7 @@ class OfflineMeshVoiceTransport(
     val currentIdentity: MeshIdentity get() = identity
 
     override val micController: MicController = MicControllerImpl(
-        audioEnabled = { audioPlayback != null && audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH },
+        audioEnabled = { audioPlayback != null },
         applyCapture = { wantCapture ->
             micWanted = wantCapture
             val cap = audioCapture

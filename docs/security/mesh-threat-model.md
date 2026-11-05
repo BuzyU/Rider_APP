@@ -2,7 +2,7 @@
 
 **Version:** 2.0.0  
 **Target:** RiderVoice Offline Mesh Intercom (`com.ridervoice.mesh`)  
-**Scope:** Local ad-hoc Wi-Fi Direct / UDP mesh intercom  
+**Scope:** Local ad-hoc shared Wi-Fi / UDP mesh intercom (v1 transport = UDP over a Wi-Fi/hotspot network that all riders are already connected to; the app does not create or join that network)  
 
 ---
 

@@ -21,7 +21,12 @@ data class MeshDiagnosticsSnapshot(
     val droppedInvalid: Long = 0L,
     val droppedTtl: Long = 0L,
     val droppedAtLinkBuffer: Long = 0L,
-    val graphVersion: Long = 0L
+    val graphVersion: Long = 0L,
+    val linkState: String = "STOPPED",
+    val localIp: String = "",
+    val broadcastAddress: String = "",
+    val authenticatedNeighborsLast10s: Int = 0,
+    val isolationWarningHint: String? = null
 )
 
 class MeshDiagnosticsRepository {
@@ -45,13 +50,21 @@ class MeshDiagnosticsRepository {
         forwardedVoiceFrames: Long,
         droppedDuplicates: Long,
         droppedInvalid: Long,
-        droppedTtl: Long
+        droppedTtl: Long,
+        linkState: String = "RUNNING",
+        localIp: String = "",
+        broadcastAddress: String = "",
+        authenticatedNeighborsLast10s: Int = 0,
+        isolationWarningHint: String? = null
     ) {
+        val neighborsCount = if (authenticatedNeighborsLast10s > 0) authenticatedNeighborsLast10s
+        else graph.edges.count { (it.from == selfDeviceId || it.to == selfDeviceId) && it.endpoint != null }
+
         _snapshot.value = MeshDiagnosticsSnapshot(
             selfDeviceId = selfDeviceId,
             sessionId = sessionId,
             memberCount = memberCount,
-            directNeighborCount = graph.edges.count { (it.from == selfDeviceId || it.to == selfDeviceId) && it.endpoint != null },
+            directNeighborCount = neighborsCount,
             routeCount = routes.size,
             maxHopCount = routes.values.maxOfOrNull { it.hopCount } ?: 0,
             receivedVoiceFrames = receivedVoiceFrames,
@@ -60,7 +73,12 @@ class MeshDiagnosticsRepository {
             droppedInvalid = droppedInvalid,
             droppedTtl = droppedTtl,
             droppedAtLinkBuffer = _droppedAtLinkBuffer.get(),
-            graphVersion = graph.version
+            graphVersion = graph.version,
+            linkState = linkState,
+            localIp = localIp,
+            broadcastAddress = broadcastAddress,
+            authenticatedNeighborsLast10s = neighborsCount,
+            isolationWarningHint = isolationWarningHint
         )
     }
 

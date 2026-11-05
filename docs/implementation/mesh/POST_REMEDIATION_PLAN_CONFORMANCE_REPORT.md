@@ -36,7 +36,7 @@ All verification steps mandated by the GitHub Actions workflow (`.github/workflo
 - **Status:** **Conforming with Approved Architectural Amendments**.
 - **Stage 1.1 (Stable Device Identity):** Conforming. `MeshIdentityRepository` creates and persists a hardware-rooted UUID with `allowBackup="false"`, separate from display names and network endpoints.
 - **Stage 1.2 (Standalone Offline Session):** Conforming. `OfflineSession` implements 16-symbol Crockford Base32 pairing codes, 6-device capacity cap, and 7th-device rejection.
-- **Stage 1.3 (Transport Abstraction):** Conforming. `MeshLink` and `UdpMeshLink` provide datagram abstraction over Wi-Fi Direct and local subnets.
+- **Stage 1.3 (Transport Abstraction):** Conforming. `MeshLink` and `UdpMeshLink` provide datagram abstraction over shared Wi-Fi / hotspot local subnets (v1 transport = UDP over a Wi-Fi/hotspot network that all riders are already connected to; the app does not create or join that network).
 - **Stage 1.4 (Discovery Heartbeats):** Conforming. `HelloCodec` exchanges periodic beacons, link status, and graph versions.
 - **Stage 1.5 (Graph Representation):** Conforming. `MeshGraphRepository` tracks vertices, bidirectional edges, and neighbor timeouts, exposing immutable snapshots via `StateFlow`.
 - **Stage 1.6 (Route Calculation):** Conforming. `RouteCalculator` implements BFS shortest-path routing with deterministic lexicographic tie-breaking, hop count bounds, and next-hop resolution.

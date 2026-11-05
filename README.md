@@ -110,7 +110,7 @@ Rider_APP/
 | `SquadScreen`         | `Routes.SQUAD`           | Friends list, pending invitations, and call-sign search                        |
 | `RideStatsScreen`     | `Routes.RIDE_STATS`      | Ride logbook telemetry and historical ride replay                              |
 | `SosScreen`           | `Routes.SOS`             | Emergency alert broadcast interface                                            |
-| `OfflineMeshLobbyScreen` | `Routes.OFFLINE_MESH_LOBBY` | Offline peer discovery, Wi-Fi Direct / Local Hotspot link setup, and squad pairing |
+| `OfflineMeshLobbyScreen` | `Routes.OFFLINE_MESH_LOBBY` | Offline peer discovery, pre-shared pairing code lobby, and squad pairing (v1 transport = UDP over a Wi-Fi/hotspot network that all riders are already connected to; the app does not create or join that network) |
 | `OfflineRoomScreen`   | `Routes.OFFLINE_MESH_HUD` | Active offline mesh intercom HUD with multi-hop topology, signal quality metrics, and PTT controls |
 
 ---

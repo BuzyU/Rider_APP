@@ -160,23 +160,29 @@ class VoiceSessionCoordinator(
         val lk = liveKitTransport as? LiveKitVoiceTransport
         val priorVoxActive = lk?.isVoxRunning == true || lk?.savedVoxRunningBeforePause == true
         val priorDeafened = lk?.deafened?.value == true
-        liveKitTransport.pause()
-        if (!verifyLiveKitQuiet(2_000L)) { rollbackToLiveKit(); return@withLock false }
-        if (!audioOwnershipArbiter.handoffLiveKitToOfflineMesh { }) { rollbackToLiveKit(); return@withLock false }
-        val ok = runCatchingCancellable { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(it.javaClass.simpleName) } is EnableAudioResult.Success &&
-            meshTransport.micState.value != MicState.HARDWARE_BUSY
-        if (!ok) { rollbackToLiveKit(); return@withLock false }
-        _activeKind.value = PeerTransportKind.OFFLINE_MESH
-        _activeTransport.value = meshTransport
-        mesh.setHelloIntervalMs(750L)
-        if (priorDeafened) {
-            runCatchingCancellable { meshTransport.setDeafened(true) }
+        var committed = false
+        try {
+            liveKitTransport.pause()
+            if (!verifyLiveKitQuiet(2_000L)) return@withLock false
+            if (!audioOwnershipArbiter.handoffLiveKitToOfflineMesh { }) return@withLock false
+            val ok = runCatchingCancellable { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(it.javaClass.simpleName) } is EnableAudioResult.Success &&
+                meshTransport.micState.value != MicState.HARDWARE_BUSY
+            if (!ok) return@withLock false
+            _activeKind.value = PeerTransportKind.OFFLINE_MESH
+            _activeTransport.value = meshTransport
+            mesh.setHelloIntervalMs(750L)
+            if (priorDeafened) {
+                runCatchingCancellable { meshTransport.setDeafened(true) }
+            }
+            if (priorMicWanted) runCatchingCancellable { meshTransport.setMicrophoneEnabled(true) }
+            if (priorVoxActive) {
+                mesh.micController?.setVoxEnabled(true)
+            }
+            committed = true
+            true
+        } finally {
+            if (!committed) withContext(NonCancellable) { rollbackToLiveKit() }
         }
-        if (priorMicWanted) runCatchingCancellable { meshTransport.setMicrophoneEnabled(true) }
-        if (priorVoxActive) {
-            mesh.micController?.setVoxEnabled(true)
-        }
-        true
     }
 
     private suspend fun rollbackToLiveKit() = withContext(NonCancellable) {
@@ -185,6 +191,21 @@ class VoiceSessionCoordinator(
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
         audioOwnershipArbiter.claimLiveKit()
         runCatchingCancellable { liveKitTransport.resume() }
+        _activeKind.value = PeerTransportKind.ONLINE_LIVEKIT
+        _activeTransport.value = liveKitTransport
+    }
+
+    private suspend fun rollbackToMesh() = withContext(NonCancellable) {
+        runCatchingCancellable { liveKitTransport.pause() }
+        audioOwnershipArbiter.release(AudioOwner.LIVEKIT)
+        audioOwnershipArbiter.tryClaimOfflineMesh()
+        (meshTransport as? MeshControl)?.let { mesh ->
+            runCatchingCancellable { mesh.enableAudio() }
+            mesh.resumeCaptureOnly()
+            mesh.setHelloIntervalMs(750L)
+        }
+        _activeKind.value = PeerTransportKind.OFFLINE_MESH
+        _activeTransport.value = meshTransport
     }
 
     private suspend fun verifyLiveKitQuiet(timeoutMs: Long = 2_000L): Boolean {
@@ -225,24 +246,26 @@ class VoiceSessionCoordinator(
         val mesh = meshTransport as? MeshControl ?: return@withLock false
         val meshMicCtrl = mesh.micController
         val meshMicWanted = meshMicCtrl != null && (meshMicCtrl.micToggleOn.value || meshMicCtrl.pttHeld.value)
-
-        mesh.pauseCaptureOnly()
-        if (!audioOwnershipArbiter.claimLiveKit()) {
-            withContext(NonCancellable) { mesh.resumeCaptureOnly() }
-            return@withLock false
+        var committed = false
+        try {
+            mesh.pauseCaptureOnly()
+            if (!audioOwnershipArbiter.claimLiveKit()) return@withLock false
+            liveKitTransport.resume()
+            withTimeoutOrNull(3_000L) {
+                liveKitTransport.state.first { it == VoiceTransportState.CONNECTED }
+            }
+            withContext(NonCancellable) { mesh.disableAudio() }
+            if (meshMicCtrl != null) {
+                runCatchingCancellable { liveKitTransport.setMicrophoneEnabled(meshMicWanted) }
+            }
+            mesh.setHelloIntervalMs(1500L)
+            _activeKind.value = PeerTransportKind.ONLINE_LIVEKIT
+            _activeTransport.value = liveKitTransport
+            committed = true
+            true
+        } finally {
+            if (!committed) withContext(NonCancellable) { rollbackToMesh() }
         }
-        liveKitTransport.resume()
-        withTimeoutOrNull(3_000L) {
-            liveKitTransport.state.first { it == VoiceTransportState.CONNECTED }
-        }
-        withContext(NonCancellable) { mesh.disableAudio() }
-        if (meshMicCtrl != null) {
-            runCatchingCancellable { liveKitTransport.setMicrophoneEnabled(meshMicWanted) }
-        }
-        mesh.setHelloIntervalMs(1500L)
-        _activeKind.value = PeerTransportKind.ONLINE_LIVEKIT
-        _activeTransport.value = liveKitTransport
-        true
     }
 
     suspend fun onOnlineRideEnded(keepStandaloneMesh: Boolean) = switchMutex.withLock {

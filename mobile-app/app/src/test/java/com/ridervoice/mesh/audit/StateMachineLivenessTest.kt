@@ -108,7 +108,7 @@ class StateMachineLivenessTest {
         sm.evaluate(failing)
         assertEquals(AutoSwitchState.OFFLINE_ACTIVE, sm.state.value)
 
-        // LiveKit is DISCONNECTED (isLiveKitConnected = false), but Internet & health probe are OK!
+        // LiveKit is DISCONNECTED (isLiveKitConnected = false): must stay in OFFLINE_ACTIVE (no premature recovery)
         now += 25_000L
         val internetBackSignal = LocalHealthSignals(
             isValidatedInternet = true,
@@ -120,10 +120,15 @@ class StateMachineLivenessTest {
             isMeshTransportAlive = true
         )
         sm.evaluate(internetBackSignal)
-        assertEquals("Should enter ONLINE_RECOVERING when internet & probe are recoverable", AutoSwitchState.ONLINE_RECOVERING, sm.state.value)
+        assertEquals("Must stay in OFFLINE_ACTIVE while LiveKit is disconnected", AutoSwitchState.OFFLINE_ACTIVE, sm.state.value)
+
+        // Once LiveKit connects, enter ONLINE_RECOVERING
+        val liveKitConnectedSignal = internetBackSignal.copy(isLiveKitConnected = true)
+        sm.evaluate(liveKitConnectedSignal)
+        assertEquals("Enters ONLINE_RECOVERING when LiveKit connects", AutoSwitchState.ONLINE_RECOVERING, sm.state.value)
 
         now += 8_500L
-        sm.evaluate(internetBackSignal)
+        sm.evaluate(liveKitConnectedSignal)
         assertTrue(liveKitReconnected)
         assertEquals(AutoSwitchState.ONLINE, sm.state.value)
     }

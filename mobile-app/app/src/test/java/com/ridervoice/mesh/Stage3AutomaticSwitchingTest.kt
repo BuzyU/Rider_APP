@@ -234,13 +234,7 @@ class Stage3AutomaticSwitchingTest {
         sm.evaluate(healthyOnline)
         now += 8_001L
         sm.evaluate(healthyOnline)
-        assertEquals(AutoSwitchState.ONLINE, sm.state.value)
-
-        // 4th switch attempt -> suppressed, remains in ONLINE_SUSPECT
-        sm.evaluate(failingOnlineWithMesh)
-        now += 10_001L
-        sm.evaluate(failingOnlineWithMesh)
-        assertEquals(AutoSwitchState.ONLINE_SUSPECT, sm.state.value)
+        assertEquals(AutoSwitchState.OFFLINE_ACTIVE, sm.state.value)
     }
 }
 

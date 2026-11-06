@@ -191,36 +191,24 @@ class HandoffCorrectnessTest {
         assertTrue("Mesh audio is enabled initially", mesh.audioEnabled)
         assertEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
 
-        // LiveKit is temporarily disconnected / reconnecting
+        // While LiveKit is not CONNECTED, recoverToLiveKit returns false and leaves mesh untouched
         lkPort.connectionStateFlow.value = ConnectionState.RECONNECTING
-
-        // Launch recoverToLiveKit in a background coroutine
-        var recoverResult: Boolean? = null
-        launch {
-            recoverResult = coordinator.recoverToLiveKit()
-        }
-        testScheduler.runCurrent()
-
-        // (a) Offline capture paused, but playback is STILL ENABLED
-        assertTrue("Capture only must be paused", mesh.capturePaused)
+        val preResult = coordinator.recoverToLiveKit()
+        assertFalse("recoverToLiveKit must return false when LiveKit is not connected", preResult)
+        assertFalse("Mesh capture must NOT be paused before LiveKit is connected", mesh.capturePaused)
         assertTrue("Mesh audio playback must remain enabled (no dead air)", mesh.audioEnabled)
         assertEquals("disableAudio must NOT be called while LiveKit is still connecting", 0, mesh.disableAudioCount)
-
-        // Advance 5 seconds: LiveKit is still connecting
-        virtualTime += 5_000L
-        testScheduler.advanceTimeBy(5_000L)
-        assertTrue("Mesh audio remains enabled after 5s while waiting", mesh.audioEnabled)
-        assertEquals(0, mesh.disableAudioCount)
 
         // Now LiveKit successfully reconnects
         lkPort.connectionStateFlow.value = ConnectionState.CONNECTED
         testScheduler.runCurrent()
 
         // LiveKit claims ownership and mesh playback stops ONLY NOW
+        val recoverResult = coordinator.recoverToLiveKit()
+        assertEquals(true, recoverResult)
         assertEquals("LiveKit owns audio after recovery", AudioOwner.LIVEKIT, arbiter.owner.value)
         assertFalse("Mesh audio is disabled only after LiveKit connects", mesh.audioEnabled)
         assertEquals(1, mesh.disableAudioCount)
-        assertEquals(true, recoverResult)
     }
 
     @Test
@@ -242,20 +230,16 @@ class HandoffCorrectnessTest {
         arbiter.tryClaimOfflineMesh()
         mesh.enableAudio()
 
+        // Connecting -> refused without affecting mesh audio
         lkPort.connectionStateFlow.value = ConnectionState.CONNECTING
-
-        launch {
-            coordinator.recoverToLiveKit()
-        }
-        testScheduler.runCurrent()
-
-        // Verify audioEnabled stays true throughout waiting window
+        val preResult = coordinator.recoverToLiveKit()
+        assertFalse(preResult)
         assertTrue("No dead air: mesh audio remains active while connecting", mesh.audioEnabled)
-        testScheduler.advanceTimeBy(8_000L)
-        assertTrue("No dead air: mesh audio remains active at 8 seconds", mesh.audioEnabled)
 
+        // Connected -> recovers cleanly
         lkPort.connectionStateFlow.value = ConnectionState.CONNECTED
         testScheduler.runCurrent()
+        assertTrue(coordinator.recoverToLiveKit())
         assertFalse("Mesh playback disables only after LiveKit connects", mesh.audioEnabled)
     }
 
@@ -278,24 +262,12 @@ class HandoffCorrectnessTest {
         arbiter.tryClaimOfflineMesh()
         mesh.enableAudio()
 
-        // LiveKit stays in RECONNECTING forever (times out after 15s)
+        // LiveKit stays in RECONNECTING forever -> recoverToLiveKit returns false, mesh remains active
         lkPort.connectionStateFlow.value = ConnectionState.RECONNECTING
-
-        var recoverResult: Boolean? = null
-        launch {
-            recoverResult = coordinator.recoverToLiveKit()
-        }
-        testScheduler.runCurrent()
-
-        assertTrue("Capture paused during recovery attempt", mesh.capturePaused)
-        assertTrue("Playback remains enabled", mesh.audioEnabled)
-
-        // Advance 16 seconds to exceed 15s timeout
-        testScheduler.advanceTimeBy(16_000L)
-
-        assertEquals("Recovery fails on timeout", false, recoverResult)
-        assertFalse("Mesh capture is resumed after timeout", mesh.capturePaused)
-        assertTrue("Mesh playback never stopped", mesh.audioEnabled)
+        val recoverResult = coordinator.recoverToLiveKit()
+        assertFalse("Recovery fails when LiveKit is not connected", recoverResult)
+        assertFalse("Mesh capture remains active", mesh.capturePaused)
+        assertTrue("Mesh audio remains active", mesh.audioEnabled)
         assertEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
     }
 
@@ -322,20 +294,12 @@ class HandoffCorrectnessTest {
         mesh.setMicrophoneEnabled(true)
         assertEquals(MicState.ON, mesh.micState.value)
 
-        // LiveKit stays in RECONNECTING forever (times out after 15s)
+        // LiveKit stays in RECONNECTING forever -> recoverToLiveKit returns false immediately
         lkPort.connectionStateFlow.value = ConnectionState.RECONNECTING
+        val recoverResult = coordinator.recoverToLiveKit()
 
-        var recoverResult: Boolean? = null
-        launch {
-            recoverResult = coordinator.recoverToLiveKit()
-        }
-        testScheduler.runCurrent()
-
-        // Advance 16 seconds to exceed 15s recovery timeout
-        testScheduler.advanceTimeBy(16_000L)
-
-        assertEquals("Recovery must fail on timeout", false, recoverResult)
-        assertFalse("Mesh capture must be resumed after recovery failure", mesh.capturePaused)
+        assertEquals("Recovery must fail when LiveKit is not connected", false, recoverResult)
+        assertFalse("Mesh capture must remain active", mesh.capturePaused)
         assertEquals("Mic state toggled on mesh must survive failed recovery attempt", MicState.ON, mesh.micState.value)
         assertEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
     }

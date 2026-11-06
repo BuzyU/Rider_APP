@@ -31,3 +31,4 @@ This table maps the explicit test verification requirements from `docs/plan/OFFL
 | **5.0** | Automatic fallback requires valid mesh path | `Stage3AutomaticSwitchingTest#fallback_requiresValidMeshRoute` |
 | **5.0** | Non-disruptive recovery requires LiveKit stability | `RecoveryPlanComplianceTest#recovery_dwellRestarts_ifLiveKitFlaps` |
 | **5.0** | Cancellation-safe audio rollback on aborted switch | `CancellationSafeHandoffTest#fallbackToMesh_cancelledDuringHandoff_rollsBackToLiveKit` |
+

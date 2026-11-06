@@ -376,7 +376,12 @@ class ForwardingEngine(
         )
         val nonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code)
         val sourceKey = getSourcePayloadKey(decoded.sourceId)
-        val plain = PayloadCrypto.open(sourceKey, nonce, aad, decoded.payload)
+        var plain = PayloadCrypto.open(sourceKey, nonce, aad, decoded.payload)
+        if (plain == null) {
+            val v2Nonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code, decoded.sourceId)
+            plain = PayloadCrypto.open(sourceKey, v2Nonce, aad, decoded.payload)
+                ?: PayloadCrypto.open(payloadKey, v2Nonce, aad, decoded.payload)
+        }
         if (plain == null) {
             droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)

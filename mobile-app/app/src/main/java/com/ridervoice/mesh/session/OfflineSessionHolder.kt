@@ -38,12 +38,23 @@ object NoOpBackupSessionStore : BackupSessionStore {
 }
 
 class EncryptedPrefsBackupSessionStore(
-    context: Context
+    context: Context,
+    prefsFactory: ((Context) -> SharedPreferences)? = null
 ) : BackupSessionStore {
 
-    private val prefs: SharedPreferences = createSafePreferences(context.applicationContext)
+    @Volatile private var ramStore: StoredBackupMeta? = null
+    private val prefs: SharedPreferences? = try {
+        prefsFactory?.invoke(context.applicationContext) ?: createSafePreferences(context.applicationContext)
+    } catch (e: Exception) {
+        MeshLog.w(TAG, "EncryptedSharedPreferences init failed; failing closed to RAM-only store: ${e.message}")
+        null
+    }
 
     override fun saveBackup(pairingCode: String, createdAtMs: Long, expiresAtMs: Long) {
+        if (prefs == null) {
+            ramStore = StoredBackupMeta(pairingCode, createdAtMs, expiresAtMs)
+            return
+        }
         try {
             prefs.edit()
                 .putString(KEY_CODE, pairingCode)
@@ -51,13 +62,17 @@ class EncryptedPrefsBackupSessionStore(
                 .putLong(KEY_EXPIRES_AT, expiresAtMs)
                 .apply()
         } catch (e: Exception) {
-            MeshLog.w(TAG, "Failed to save backup session metadata: ${e.message}")
+            MeshLog.w(TAG, "Failed to save backup session metadata to encrypted prefs, failing closed to RAM: ${e.message}")
+            ramStore = StoredBackupMeta(pairingCode, createdAtMs, expiresAtMs)
         }
     }
 
     override fun loadBackup(): StoredBackupMeta? {
+        if (prefs == null) {
+            return ramStore
+        }
         return try {
-            val code = prefs.getString(KEY_CODE, null)?.takeIf { it.isNotBlank() } ?: return null
+            val code = prefs.getString(KEY_CODE, null)?.takeIf { it.isNotBlank() } ?: return ramStore
             val created = prefs.getLong(KEY_CREATED_AT, 0L)
             val expires = prefs.getLong(KEY_EXPIRES_AT, 0L)
             if (created <= 0L || expires <= created) {
@@ -68,11 +83,13 @@ class EncryptedPrefsBackupSessionStore(
             }
         } catch (e: Exception) {
             MeshLog.w(TAG, "Failed to load backup session metadata: ${e.message}")
-            null
+            ramStore
         }
     }
 
     override fun clearBackup() {
+        ramStore = null
+        if (prefs == null) return
         try {
             prefs.edit()
                 .remove(KEY_CODE)
@@ -87,12 +104,11 @@ class EncryptedPrefsBackupSessionStore(
     companion object {
         private const val TAG = "EncryptedPrefsBackupSessionStore"
         private const val PREFS_FILE = "mesh_backup_session_secure_prefs"
-        private const val FALLBACK_PREFS_FILE = "mesh_backup_session_fallback_prefs"
         private const val KEY_CODE = "backup_pairing_code"
         private const val KEY_CREATED_AT = "backup_created_at_ms"
         private const val KEY_EXPIRES_AT = "backup_expires_at_ms"
 
-        private fun createSafePreferences(context: Context): SharedPreferences {
+        private fun createSafePreferences(context: Context): SharedPreferences? {
             return try {
                 createEncryptedPrefs(context)
             } catch (e: Exception) {
@@ -114,8 +130,8 @@ class EncryptedPrefsBackupSessionStore(
                     }
                     createEncryptedPrefs(context)
                 } catch (recoveryEx: Exception) {
-                    MeshLog.w(TAG, "Falling back to standard SharedPreferences: ${recoveryEx.message}")
-                    context.getSharedPreferences(FALLBACK_PREFS_FILE, Context.MODE_PRIVATE)
+                    MeshLog.w(TAG, "EncryptedSharedPreferences recovery failed, failing closed to RAM-only store (never plaintext): ${recoveryEx.message}")
+                    null
                 }
             }
         }

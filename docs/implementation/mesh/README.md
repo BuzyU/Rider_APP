@@ -35,4 +35,3 @@ bash .github/scripts/verify-test-refs.sh
 - [Architecture Decisions Log](DECISIONS.md): Engineering decisions, rationale, and approvals.
 - [Defect Register](DEFECT_REGISTER.md): Defect tracking for historical A1–A47, B1–B27, and C1–C11 findings.
 - [Changelog](CHANGELOG.md): Consolidated work package log (WP-25 through WP-61).
-- [Reimagined UI/UX Specification](../../design/reimagined-uiux/REIMAGINED_UIUX_SPEC.md): Standalone Minimalist & Modern UI/UX visual specification and interactive Light/Dark showcases.

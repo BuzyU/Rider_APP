@@ -17,7 +17,6 @@ This changelog consolidates and replaces all historical work package reports (`W
 
 ### WP-61: Reimagined Minimalist & Modern UI/UX Interactive Showcase (Generate-Only)
 - **Summary:**
-  - Generated standalone interactive HTML/CSS/SVG/JS showcases (`ridervoice-light.html`, `ridervoice-dark.html`, `index.html`) and architectural specification (`REIMAGINED_UIUX_SPEC.md`) under `docs/design/reimagined-uiux/` covering all 18 screens (`S01`–`S18`), 11 modals/sheets (`M01`–`M11`), 5-tab bottom navigation, and motion choreography without altering production Android UI code.
 
 ---
 

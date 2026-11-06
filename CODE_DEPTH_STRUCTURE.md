@@ -28,7 +28,6 @@ Rider_APP/
 │   ├── UX_COPY.md                        User-facing copy and terminology dictionary
 │   ├── diagnostics-payload.md            Network diagnostics telemetry payload schema
 │   ├── OPERATOR_DATA_RECONCILIATION_RUNBOOK.md
-│   ├── design/reimagined-uiux/           Standalone Minimalist & Modern UI/UX HTML showcase
 │   ├── implementation/mesh/              Mesh architecture overview, decisions, changelog, defect register
 │   ├── plan/OFFLINE_MESH_PLAN.md         Three-stage offline mesh implementation plan
 │   ├── protocol/mesh-v2.md               Binary wire packet v2 & cryptographic specification

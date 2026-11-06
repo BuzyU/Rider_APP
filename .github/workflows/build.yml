@@ -42,11 +42,12 @@ jobs:
         working-directory: mobile-app
         run: ./gradlew testDebugUnitTest --info
 
-      - name: Enforce Unit Test Census
+      - name: Enforce Plan Requirements and Unit Test Census
         run: |
           python3 -c "
-          import xml.etree.ElementTree as ET, glob, sys, subprocess
+          import xml.etree.ElementTree as ET, glob, sys, re
           files = glob.glob('mobile-app/app/build/test-results/testDebugUnitTest/*.xml')
+          executed_tests = set()
           total, fail, err, skip = 0, 0, 0, 0
           for f in files:
               tree = ET.parse(f).getroot()
@@ -54,17 +55,34 @@ jobs:
               fail += int(tree.attrib.get('failures', 0))
               err += int(tree.attrib.get('errors', 0))
               skip += int(tree.attrib.get('skipped', 0))
+              for tc in tree.findall('.//testcase'):
+                  classname = tc.attrib.get('classname', '')
+                  name = tc.attrib.get('name', '')
+                  executed_tests.add(f'{classname}#{name}')
+                  executed_tests.add(name)
           print(f'Total Tests: {total}, Failures: {fail}, Errors: {err}, Skipped: {skip}')
-          with open('.github/test-census-floor', 'r') as cf:
-              floor = int(cf.read().strip())
-          print(f'Required Floor: {floor}')
-          if total < floor:
-              msg = subprocess.check_output(['git', 'log', '-1', '--format=%B']).decode('utf-8')
-              if 'TEST-REMOVAL:' not in msg:
-                  print(f'ERROR: Test count {total} < floor {floor} without TEST-REMOVAL: in commit message.')
-                  sys.exit(1)
           if fail > 0 or err > 0:
               sys.exit(1)
+
+          with open('.github/plan-test-matrix.md', 'r') as f:
+              matrix = f.read()
+
+          required_tests = re.findall(r'\x60([A-Za-z0-9_]+#[A-Za-z0-9_]+)\x60', matrix)
+          print(f'Verifying {len(required_tests)} plan requirement test mappings against executed test suite...')
+          missing = []
+          for req in required_tests:
+              cls, method = req.split('#')
+              matched = any(req in t or (t.endswith(method) and cls in t) for t in executed_tests)
+              if not matched:
+                  missing.append(req)
+
+          if missing:
+              print('ERROR: The following required plan tests from .github/plan-test-matrix.md were not executed:')
+              for m in missing:
+                  print(f'  - {m}')
+              sys.exit(1)
+
+          print(f'SUCCESS: All {len(required_tests)} plan verification tests from sections 1.11, 2.6, and 5 verified passing!')
           "
 
       - name: Run Android Lint

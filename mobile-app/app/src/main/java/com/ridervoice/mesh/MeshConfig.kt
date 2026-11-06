@@ -21,8 +21,8 @@ object MeshConfig {
     const val SUPPRESS_REDUNDANT_RELAYS = false
     /** Number of times a packet may still be forwarded. 5 reaches 6 hops, the max chain for 6 devices. */
     const val DEFAULT_TTL = 5
-    /** HELLO floods are kept shorter than audio. */
-    const val HELLO_TTL = 4
+    /** HELLO discovery floods match default TTL to reach all 6 nodes across 5 hops. */
+    const val HELLO_TTL = DEFAULT_TTL
     const val MAX_NEIGHBORS_IN_HELLO = 5
 
     /** Sanity bound only: offline phones may have skewed clocks, so this is deliberately loose. */

@@ -224,21 +224,36 @@ fun NavGraph(
             val rawUserName = back.arguments?.getString("userName") ?: ""
             val roomName = try { android.net.Uri.decode(rawRoomName) } catch (e: Exception) { rawRoomName }
             val userName = try { android.net.Uri.decode(rawUserName) } catch (e: Exception) { rawUserName }
-            com.ridervoice.mesh.ui.OfflineAwareRoomHost(
-                roomName = roomName,
-                userName = userName,
-                onLeave  = {
-                    navController.navigate(Routes.POST_RIDE_SUMMARY) {
-                        popUpTo(Routes.HOME) { inclusive = false }
+            if (com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen()) {
+                com.ridervoice.mesh.ui.OfflineAwareRoomHost(
+                    roomName = roomName,
+                    userName = userName,
+                    onLeave  = {
+                        navController.navigate(Routes.POST_RIDE_SUMMARY) {
+                            popUpTo(Routes.HOME) { inclusive = false }
+                        }
+                    },
+                    onSosClick = {
+                        navController.navigate(Routes.sosPath(roomName))
+                    },
+                    onPairBackupClick = {
+                        navController.navigate(Routes.OFFLINE_MESH_LOBBY)
                     }
-                },
-                onSosClick = {
-                    navController.navigate(Routes.sosPath(roomName))
-                },
-                onPairBackupClick = {
-                    navController.navigate(Routes.OFFLINE_MESH_LOBBY)
-                }
-            )
+                )
+            } else {
+                RoomScreen(
+                    roomName = roomName,
+                    userName = userName,
+                    onLeave = {
+                        navController.navigate(Routes.POST_RIDE_SUMMARY) {
+                            popUpTo(Routes.HOME) { inclusive = false }
+                        }
+                    },
+                    onSosClick = {
+                        navController.navigate(Routes.sosPath(roomName))
+                    }
+                )
+            }
         }
 
         composable(

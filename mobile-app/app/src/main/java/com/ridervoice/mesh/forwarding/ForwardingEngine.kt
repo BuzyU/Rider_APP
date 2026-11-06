@@ -79,6 +79,10 @@ class ForwardingEngine(
     private val authKey: ByteArray = sessionManager.session.authKey()
     private val payloadKey: ByteArray = sessionManager.session.payloadKey()
     private val sessionId: String = sessionManager.session.sessionId
+    private val sourceKeyCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
+
+    private fun getSourcePayloadKey(srcId: String): ByteArray =
+        sourceKeyCache.computeIfAbsent(srcId) { PayloadCrypto.sourceKey(payloadKey, it) }
 
     companion object {
         const val DIRECT_HELLO_KIND = 100
@@ -118,8 +122,9 @@ class ForwardingEngine(
             captureTimestamp = now,
             audioFormat = AudioFormatId.PCM16_16K_MONO
         )
-        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.VOICE.code, selfId)
-        val sealed = PayloadCrypto.seal(payloadKey, nonce, aad, pcmPayload)
+        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.VOICE.code)
+        val sourceKey = getSourcePayloadKey(selfId)
+        val sealed = PayloadCrypto.seal(sourceKey, nonce, aad, pcmPayload)
         val packet = MeshPacket(
             type = MeshPacketType.VOICE,
             sessionId = sessionId,
@@ -169,8 +174,9 @@ class ForwardingEngine(
             captureTimestamp = now,
             audioFormat = AudioFormatId.PCM16_16K_MONO
         )
-        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.HELLO.code, selfId)
-        val sealed = PayloadCrypto.seal(payloadKey, nonce, aad, plainHello)
+        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.HELLO.code)
+        val sourceKey = getSourcePayloadKey(selfId)
+        val sealed = PayloadCrypto.seal(sourceKey, nonce, aad, plainHello)
         val packet = MeshPacket(
             type = MeshPacketType.HELLO,
             sessionId = sessionId,
@@ -211,8 +217,9 @@ class ForwardingEngine(
             captureTimestamp = now,
             audioFormat = AudioFormatId.PCM16_16K_MONO
         )
-        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.BYE.code, selfId)
-        val sealed = PayloadCrypto.seal(payloadKey, nonce, aad, ByteArray(0))
+        val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.BYE.code)
+        val sourceKey = getSourcePayloadKey(selfId)
+        val sealed = PayloadCrypto.seal(sourceKey, nonce, aad, ByteArray(0))
         val packet = MeshPacket(
             type = MeshPacketType.BYE,
             sessionId = sessionId,
@@ -342,11 +349,14 @@ class ForwardingEngine(
             captureTimestamp = decoded.captureTimestamp,
             audioFormat = decoded.audioFormat
         )
-        val nonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code, decoded.sourceId)
-        var plain = PayloadCrypto.open(payloadKey, nonce, aad, decoded.payload)
-        if (plain == null && acceptLegacyNonce) {
-            val fallbackNonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code)
-            plain = PayloadCrypto.open(payloadKey, fallbackNonce, aad, decoded.payload)
+        val nonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code)
+        val sourceKey = getSourcePayloadKey(decoded.sourceId)
+        var plain = PayloadCrypto.open(sourceKey, nonce, aad, decoded.payload)
+        if (plain == null) {
+            val legacyNonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code, decoded.sourceId)
+            plain = PayloadCrypto.open(sourceKey, legacyNonce, aad, decoded.payload)
+                ?: PayloadCrypto.open(payloadKey, nonce, aad, decoded.payload)
+                ?: PayloadCrypto.open(payloadKey, legacyNonce, aad, decoded.payload)
         }
         if (plain == null) {
             droppedInvalid.incrementAndGet()
@@ -403,9 +413,15 @@ class ForwardingEngine(
                 }
             }
             MeshPacketType.BYE -> {
-                sessionManager.remove(decoded.sourceId)
-                if (graphRepository.onBye(decoded.sourceId)) {
-                    routingTable.recompute(graphRepository.currentSnapshot(), now)
+                val directNeighbor = graphRepository.neighbor(decoded.sourceId)
+                val heardDirectlyRecently = directNeighbor != null && (now - directNeighbor.lastSeen) <= MeshConfig.NEIGHBOR_TIMEOUT_MS
+                if (heardDirectlyRecently && decoded.hopCount > 0) {
+                    // Ignored: cannot tear down an active direct neighbor with a relayed BYE
+                } else {
+                    sessionManager.remove(decoded.sourceId)
+                    if (graphRepository.onBye(decoded.sourceId)) {
+                        routingTable.recompute(graphRepository.currentSnapshot(), now)
+                    }
                 }
             }
             MeshPacketType.VOICE -> {
@@ -497,11 +513,16 @@ class ForwardingEngine(
     fun close() {
         authKey.fill(0)
         payloadKey.fill(0)
+        for (k in sourceKeyCache.values) {
+            k.fill(0)
+        }
+        sourceKeyCache.clear()
     }
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     fun isZeroized(): Boolean {
         return authKey.isNotEmpty() && authKey.all { it == 0.toByte() } &&
-               payloadKey.isNotEmpty() && payloadKey.all { it == 0.toByte() }
+               payloadKey.isNotEmpty() && payloadKey.all { it == 0.toByte() } &&
+               sourceKeyCache.isEmpty()
     }
 }

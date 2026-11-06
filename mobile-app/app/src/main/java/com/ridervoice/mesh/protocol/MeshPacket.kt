@@ -66,7 +66,7 @@ sealed class DecodeResult {
  */
 object MeshPacketCodec {
     const val MAGIC = 0x52564D31
-    const val VERSION = 2
+    const val VERSION = 3
     const val TAG_LEN = 16
     const val HEADER_LEN = 4 + 1 + 1 + 16 + 16 + 4 + 8 + 1 + 1 + 16 + 1 + 4 + 2 // 75 bytes
 

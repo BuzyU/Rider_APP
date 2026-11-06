@@ -17,20 +17,32 @@ object PayloadCrypto {
     const val TAG_LEN = 16
     const val NONCE_LEN = 12
 
-    fun nonce(epoch: Int, sequence: Int, typeCode: Int, sourceId: String? = null): ByteArray {
-        val srcBytes = if (sourceId != null) runCatching { MeshPacketCodec.uuidBytes(sourceId) }.getOrNull() else null
-        val b9 = srcBytes?.getOrNull(0) ?: 0.toByte()
-        val b10 = srcBytes?.getOrNull(1) ?: 0.toByte()
-        val b11 = srcBytes?.getOrNull(2) ?: 0.toByte()
-        return ByteBuffer.allocate(NONCE_LEN).order(ByteOrder.BIG_ENDIAN)
+    private fun hmac(salt: ByteArray, data: ByteArray): ByteArray =
+        javax.crypto.Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(salt, "HmacSHA256")) }.doFinal(data)
+
+    /**
+     * Derives a dedicated 32-byte AES payload subkey for a specific audio/control source using HKDF (RFC 5869).
+     * Prevents (key, IV) reuse across independent or uncoordinated source sequence spaces.
+     */
+    fun sourceKey(payloadKey: ByteArray, sourceId: String): ByteArray {
+        val prk = hmac(salt = "rvmesh/v3/src".toByteArray(Charsets.UTF_8), data = payloadKey) // HKDF-Extract
+        val srcBytes = runCatching { MeshPacketCodec.uuidBytes(sourceId) }.getOrElse { sourceId.toByteArray(Charsets.UTF_8) }
+        return hmac(salt = prk, data = srcBytes + byteArrayOf(1)).copyOf(32) // HKDF-Expand, one block
+    }
+
+    /**
+     * Backward-compatible alias for sourceKey derivation.
+     */
+    fun deriveSourceKey(sessionPayloadKey: ByteArray, sourceId: String, len: Int = 32): ByteArray =
+        sourceKey(sessionPayloadKey, sourceId).copyOf(len)
+
+    fun nonce(epoch: Int, sequence: Int, typeCode: Int, sourceId: String? = null): ByteArray =
+        ByteBuffer.allocate(NONCE_LEN).order(ByteOrder.BIG_ENDIAN)
             .putInt(epoch)
             .putInt(sequence)
             .put(typeCode.toByte())
-            .put(b9)
-            .put(b10)
-            .put(b11)
+            .put(ByteArray(3))
             .array()
-    }
 
     fun aad(
         sessionId: String,

@@ -13,7 +13,7 @@
 | **Voice Audio Stream** | Confidentiality against eavesdroppers | End-to-end AES-256-GCM encryption with unique IVs |
 | **Packet Integrity** | Authenticity against tampering or spoofing | HMAC-SHA256 wire verification with constant-time check |
 | **Stream Availability** | Protection against replay, flooding, DoS | 5-tuple DuplicatePacketCache, bounded queues, hop limits |
-| **Pairing Credentials** | Resistance to brute-force dictionary attacks | PBKDF2WithHmacSHA256 with 100,000 iterations + salt |
+| **Pairing Credentials** | Resistance to brute-force dictionary attacks | PBKDF2WithHmacSHA256 with 120,000 iterations + salt |
 | **Device Identity** | Non-clonability and isolation | Hardware-rooted UUID in secure storage (`allowBackup="false"`) |
 
 ---
@@ -58,7 +58,7 @@ The architecture enforces strict separation between authentication and encryptio
 [16-Character Crockford Base32 Code] 
            │
            ▼
-PBKDF2WithHmacSHA256 (100,000 iterations, salt "rvmesh/v2/session")
+PBKDF2WithHmacSHA256 (120,000 iterations, salt "rvmesh/v2/session")
            │
            ▼ (80 bytes derived key)
  ┌─────────┼──────────┐
@@ -104,9 +104,10 @@ All security controls were tested and verified under adversarial conditions:
 ---
 
 
-### 5.3 Shared-Key Forgery, Relay Decryption & Debug Attack Surface (WP-40/WP-41/WP-49)
-- **Shared Group Key & Forgery (B26):** Because all members share the same group symmetric keys (`authKey`, `payloadKey`), any member possesses the capability to forge datagrams claiming another member's `sourceId`. True non-repudiation would require asymmetric per-packet digital signatures, which is omitted by design due to 20ms voice latency and processing constraints on low-power mobile devices.
-- **Relay Decryption (B26):** Intermediary relay nodes possess `payloadKey` (derived from the shared pairing code) and can decrypt audio packets they forward. There is no hop-by-hop asymmetric re-encryption between relays.
+### 5.3 Shared-Key Forgery, Relay Decryption & Topology Mitigations
+- **Shared Group Key & Member Forgery:** All session members share keys derived from the convoy pairing code (`authKey`, `payloadKey`). Consequently, any authenticated session member can technically forge datagrams claiming any `sourceId`, inject arbitrary `HELLO` announcements, or send forged `BYE` teardowns. True cryptographic non-repudiation would require asymmetric per-packet digital signatures, which is omitted by design due to 20ms voice latency, packet size constraints, and processing limits on low-power mobile devices.
+- **Direct-Heard BYE Teardown Mitigation:** To prevent distant nodes or rogue relays from falsely tearing down active direct radio links, `ForwardingEngine` strictly ignores any `BYE` packet with `hopCount > 0` for any device that has been heard directly within the last `NEIGHBOR_TIMEOUT_MS`. A direct neighbor relationship can only be torn down by a direct `BYE` with `hopCount == 0` received over the physical link.
+- **Relay Decryption:** Intermediary relay nodes possess `payloadKey` (derived from the shared pairing code) and can decrypt audio packets they forward. Senders derive unique per-source subkeys via HKDF (`PayloadCrypto.sourceKey`) to eliminate any cross-source IV reuse. Relays never decrypt, alter, or re-encrypt the inner payload.
 - **Local-Join-Relative Expiry (B26):** Session expiry (`expiresAt = createdAt + 8h`) is calculated relative to the local node's join timestamp, not synchronized via global NTP or consensus. A node joining later will compute a later expiration threshold unless manually ended.
 - **Code Reuse & Key Rotation (B26):** Reusing the same Crockford Base32 pairing code across rides recreates identical `authKey` and `payloadKey` derivations. Convoy members must generate and distribute a new code per ride to maintain forward secrecy and prevent cross-ride replay.
 - **Encrypted Backup Session Persistence & Key Zeroization:** `OfflineSessionHolder.backupSession` persists pre-ride backup pairing metadata (`pairingCode`, `createdAt`, `expiresAt`) in `EncryptedPrefsBackupSessionStore` (`EncryptedSharedPreferences` with self-healing fallback), enforcing the 8-hour TTL on restore and wiping persisted metadata on `clearBackup()` or user sign-out. Derived `authKey` and `payloadKey` byte arrays in RAM are zeroized immediately on session or `ForwardingEngine` close (`AutoCloseable`).

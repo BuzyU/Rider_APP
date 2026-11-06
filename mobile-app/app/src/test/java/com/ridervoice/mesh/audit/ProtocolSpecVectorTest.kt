@@ -22,7 +22,7 @@ class ProtocolSpecVectorTest {
     fun protocolConstantsMatchSpec() {
         assertEquals("Mesh port must be 45454", 45454, MeshConfig.MESH_PORT)
         assertEquals("Magic must be 0x52564D31 (ASCII 'RVM1')", 0x52564D31, MeshPacketCodec.MAGIC)
-        assertEquals("Protocol version must be 2", 2, MeshPacketCodec.VERSION)
+        assertEquals("Protocol version must be 3", 3, MeshPacketCodec.VERSION)
         assertEquals("Header length must be 75 bytes", 75, MeshPacketCodec.HEADER_LEN)
         assertEquals("Outer auth tag length must be 16 bytes", 16, MeshPacketCodec.TAG_LEN)
         assertEquals("GCM tag bytes must be 16 bytes", 16, MeshConfig.GCM_TAG_BYTES)
@@ -66,7 +66,7 @@ class ProtocolSpecVectorTest {
         val buf = ByteBuffer.wrap(encoded).order(ByteOrder.BIG_ENDIAN)
 
         assertEquals("Magic at offset 0", MeshPacketCodec.MAGIC, buf.int)
-        assertEquals("Version at offset 4", 2, buf.get().toInt() and 0xFF)
+        assertEquals("Version at offset 4", 3, buf.get().toInt() and 0xFF)
         assertEquals("Type at offset 5", MeshPacketType.VOICE.code, buf.get().toInt() and 0xFF)
 
         val sessUuid = java.util.UUID(buf.long, buf.long).toString()

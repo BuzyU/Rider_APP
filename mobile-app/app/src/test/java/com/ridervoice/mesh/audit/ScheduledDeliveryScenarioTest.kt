@@ -375,9 +375,9 @@ class ScheduledDeliveryScenarioTest {
         val c = uuid("C")
         val d = uuid("D")
         val repo = MeshGraphRepository(a, "A") { 1_000L }
-        repo.onHello(b, "B", 1, MeshEndpoint("10.0.0.2", 40001), listOf(a, d))
-        repo.onHello(c, "C", 1, MeshEndpoint("10.0.0.3", 40001), listOf(a, d))
-        repo.onHello(d, "D", 2, MeshEndpoint("10.0.0.2", 40001), listOf(b, c))
+        repo.onHello(b, "B", 0, MeshEndpoint("10.0.0.2", 40001), listOf(a, d))
+        repo.onHello(c, "C", 0, MeshEndpoint("10.0.0.3", 40001), listOf(a, d))
+        repo.onHello(d, "D", 1, MeshEndpoint("10.0.0.2", 40001), listOf(b, c))
         val routes = RouteCalculator.compute(repo.currentSnapshot(), 1_000L)
         val routeToD = routes[d]
         assertNotNull(routeToD)

@@ -45,9 +45,7 @@ class ProtocolHardeningTest {
     @After
     fun tearDown() {}
 
-    /**
-     * WP-40.1 (A17): MeshGraphRepository report staleness pure function tests (CODE-15).
-     */
+    // MeshGraphRepository report staleness pure function tests (CODE-15).
     @Test
     fun restartedPeer_epochChange_acceptsNewReport() {
         assertFalse(isStaleReport(0xAAAA, 900, 0xBBBB, 1))
@@ -63,9 +61,7 @@ class ProtocolHardeningTest {
         assertFalse(isStaleReport(7, Int.MAX_VALUE, 7, Int.MIN_VALUE))
     }
 
-    /**
-     * WP-40.1: MeshGraphRepository epoch-aware integration test.
-     */
+    // MeshGraphRepository epoch-aware integration test.
     @Test
     fun epochAwareReporting_differentEpochReplaces_sameEpochSequenceFilters() {
         val selfId = UUID.randomUUID().toString()
@@ -128,10 +124,7 @@ class ProtocolHardeningTest {
         assertEquals(listOf(peerD, selfId).sorted(), repo.currentSnapshot().neighborsOf(peerA))
     }
 
-    /**
-     * WP-40.2: Set ACCEPT_LEGACY_NONCE = false (A18).
-     * Legacy nonces lacking sourceId prefix are rejected by default.
-     */
+    // Unauthenticated payloads lacking per-source derivation are rejected by default.
     @Test
     fun legacyNonce_rejectedByDefault() {
         val selfId = UUID.randomUUID().toString()
@@ -202,22 +195,18 @@ class ProtocolHardeningTest {
         )
     }
 
-    /**
-     * WP-40.3: Manifest Wi-Fi permissions hardened (A19).
-     */
+    // Manifest Wi-Fi permissions hardened.
     @Test
     fun manifest_wifiPermissionsHardened() {
         val manifest = File("src/main/AndroidManifest.xml").readText()
-        assertTrue("Manifest must document Wi-Fi permissions rationale", manifest.contains("Wi-Fi and Peer Discovery Permissions Rationale (A19)"))
+        assertTrue("Manifest must document Wi-Fi permissions rationale", manifest.contains("Wi-Fi and Peer Discovery Permissions Rationale"))
         assertFalse("CHANGE_WIFI_STATE must be removed from manifest", manifest.contains("android.permission.CHANGE_WIFI_STATE"))
         assertFalse("NEARBY_WIFI_DEVICES must be removed from manifest", manifest.contains("android.permission.NEARBY_WIFI_DEVICES"))
         assertTrue("ACCESS_WIFI_STATE must be retained", manifest.contains("android.permission.ACCESS_WIFI_STATE"))
         assertTrue("CHANGE_WIFI_MULTICAST_STATE must be retained", manifest.contains("android.permission.CHANGE_WIFI_MULTICAST_STATE"))
     }
 
-    /**
-     * WP-40.4: MeshDebugReceiver permission & security hardening (A20, A38).
-     */
+    // MeshDebugReceiver permission & security hardening.
     @Test
     fun debugManifest_declaresDumpPermission() {
         val debugManifest = File("src/debug/AndroidManifest.xml").readText()
@@ -227,9 +216,7 @@ class ProtocolHardeningTest {
         )
     }
 
-    /**
-     * WP-40.4: parsePeerFilter pure function tests.
-     */
+    // parsePeerFilter pure function tests.
     @Test
     fun receiverActionParsing() {
         // Multiple comma-separated prefixes
@@ -246,9 +233,7 @@ class ProtocolHardeningTest {
         assertNull(parsePeerFilter("  ,   "))
     }
 
-    /**
-     * WP-40.4: debugFilter_noopWhenNotDebug
-     */
+    // debugFilter_noopWhenNotDebug
     @Test
     fun debugFilter_noopWhenNotDebug() {
         val receiver = MeshDebugReceiver(isDebug = false)

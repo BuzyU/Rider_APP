@@ -36,7 +36,7 @@
 | NetworkProtocolHardeningTest | Remediation v3 | 12 | Port consolidation (45454), TTL bounds (5), thread-safe routing, D22 endpoint learning |
 | StringsParityTest | Remediation v3 | 2 | 1:1 key parity across EN/HI/MR (102 keys), zero raw Color(0x) literals outside MeshColors |
 | Round3RemediationSuites | Remediation v3.5 | 44 | Composition root, fallback controls, hardware PTT, reachability, multi-hop stress |
-| `Round4RemediationTest` | Remediation v4 | 12 | Online hopCount=0, LiveKit mute sync, 8h backup store, joint admission, SCO/MediaSession safety, monotonic playout |
+| `MeshSubsystemInvariantsTest` | Remediation | 12 | Online hopCount=0, LiveKit mute sync, 8h backup store, joint admission, SCO/MediaSession safety, monotonic playout |
 | *Baseline App Tests* | Online App | 185 | LiveKit, RoomViewModel, ActiveRideRepository, Admin API, UI components |
 | **Total** | | **495** | **All 495 tests PASSING** |
 

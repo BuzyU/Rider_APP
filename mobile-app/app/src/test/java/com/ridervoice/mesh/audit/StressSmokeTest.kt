@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
 /**
- * WP-52 Stress Smoke Test:
+ * Stress Smoke Test:
  * 6-node in-memory mesh, 5,000 voice frames, random link loss 5%.
  * Runs on real Dispatchers.Default coroutine threadpool.
  * Asserts no duplicate local playback and that frames reach the far end.

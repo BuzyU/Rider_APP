@@ -47,7 +47,7 @@ import org.junit.Test
 import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class WP34RedTests {
+class SwitchingAndAudioLifecycleTest {
 
     private class FakeMeshLink : MeshLink {
         override val linkId = "fake-link"

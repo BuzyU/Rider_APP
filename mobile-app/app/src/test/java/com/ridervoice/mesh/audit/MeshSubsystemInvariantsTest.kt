@@ -59,7 +59,7 @@ import org.junit.Test
 import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class Round4RemediationTest {
+class MeshSubsystemInvariantsTest {
 
     @Test
     fun onlinePeer_hasHopCountZero_andIsNotDirect() {

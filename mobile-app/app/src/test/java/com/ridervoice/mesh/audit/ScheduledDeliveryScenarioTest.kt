@@ -434,8 +434,8 @@ class ScheduledDeliveryScenarioTest {
     }
 
     /**
-     * WP-40.5 (A38): 6-node chain simulation confirming that every node learns full topology
-     * even with HELLO_TTL = 4 because edge (E, F) is reported by node E at distance 4.
+     * 6-node chain simulation confirming that every node learns full topology
+     * with edge (E, F) reported by node E at distance 4.
      */
     @Test
     fun sixChain_everyNodeLearnsFullTopology() {

@@ -3,9 +3,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!--
-        Wi-Fi and Peer Discovery Permissions Rationale (A19):
+        Wi-Fi and Peer Discovery Permissions Rationale:
         - ACCESS_WIFI_STATE / CHANGE_WIFI_MULTICAST_STATE: Required for local Wi-Fi multicast and low-latency lock acquisition.
-        - CHANGE_WIFI_STATE and NEARBY_WIFI_DEVICES removed per WP-40 (A19): unreferenced in codebase; socket binding uses Network.bindSocket without Wi-Fi toggling.
+        - CHANGE_WIFI_STATE and NEARBY_WIFI_DEVICES removed: unreferenced in codebase; socket binding uses Network.bindSocket without Wi-Fi toggling.
         - ACCESS_FINE_LOCATION (below): Declared for GPS location in squad navigation / route planning.
     -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />

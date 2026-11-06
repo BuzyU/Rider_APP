@@ -39,11 +39,11 @@ grep -q "NET_CAPABILITY_VALIDATED" -r $M/mesh || { echo "VIOLATION: ValidatedInt
 
 bash .github/scripts/verify-test-refs.sh || { echo "VIOLATION: verify-test-refs failed"; fail=1; }
 
-if [ -d "mobile-app/app/build/test-results/testDebugUnitTest" ]; then
+if [ -f ".github/test-census-floor" ] && [ -d "mobile-app/app/build/test-results/testDebugUnitTest" ]; then
   if ls mobile-app/app/build/test-results/testDebugUnitTest/*.xml >/dev/null 2>&1; then
     FLOOR=$(cat .github/test-census-floor | tr -d '[:space:]')
     TOTAL=$(grep -h -o 'tests="[0-9]*"' mobile-app/app/build/test-results/testDebugUnitTest/*.xml | awk -F'"' '{s+=$2} END {print s}')
-    if [ -n "$TOTAL" ] && [ "$TOTAL" -lt "$FLOOR" ]; then
+    if [ -n "$TOTAL" ] && [ -n "$FLOOR" ] && [ "$TOTAL" -lt "$FLOOR" ]; then
       MSG=$(git log -1 --format=%B)
       if ! echo "$MSG" | grep -q "TEST-REMOVAL:"; then
         echo "VIOLATION: Unit test total $TOTAL is below census floor $FLOOR without TEST-REMOVAL: in commit message"

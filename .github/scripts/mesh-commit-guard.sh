@@ -10,6 +10,7 @@ CONTRACT_PATHS=(
   "$BASE/ui/screens/RoomScreen.kt"
   "$BASE/ui/screens/room"
   "$BASE/audio"
+  "docs/plan/OFFLINE_MESH_PLAN.md"
 )
 for p in "${CONTRACT_PATHS[@]}"; do
   test -e "$p" || { echo "ERROR: LiveKit contract path missing: $p"; exit 1; }

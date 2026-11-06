@@ -138,7 +138,8 @@ class AdversarialTest {
         val helloPayload = HelloCodec.encode(HelloPayload(name = "B", graphVersion = 1, neighborIds = emptyList()))
         val aad = PayloadCrypto.aad(s.sessionId, bId, MeshPacketType.HELLO.code, 0, 1, t, AudioFormatId.PCM16_16K_MONO)
         val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.HELLO.code, bId)
-        val sealedHello = PayloadCrypto.seal(s.payloadKey(), nonce, aad, helloPayload)
+        val sourceKeyB = PayloadCrypto.sourceKey(s.payloadKey(), bId)
+        val sealedHello = PayloadCrypto.seal(sourceKeyB, nonce, aad, helloPayload)
 
         val relayedHello = MeshPacket(
             type = MeshPacketType.HELLO,
@@ -267,7 +268,8 @@ class AdversarialTest {
 
         val aad = PayloadCrypto.aad(s.sessionId, bId, MeshPacketType.VOICE.code, 0, 1, t, AudioFormatId.PCM16_16K_MONO)
         val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code, bId)
-        val sealed = PayloadCrypto.seal(s.payloadKey(), nonce, aad, ByteArray(640))
+        val sourceKeyB = PayloadCrypto.sourceKey(s.payloadKey(), bId)
+        val sealed = PayloadCrypto.seal(sourceKeyB, nonce, aad, ByteArray(640))
         val voicePacket = MeshPacket(
             type = MeshPacketType.VOICE,
             sessionId = s.sessionId,
@@ -333,7 +335,8 @@ class AdversarialTest {
         // Now send authentic packet with same (attackerId, seq=1, epoch=0)
         val aad = PayloadCrypto.aad(s.sessionId, attackerId, MeshPacketType.VOICE.code, 0, 1, t, AudioFormatId.PCM16_16K_MONO)
         val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code, attackerId)
-        val validSealed = PayloadCrypto.seal(s.payloadKey(), nonce, aad, ByteArray(640))
+        val sourceKeyAttacker = PayloadCrypto.sourceKey(s.payloadKey(), attackerId)
+        val validSealed = PayloadCrypto.seal(sourceKeyAttacker, nonce, aad, ByteArray(640))
         val validPacket = forgedPacket.copy(payload = validSealed)
         val validFrame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(validPacket, s.authKey()))
 

@@ -460,7 +460,8 @@ class MeshStage1SimulationTest {
         val pcm = ByteArray(MeshConfig.BYTES_PER_FRAME) { 0x33 }
         val aad = PayloadCrypto.aad(session.sessionId, a.id, MeshPacketType.VOICE.code, 0, 99, net.now, AudioFormatId.PCM16_16K_MONO)
         val nonce = PayloadCrypto.nonce(0, 99, MeshPacketType.VOICE.code, a.id)
-        val sealed = PayloadCrypto.seal(session.payloadKey(), nonce, aad, pcm)
+        val sourceKeyA = PayloadCrypto.sourceKey(session.payloadKey(), a.id)
+        val sealed = PayloadCrypto.seal(sourceKeyA, nonce, aad, pcm)
         val pkt = MeshPacket(
             type = MeshPacketType.VOICE,
             sessionId = session.sessionId,

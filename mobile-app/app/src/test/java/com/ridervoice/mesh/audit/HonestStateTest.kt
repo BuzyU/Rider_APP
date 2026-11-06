@@ -180,7 +180,8 @@ class HonestStateTest {
         val rawFrames = (1..10).map { seq ->
             val aad = PayloadCrypto.aad(s.sessionId, peerId, MeshPacketType.VOICE.code, 0, seq, t, AudioFormatId.PCM16_16K_MONO)
             val nonce = PayloadCrypto.nonce(0, seq, MeshPacketType.VOICE.code, peerId)
-            val sealed = PayloadCrypto.seal(s.payloadKey(), nonce, aad, ByteArray(640))
+            val sourceKey = PayloadCrypto.sourceKey(s.payloadKey(), peerId)
+            val sealed = PayloadCrypto.seal(sourceKey, nonce, aad, ByteArray(640))
             val packet = MeshPacket(
                 type = MeshPacketType.VOICE,
                 sessionId = s.sessionId,
@@ -201,7 +202,8 @@ class HonestStateTest {
         )
         val helloAad = PayloadCrypto.aad(s.sessionId, peerId, MeshPacketType.HELLO.code, 0, 100, t, AudioFormatId.PCM16_16K_MONO)
         val helloNonce = PayloadCrypto.nonce(0, 100, MeshPacketType.HELLO.code, peerId)
-        val sealedHello = PayloadCrypto.seal(s.payloadKey(), helloNonce, helloAad, helloPayload)
+        val helloSourceKey = PayloadCrypto.sourceKey(s.payloadKey(), peerId)
+        val sealedHello = PayloadCrypto.seal(helloSourceKey, helloNonce, helloAad, helloPayload)
         val helloPacket = MeshPacket(
             type = MeshPacketType.HELLO,
             sessionId = s.sessionId,

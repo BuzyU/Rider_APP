@@ -1,50 +1,53 @@
-# RiderVoice Web Application & Admin Console
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Next.js 16 (App Router + TypeScript) web application powering the RiderVoice public landing site, deep-link convoy join gateway (`/j/[token]`), waitlist intake (`/api/waitlist`), APK download redirect (`/download`), and authenticated operational admin console (`/admin`).
+## Getting Started
 
----
-
-## 1. Local Development
+First, run the development server:
 
 ```bash
-cd web-app
-npm install
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Open `http://localhost:3000` in your browser.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-### Verification Commands
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-```bash
-npm run typecheck
-npm run build
-```
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
----
+## Learn More
 
-## 2. Application Structure
+To learn more about Next.js, take a look at the following resources:
 
-- `src/app/page.tsx`: Public marketing and waitlist landing page.
-- `src/app/j/[token]/page.tsx`: Convoy invite deep-link landing page with one-tap Android app handoff (`ridervoice://join/<token>`) and APK fallback.
-- `src/app/download/route.ts`: Direct redirect to the latest signed RiderVoice release APK.
-- `src/app/privacy/page.tsx` & `src/app/terms/page.tsx`: Privacy policy and terms of service.
-- `src/app/admin/(auth)/login/page.tsx`: Firebase-authenticated admin sign-in.
-- `src/app/admin/(app)/`: Operational console for users, rooms, invites, rides, reports, roles, and platform settings.
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
----
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## 3. Admin Console Deployment (Vercel)
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Admin console deployment (Vercel)
 
 The admin UI lives under `/admin` and uses Firebase Admin to protect routes.
 
-### Vercel Project Settings
+Deploy bump: 2026-05-24
+
+### Vercel project settings
 1. Import this repo and set **Root Directory** to `web-app`.
 2. Framework preset: **Next.js**.
 3. Build command: `next build` (default).
 4. Deploy.
 
-### Required Environment Variables
+### Required environment variables
 Set these in Vercel Project Settings → Environment Variables:
 
 - `FIREBASE_PROJECT_ID`
@@ -55,7 +58,7 @@ Set these in Vercel Project Settings → Environment Variables:
 - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
 - `NEXT_PUBLIC_FIREBASE_APP_ID`
 
-### Session Cookie Flow
+### Session cookie flow
 The admin layout expects a Firebase session cookie named `__session`.
 Create the cookie by sending an ID token to:
 

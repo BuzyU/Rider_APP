@@ -7,7 +7,6 @@ node_modules
 *.json
 !package.json
 !package-lock.json
-!.eslintrc.json
 exports/
 exports/*.xlsx
 .pg_data*

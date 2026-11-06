@@ -101,11 +101,21 @@ fun MeshDiagnosticsDialog(
                     DiagRow(stringResource(R.string.mesh_diag_dropped_dups), "${snapshot.droppedDuplicates}")
                     DiagRow(stringResource(R.string.mesh_diag_dropped_invalid), "${snapshot.droppedInvalid}")
                     DiagRow(stringResource(R.string.mesh_diag_dropped_ttl), "${snapshot.droppedTtl}")
+                    DiagRow("Stale Timestamps", "${snapshot.droppedStaleTimestamp}")
                     DiagRow(stringResource(R.string.mesh_diag_dropped_buffer), "${snapshot.droppedAtLinkBuffer}")
                     DiagRow(stringResource(R.string.mesh_diag_graph_version), "${snapshot.graphVersion}")
                     DiagRow(stringResource(R.string.mesh_diag_link_state), snapshot.linkState)
                     DiagRow(stringResource(R.string.mesh_diag_local_ip), if (snapshot.localIp.isNotBlank()) snapshot.localIp else "None")
                     DiagRow(stringResource(R.string.mesh_diag_broadcast), if (snapshot.broadcastAddress.isNotBlank()) snapshot.broadcastAddress else "None")
+                    if (snapshot.suspectedClockSkewMs > 0L && snapshot.suspectedClockSkewPeerName != null) {
+                        val skewSec = (snapshot.suspectedClockSkewMs / 1000L).coerceAtLeast(1L)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.mesh_clock_skew_warning, snapshot.suspectedClockSkewPeerName, skewSec),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MeshColors.AlertRed
+                        )
+                    }
                     if (snapshot.isolationWarningHint != null) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(

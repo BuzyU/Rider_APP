@@ -96,15 +96,39 @@ class ForwardingEngine(
     private val droppedDup = AtomicLong(0L)
     private val droppedInvalid = AtomicLong(0L)
     private val droppedTtl = AtomicLong(0L)
+    private val droppedStaleTimestamp = AtomicLong(0L)
+    private val suspectedClockSkewMs = AtomicLong(0L)
+    @Volatile private var suspectedClockSkewPeerId: String? = null
 
     val receivedVoiceCount: Long get() = receivedVoice.get()
     val forwardedVoiceCount: Long get() = forwardedVoice.get()
     val droppedDuplicateCount: Long get() = droppedDup.get()
     val droppedInvalidCount: Long get() = droppedInvalid.get()
     val droppedTtlCount: Long get() = droppedTtl.get()
+    val droppedStaleTimestampCount: Long get() = droppedStaleTimestamp.get()
+    val suspectedClockSkew: Long get() = suspectedClockSkewMs.get()
+    val suspectedClockSkewPeer: String? get() = suspectedClockSkewPeerId
 
-    data class Counters(val received: Long, val forwarded: Long, val dup: Long, val invalid: Long, val ttl: Long)
-    fun counters() = Counters(receivedVoice.get(), forwardedVoice.get(), droppedDup.get(), droppedInvalid.get(), droppedTtl.get())
+    data class Counters(
+        val received: Long,
+        val forwarded: Long,
+        val dup: Long,
+        val invalid: Long,
+        val ttl: Long,
+        val staleTimestamp: Long = 0L,
+        val suspectedClockSkewMs: Long = 0L,
+        val suspectedClockSkewPeerId: String? = null
+    )
+    fun counters() = Counters(
+        received = receivedVoice.get(),
+        forwarded = forwardedVoice.get(),
+        dup = droppedDup.get(),
+        invalid = droppedInvalid.get(),
+        ttl = droppedTtl.get(),
+        staleTimestamp = droppedStaleTimestamp.get(),
+        suspectedClockSkewMs = suspectedClockSkewMs.get(),
+        suspectedClockSkewPeerId = suspectedClockSkewPeerId
+    )
 
     /**
      * Originates a new local voice frame from this device and sends it to all direct neighbors.
@@ -288,6 +312,10 @@ class ForwardingEngine(
 
         // 6. Validate packet timestamp
         if (!ttlPolicy.isTimestampFresh(decoded.captureTimestamp)) {
+            val skew = Math.abs(now - decoded.captureTimestamp)
+            droppedStaleTimestamp.incrementAndGet()
+            suspectedClockSkewMs.set(skew)
+            suspectedClockSkewPeerId = decoded.sourceId
             droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.STALE_TIMESTAMP)
         }

@@ -221,30 +221,25 @@ class VoiceSessionCoordinator(
     }
 
     suspend fun recoverToLiveKit(): Boolean = switchMutex.withLock {
+        if (liveKitTransport.state.value != VoiceTransportState.CONNECTED) return@withLock false
         val mesh = meshTransport as? MeshControl ?: return@withLock false
-        val online = lastOnlineSession
+        val meshMicCtrl = mesh.micController
+        val meshMicWanted = meshMicCtrl != null && (meshMicCtrl.micToggleOn.value || meshMicCtrl.pttHeld.value)
 
         mesh.pauseCaptureOnly()
-        if (liveKitTransport.state.value != VoiceTransportState.CONNECTED) {
-            if (liveKitTransport is LiveKitVoiceTransport) liveKitTransport.triggerBackgroundReconnect()
-            else if (online != null) runCatchingCancellable { liveKitTransport.start(online) }
-        }
-        val connected = withTimeoutOrNull(RECOVERY_CONNECT_TIMEOUT_MS) {
-            liveKitTransport.state.first { it == VoiceTransportState.CONNECTED }
-        } != null
-        if (!connected) {
+        if (!audioOwnershipArbiter.claimLiveKit()) {
             withContext(NonCancellable) { mesh.resumeCaptureOnly() }
             return@withLock false
         }
-        val meshMicCtrl = (meshTransport as? MeshControl)?.micController
-        val meshMicWanted = meshMicCtrl != null && (meshMicCtrl.micToggleOn.value || meshMicCtrl.pttHeld.value)
-        withContext(NonCancellable) { mesh.disableAudio() }
-        audioOwnershipArbiter.claimLiveKit()
         liveKitTransport.resume()
+        withTimeoutOrNull(3_000L) {
+            liveKitTransport.state.first { it == VoiceTransportState.CONNECTED }
+        }
+        withContext(NonCancellable) { mesh.disableAudio() }
         if (meshMicCtrl != null) {
             runCatchingCancellable { liveKitTransport.setMicrophoneEnabled(meshMicWanted) }
         }
-        (meshTransport as? MeshControl)?.setHelloIntervalMs(1500L)
+        mesh.setHelloIntervalMs(1500L)
         _activeKind.value = PeerTransportKind.ONLINE_LIVEKIT
         _activeTransport.value = liveKitTransport
         true

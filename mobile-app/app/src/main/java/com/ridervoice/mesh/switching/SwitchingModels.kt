@@ -106,8 +106,15 @@ data class LocalHealthSignals(
         isValidatedInternet && isLiveKitConnected && isHealthProbeSuccessful
 
     /**
+     * Plan 3.4 recovery condition:
+     * Validated Internet restored AND LiveKit connected AND active probe succeeds.
+     */
+    fun isOnlineRecoveredAndStable(): Boolean =
+        isValidatedInternet && isHealthProbeSuccessful && isLiveKitConnected
+
+    /**
      * True if local online transport can be recovered. LiveKit may be disconnected while on mesh,
-     * so recovery depends on internet connectivity and the active health probe, not LiveKit connection state.
+     * so background reconnect depends on internet connectivity and the active health probe.
      */
     fun isOnlineRecoverable(): Boolean =
         isValidatedInternet && isHealthProbeSuccessful

@@ -86,7 +86,7 @@ class AutomaticSwitchStateMachine(
 
             if (current == AutoSwitchState.SESSION_ENDED) return
 
-            // A25: availability only blocks ENTRY states. Recovery states must always keep running.
+            // Availability only blocks ENTRY states; recovery states must always keep running.
             val entryState = current == AutoSwitchState.ONLINE ||
                 current == AutoSwitchState.ONLINE_SUSPECT ||
                 current == AutoSwitchState.FALLBACK_UNAVAILABLE

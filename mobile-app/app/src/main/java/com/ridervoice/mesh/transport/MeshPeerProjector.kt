@@ -11,7 +11,7 @@ import com.ridervoice.mesh.ui.MeshSelfTestInput
 import com.ridervoice.mesh.ui.MeshSelfTestMapper
 
 /**
- * Pure projection of mesh graph topology, routes, and speakers into unified peer lists and diagnostics (B24).
+ * Pure projection of mesh graph topology, routes, and speakers into unified peer lists and diagnostics.
  */
 class MeshPeerProjector(
     private val identity: MeshIdentity,

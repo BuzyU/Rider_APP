@@ -1,7 +1,7 @@
 ## RiderVoice v0.0.3.20 Release Notes
 
 ### 🚀 Overview
-RiderVoice **v0.0.3.20** delivers the complete **Offline Mesh Intercom Engine (v2.0)**, an autonomous, multi-hop peer-to-peer voice communications engine designed for motorcycle convoys traversing off-grid backcountry trails where cellular infrastructure is unavailable. This release resolves all 26 defects identified in the comprehensive Stage 0–5 audit (D1–D26), maintains strict zero-modification isolation on frozen online files, introduces an Audio HAL concurrency arbiter, an 8-state deterministic automatic switching state machine with recovery deadlock prevention (D25), relay amplification storm suppression (D26), PBKDF2/AES-GCM authenticated payload encryption (D19), and extends the unit test suite to 281 tests with zero failures.
+RiderVoice **v0.0.3.20** delivers the complete **Offline Mesh Intercom Engine (v2.0)**, an autonomous, multi-hop peer-to-peer voice communications engine designed for motorcycle convoys traversing off-grid backcountry trails where cellular infrastructure is unavailable. This release completes all Round 1–4 audits and remediations (`WP-25` through `WP-61`), maintains strict zero-modification isolation on frozen online files (`mesh-commit-guard.sh`), introduces an Audio HAL concurrency arbiter (`AudioOwnershipArbiter`), an 8-state deterministic automatic switching state machine (`AutomaticSwitchStateMachine`) with recovery deadlock prevention and exponential handoff backoff, monotonic 20ms `OfflineAudioPlayback` tick pacing, encrypted 8-hour backup session persistence (`EncryptedPrefsBackupSessionStore`), PBKDF2 (`100,000` iterations, salt `"rvmesh/v2/session"`) / AES-256-GCM authenticated payload encryption, a standalone Minimalist & Modern UI/UX visual specification (`docs/design/reimagined-uiux/`), and extends the JVM unit test suite to **495** tests with zero failures.
 
 | Attribute | Value |
 | :--- | :--- |
@@ -14,34 +14,34 @@ RiderVoice **v0.0.3.20** delivers the complete **Offline Mesh Intercom Engine (v
 
 ### 🛡️ Key Improvements & Fixes
 
-#### 1. Audio Hardware & HAL Mutual Exclusion (D1, D3)
-- **Audio HAL Concurrency Arbiter (`AudioOwnershipArbiter`)**: Enforces strict mutual exclusion between LiveKit WebRTC audio capture/playback and offline mesh `AudioRecord`/`AudioTrack`. Prevents low-level HAL crash loops when transitioning between online and offline modes.
-- **Microphone Release on Fallback**: Cleanly releases Android audio recording hardware during handoff rather than retaining locks in mute mode, guaranteeing offline capture availability.
+#### 1. Audio Hardware, Monotonic Playout & HAL Mutual Exclusion (D1, D3, WP-55)
+- **Audio HAL Concurrency Arbiter (`AudioOwnershipArbiter`)**: Enforces strict mutual exclusion between LiveKit WebRTC audio capture/playback and offline mesh `AudioRecord`/`AudioTrack` with a 400ms quiet-guard window. Prevents low-level HAL crash loops when transitioning between online and offline modes.
+- **Monotonic 20ms Playout Tick Pacing (`OfflineAudioPlayback`)**: Paces `AudioTrack` writes on a 20ms monotonic `System.nanoTime()` clock and counts underruns only on active talkspurt concealment, eliminating burst buffer draining and false underrun inflation during idle silence.
+- **Bluetooth SCO & Helmet `MediaSessionCompat` Handback Protection**: Preserves active Bluetooth SCO audio routing and `HardwarePTTManager` media button sessions when handing back from offline mesh to an online LiveKit ride.
 
-#### 2. Automatic Switching & Deadlock Prevention (D4, D25)
-- **8-State Deterministic State Machine (`AutomaticSwitchStateMachine`)**: Implemented complete state lifecycle with debounced handoff/handback triggers.
-- **Recovery Deadlock Fix (D25)**: Resolved critical issue where disconnecting LiveKit during handoff prevented reconnection evaluation. The state machine now tracks independent network reachability signals (`LocalHealthSignals`), enabling debounced recovery when cellular coverage returns.
-- **State Transition Fault Tolerance (D4)**: Handled edge cases where handoff failure or exceptions left the state machine stranded in transient states.
+#### 2. Automatic Switching, Online Isolation & Deadlock Prevention (D4, D25, WP-53, WP-57)
+- **8-State Deterministic State Machine (`AutomaticSwitchStateMachine`)**: Implements complete state lifecycle (`ONLINE`, `ONLINE_SUSPECT`, `STARTING_OFFLINE_MESH`, `OFFLINE_ACTIVE`, `ONLINE_RECOVERING`, `HANDING_BACK_TO_LIVEKIT`, `FALLBACK_UNAVAILABLE`, `SESSION_ENDED`) with 10s failure confirmation, 8s recovery stability, 20s minimum dwell, and exponential backoff on failed handoffs.
+- **Online-System Zero-Interference (`LiveKitVoiceTransport`)**: Never overwrites user mute state on normal online reconnects when not paused by the coordinator, synchronizes online mute changes, and preserves deafened/VOX state across fallback and recovery.
+- **Recovery Deadlock Fix (D25)**: Evaluates independent network reachability signals (`ValidatedInternetSource`, `/health` probe throttled to 5s on `Dispatchers.IO`) so convoys hand back to LiveKit cleanly when cellular coverage returns.
 
-#### 3. Wire Protocol, Relay Storm Suppression & Routing (D2, D8, D19, D20, D21, D22, D23, D26)
-- **5x Relay Amplification Suppression (D26)**: In dense peer clusters, naive broadcast flooding caused exponential packet explosions (25 datagrams per frame for 6 nodes). Introduced route-aware relay pruning ensuring exactly N-1 datagrams per frame while preserving multi-hop reachability in chain and tail topologies.
+#### 3. Wire Protocol, Relay Control, Routing & Backup Persistence (D2, D8, D19–D23, D26, WP-54, WP-56)
+- **Configurable Relay Redundancy & Multi-Hop Resilience (D26, WP-49)**: Supports up to 6 devices across 5 hops (`DEFAULT_TTL = 5`, `MAX_HOPS = 5`) on unified UDP port `45454` (`MeshConfig.MESH_PORT`), with route-aware relay pruning (`SUPPRESS_REDUNDANT_RELAYS = false` default for maximum multi-hop resilience) and atomic joint session admission (`SessionManager.canAdmitAll`).
 - **Contiguous Voice Sequence Numbering (D2)**: Decoupled discovery heartbeat sequence numbers from voice stream sequences, eliminating synthetic jitter buffer packet loss and audio concealment glitches.
-- **Cryptographic Wire Hardening (D19)**: Implemented slow KDF using PBKDF2-HMAC-SHA256 (120,000 iterations), deriving session UUID, 256-bit authentication key, and 256-bit AES-GCM payload encryption key from 16-character pairing codes.
-- **Sliding-Window Replay Rejection (D8)**: Hardened packet deduplication using a sliding-window duplicate packet cache to reject delayed replay attacks beyond the standard cache TTL.
-- **Direct Neighbor Preservation (D20)**: Prevented relayed discovery packets arriving first from masking or misclassifying direct physical 1-hop radio neighbors.
-- **Oversized Voice Payload Validation (D21)**: Validated voice payload boundaries against maximum frame capacity (747-byte wire packet v2 layout), discarding oversized or malformed frames.
-- **Link Hygiene & Endpoint Verification (D22)**: Enforced strict authentication before registering endpoints into the active routing table, preventing unauthenticated probe spoofing.
-- **Stale Broadcast Pruning (D23)**: Actively purges disconnected or timed-out broadcast endpoints from transmission queues.
-- **Event-Driven Capture Loop (D24)**: Replaced high-CPU busy-wait polling in `OfflineAudioCapture` with an interruptible event-driven loop.
+- **Cryptographic Wire Hardening & Encrypted Backup Store (D19, WP-54)**: Derives session UUID, 256-bit `authKey` (HMAC-SHA256), and 256-bit `payloadKey` (AES-256-GCM) from 16-character Crockford Base32 pairing codes via PBKDF2-HMAC-SHA256 (`100,000` iterations, salt `"rvmesh/v2/session"`). Pre-ride backup sessions are persisted encrypted in `EncryptedPrefsBackupSessionStore` (8h TTL) across process death and wiped on sign-out.
+- **Sliding-Window Replay Rejection (D8)**: Hardened packet deduplication using a sliding-window duplicate packet cache to reject delayed replay attacks within cache TTL.
+- **Direct Neighbor Preservation & Steady-State Edge Refresh (D20, WP-56)**: Prevents relayed discovery packets from masking direct 1-hop neighbors and refreshes snapshot edge timestamps on steady-state heartbeats.
+- **Oversized Voice Payload Validation (D21)**: Validates voice payload boundaries against the 747-byte wire packet v2 layout, discarding oversized or malformed frames.
+- **Link Hygiene & Endpoint Verification (D22)**: Enforces strict wire HMAC authentication before registering endpoints into the active routing table.
+- **Event-Driven Capture & Offloaded Voice Encryption (D24, WP-55)**: Captures PCM audio in an interruptible loop and offloads encryption/UDP transmission off the `URGENT_AUDIO` capture thread.
 
-#### 4. UI, Settings & Dependency Injection
-- **Hilt Dependency Injection (`MeshModule`)**: Fully wired the offline mesh singleton graph with lazy provider instantiation, ensuring zero startup penalty when offline mesh is disabled.
-- **UI Screens & Navigation**: Integrated `OfflineMeshLobbyScreen` (`Routes.OFFLINE_MESH_LOBBY`) for peer pairing and `OfflineRoomScreen` (`Routes.OFFLINE_MESH_HUD`) for active intercom telemetry.
-- **Settings & Feature Gating**: Added `offline_mesh_enabled` (default `false`) and `offline_mesh_auto_fallback` (default `true`) toggles in Settings.
-- **Localization**: Full triple-locale string parity (English, Hindi, Marathi) for all offline mesh UI components.
+#### 4. UI, Settings, Foreground Service & Reimagined UI/UX Showcase (WP-58–WP-61)
+- **Hilt Dependency Injection (`MeshModule`)**: Wired the offline mesh singleton graph and `@MeshApplicationScope` coroutine lifecycle, ensuring zero startup penalty when offline mesh is disabled.
+- **UI Screens & Guided Setup**: Integrated `OfflineMeshLobbyScreen` (`Routes.OFFLINE_MESH_LOBBY`) with 3-step hotspot instructions and live self-test HUD, `OfflineRoomScreen` (`Routes.OFFLINE_MESH_HUD`), and `OfflineAwareRoomHost` fallback overlays.
+- **Settings & Feature Gating**: Unified `MeshRuntimeSettings` (`offline_mesh_enabled`, `auto_fallback_enabled`, `warm_standby_enabled`) with Wi-Fi hardware pre-checks and full triple-locale string parity (English, Hindi, Marathi).
+- **Reimagined Minimalist & Modern UI/UX Showcase (`WP-61`)**: Added standalone interactive Light and Dark HTML/CSS/SVG/JS showcases and specification under `docs/design/reimagined-uiux/`.
 
 #### 5. Verification & Test Suite Expansion
-- **Comprehensive Unit Testing**: Expanded unit test coverage from 216 to 281 tests (+65 tests) covering all 26 audit defects, protocol vectors, scheduled delivery, mutation scenarios, and simulated network partitions with 100% pass rate.
+- **Comprehensive Unit Testing**: Expanded the automated JVM test suite to **495** tests (`test-census-floor = 495`) covering all Stage 0–5 and Round 1–4 invariants, protocol vectors, scheduled delivery, 6-node stress smoke testing, architecture rules, and simulated network partitions with a 100% pass rate.
 
 ---
 

@@ -74,15 +74,16 @@ data class AntiFlappingConfig(
     val failureConfirmationMs: Long = 10_000L,
     val recoveryStabilityMs: Long = 8_000L,
     val minDwellMs: Long = 20_000L,
-    val maxTransitionsInWindow: Int = 3,
-    val transitionWindowMs: Long = 120_000L
+    val maxTransitionsPerWindow: Int = 4,
+    val windowMs: Long = 120_000L,
+    val offlineRetryBaseMs: Long = 5_000L
 )
 ```
 
 - **Failure Confirmation (`10,000 ms`):** Internet/LiveKit failure must persist continuously for 10 seconds before initiating mesh fallback.
 - **Recovery Stability (`8,000 ms`):** Internet health signals must be stable and verified for 8 seconds before initiating recovery to LiveKit.
-- **Minimum Dwell (`20,000 ms`):** Must remain in current transport for at least 20 seconds before allowing another transition.
-- **Transition Rate Cap (`3 per 120s`):** At most 3 transitions allowed within any sliding 2-minute window. Exceeding this marks `FALLBACK_UNAVAILABLE` to maintain voice continuity.
+- **Minimum Dwell (`20,000 ms`):** Must remain in current transport for at least 20 seconds before allowing another transition (except when the active mesh transport dies while online is recoverable).
+- **Transition Rate Cap (`4 per 120s`):** At most 4 transitions allowed within any sliding 2-minute window (`windowMs`), with exponential retry backoff (`offlineRetryBaseMs = 5,000 ms` doubling up to 8x).
 
 ---
 
@@ -96,8 +97,11 @@ data class LocalHealthSignals(
     val isLiveKitConnected: Boolean,
     val isLiveKitReconnecting: Boolean,
     val liveKitReconnectAttempts: Int,
-    val isMeshRouteAvailable: Boolean,
-    val isHealthProbeSuccessful: Boolean
+    val isHealthProbeSuccessful: Boolean,
+    val hasValidMeshRoute: Boolean,
+    val offlineAvailable: Boolean = true,
+    val isMeshTransportAlive: Boolean = true,
+    val lastInterfaceChangeMs: Long = 0L
 )
 ```
 

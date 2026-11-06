@@ -60,7 +60,7 @@ class MicControllerImpl(
     private val _armed = MutableStateFlow(false)
     override val voxArmed: StateFlow<Boolean> = _armed.asStateFlow()
 
-    // CONFLATED: only the latest desired capture state matters, and order is preserved (A47 / B4).
+    // CONFLATED: only the latest desired capture state matters, and order is preserved.
     private val desired = Channel<Boolean>(Channel.CONFLATED)
 
     init {

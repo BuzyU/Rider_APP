@@ -15,7 +15,7 @@ enum class AudioOwner {
 
 /**
  * Enforces strict mutual exclusion over microphone/audio hardware ownership.
- * Coroutine-safe via [Mutex] (D3).
+ * Coroutine-safe via [Mutex].
  *
  * Rules:
  * - Healthy online session: [AudioOwner.LIVEKIT]

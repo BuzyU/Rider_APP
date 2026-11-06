@@ -71,6 +71,7 @@ graph TB
 
     subgraph Services["Android Services"]
         VoiceSvc["VoiceForegroundService\n(persistent audio + WakeLock)"]
+        MeshSvc["MeshForegroundService\n(offline mesh mic FGS)"]
         LocSvc["LocationService\n(GPS + stationary sleep)"]
         RideRec["RideRecorder\n(session + batched events)"]
         MsgSvc["TacticalMessagingService\n(FCM handler)"]
@@ -82,8 +83,9 @@ graph TB
         VoxEngine["VoxEngine\n(VAD + 300Hz HPF + PTT logic)"]
         PTT["HardwarePTTManager\n(headset button)"]
         AudioFocus["AudioFocusManager"]
+        Coord["VoiceSessionCoordinator &\nAudioOwnershipArbiter"]
         Mesh["OfflineMeshVoiceTransport\n(Shared Wi-Fi/Hotspot UDP mesh)"]
-        Handoff["AutomaticSwitchStateMachine\n(cellular ↔ offline fallback)"]
+        Handoff["AutomaticSwitchStateMachine\n(8-state cellular ↔ offline fallback)"]
     end
 
     subgraph NavHUD["Tactical Navigation"]
@@ -377,9 +379,9 @@ erDiagram
 | **Lobby before LiveKit connect** | Separates the social invite flow from the audio session — saves LiveKit capacity and avoids orphaned sessions |
 | **Room database for ride recording** | Rides are recorded locally first (works offline); can be synced to backend later |
 | **Audio device abstraction** | `AudioDeviceRouter` decouples audio source selection from the PTT/VAD engine, making it easier to add new device types |
-| **Foreground service for voice** | Keeps the audio session alive when the screen is off or the app is in the background |
-| **Offline mesh voice intercom** | `OfflineMeshVoiceTransport` and `AutomaticSwitchStateMachine` provide zero-infrastructure ad-hoc Wi-Fi/UDP multi-hop voice mesh with mutual-exclusion Audio HAL management (`AudioOwnershipArbiter`) when internet connectivity drops |
-| **In-App OTA updater & bypass** | `UpdateManager` delivers reliable updates with weak-reference foreground `Activity` dispatch, avoiding Android 10–14 OEM background launch drops, with smart APK caching and dynamic `FileProvider` URI permission grants |
-| **Regional SOS emergency resolution** | `EmergencyNumbers` dynamically detects cellular roaming ISO, SIM ISO, and device locale to resolve local emergency dispatch (e.g. 911 in US/CA, 112 in EU/India, 999 in UK, 000 in AU) instead of hardcoding 911 |
+| **Foreground service for voice** | `VoiceForegroundService` (online) and `MeshForegroundService` (standalone offline mesh) keep audio sessions alive when the screen is off or the app is in the background |
+| **Offline mesh voice intercom** | `OfflineMeshVoiceTransport`, `VoiceSessionCoordinator`, and `AutomaticSwitchStateMachine` (8-state FSM) provide zero-infrastructure ad-hoc Wi-Fi/UDP multi-hop voice mesh on port `45454` with mutual-exclusion Audio HAL management (`AudioOwnershipArbiter`), monotonic 20ms playout pacing, and encrypted 8-hour backup session persistence (`EncryptedPrefsBackupSessionStore`) when internet connectivity drops |
+| **In-App OTA updater & bypass** | `UpdateManager` delivers reliable updates with weak-reference foreground `Activity` dispatch, avoiding Android 10–14 OEM background launch drops, with smart APK caching, signing certificate validation, and dynamic `FileProvider` URI permission grants |
+| **Regional SOS emergency resolution** | `EmergencyNumbers` resolves local emergency dispatch (e.g. 911 in US/CA, 112 in EU/India, 999 in UK, 000 in AU) using user-configured country preference (`emergency_country`) or device locale region without `TelephonyManager` carrier inspection (ensuring Google Play Protect compliance) |
 | **Offline tactical radar HUD** | `TacticalRadarCanvas` provides a zero-dependency aviation/military HUD canvas with 360° radar sweep and waypoint vectors, serving as a crash-proof fallback when Mapbox tokens or cellular coverage are missing |
 | **Battery & CPU optimization engine** | Opus DTX silence suppression, stationary GPS sleep (>120s parked), Compose leaf-only recomposition for VU meters, and hardware `AudioRecord` read loop suspension in PTT idle |

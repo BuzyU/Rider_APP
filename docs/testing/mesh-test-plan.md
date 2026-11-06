@@ -22,7 +22,7 @@
 | `PayloadCryptoTest` | Encryption | 2 | AES-256-GCM authenticated encryption, bit-flip detection |
 | `RelayAmplificationTest` | Forwarding | 4 | Relay redundancy in 6-clique: 5 datagrams (suppression on), 25 datagrams (suppression off, default) |
 | `ScheduledDeliveryScenarioTest` | Simulated Net | 8 | 6 network disruption scenarios, T23 chaos test, deterministic tie-breaking |
-| `SessionKdfTest` | Cryptography | 2 | Slow-KDF PBKDF2 120k iterations, Crockford Base32 normalization |
+| `SessionKdfTest` | Cryptography | 2 | Slow-KDF PBKDF2 100k iterations, Crockford Base32 normalization |
 | `StateMachineLivenessTest` | State Machine | 4 | D25 deadlock fix, D4 exception rollback, random walk invariant check |
 | `TransportPauseResumeTest` | Audio Hardware | 3 | Pause/resume mic release, mute state propagation |
 | `TransportRobustnessTest` | Sockets | 2 | Socket failure recovery, graceful teardown |
@@ -50,7 +50,7 @@ Per the honesty and evidence contract:
 
 ---
 
-## 2. Simulated Network Scenarios (`ScheduledDeliveryScenarioTest`)
+## 3. Simulated Network Scenarios (`ScheduledDeliveryScenarioTest`)
 
 All scenarios run deterministically over `ScheduledNet` with PRNG seeds (1, 2, 3):
 
@@ -65,7 +65,7 @@ All scenarios run deterministically over `ScheduledNet` with PRNG seeds (1, 2, 3
 
 ---
 
-## 3. Mutation Testing Verification
+## 4. Mutation Testing Verification
 
 Six critical logic invariants were mutated and verified to trigger immediate test failures:
 
@@ -80,7 +80,7 @@ Six critical logic invariants were mutated and verified to trigger immediate tes
 
 ---
 
-## 4. Relay Amplification & Redundancy (B6)
+## 5. Relay Amplification & Redundancy (B6)
 
 Datagram counts per 20ms voice frame in a 6-node fully connected clique:
 - **Redundant relay suppression enabled (`suppressRedundantRelays = true`):** Exactly 5 datagrams (1 direct unicast to each neighbor from speaker, 0 redundant relays).

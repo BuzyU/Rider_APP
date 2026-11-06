@@ -272,7 +272,7 @@ class ForwardingEngine(
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID)
         }
 
-        // Enforce debug peer filter (Fixes H5)
+        // Enforce debug peer filter when configured in debug builds
         val filter = if (isDebugBuild) debugPeerFilter else null
         if (filter != null && !filter(decoded.previousHopId)) {
             droppedInvalid.incrementAndGet()

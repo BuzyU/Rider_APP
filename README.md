@@ -4,14 +4,14 @@
 
 RiderVoice is a Jetpack Compose Android application designed for motorcycle convoys. It enables hands-free push-to-talk (PTT) communication over WebRTC, squad coordination, active ride telemetry, and over-the-air (OTA) application updates. It is backed by a Node.js Express REST API, Prisma PostgreSQL (Supabase), and LiveKit for real-time audio.
 
-> **Latest Release:** [**v0.0.3.19 (APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.19)  
-> For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md).
+> **Latest Release:** [**v0.0.3.20 (APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.20)  
+> For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md). For the Offline Mesh Intercom architecture and protocol specs, see [docs/implementation/mesh/README.md](./docs/implementation/mesh/README.md).
 
 ---
 
 ## 🚀 Key Features
 
-- **Offline Mesh Intercom Engine (v0.0.3.19)** – Zero-infrastructure peer-to-peer ad-hoc Wi-Fi/UDP multi-hop voice mesh for motorcycle convoys outside cellular coverage. Standard release builds ship with the mesh OFF unless explicitly compiled with `-PenableOfflineMeshInRelease=true`. Automatic fallback during an online ride uses a pairing-code backup session pre-shared and entered in the offline lobby before the ride (persisted encrypted with an 8h TTL across process death and wiped on sign-out). Includes an 8-state deterministic `AutomaticSwitchStateMachine` with non-disruptive recovery and quiet-guard windows, daisy-hop packet forwarding with duplicate suppression and TTL decay (TTL=5, `SUPPRESS_REDUNDANT_RELAYS = false` default for maximum multi-hop resilience), Audio HAL mutual-exclusion via `AudioOwnershipArbiter`, and PBKDF2 (120,000 iterations) / AES-256-GCM authenticated payload encryption with sliding-window replay rejection.
+- **Offline Mesh Intercom Engine v2.0 (v0.0.3.20)** – Zero-infrastructure peer-to-peer ad-hoc Wi-Fi/UDP multi-hop voice mesh on port `45454` (`MeshConfig.MESH_PORT`) for motorcycle convoys outside cellular coverage. Standard release builds ship with the mesh OFF unless explicitly compiled with `-PenableOfflineMeshInRelease=true`. Automatic fallback during an online ride uses a 16-character Crockford Base32 pairing-code backup session pre-shared and saved in the offline lobby before the ride (persisted encrypted via `EncryptedPrefsBackupSessionStore` with an 8h TTL across process death and wiped on sign-out). Includes an 8-state deterministic `AutomaticSwitchStateMachine` with non-disruptive recovery and 400ms quiet-guard windows, daisy-hop packet forwarding up to 6 devices / 5 hops (`DEFAULT_TTL = 5`, `MAX_HOPS = 5`, `SUPPRESS_REDUNDANT_RELAYS = false` default for maximum multi-hop resilience), monotonic 20ms `OfflineAudioPlayback` tick pacing, Audio HAL mutual-exclusion via `AudioOwnershipArbiter` (preserving Bluetooth SCO and helmet `MediaSessionCompat` across handbacks), and PBKDF2 (`100,000` iterations, salt `"rvmesh/v2/session"`) / AES-256-GCM authenticated payload encryption with sliding-window replay rejection. Also includes a standalone Minimalist & Modern UI/UX visual specification and interactive Light/Dark HTML showcases under [docs/design/reimagined-uiux/](./docs/design/reimagined-uiux/REIMAGINED_UIUX_SPEC.md).
 - **Lobby Reliability, Missing Column Resilience & SOS Protection (v0.0.3.19)** – Resolved convoy creation lobby hang with bounded exponential backoff and immediate local shell rendering; fixed unhandled `ReferenceError: riderCallsign` 500 error; added dynamic probing and runtime Prisma `P2022` fallback resilience for `lastEmptyAt`; guaranteed write circuit-breaker exemptions for emergency SOS alerts and webhooks; hardened transaction-scoped advisory locks; and completely eliminated `TelephonyManager` to clear Google Play Protect flags.
 - **Staged Room Identity, Create Idempotency & Webhook Defense (v0.0.3.18)** – Per-ride persisted LiveKit room identity migration layer with legacy room fallback, database-backed atomic ride create idempotency (`clientRequestId`), race-condition-safe room termination, retryable sweeper cleanup queue, readiness health probe with webhook enforcement, and APK signing certificate validation on OTA updates.
 - **Google Play Protect Heuristic Clean-up & Production Keystore (v0.0.3.17)** – Replaced telephony carrier inspection with non-intrusive locale region detection in emergency SOS routing, eliminating false-positive toll-fraud heuristic flags from Google Play Protect on sideloaded updates. Added dedicated production release keystore infrastructure.
@@ -30,7 +30,7 @@ RiderVoice is a Jetpack Compose Android application designed for motorcycle conv
 - **In-App OTA Updates (v0.0.3.4)** – Loop-proof firmware updater with foreground Activity-anchored installer dispatch (preventing Android 10–14 OEM background launch drops), explicit FileProvider URI permission grants, smart local APK caching (skips 55MB redownloads), instant resume upon return from Settings, and an interactive "Retry Installer" action.
 - **Operator Dossier (Account Page)** – Tactical profile management displaying call-sign `@handle`, high-resolution avatar with dynamic initial fallback, phone number, assigned bike model, bio, and a live "Calibrate Dossier" editor.
 - **Tactical Waypoint Radar & Route Planner (v0.0.3.3)** – Crash-proof offline aviation/military radar HUD Canvas with 360° sweep, concentric range rings (5km–25km), live squad blips, waypoint trajectory vectors, elevation/distance badges, and in-HUD toggle with Mapbox Satellite/Vector navigation.
-- **Regional SOS Emergency Alerting (v0.0.3.2)** – Broadcasts emergency distress alerts with coordinates and dynamically dials local emergency numbers (e.g., **911** in US/Canada, **112** across Europe/India, **999** in the UK, **000** in Australia, **110/119** in Japan) based on cellular network roaming, SIM ISO, and device locale.
+- **Regional SOS Emergency Alerting (v0.0.3.2 / v0.0.3.19)** – Broadcasts emergency distress alerts with coordinates and dynamically dials local emergency numbers (e.g., **911** in US/Canada, **112** across Europe/India, **999** in the UK, **000** in Australia, **110/119** in Japan) using user-configured country preference (`emergency_country`) or device locale region (with zero `TelephonyManager` carrier inspection for Google Play Protect compliance).
 - **Push-to-Talk (PTT) Voice Engine** – Low-latency group voice over LiveKit WebRTC. Engineered for helmet intercoms, Bluetooth SCO/A2DP, wired headsets, and handlebar media buttons.
 - **Battery & Audio Optimization Engine (v0.0.3.2)** – WebRTC Opus DTX silent packet suppression, stationary GPS sleep (lowers power by 93% when parked >120s), 50 Hz Compose leaf-only recomposition, and hardware `AudioRecord` suspension during PTT idle.
 - **Convoy Moderation & Share Links** – Generate 24-hour cryptographic invite links (`ridervoice://join/<token>`), recruit riders from Squad contacts, eject riders, or transfer host duties mid-ride.
@@ -42,12 +42,12 @@ RiderVoice is a Jetpack Compose Android application designed for motorcycle conv
 
 You can download the latest signed APK directly from GitHub Releases:
 
-- 📱 [**Download RiderVoice v0.0.3.16 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.16/Rider_APP-v0.0.3.16.apk)
-- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.16/Rider_APP-v0.0.3.16.apk.sha256)
+- 📱 [**Download RiderVoice v0.0.3.20 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.20/Rider_APP-v0.0.3.20.apk)
+- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.20/Rider_APP-v0.0.3.20.apk.sha256)
 
 ### Sideloading Instructions:
 
-1. Download `Rider_APP-v0.0.3.16.apk` onto your Android phone (or transfer via USB/Quick Share).
+1. Download `Rider_APP-v0.0.3.20.apk` onto your Android phone (or transfer via USB/Quick Share).
 2. Open your device's **Files** app and tap the APK.
 3. If prompted by Android, toggle **"Allow from this source"**.
 4. Tap **Install**. Subsequent updates can be downloaded directly from within the app under **Settings → Check for OTA Updates**.
@@ -75,17 +75,21 @@ You can download the latest signed APK directly from GitHub Releases:
 
 ```
 Rider_APP/
-├── .github/workflows/   # CI/CD workflows: release.yml (APK release) & build.yml (test verification)
+├── .github/
+│   ├── scripts/         # CI verification guards (mesh-commit-guard, mesh-invariants, verify-test-refs)
+│   └── workflows/       # CI/CD workflows: release.yml (APK release) & build.yml (test verification)
+├── docs/                # Protocol specs, security threat model, settings contract, and UI/UX showcase
 ├── mobile-app/          # Android app (Kotlin + Jetpack Compose + Material 3)
 │   ├── app/
 │   │   ├── src/main/    # Android source code, manifests, and resources
+│   │   ├── src/test/    # 495 JVM unit, simulation, chaos, and architecture tests
 │   │   └── signing/     # Fallback debug keystore for consistent release signatures
 │   └── gradle.properties
 ├── backend/             # REST API (Node.js, Express, Prisma ORM)
 │   ├── prisma/          # Prisma schema and database migrations
 │   └── src/             # Express routes, controllers, and middleware
 ├── livekit-server/      # Docker Compose setup for local LiveKit server
-└── web-app/             # Next.js marketing and waitlist landing page
+└── web-app/             # Next.js marketing, waitlist landing page, and /admin console
 ```
 
 ---
@@ -229,6 +233,15 @@ npm run dev
 ```powershell
 cd mobile-app
 .\gradlew clean assembleDebug installDebug
+.\gradlew testDebugUnitTest lintDebug
+```
+
+### 3. Run Architecture & Mesh Invariant Guards
+
+```bash
+bash .github/scripts/mesh-commit-guard.sh
+bash .github/scripts/mesh-invariants.sh
+bash .github/scripts/verify-test-refs.sh
 ```
 
 ---

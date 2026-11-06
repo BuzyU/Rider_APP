@@ -53,7 +53,7 @@ Motorcycling presents severe technological challenges that ordinary consumer sma
 - **Unlimited Range:** Connects riders over 4G/5G cellular via a central low-latency WebRTC Selective Forwarding Unit (SFU). As long as riders have cellular signal, range is infinite.
 - **Smart Hands-Free VOX & Hardware PTT:** An intelligent Voice Activity Detection (VAD) engine with a 300Hz high-pass filter that ignores engine rumble and highway wind roar, opening only on human vocal cord frequencies and holding open for 900 ms before cleanly cutting off.
 - **Tactical Convoy Radar:** An offline-capable 360° radar canvas that displays the distance, bearing, and speed of every convoy member without relying on heavy satellite maps.
-- **Dynamic Regional SOS:** Instant emergency distress dispatch that resolves whether the rider is in the US (911), Europe/India (112), UK (999), or Australia (000) using SIM and network ISO codes.
+- **Dynamic Regional SOS:** Instant emergency distress dispatch that resolves whether the rider is in the US (911), Europe/India (112), UK (999), or Australia (000) using user-configured country preference (`emergency_country`) or device locale region without intrusive telephony inspection.
 - **Zero-Friction In-App Updates:** A self-healing OTA update system allowing riders to update the APK on the road without Google Play Store friction.
 
 ---
@@ -278,12 +278,10 @@ When a crash or breakdown occurs, a rider cannot guess or remember the local eme
 ```mermaid
 flowchart TD
     Trigger["Rider taps SOS in SosScreen.kt"] --> Detect["EmergencyNumbers.kt Resolution"]
-    Detect --> CheckNet["1. Cellular Network Country ISO (TelephonyManager)"]
-    Detect --> CheckSIM["2. SIM Card Country ISO"]
-    Detect --> CheckLoc["3. Device Locale"]
+    Detect --> CheckPref["1. User-Configured Emergency Country (emergency_country)"]
+    Detect --> CheckLoc["2. Device Locale Region"]
 
-    CheckNet --> Resolve{"Resolved Region"}
-    CheckSIM --> Resolve
+    CheckPref --> Resolve{"Resolved Region"}
     CheckLoc --> Resolve
 
     Resolve -->|US / CA| D911["Dial 911"]
@@ -295,10 +293,9 @@ flowchart TD
     API --> FCM["FCM Push Notification to Squad Members"]
 ```
 
-- [EmergencyNumbers.kt](./mobile-app/app/src/main/java/com/ridervoice/utils/EmergencyNumbers.kt) inspects three levels of device telephony:
-  1. Cellular Network Country ISO (`telephonyManager.networkCountryIso`)
-  2. SIM Card Country ISO (`telephonyManager.simCountryIso`)
-  3. System Locale country code
+- [EmergencyNumbers.kt](./mobile-app/app/src/main/java/com/ridervoice/utils/EmergencyNumbers.kt) resolves the emergency country without `TelephonyManager` carrier inspection (preventing false-positive Google Play Protect toll-fraud heuristic flags):
+  1. User-configured Emergency Country preference (`emergency_country` in Settings)
+  2. System Locale country code (`Locale.getDefault().country`)
 - Automatically resolves the local emergency dispatch number (911 for US/Canada, 112 for EU/India, 999 for UK, 000 for Australia, etc.).
 - Simultaneously, [emergencyRoutes.js](./backend/src/routes/emergencyRoutes.js) logs an `EmergencyAlert` record and broadcasts high-priority push notifications with GPS coordinates to the rider's squad.
 
@@ -338,15 +335,15 @@ When motorcycling through remote backcountry passes, canyons, or national parks,
 ```mermaid
 flowchart TD
     subgraph MeshNodeA["Rider A (Host / Node)"]
-        CapA["Audio Record (PCM 16kHz)"] --> CodecA["Opus Encoder / Frame Builder"]
-        CodecA --> KdfA["Slow-KDF + AES-256-GCM Encrypt"]
+        CapA["AudioRecord (PCM 16kHz 20ms)"] --> CodecA["MeshPacketCodec (747B Wire v2)"]
+        CodecA --> KdfA["PBKDF2 + AES-256-GCM + HMAC-SHA256"]
         KdfA --> LinkA["UdpMeshLink (Port 45454)"]
     end
 
     subgraph MeshNodeB["Rider B (Relay Hop)"]
         LinkB["UdpMeshLink"] --> FwdB["ForwardingEngine (18-step filter)"]
-        FwdB -->|"Hop <= 4 & not in relay suppression"| RelayB["Forward to Neighbors"]
-        FwdB --> PlayoutB["JitterBuffer -> AudioTrack"]
+        FwdB -->|"Hop <= 5 & TTL > 1"| RelayB["Forward to Neighbors"]
+        FwdB --> PlayoutB["JitterBuffer -> 20ms Paced AudioTrack"]
     end
 
     subgraph MeshNodeC["Rider C (Tail Receiver)"]
@@ -359,13 +356,13 @@ flowchart TD
 ```
 
 #### Key Architecture & Engineering Principles:
-1. **Zero-Infrastructure Ad-Hoc Radio Mesh:** Operates entirely over local shared Wi-Fi or mobile hotspot networks on UDP port 45454 without requiring cellular data, internet gateways, or external routers (v1 transport = UDP over a Wi-Fi/hotspot network that all riders are already connected to; the app does not create or join that network).
-2. **Daisy-Hop Forwarding & Storm Suppression (D26):** Forwarding nodes decrement TTL (`VOICE_TTL = 3`, `HELLO_TTL = 4`). In dense peer clusters, naive broadcast flooding causes an exponential datagram storm ($N \times (N-1)$ datagrams). The forwarding engine implements route-aware relay pruning, guaranteeing exactly $N-1$ datagrams per frame while preserving multi-hop reachability in chain and tail topologies.
-3. **Audio HAL Mutual Exclusion (`AudioOwnershipArbiter`):** Android's Audio Hardware Abstraction Layer (HAL) crashes or throws `ERROR_INVALID_OPERATION` if two subsystems contend for exclusive mic hardware simultaneously. `AudioOwnershipArbiter` enforces strict concurrency mutual exclusion between WebRTC ADM capture and offline mesh `AudioRecord`.
-4. **Deterministic 8-State Switching & Deadlock Prevention (D25):** The `AutomaticSwitchStateMachine` evaluates network health (`LocalHealthSignals`) across debounced windows. Crucially, when cellular coverage drops and LiveKit is disconnected, the state machine continues evaluating independent network reachability signals so the convoy hands back to LiveKit when connectivity returns.
-5. **Slow-KDF & Authenticated Payload Encryption (D19):** Derives 256-bit AES-GCM encryption keys from 16-character pairing codes using PBKDF2-HMAC-SHA256 (120,000 iterations), protecting convoy voice traffic against eavesdropping.
-6. **Sliding-Window Replay Protection (D8):** Utilizes a sliding-window duplicate packet cache to detect and reject delayed replay packets beyond standard TTLs.
-*(Note: Feature flag `FeatureFlags.OFFLINE_MESH_ENABLED = false` by default in release builds).*
+1. **Zero-Infrastructure Ad-Hoc Radio Mesh:** Operates entirely over local shared Wi-Fi or mobile hotspot networks on UDP port 45454 (`MeshConfig.MESH_PORT`) without requiring cellular data, internet gateways, or external routers (v1 transport = UDP over a Wi-Fi/hotspot network that all riders are already connected to; the app does not create or join that network).
+2. **Daisy-Hop Forwarding & Storm Suppression (D26):** Forwarding nodes decrement TTL (`MeshConfig.DEFAULT_TTL = 5`, `MeshConfig.MAX_HOPS = 5`) across up to 6 devices and 5 hops. The forwarding engine supports configurable route-aware relay redundancy suppression (`MeshConfig.SUPPRESS_REDUNDANT_RELAYS = false` by default for maximum multi-hop chain reliability, or `true` to prune covered neighbors in dense clusters).
+3. **Audio HAL Mutual Exclusion (`AudioOwnershipArbiter`):** Android's Audio Hardware Abstraction Layer (HAL) crashes or throws `ERROR_INVALID_OPERATION` if two subsystems contend for exclusive mic hardware simultaneously. `AudioOwnershipArbiter` enforces strict concurrency mutual exclusion between WebRTC ADM capture and offline mesh `AudioRecord`, with a 400ms quiet-guard window on fallback and non-destructive Bluetooth SCO / helmet `MediaSessionCompat` preservation on handback.
+4. **Deterministic 8-State Switching & Deadlock Prevention (D25):** The `AutomaticSwitchStateMachine` evaluates network health (`LocalHealthSignals`) across debounced windows (10s failure confirmation, 8s recovery stability, 20s minimum dwell). When cellular coverage drops and LiveKit is disconnected, the state machine continues evaluating independent network reachability signals so the convoy hands back to LiveKit with zero dead air when connectivity returns.
+5. **Slow-KDF, Encrypted Backup Store & Authenticated Payload Encryption (D19):** Derives 128-bit session UUID, 256-bit `authKey` (HMAC-SHA256), and 256-bit `payloadKey` (AES-256-GCM) from 16-character Crockford Base32 pairing codes using PBKDF2-HMAC-SHA256 (`100,000` iterations, salt `"rvmesh/v2/session"`). Pre-ride backup pairing metadata is persisted encrypted via `EncryptedPrefsBackupSessionStore` (8h TTL) across process death and wiped on sign-out.
+6. **Sliding-Window Replay Protection (D8):** Utilizes a sliding-window duplicate packet cache to detect and reject delayed replay packets within the cache TTL.
+*(Note: Feature gate `BuildConfig.OFFLINE_MESH_BUILD_ENABLED = false` by default in release builds unless built with `-PenableOfflineMeshInRelease=true`).*
 
 ---
 
@@ -373,16 +370,17 @@ flowchart TD
 
 ```text
 Rider_APP/
-├── .github/workflows/                 Continuous Integration and Release pipelines
+├── .github/                           CI/CD workflows, invariant scripts, and test census floor
 ├── backend/                           Express REST API & Prisma database layer
+├── docs/                              Protocol, security, settings, testing, and UI/UX specs
 ├── livekit-server/                    LiveKit WebRTC SFU configuration
 ├── mobile-app/                        Android client application module
 ├── web-app/                           Next.js public site & admin dashboard
 ├── ARCHITECTURE.md                    High-level system diagrams and decisions
 ├── CODE_DEPTH_STRUCTURE.md            File-level code map
-├── PROJECT_ROADMAP_AND_TASKS.md       Master engineering task and roadmap tracker
 ├── README.md                          Product overview and developer quickstart
-├── RELEASE_NOTES.md                   Changelog across versions
+├── RELEASE_NOTES.md                   Changelog across versions (v0.0.3.0 – v0.0.3.20)
+├── RIDERVOICE_SYSTEM_EXPLANATION.md   This comprehensive onboarding and architecture guide
 └── render.yaml                        Render.com deployment manifest for backend
 ```
 
@@ -394,9 +392,8 @@ Rider_APP/
 | :--- | :--- | :--- | :--- |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | High-level engineering reference | Architecture diagrams, subsystem descriptions, data flow models | Document detailing core system contracts and decisions. |
 | [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md) | File-level codebase index | Comprehensive inventory of directories, source files, and responsibilities | Quick-lookup guide for engineers locating where specific features reside. |
-| [PROJECT_ROADMAP_AND_TASKS.md](./PROJECT_ROADMAP_AND_TASKS.md) | Project task and sprint tracker | Completed tasks, backlog items, testing matrices, and status checkboxes | Tracks development progress across audio fixes, battery optimizations, and UI cleanups. |
 | [README.md](./README.md) | Developer onboarding guide | Overview of the app, prerequisites, environment setup, and local run instructions | Entry point for new contributors cloning the repository. |
-| [RELEASE_NOTES.md](./RELEASE_NOTES.md) | Public version changelog | Detailed release history (`v0.0.3.0` through `v0.0.3.7`) | Documents fixes, new features, and changes for each release. |
+| [RELEASE_NOTES.md](./RELEASE_NOTES.md) | Public version changelog | Detailed release history (`v0.0.3.0` through `v0.0.3.20`) | Documents fixes, new features, and changes for each release. |
 | [render.yaml](./render.yaml) | Cloud infrastructure specification | Blueprint deploying the backend service on Render.com | Provisions Node.js web service, environment variable references, and build commands. |
 
 ---
@@ -405,7 +402,7 @@ Rider_APP/
 
 | File | Why it exists | What it contains | How it works |
 | :--- | :--- | :--- | :--- |
-| [build.yml](./.github/workflows/build.yml) | Continuous integration gate | Runs on every PR and push to `main` | Sets up JDK 17, builds Android debug APK (`assembleDebug`), and runs unit test suites (`testDebugUnitTest`). |
+| [build.yml](./.github/workflows/build.yml) | Continuous integration gate | Runs on every PR and push to `main` across 3 jobs (`Android Build & Test`, `Backend Lint & Typecheck`, `Web App Build & Typecheck`) | Enforces `mesh-commit-guard.sh`, `mesh-invariants.sh`, 495 JVM unit tests (`testDebugUnitTest`), test census floor (`>= 495`), `lintDebug`, `assembleDebug`, `assembleRelease`, and `verify-release-apk.test.sh`. |
 | [release.yml](./.github/workflows/release.yml) | Automated release pipeline | Triggers when a git tag (e.g. `v*.*.*.*`) is pushed | Compiles signed release APK, generates SHA-256 checksum, and creates an official GitHub Release with downloadable assets. |
 
 ---
@@ -470,7 +467,7 @@ Located at: `mobile-app/app/src/main/java/com/ridervoice/`
 - [UpdateManager.kt](./mobile-app/app/src/main/java/com/ridervoice/update/UpdateManager.kt): Manages download streaming, SHA-256 verification, and package installer dispatch.
 
 #### 4.3.8 Utilities (`utils/`)
-- [EmergencyNumbers.kt](./mobile-app/app/src/main/java/com/ridervoice/utils/EmergencyNumbers.kt): Resolves regional emergency numbers (911, 112, 999, etc.) based on network and SIM ISO codes.
+- [EmergencyNumbers.kt](./mobile-app/app/src/main/java/com/ridervoice/utils/EmergencyNumbers.kt): Resolves regional emergency numbers (911, 112, 999, etc.) using user-configured country preference (`emergency_country`) or device locale region without `TelephonyManager` carrier inspection.
 - [GeoUtils.kt](./mobile-app/app/src/main/java/com/ridervoice/utils/GeoUtils.kt): Computes distance, bearing, and heading vectors between riders.
 - [OEMBatteryWarning.kt](./mobile-app/app/src/main/java/com/ridervoice/utils/OEMBatteryWarning.kt): Detects aggressive battery management on Xiaomi, Samsung, and OnePlus devices and guides users to disable battery restrictions.
 

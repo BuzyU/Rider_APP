@@ -42,7 +42,7 @@ fun computeGroupConnectivity(
     isLocalOffline: Boolean,
     peers: List<UnifiedVoicePeer>
 ): GroupConnectivityStatus {
-    // Ghost / left participants (!it.isOnline) are ignored for connectivity calculation (A24)
+    // Ghost / left participants (!it.isOnline) are ignored for connectivity calculation
     val activePeers = peers.filter { it.isOnline }
     if (activePeers.isEmpty()) {
         return GroupConnectivityStatus.ALONE

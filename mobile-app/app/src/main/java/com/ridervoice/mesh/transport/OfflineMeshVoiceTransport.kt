@@ -252,7 +252,7 @@ class OfflineMeshVoiceTransport(
             val scope = CoroutineScope(SupervisorJob() + dispatcher)
             transportScope = scope
 
-            // Start incoming frame listener BEFORE starting link (D6)
+            // Start incoming frame listener BEFORE starting link
             frameListenerJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
                 uLink.incomingFrames.collect { frame: MeshFrame ->
                     fEngine.onIncomingFrame(frame)
@@ -369,7 +369,7 @@ class OfflineMeshVoiceTransport(
 
             updateProjectedPeers(gRepo.currentSnapshot())
 
-            // Periodic session expiry sweep (WP-39 / A23)
+            // Periodic session expiry sweep
             val remaining = session.expiresAt - clock()
             if (remaining > 0L) {
                 scope.launch {

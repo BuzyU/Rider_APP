@@ -17,7 +17,7 @@ sealed interface EnableAudioResult {
 }
 
 /**
- * Control interface for offline mesh lifecycle separation (D3).
+ * Control interface for offline mesh lifecycle separation.
  *
  * Allows starting background discovery/routing without capturing or playing audio,
  * and dynamically enabling or disabling audio hardware according to arbitration.

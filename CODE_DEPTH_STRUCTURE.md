@@ -8,14 +8,32 @@ This document is the file-level map of the RiderVoice repository. It explains wh
 
 ```text
 Rider_APP/
-├── .github/workflows/
-│   ├── build.yml                         Android build and verification workflow
-│   └── release.yml                       Versioned APK build, signing, checksum, release
+├── .github/
+│   ├── scripts/
+│   │   ├── mesh-commit-guard.sh          Frozen online contract diff guard
+│   │   ├── mesh-invariants.sh            Static mesh architecture & test census guard
+│   │   └── verify-test-refs.sh           Verifies DEFECT_REGISTER test references
+│   ├── test-census-floor                 Minimum enforced JVM unit test count (495)
+│   └── workflows/
+│       ├── build.yml                     Android, Backend & Web CI verification workflow
+│       └── release.yml                   Versioned APK build, signing, checksum, release
 ├── .vscode/settings.json                 Workspace editor settings
 ├── ARCHITECTURE.md                       High-level diagrams and design decisions
 ├── CODE_DEPTH_STRUCTURE.md               This file-level code map
 ├── README.md                             Product overview and developer quick start
-├── Rider_Voice_Complete_Documentation.docx
+├── RELEASE_NOTES.md                      Release history and version changelogs
+├── RIDERVOICE_SYSTEM_EXPLANATION.md      Comprehensive architectural and onboarding guide
+├── docs/
+│   ├── SETTINGS_CONTRACT.md              Authoritative persistent settings matrix
+│   ├── UX_COPY.md                        User-facing copy and terminology dictionary
+│   ├── diagnostics-payload.md            Network diagnostics telemetry payload schema
+│   ├── OPERATOR_DATA_RECONCILIATION_RUNBOOK.md
+│   ├── design/reimagined-uiux/           Standalone Minimalist & Modern UI/UX HTML showcase
+│   ├── implementation/mesh/              Mesh architecture overview, decisions, changelog, defect register
+│   ├── plan/OFFLINE_MESH_PLAN.md         Three-stage offline mesh implementation plan
+│   ├── protocol/mesh-v2.md               Binary wire packet v2 & cryptographic specification
+│   ├── security/mesh-threat-model.md     Mesh threat model and security controls
+│   └── testing/                          Mesh test census & physical hardware checklist
 ├── render.yaml                           Render deployment definition for the backend
 ├── backend/
 │   ├── Dockerfile                        Backend container image definition
@@ -45,6 +63,7 @@ Rider_APP/
 │       └── src/main/java/com/ridervoice/
 │           ├── audio/                    Audio routing, focus, and VOX engine
 │           ├── data/                     Room local database and repositories
+│           ├── di/                       AppModule & MeshModule Hilt bindings
 │           ├── mesh/                     Offline mesh voice intercom engine (v2.0)
 │           │   ├── audio/                Hardware mutual exclusion, jitter buffer, capture/playback
 │           │   ├── diagnostics/          Mesh diagnostics snapshot & repository
@@ -54,13 +73,13 @@ Rider_APP/
 │           │   ├── link/                 UDP mesh transport, socket lifecycle, and network locks
 │           │   ├── protocol/             Wire packet codec, encryption (SlowKdf/AES-GCM), deduplication
 │           │   ├── routing/              Routing table & next-hop resolution
-│           │   ├── service/              MeshForegroundService lifecycle & notification
-│           │   ├── session/              Offline session crypto & key derivation
-│           │   ├── switching/            AutomaticSwitchStateMachine (9 states) & health signals
+│           │   ├── session/              Offline session crypto, key derivation, & encrypted backup store
+│           │   ├── switching/            AutomaticSwitchStateMachine (8 states) & health signals
 │           │   ├── transport/            OfflineMeshVoiceTransport & VoiceTransport abstraction
-│           │   └── ui/                   OfflineMeshLobbyScreen & OfflineRoomScreen Compose UI
+│           │   ├── ui/                   OfflineMeshLobbyScreen & OfflineRoomScreen Compose UI
+│           │   └── util/                 Cancellable coroutine helpers
 │           ├── network/                  LiveKit WebRTC, Retrofit, resilience managers
-│           ├── services/                 VoiceForegroundService, LocationService, RideRecorder
+│           ├── services/                 VoiceForegroundService, MeshForegroundService, LocationService, RideRecorder
 │           └── ui/                       Jetpack Compose screens, ViewModels, theme, and HUD
 └── web-app/                              Next.js public site and admin console
 ```
@@ -194,7 +213,7 @@ The Android module follows a Compose UI plus MVVM/Clean Architecture style. UI s
 - `navigation/NavGraph.kt`: screen graph and navigation destinations.
 - `navigation/NavigationProvider.kt`: navigation access/provider abstraction.
 - `di/AppModule.kt`: Hilt bindings and construction of shared dependencies.
-- `utils/Constants.kt`, `EmergencyNumbers.kt`, `GeoUtils.kt`, `Logger.kt`, and `OEMBatteryWarning.kt`: cross-cutting constants, regional emergency number resolution (cellular/SIM/locale), location helpers, logging, and device battery guidance.
+- `utils/Constants.kt`, `EmergencyNumbers.kt`, `GeoUtils.kt`, `Logger.kt`, and `OEMBatteryWarning.kt`: cross-cutting constants, regional emergency number resolution (`emergency_country` preference + device locale region, with zero `TelephonyManager` usage), location helpers, logging, and device battery guidance.
 
 ### 5.2 UI layer
 
@@ -372,7 +391,7 @@ The offline mesh subsystem provides an autonomous, multi-hop peer-to-peer voice 
 
 ### SOS flow
 
-`SosScreen`/`SosViewModel` collects the rider action and coordinates, `EmergencyNumbers.kt` dynamically determines the local emergency dialer number (resolving network roaming, SIM ISO, and device locale to 911, 112, 999, 000, etc.), `emergencyRoutes.js` validates and persists an `EmergencyAlert`, and the notification service distributes the alert to registered squad recipients.
+`SosScreen`/`SosViewModel` collects the rider action and coordinates, `EmergencyNumbers.kt` dynamically determines the local emergency dialer number (resolving user-configured `emergency_country` or device locale region to 911, 112, 999, 000, etc.), `emergencyRoutes.js` validates and persists an `EmergencyAlert`, and the notification service distributes the alert to registered squad recipients.
 
 ### OTA flow
 

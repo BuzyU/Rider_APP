@@ -89,7 +89,7 @@ All security controls were tested and verified under adversarial conditions:
 ### 5.1 Single Shared Secret Model (Q4)
 - **Elimination of Room-Derived Secrets:** Deriving mesh encryption keys from online ride room names (which are observable over signaling networks or URLs) is insecure and has been completely removed (`SessionKdf.fromOnlineRoom` deprecated and eliminated).
 - **Out-of-Band Master Secret:** All sessions strictly use a 16-character Crockford Base32 pairing code established out-of-band by convoy members.
-- **Fail-Closed Fallback Invariant:** If an online ride experiences network loss, the automatic switch manager only enables mesh intercom if an authentic pre-shared offline session is loaded in `ActiveOfflineSessionHolder`. If none exists, it fail-closes to `AutoSwitchState.FALLBACK_UNAVAILABLE`.
+- **Fail-Closed Fallback Invariant:** If an online ride experiences network loss, the automatic switch manager only transitions to offline mesh if an authentic, unexpired pre-shared backup session is loaded in `OfflineSessionHolder.backupSession` (`OfflineAvailability.AVAILABLE`). If none exists (`OfflineAvailability.NO_SHARED_SECRET`), the state machine remains in `AutoSwitchState.ONLINE` and emits the `"NO_SHARED_SECRET"` diagnostic without starting unauthenticated radio traffic.
 
 ### 5.2 Deterministic Nonce Construction (Q5)
 - Voice payloads encrypted with AES-256-GCM / ChaCha20-Poly1305 utilize a 12-byte (96-bit) deterministic nonce:
@@ -109,7 +109,7 @@ All security controls were tested and verified under adversarial conditions:
 - **Relay Decryption (B26):** Intermediary relay nodes possess `payloadKey` (derived from the shared pairing code) and can decrypt audio packets they forward. There is no hop-by-hop asymmetric re-encryption between relays.
 - **Local-Join-Relative Expiry (B26):** Session expiry (`expiresAt = createdAt + 8h`) is calculated relative to the local node's join timestamp, not synchronized via global NTP or consensus. A node joining later will compute a later expiration threshold unless manually ended.
 - **Code Reuse & Key Rotation (B26):** Reusing the same Crockford Base32 pairing code across rides recreates identical `authKey` and `payloadKey` derivations. Convoy members must generate and distribute a new code per ride to maintain forward secrecy and prevent cross-ride replay.
-- **In-Memory Backup Session:** `OfflineSessionHolder.backupSession` stores a user-entered pre-ride pairing code in RAM only. All byte buffers and char arrays are zeroized on session close (`AutoCloseable`).
+- **Encrypted Backup Session Persistence & Key Zeroization:** `OfflineSessionHolder.backupSession` persists pre-ride backup pairing metadata (`pairingCode`, `createdAt`, `expiresAt`) in `EncryptedPrefsBackupSessionStore` (`EncryptedSharedPreferences` with self-healing fallback), enforcing the 8-hour TTL on restore and wiping persisted metadata on `clearBackup()` or user sign-out. Derived `authKey` and `payloadKey` byte arrays in RAM are zeroized immediately on session or `ForwardingEngine` close (`AutoCloseable`).
 - **Debug Receiver Guard (A20):** `MeshDebugReceiver` is compiled exclusively into debug source sets and guarded with `android:permission="android.permission.DUMP"`, which can be held by the `adb shell` but cannot be acquired by normal third-party apps. It supports `--es allow "prefix1,prefix2"` peer filtering and logs strictly truncated 8-character session IDs, never pairing codes or key material.
 
 ## 6. Verification Status

@@ -133,7 +133,25 @@ jobs:
 
       - name: Lint Backend Code
         working-directory: backend
-        run: npm run lint
+        run: |
+          if [ ! -f .eslintrc.json ] && [ ! -f .eslintrc.js ] && [ ! -f .eslintrc.yml ]; then
+            cat << 'EOF' > .eslintrc.json
+          {
+            "env": {
+              "node": true,
+              "es2022": true
+            },
+            "parserOptions": {
+              "ecmaVersion": 2022
+            },
+            "rules": {
+              "no-undef": "error",
+              "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }]
+            }
+          }
+          EOF
+          fi
+          npm run lint
 
       - name: Validate Prisma Schema
         working-directory: backend

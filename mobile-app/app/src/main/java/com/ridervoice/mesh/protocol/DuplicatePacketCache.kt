@@ -6,8 +6,8 @@ import com.ridervoice.mesh.MeshConfig
  * Bounded, thread-safe duplicate suppressor keyed by sessionId + sourceId + sequence.
  *
  * Sizing rationale:
- * 50 packets/s * 6 riders * 125s (max skew window) = ~37,500 packets.
- * Default maxEntries is set to 40,000 in [MeshConfig.DUP_CACHE_MAX_ENTRIES] to cover full mesh
+ * Under 100 packets/sec for 10 min retention target = 60,000 entries.
+ * Default maxEntries is set to 60,000 in [MeshConfig.DUP_CACHE_MAX_ENTRIES] to cover full mesh
  * concurrency comfortably within memory limits.
  *
  * Entries expire after [ttlMs] and the oldest entry is evicted beyond [maxEntries].

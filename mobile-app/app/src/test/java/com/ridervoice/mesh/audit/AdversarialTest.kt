@@ -54,7 +54,7 @@ class AdversarialTest {
         val host: String,
         val session: OfflineSession,
         val clock: () -> Long,
-        val debugPeerFilter: ((String) -> Boolean)? = null
+        val debugPeerFilter: com.ridervoice.mesh.forwarding.PeerFilterPort? = null
     ) {
         val ep = MeshEndpoint(host, MeshConfig.MESH_PORT)
         val link = FakeLink()
@@ -71,7 +71,7 @@ class AdversarialTest {
             ttlPolicy = TtlPolicy(clock = clock),
             link = link,
             clock = clock,
-            debugPeerFilter = debugPeerFilter
+            peerFilterPort = debugPeerFilter
         )
     }
 

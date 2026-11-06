@@ -27,7 +27,7 @@ object MeshConfig {
 
     /** Sanity bound only: offline phones may have skewed clocks, so this is deliberately loose. */
     const val MAX_CLOCK_SKEW_MS = 60_000L
-    const val DUP_CACHE_MAX_ENTRIES = 40_000
+    const val DUP_CACHE_MAX_ENTRIES = 60_000
     const val DUP_CACHE_TTL_MS = 2 * MAX_CLOCK_SKEW_MS + 5_000L
     const val MAX_PAYLOAD_BYTES = 1_200
     /** Per-source forwarding budget (packets per 1s window). 20 ms frames = 50/s, plus headroom. */

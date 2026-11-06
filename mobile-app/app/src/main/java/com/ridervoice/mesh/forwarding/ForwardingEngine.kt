@@ -70,9 +70,7 @@ class ForwardingEngine(
     private val onLocalVoicePacket: (MeshPacket) -> Unit = {},
     private val localEpoch: Int = SecureRandom().nextInt(),
     private val suppressRedundantRelays: Boolean = MeshConfig.SUPPRESS_REDUNDANT_RELAYS,
-    private val acceptLegacyNonce: Boolean = false,
-    private val isDebugBuild: Boolean = com.ridervoice.BuildConfig.DEBUG,
-    private val debugPeerFilter: ((String) -> Boolean)? = null
+    private val peerFilterPort: PeerFilterPort? = null
 ) {
     private val voiceSeqGen = AtomicInteger(0)
     private val controlSeqGen = AtomicInteger(0)
@@ -303,9 +301,8 @@ class ForwardingEngine(
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID)
         }
 
-        // Enforce debug peer filter when configured in debug builds
-        val filter = if (isDebugBuild) debugPeerFilter else null
-        if (filter != null && !filter(decoded.previousHopId)) {
+        // Enforce debug peer filter when configured in debug builds / test harnesses
+        if (peerFilterPort != null && !peerFilterPort.shouldAccept(decoded.previousHopId)) {
             droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID)
         }
@@ -379,13 +376,7 @@ class ForwardingEngine(
         )
         val nonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code)
         val sourceKey = getSourcePayloadKey(decoded.sourceId)
-        var plain = PayloadCrypto.open(sourceKey, nonce, aad, decoded.payload)
-        if (plain == null) {
-            val legacyNonce = PayloadCrypto.nonce(decoded.epoch, decoded.sequence, decoded.type.code, decoded.sourceId)
-            plain = PayloadCrypto.open(sourceKey, legacyNonce, aad, decoded.payload)
-                ?: PayloadCrypto.open(payloadKey, nonce, aad, decoded.payload)
-                ?: PayloadCrypto.open(payloadKey, legacyNonce, aad, decoded.payload)
-        }
+        val plain = PayloadCrypto.open(sourceKey, nonce, aad, decoded.payload)
         if (plain == null) {
             droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)

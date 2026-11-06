@@ -68,7 +68,8 @@ class MeshDebugReceiver(
             }
             ACTION_SET_PEER_FILTER, ACTION_LEGACY_SET_PEER_FILTER -> {
                 val allowExtra = intent.getStringExtra(EXTRA_ALLOW) ?: intent.getStringExtra(EXTRA_ALLOWED_PEERS)
-                debugPeerFilter = parsePeerFilter(allowExtra)
+                val filter = parsePeerFilter(allowExtra)
+                debugPeerFilter = if (filter != null) com.ridervoice.mesh.forwarding.PeerFilterPort { filter(it) } else null
                 Log.i(TAG, "Updated debugPeerFilter: ${debugPeerFilter != null}")
             }
         }
@@ -76,7 +77,7 @@ class MeshDebugReceiver(
 
     companion object {
         @Volatile
-        var debugPeerFilter: ((String) -> Boolean)? = null
+        var debugPeerFilter: com.ridervoice.mesh.forwarding.PeerFilterPort? = null
         private const val TAG = "MeshDebugReceiver"
         const val ACTION_DUMP_STATE = "com.ridervoice.mesh.DEBUG_DUMP_STATE"
         const val ACTION_CLEAR_SESSION = "com.ridervoice.mesh.DEBUG_CLEAR_SESSION"

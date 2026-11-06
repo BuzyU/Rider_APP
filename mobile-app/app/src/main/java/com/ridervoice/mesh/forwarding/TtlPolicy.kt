@@ -17,7 +17,7 @@ class TtlPolicy(
     private val budgetCounters = HashMap<String, WindowCounter>()
 
     /**
-     * Drops a packet when ttl == 0, hopCount > MAX_HOPS (7), or ttl + hopCount > DEFAULT_TTL.
+     * Drops a packet when ttl == 0, hopCount > MAX_HOPS (5), or ttl + hopCount > DEFAULT_TTL (5).
      * Both control and audio share this unified TTL rule.
      */
     fun isTtlValidOnReceive(ttl: Int, hopCount: Int = 0): Boolean {

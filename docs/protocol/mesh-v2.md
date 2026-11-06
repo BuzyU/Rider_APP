@@ -20,7 +20,7 @@
    - Duplicate packets are dropped via a sliding-window duplicate packet cache.
 5. **Session Isolation:**
    - Sessions are identified by a 128-bit UUID derived from a 16-symbol pairing code.
-   - Keys are derived via Slow KDF (`PBKDF2WithHmacSHA256`, 100,000 iterations, salt `"rvmesh/v2/session"`, 80-byte output).
+   - Keys are derived via Slow KDF (`PBKDF2WithHmacSHA256`, 120,000 iterations, salt `"rvmesh/v2/session"`, 80-byte output).
 
 ---
 
@@ -143,7 +143,7 @@ Sessions are established using a 16-character alphanumeric code formatted as `XX
 1. **Salt:** Fixed domain-separated salt:
    `salt = "rvmesh/v2/session".toByteArray(UTF_8)`.
 2. **PBKDF2 Output (80 bytes):**
-   `derivedBytes = PBKDF2WithHmacSHA256(normalizedCode, salt, iterations = 100_000, keyLength = 640 bits = 80 bytes)`.
+   `derivedBytes = PBKDF2WithHmacSHA256(normalizedCode, salt, iterations = 120_000, keyLength = 640 bits = 80 bytes)`.
 3. **Session ID (UUID):**
    `sessionId = UUID from derivedBytes[0..15]`.
 4. **Wire Authentication Key:**

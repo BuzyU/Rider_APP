@@ -22,7 +22,7 @@
 | `PayloadCryptoTest` | Encryption | 2 | AES-256-GCM authenticated encryption, bit-flip detection |
 | `RelayAmplificationTest` | Forwarding | 4 | Relay redundancy in 6-clique: 5 datagrams (suppression on), 25 datagrams (suppression off, default) |
 | `ScheduledDeliveryScenarioTest` | Simulated Net | 8 | 6 network disruption scenarios, T23 chaos test, deterministic tie-breaking |
-| `SessionKdfTest` | Cryptography | 2 | Slow-KDF PBKDF2 100k iterations, Crockford Base32 normalization |
+| `SessionKdfTest` | Cryptography | 2 | Slow-KDF PBKDF2 120k iterations, Crockford Base32 normalization |
 | `StateMachineLivenessTest` | State Machine | 4 | D25 deadlock fix, D4 exception rollback, random walk invariant check |
 | `TransportPauseResumeTest` | Audio Hardware | 3 | Pause/resume mic release, mute state propagation |
 | `TransportRobustnessTest` | Sockets | 2 | Socket failure recovery, graceful teardown |

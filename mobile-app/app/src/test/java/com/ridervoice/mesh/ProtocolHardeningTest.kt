@@ -154,8 +154,7 @@ class ProtocolHardeningTest {
             duplicateCache = dupCache,
             ttlPolicy = ttl,
             link = mockLink,
-            clock = { now },
-            acceptLegacyNonce = false
+            clock = { now }
         )
 
         // Encode a valid HELLO payload
@@ -200,74 +199,6 @@ class ProtocolHardeningTest {
         assertTrue(
             "Legacy nonce packet must be dropped when ACCEPT_LEGACY_NONCE is false",
             outcomeDefault is ReceiveOutcome.Dropped && outcomeDefault.reason == ReceiveOutcome.DropReason.BAD_PAYLOAD
-        )
-    }
-
-    @Test
-    fun legacyNonce_acceptedWhenExplicitlyEnabled() {
-        val selfId = UUID.randomUUID().toString()
-        val peerA = UUID.randomUUID().toString()
-
-        val session = OfflineSession.create(now)
-        val sManager = SessionManager(session, selfId, clock = { now })
-        val repo = MeshGraphRepository(selfId, "SelfNode", clock = { now })
-        val table = RoutingTable()
-        val dupCache = DuplicatePacketCache(clock = { now })
-        val ttl = TtlPolicy(clock = { now })
-        val mockLink = mockk<MeshLink>(relaxed = true)
-
-        val engine = ForwardingEngine(
-            selfId = selfId,
-            selfName = "SelfNode",
-            sessionManager = sManager,
-            graphRepository = repo,
-            routingTable = table,
-            duplicateCache = dupCache,
-            ttlPolicy = ttl,
-            link = mockLink,
-            clock = { now },
-            acceptLegacyNonce = true
-        )
-
-        val helloBytes = HelloCodec.encode(HelloPayload(name = "peerA", graphVersion = 1, neighborIds = listOf(selfId)))
-        val epoch = 1
-        val sequence = 10
-        val typeCode = MeshPacketType.HELLO.code
-        val audioFormat = AudioFormatId.PCM16_16K_MONO
-
-        val aad = PayloadCrypto.aad(
-            sessionId = session.sessionId,
-            sourceId = peerA,
-            typeCode = typeCode,
-            epoch = epoch,
-            sequence = sequence,
-            captureTimestamp = now,
-            audioFormat = audioFormat
-        )
-
-        val legacyNonce = PayloadCrypto.nonce(epoch = epoch, sequence = sequence, typeCode = typeCode)
-        val encryptedLegacyPayload = PayloadCrypto.seal(session.payloadKey(), legacyNonce, aad, helloBytes)
-
-        val packet = MeshPacket(
-            type = MeshPacketType.HELLO,
-            sessionId = session.sessionId,
-            sourceId = peerA,
-            sequence = sequence,
-            captureTimestamp = now,
-            ttl = 5,
-            hopCount = 0,
-            previousHopId = peerA,
-            audioFormat = audioFormat,
-            epoch = epoch,
-            payload = encryptedLegacyPayload
-        )
-
-        val frame = MeshFrame(endpoint, MeshPacketCodec.encode(packet, session.authKey()))
-
-        val outcome = engine.onIncomingFrame(frame)
-        assertTrue(
-            "Legacy nonce packet must be accepted when acceptLegacyNonce is true",
-            outcome is ReceiveOutcome.Accepted
         )
     }
 

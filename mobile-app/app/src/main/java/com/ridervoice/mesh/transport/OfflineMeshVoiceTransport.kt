@@ -86,7 +86,8 @@ class OfflineMeshVoiceTransport(
     private val audioTrackFactory: (() -> AudioTrackSink?)? = null,
     val routeController: MeshAudioRouteController? = null,
     val hardwarePttPort: HardwarePttPort? = null,
-    private val identityProvider: () -> MeshIdentity = { identity }
+    private val identityProvider: () -> MeshIdentity = { identity },
+    private val peerFilterPort: com.ridervoice.mesh.forwarding.PeerFilterPort? = null
 ) : VoiceTransport, MeshControl {
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -244,7 +245,8 @@ class OfflineMeshVoiceTransport(
                 clock = clock,
                 onLocalVoicePacket = { pkt ->
                     jManager.onVoicePacket(pkt.sourceId, pkt.sequence, pkt.payload, pkt.epoch)
-                }
+                },
+                peerFilterPort = peerFilterPort
             )
             forwardingEngine = fEngine
             lastForwardingEngineForTest = fEngine

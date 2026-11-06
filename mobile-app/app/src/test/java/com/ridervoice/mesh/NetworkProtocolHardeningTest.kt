@@ -271,7 +271,7 @@ class NetworkProtocolHardeningTest {
             override fun send(endpoint: MeshEndpoint, payload: ByteArray) = true
         }
 
-        fun makeEngine(isDebug: Boolean, filter: ((String) -> Boolean)?): ForwardingEngine {
+        fun makeEngine(filterPort: com.ridervoice.mesh.forwarding.PeerFilterPort?): ForwardingEngine {
             val sManager = SessionManager(session, selfId, clock = { now })
             val repo = MeshGraphRepository(selfId, "Self", clock = { now })
             val table = RoutingTable()
@@ -287,8 +287,7 @@ class NetworkProtocolHardeningTest {
                 ttlPolicy = ttl,
                 link = mockLink,
                 clock = { now },
-                isDebugBuild = isDebug,
-                debugPeerFilter = filter
+                peerFilterPort = filterPort
             )
         }
 
@@ -310,19 +309,19 @@ class NetworkProtocolHardeningTest {
             )
         )
 
-        // When isDebugBuild = false, debugPeerFilter is completely ignored (no-op in release)
-        val releaseEngine = makeEngine(isDebug = false, filter = { false })
+        // When peerFilterPort is null (release build), filtering is completely bypassed
+        val releaseEngine = makeEngine(filterPort = null)
         val releaseOutcome = releaseEngine.onIncomingFrame(frame)
         assertFalse(
-            "Release engine must ignore debugPeerFilter and not drop on PREVIOUS_HOP_INVALID",
+            "Release engine (null peerFilterPort) must not drop on PREVIOUS_HOP_INVALID",
             releaseOutcome is ReceiveOutcome.Dropped && releaseOutcome.reason == ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID
         )
 
-        // When isDebugBuild = true, debugPeerFilter is enforced
-        val debugEngine = makeEngine(isDebug = true, filter = { false })
+        // When peerFilterPort is provided (debug), it is enforced
+        val debugEngine = makeEngine(filterPort = { false })
         val debugOutcome = debugEngine.onIncomingFrame(frame)
         assertTrue(
-            "Debug engine must enforce debugPeerFilter and drop on PREVIOUS_HOP_INVALID",
+            "Debug engine with PeerFilterPort must enforce filter and drop on PREVIOUS_HOP_INVALID",
             debugOutcome is ReceiveOutcome.Dropped && debugOutcome.reason == ReceiveOutcome.DropReason.PREVIOUS_HOP_INVALID
         )
     }

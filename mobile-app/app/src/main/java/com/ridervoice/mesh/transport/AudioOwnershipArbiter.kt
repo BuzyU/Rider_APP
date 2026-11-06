@@ -43,12 +43,12 @@ class AudioOwnershipArbiter {
     suspend fun claimLiveKit(onStopOfflineFirst: suspend () -> Unit = {}): Boolean = mutex.withLock {
         applyPendingResetLocked()
         if (_owner.value == AudioOwner.OFFLINE_MESH) {
-            runCatchingCancellable { onStopOfflineFirst() }
+            if (runCatchingCancellable { onStopOfflineFirst() }.isFailure) return@withLock false
             _owner.value = AudioOwner.NONE
         }
         _owner.value = AudioOwner.LIVEKIT
         applyPendingResetLocked()
-        true
+        _owner.value == AudioOwner.LIVEKIT
     }
 
     suspend fun tryClaimOfflineMesh(): Boolean = mutex.withLock {
@@ -58,18 +58,18 @@ class AudioOwnershipArbiter {
         }
         _owner.value = AudioOwner.OFFLINE_MESH
         applyPendingResetLocked()
-        true
+        _owner.value == AudioOwner.OFFLINE_MESH
     }
 
     suspend fun handoffLiveKitToOfflineMesh(onSuspendLiveKitCapture: suspend () -> Unit): Boolean = mutex.withLock {
         applyPendingResetLocked()
         if (_owner.value != AudioOwner.OFFLINE_MESH) {
-            runCatchingCancellable { onSuspendLiveKitCapture() }
+            if (runCatchingCancellable { onSuspendLiveKitCapture() }.isFailure) return@withLock false
             _owner.value = AudioOwner.NONE
         }
         _owner.value = AudioOwner.OFFLINE_MESH
         applyPendingResetLocked()
-        true
+        _owner.value == AudioOwner.OFFLINE_MESH
     }
 
     suspend fun handoffOfflineMeshToLiveKit(
@@ -78,13 +78,16 @@ class AudioOwnershipArbiter {
     ): Boolean = mutex.withLock {
         applyPendingResetLocked()
         if (_owner.value != AudioOwner.LIVEKIT) {
-            runCatchingCancellable { onStopOfflineCapture() }
+            if (runCatchingCancellable { onStopOfflineCapture() }.isFailure) return@withLock false
             _owner.value = AudioOwner.NONE
         }
+        if (runCatchingCancellable { onResumeLiveKitCapture() }.isFailure) {
+            _owner.value = AudioOwner.OFFLINE_MESH
+            return@withLock false
+        }
         _owner.value = AudioOwner.LIVEKIT
-        runCatchingCancellable { onResumeLiveKitCapture() }
         applyPendingResetLocked()
-        true
+        _owner.value == AudioOwner.LIVEKIT
     }
 
     suspend fun release(expectedOwner: AudioOwner) = mutex.withLock {

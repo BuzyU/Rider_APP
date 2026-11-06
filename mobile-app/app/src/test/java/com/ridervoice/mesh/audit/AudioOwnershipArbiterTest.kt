@@ -76,5 +76,49 @@ class AudioOwnershipArbiterTest {
         }
         deferreds.awaitAll()
     }
+
+    @Test
+    fun claimLiveKit_whenStopOfflineCallbackFails_returnsFalseAndPreservesOwner() = runTest {
+        val arbiter = AudioOwnershipArbiter()
+        assertTrue(arbiter.tryClaimOfflineMesh())
+        assertEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+
+        val ok = arbiter.claimLiveKit { throw RuntimeException("stop offline capture failed") }
+        assertFalse("claimLiveKit must report failure when callback fails", ok)
+        assertEquals("AudioOwner must not transition to LIVEKIT on callback failure", AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+    }
+
+    @Test
+    fun handoffLiveKitToOfflineMesh_whenSuspendFails_returnsFalseAndPreservesOwner() = runTest {
+        val arbiter = AudioOwnershipArbiter()
+        assertTrue(arbiter.claimLiveKit())
+        assertEquals(AudioOwner.LIVEKIT, arbiter.owner.value)
+
+        val ok = arbiter.handoffLiveKitToOfflineMesh { throw RuntimeException("suspend livekit failed") }
+        assertFalse("handoffLiveKitToOfflineMesh must report failure when callback fails", ok)
+        assertEquals("AudioOwner must remain LIVEKIT on callback failure", AudioOwner.LIVEKIT, arbiter.owner.value)
+    }
+
+    @Test
+    fun handoffOfflineMeshToLiveKit_whenCallbacksFail_returnsFalseAndPreservesOwner() = runTest {
+        val arbiter = AudioOwnershipArbiter()
+        assertTrue(arbiter.tryClaimOfflineMesh())
+        assertEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+
+        val ok1 = arbiter.handoffOfflineMeshToLiveKit(
+            onStopOfflineCapture = { throw RuntimeException("stop mesh failed") },
+            onResumeLiveKitCapture = {}
+        )
+        assertFalse("handoffOfflineMeshToLiveKit must fail when stop callback fails", ok1)
+        assertEquals("AudioOwner must remain OFFLINE_MESH", AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+
+        val ok2 = arbiter.handoffOfflineMeshToLiveKit(
+            onStopOfflineCapture = {},
+            onResumeLiveKitCapture = { throw RuntimeException("resume livekit failed") }
+        )
+        assertFalse("handoffOfflineMeshToLiveKit must fail when resume callback fails", ok2)
+        assertEquals("AudioOwner must not be LIVEKIT when resume callback fails", AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+    }
 }
+
 

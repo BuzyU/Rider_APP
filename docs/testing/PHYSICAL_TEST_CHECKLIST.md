@@ -11,27 +11,27 @@ Per the verification contract and rule R4, tests that have not been run on real 
 
 ## Physical Hardware Test Cases
 
-| Test ID | Test Scenario | Hardware Setup | Verification Criteria | Status |
+| Test ID | Test Scenario | Hardware Setup | Numerical Pass/Fail Criteria | Status |
 |---|---|---|---|---|
-| **PHYS-01** | Multi-Device P2P Group Formation (Wi-Fi Direct not supported in v1: v1 transport = UDP over a shared Wi-Fi/hotspot network) | 3x Physical Android devices (Android 11, 13, 14) | Subnet IP assignment, socket bind on port 45454 across shared hotspot | **NOT EXECUTED** |
-| **PHYS-02** | RF Range & Daisy-Hop Multi-Hop Relay | 3x Motorcycles in convoy spaced 150m apart (A <-> B <-> C) | Node A voice relayed via Node B to Node C; end-to-end latency < 150ms | **NOT EXECUTED** |
-| **PHYS-03** | Helmet Bluetooth Intercom & PTT Keypress | Helmet headset (Cardo PackTalk / Sena 50S) paired via BT | SCO audio route switch, hardware PTT media button press transitions mic state | **NOT EXECUTED** |
-| **PHYS-04** | Cellular Blackout Tunnel Entry (LiveKit -> Mesh) | Physical vehicle entering an RF shielded chamber / tunnel | LiveKit packet loss triggers automatic fallback to offline mesh within debounce window | **NOT EXECUTED** |
-| **PHYS-05** | Cellular Recovery Tunnel Exit (Mesh -> LiveKit) | Physical vehicle exiting RF shielded chamber to 5G coverage | Independent HTTP probe detects cellular; LiveKit reconnects and claims audio | **NOT EXECUTED** |
-| **PHYS-06** | Battery & Thermal Runaway on 2-Hour Ride | 2 physical phones running continuous mesh voice loop | Battery drain < 12%/hour, no thermal throttling or background process kill | **NOT EXECUTED** |
-| **PHYS-07** | Wi-Fi / Bluetooth Radio Coexistence (Wi-Fi Direct not supported in v1; tested via shared Wi-Fi + BT SCO) | Shared Wi-Fi hotspot active on 2.4GHz + BT SCO headset | No packet drops or SCO audio stutter under mutual RF interference | **NOT EXECUTED** |
-| **PHYS-08** | Dynamic Convoy Re-ordering & Topology Mutation | 4 physical nodes changing relative order on road | Graph repository discovers topology changes, Dijkstra/BFS updates next-hop | **NOT EXECUTED** |
-| **PHYS-09** | Dead Hotspot (Wi-Fi Up, No Internet) | Mobile Wi-Fi hotspot active without internet uplink | Total loss confirmed via missing NET_CAPABILITY_VALIDATED; falls back after 10 s | **NOT EXECUTED** |
-| **PHYS-10** | Cellular Bars But No Data | Connected to cell tower with zero data throughput | Probe failure confirms total loss; triggers mesh fallback after 10 s debounce | **NOT EXECUTED** |
-| **PHYS-11** | Internet Back While LiveKit Reconnecting | Internet restored while LiveKit WebRTC is reconnecting | Standing rule enforced: suspect timer resets; does NOT fall back to mesh | **NOT EXECUTED** |
-| **PHYS-12** | Non-Disruptive Recovery Dead Air Check | Convoy exiting dead zone back into 5G coverage | Mesh audio playout continues while LiveKit reconnects; zero dead air gap | **NOT EXECUTED** |
-| **PHYS-13** | Helmet PTT After Offline Session | Helmet headset PTT used online after offline session | PTT toggles mic state online without residual offline ownership lock | **NOT EXECUTED** |
-| **PHYS-14** | VOX Hands-Free Over Mesh | Helmet microphone in high-noise cockpit environment | VOX auto-triggers mic capture; release hold timer prevents syllable clipping | **NOT EXECUTED** |
-| **PHYS-15** | Screen Activity Rotation During Active Session | Orientation rotated during active offline HUD | Session and audio stream remain continuous without re-deriving session keys | **NOT EXECUTED** |
-| **PHYS-16** | Android 14 Foreground Service Start Without Mic | App launched with RECORD_AUDIO permission revoked | Companion start() refuses startup; avoids foreground service security exception | **NOT EXECUTED** |
-| **PHYS-17** | Peer Reboot Rejoin Within Report Timeout | One convoy phone rebooted and re-opened | Device rejoins mesh with new random epoch; graph accepts report within 8 s | **NOT EXECUTED** |
-| **PHYS-18** | Hotspot-Host Phone Socket Binding | Phone acting as Wi-Fi hotspot AP host | bindSocketToWifi logs fallback gracefully; socket communicates unbound | **NOT EXECUTED** |
-| **PHYS-19** | Redundant Relay Suppression Loss vs Airtime Benchmark | 6 physical phones in dense convoy comparing SUPPRESS_REDUNDANT_RELAYS true vs false | Frame packet loss <= 2.0% across all 6 nodes; measure Wi-Fi channel airtime and datagram reduction (>40% drop in datagram count when enabled on dense topologies) | **NOT EXECUTED** |
+| **PHYS-01** | Multi-Device P2P Group Formation | 3x Physical Android devices (Android 11, 13, 14) on shared hotspot | Subnet IP assigned; socket bound on port 45454; HELLO discovery packets received within <= 2.0 s | **NOT EXECUTED** |
+| **PHYS-02** | RF Range & Multi-Hop Relay | 6x Motorcycles in linear convoy spaced 100m apart (5 hops) | Packet loss at 5 hops <= 5.0%; mouth-to-ear latency < 150 ms | **NOT EXECUTED** |
+| **PHYS-03** | Helmet Bluetooth Intercom & PTT Keypress | Helmet headset (Cardo PackTalk / Sena 50S) paired via BT SCO | Bluetooth helmet PTT switch latency < 200 ms; SCO audio route switch time < 500 ms | **NOT EXECUTED** |
+| **PHYS-04** | Cellular Blackout Tunnel Entry (LiveKit -> Mesh) | Physical vehicle entering an RF shielded chamber / tunnel | Automatic fallback to offline mesh within 10.0 s debounce window; audio dropout < 500 ms | **NOT EXECUTED** |
+| **PHYS-05** | Cellular Recovery Tunnel Exit (Mesh -> LiveKit) | Physical vehicle exiting RF shielded chamber to 5G coverage | HTTP probe succeeds within <= 5.0 s; stability window 8.0 s; relay-loss recovery < 8.0 s | **NOT EXECUTED** |
+| **PHYS-06** | Battery & Thermal Runaway on 2-Hour Ride | 2 physical phones running continuous mesh voice loop | Battery drain < 12.0%/hour; temperature rise < 8.0°C; 0 background process terminations | **NOT EXECUTED** |
+| **PHYS-07** | Wi-Fi / Bluetooth Radio Coexistence | Shared Wi-Fi hotspot active on 2.4GHz + BT SCO headset | Frame loss rate <= 1.0%; audio underruns 0 under continuous voice transmission | **NOT EXECUTED** |
+| **PHYS-08** | Dynamic Convoy Re-ordering & Topology Mutation | 4 physical nodes changing relative order on road | Topology update discovered within <= 4.0 s; relay-loss recovery < 8.0 s; packet loss <= 3.0% | **NOT EXECUTED** |
+| **PHYS-09** | Dead Hotspot (Wi-Fi Up, No Internet) | Mobile Wi-Fi hotspot active without internet uplink | Fallback triggered at exactly 10.0 s (+-500 ms) after missing NET_CAPABILITY_VALIDATED | **NOT EXECUTED** |
+| **PHYS-10** | Cellular Bars But No Data | Connected to cell tower with zero data throughput | HTTP probe failure confirmed; fallback completed in <= 10.0 s; 0 false triggers | **NOT EXECUTED** |
+| **PHYS-11** | Internet Back While LiveKit Reconnecting | Internet restored while LiveKit WebRTC is reconnecting | Standing rule enforced: suspect timer resets to 0 ms; 0 unauthorized switches to mesh | **NOT EXECUTED** |
+| **PHYS-12** | Non-Disruptive Recovery Dead Air Check | Convoy exiting dead zone back into 5G coverage | Mesh audio playout continues during LiveKit reconnect; mouth-to-ear dead air gap < 100 ms | **NOT EXECUTED** |
+| **PHYS-13** | Helmet PTT After Offline Session | Helmet headset PTT used online after offline session | Helmet headset PTT switch latency < 200 ms; 0 residual offline audio locks held | **NOT EXECUTED** |
+| **PHYS-14** | VOX Hands-Free Over Mesh | Helmet microphone in high-noise cockpit environment | VOX trigger attack time < 40 ms; release hold timer 1,200 ms (+-50 ms); syllable clipping 0% | **NOT EXECUTED** |
+| **PHYS-15** | Screen Activity Rotation During Active Session | Orientation rotated during active offline HUD | 180° rotation completed without audio glitch; audio dropout 0 ms; session keys preserved | **NOT EXECUTED** |
+| **PHYS-16** | Android 14 Foreground Service Start Without Mic | App launched with RECORD_AUDIO permission revoked | Companion start() aborts in < 10 ms; 0 security exceptions; error banner displayed <= 500 ms | **NOT EXECUTED** |
+| **PHYS-17** | Peer Reboot Rejoin Within Report Timeout | One convoy phone rebooted and re-opened | Device rejoins mesh with new random epoch; graph accepts report and routes traffic < 8.0 s | **NOT EXECUTED** |
+| **PHYS-18** | Hotspot-Host Phone Socket Binding | Phone acting as Wi-Fi hotspot AP host | Socket initialization < 50 ms; datagram transmission successful (0 socket exceptions) | **NOT EXECUTED** |
+| **PHYS-19** | Controlled Flooding and Redundant Relay Suppression Benchmark | 6 physical phones in dense clique convoy | Datagrams per frame <= 18; packet loss at 5 hops <= 5.0%; mouth-to-ear latency < 150 ms | **NOT EXECUTED** |
 
 ---
 

@@ -12,8 +12,12 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.ridervoice.diagnostics.data.dao.DiagSessionDao
 import com.ridervoice.diagnostics.upload.DiagnosticUploadManager
 import dagger.hilt.android.HiltAndroidApp
+import dagger.Lazy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -34,10 +38,13 @@ class App : Application(), Configuration.Provider {
     lateinit var uploadManager: DiagnosticUploadManager
 
     @Inject
-    lateinit var meshAutoSwitchManager: com.ridervoice.mesh.switching.MeshAutoSwitchManager
+    lateinit var meshRuntimeSettings: com.ridervoice.mesh.MeshRuntimeSettings
 
     @Inject
-    lateinit var meshRuntimeSettings: com.ridervoice.mesh.MeshRuntimeSettings
+    lateinit var meshAutoSwitch: dagger.Lazy<com.ridervoice.mesh.switching.MeshAutoSwitchManager>
+
+    private val appScope = CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Default)
+    @Volatile private var meshAutoSwitchStarted = false
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -51,11 +58,22 @@ class App : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        // OfflineMeshGate.install must precede start() so start() uses installed settings (A45).
-        // start() is called unconditionally; disabled-by-build builds return immediately inside start(),
-        // while disabled-by-user builds observe settingsFlow and react dynamically when toggled on (A12).
         com.ridervoice.mesh.OfflineMeshGate.install(meshRuntimeSettings)
-        meshAutoSwitchManager.start()
+        if (com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen()) {
+            appScope.launch {
+                com.ridervoice.mesh.OfflineMeshGate.settingsFlow
+                    .map { it.offlineMeshEnabled }
+                    .distinctUntilChanged()
+                    .collect { on ->
+                        if (on) {
+                            meshAutoSwitchStarted = true
+                            meshAutoSwitch.get().start()
+                        } else if (meshAutoSwitchStarted) {
+                            meshAutoSwitch.get().stop()
+                        }
+                    }
+            }
+        }
         setupCrashHandler()
         createNotificationChannels()
         finalizeOrphanedDiagnosticSessions()

@@ -47,7 +47,7 @@ class AndroidNetworkCapsReader(context: Context) : NetworkCapsReader {
 }
 
 /** True only when the ACTIVE network claims internet AND Android validated it. Dead hotspot => false. */
-class ValidatedInternetSource(
+open class ValidatedInternetSource(
     private val reader: NetworkCapsReader,
     private val context: Context?
 ) {
@@ -66,7 +66,7 @@ class ValidatedInternetSource(
         }
     }
 
-    val validatedFlow: Flow<Boolean> = callbackFlow {
+    open val validatedFlow: Flow<Boolean> = callbackFlow {
         val cm = context?.applicationContext?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         if (cm == null) {
             trySend(isValidated())

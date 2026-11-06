@@ -42,18 +42,24 @@ class LocalHealthSignalsProvider(
     private val probeDispatcher: CoroutineDispatcher = dispatcher
     private val watcherScope = CoroutineScope(SupervisorJob() + dispatcher)
     private var lastInterfaceChangeMs: Long = 0L
+    private var watcherJob: kotlinx.coroutines.Job? = null
 
-    init {
-        validatedSource?.let { vs ->
-            watcherScope.launch {
-                vs.validatedFlow.collect {
-                    lastInterfaceChangeMs = clock.nowMs()
-                }
+    fun startWatching() {
+        if (watcherJob?.isActive == true) return
+        watcherJob = watcherScope.launch {
+            validatedSource?.validatedFlow?.collect {
+                lastInterfaceChangeMs = clock.nowMs()
             }
         }
     }
 
+    fun stopWatching() {
+        watcherJob?.cancel()
+        watcherJob = null
+    }
+
     fun close() {
+        stopWatching()
         watcherScope.cancel()
     }
 

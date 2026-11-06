@@ -67,6 +67,7 @@ class MeshAutoSwitchManager(
     fun start() {
         if (!OfflineMeshGate.isBuildGateOpen() || OfflineMeshGate.decision() == com.ridervoice.mesh.GateDecision.DISABLED_BY_BUILD) return
         if (drivingJob?.isActive == true) return
+        healthSignalsProvider.startWatching()
         if (!scope.isActive) {
             scope = CoroutineScope(SupervisorJob() + dispatcher)
         }
@@ -195,6 +196,7 @@ class MeshAutoSwitchManager(
     }
 
     fun stop() {
+        healthSignalsProvider.stopWatching()
         drivingJob?.cancel()
         drivingJob = null
         scope.launch {

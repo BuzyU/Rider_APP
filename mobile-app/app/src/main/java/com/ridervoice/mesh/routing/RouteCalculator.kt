@@ -23,9 +23,10 @@ data class RouteEntry(
 object RouteCalculator {
     fun compute(snapshot: MeshGraphSnapshot, now: Long): Map<String, RouteEntry> {
         val nonExpired = snapshot.edges.filter { it.expiresAt > now }
-        val biEdges = nonExpired.filter { it.bidirectional }
+        val usable = nonExpired.filter { (it.from != snapshot.selfId && it.to != snapshot.selfId) || it.endpoint != null }
+        val biEdges = usable.filter { it.bidirectional }
         val biRoutes = bfs(snapshot.selfId, biEdges)
-        val allRoutes = bfs(snapshot.selfId, nonExpired)
+        val allRoutes = bfs(snapshot.selfId, usable)
 
         val result = LinkedHashMap<String, RouteEntry>()
         for (dest in allRoutes.keys.sorted()) {

@@ -31,6 +31,7 @@ Per the verification contract and rule R4, tests that have not been run on real 
 | **PHYS-16** | Android 14 Foreground Service Start Without Mic | App launched with RECORD_AUDIO permission revoked | Companion start() refuses startup; avoids foreground service security exception | **NOT EXECUTED** |
 | **PHYS-17** | Peer Reboot Rejoin Within Report Timeout | One convoy phone rebooted and re-opened | Device rejoins mesh with new random epoch; graph accepts report within 8 s | **NOT EXECUTED** |
 | **PHYS-18** | Hotspot-Host Phone Socket Binding | Phone acting as Wi-Fi hotspot AP host | bindSocketToWifi logs fallback gracefully; socket communicates unbound | **NOT EXECUTED** |
+| **PHYS-19** | Redundant Relay Suppression Loss vs Airtime Benchmark | 6 physical phones in dense convoy comparing SUPPRESS_REDUNDANT_RELAYS true vs false | Frame packet loss <= 2.0% across all 6 nodes; measure Wi-Fi channel airtime and datagram reduction (>40% drop in datagram count when enabled on dense topologies) | **NOT EXECUTED** |
 
 ---
 

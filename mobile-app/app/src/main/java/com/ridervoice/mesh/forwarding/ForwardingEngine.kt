@@ -458,12 +458,11 @@ class ForwardingEngine(
     }
 
     /**
-     * Selects valid next-hop direct neighbors for forwarding:
+     * Controlled flooding next-hop selection:
      * - Excludes [previousHopId] (never send backward to the node that just handed us the packet)
      * - Excludes [sourceId] (never send back to the original sender)
      * - Excludes expired routes/neighbors
-     * - Prefers neighbors that are the computed BFS nextHop for at least one known destination,
-     *   falling back to all remaining live direct neighbors when topology knowledge is still converging.
+     * - Excludes neighbors that have already heard this packet directly when [suppressRedundantRelays] is enabled
      */
     private fun selectForwardNeighbors(
         sourceId: String,
@@ -472,25 +471,11 @@ class ForwardingEngine(
     ): List<com.ridervoice.mesh.graph.DirectNeighbor> {
         val alreadyCovered: Set<String> =
             if (suppressRedundantRelays) coveredByDirectHearing(sourceId, previousHopId, now) else emptySet()
-        val liveDirect = graphRepository.directNeighbors().filter { neighbor ->
+        return graphRepository.directNeighbors().filter { neighbor ->
             neighbor.deviceId != previousHopId &&
                 neighbor.deviceId != sourceId &&
                 neighbor.deviceId !in alreadyCovered &&
                 (now - neighbor.lastSeen) <= MeshConfig.NEIGHBOR_TIMEOUT_MS
-        }
-        if (liveDirect.isEmpty()) return emptyList()
-
-        // BFS-derived next-hop destinations
-        val candidateNextHops = routingTable.routes.value.values
-            .map { it.nextHop }
-            .toSet()
-
-        val matching = liveDirect.filter { it.deviceId in candidateNextHops }
-        return if (matching.isNotEmpty()) {
-            matching
-        } else {
-            // Topology knowledge is still converging; fall back to all live direct neighbors
-            liveDirect
         }
     }
 

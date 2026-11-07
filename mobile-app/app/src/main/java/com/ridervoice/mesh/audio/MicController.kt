@@ -62,11 +62,20 @@ class MicControllerImpl(
 
     // CONFLATED: only the latest desired capture state matters, and order is preserved.
     private val desired = Channel<Boolean>(Channel.CONFLATED)
+    @Volatile private var consumerStarted = false
+    private val startLock = Any()
 
-    init {
-        scope.launch {
-            for (want in desired) {
-                applyCapture(want)
+    private fun ensureConsumerStarted() {
+        if (!consumerStarted) {
+            synchronized(startLock) {
+                if (!consumerStarted) {
+                    consumerStarted = true
+                    scope.launch {
+                        for (want in desired) {
+                            applyCapture(want)
+                        }
+                    }
+                }
             }
         }
     }
@@ -74,6 +83,7 @@ class MicControllerImpl(
     private fun inputs() = MicInputs(audioEnabled(), _toggle.value, _ptt.value, _vox.value, _armed.value)
 
     private fun publish() {
+        ensureConsumerStarted()
         desired.trySend(MicRules.captureWanted(inputs()))
     }
 

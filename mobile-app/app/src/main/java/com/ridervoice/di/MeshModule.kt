@@ -203,7 +203,7 @@ object MeshModule {
         diagnosticsRepo: MeshDiagnosticsRepository,
         @ApplicationContext context: Context
     ): OfflineMeshVoiceTransport = OfflineMeshVoiceTransport(
-        identity = identityRepo.get(),
+        identity = null,
         identityProvider = { identityRepo.get() },
         audioOwnershipArbiter = arbiter,
         locks = locks,

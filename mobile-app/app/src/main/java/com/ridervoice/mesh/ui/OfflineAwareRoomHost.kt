@@ -58,25 +58,29 @@ import javax.inject.Inject
 
 @HiltViewModel
 class OfflineAwareRoomViewModel @Inject constructor(
-    val autoSwitchManager: MeshAutoSwitchManager,
-    val coordinator: VoiceSessionCoordinator,
-    val meshTransport: OfflineMeshVoiceTransport
+    lazyAutoSwitchManager: dagger.Lazy<MeshAutoSwitchManager>,
+    lazyCoordinator: dagger.Lazy<VoiceSessionCoordinator>,
+    lazyMeshTransport: dagger.Lazy<OfflineMeshVoiceTransport>
 ) : ViewModel() {
-    val autoSwitchState: StateFlow<AutoSwitchState> = autoSwitchManager.autoSwitchState
-    val groupStatus: StateFlow<GroupConnectivityStatus> = autoSwitchManager.groupStatus
-    val meshParticipants = meshTransport.participants
-    val meshDiagSnapshot = meshTransport.diagnostics
-    val lastTransitionReason: StateFlow<String?> = autoSwitchManager.lastTransitionReason
-    val offlineAvailability: StateFlow<OfflineAvailability> = coordinator.offlineAvailability
+    val autoSwitchManager: MeshAutoSwitchManager by lazy { lazyAutoSwitchManager.get() }
+    val coordinator: VoiceSessionCoordinator by lazy { lazyCoordinator.get() }
+    val meshTransport: OfflineMeshVoiceTransport by lazy { lazyMeshTransport.get() }
 
-    val transportState = meshTransport.state
-    val activeSpeakers = meshTransport.activeSpeakers
-    val micState = meshTransport.micState
-    val audioRoute = meshTransport.audioRoute
-    val deafened: StateFlow<Boolean> = meshTransport.deafened
-    val backupSession = coordinator.secretProvider.backupSession
-    val micController = meshTransport.micController
-    val voxBridge = meshTransport.voxBridge
+    val autoSwitchState: StateFlow<AutoSwitchState> get() = autoSwitchManager.autoSwitchState
+    val groupStatus: StateFlow<GroupConnectivityStatus> get() = autoSwitchManager.groupStatus
+    val meshParticipants get() = meshTransport.participants
+    val meshDiagSnapshot get() = meshTransport.diagnostics
+    val lastTransitionReason: StateFlow<String?> get() = autoSwitchManager.lastTransitionReason
+    val offlineAvailability: StateFlow<OfflineAvailability> get() = coordinator.offlineAvailability
+
+    val transportState get() = meshTransport.state
+    val activeSpeakers get() = meshTransport.activeSpeakers
+    val micState get() = meshTransport.micState
+    val audioRoute get() = meshTransport.audioRoute
+    val deafened: StateFlow<Boolean> get() = meshTransport.deafened
+    val backupSession get() = coordinator.secretProvider.backupSession
+    val micController get() = meshTransport.micController
+    val voxBridge get() = meshTransport.voxBridge
 
     fun setMicrophoneEnabled(enabled: Boolean) {
         viewModelScope.launch {

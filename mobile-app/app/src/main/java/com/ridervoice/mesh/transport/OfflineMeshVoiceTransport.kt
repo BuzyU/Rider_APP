@@ -62,7 +62,7 @@ import kotlinx.coroutines.sync.withLock
  * Manages the mesh network lifecycle, forwarding engine, jitter buffer, and audio capture/playback.
  */
 class OfflineMeshVoiceTransport(
-    private var identity: MeshIdentity,
+    identity: MeshIdentity? = null,
     val audioOwnershipArbiter: AudioOwnershipArbiter,
     private val onAudioRouteChanged: (AudioRoute) -> Unit = {},
     private val clock: () -> Long = { System.currentTimeMillis() },
@@ -86,7 +86,7 @@ class OfflineMeshVoiceTransport(
     private val audioTrackFactory: (() -> AudioTrackSink?)? = null,
     val routeController: MeshAudioRouteController? = null,
     val hardwarePttPort: HardwarePttPort? = null,
-    private val identityProvider: () -> MeshIdentity = { identity },
+    private val identityProvider: () -> MeshIdentity = { identity ?: error("Identity not provided") },
     private val peerFilterPort: com.ridervoice.mesh.forwarding.PeerFilterPort? = null
 ) : VoiceTransport, MeshControl {
 
@@ -103,7 +103,12 @@ class OfflineMeshVoiceTransport(
     val diagnostics: StateFlow<MeshDiagnosticsSnapshot> = diagnosticsRepo.snapshot
 
     private val _isLinkAlive = MutableStateFlow(true)
-    private val peerProjector by lazy { MeshPeerProjector(identity, diagnosticsRepo, clock) }
+    private var activeIdentity: MeshIdentity? = identity
+
+    val currentIdentity: MeshIdentity
+        get() = activeIdentity ?: identityProvider().also { activeIdentity = it }
+
+    private val peerProjector by lazy { MeshPeerProjector(currentIdentity, diagnosticsRepo, clock) }
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal var lastForwardingEngineForTest: ForwardingEngine? = null
@@ -120,8 +125,6 @@ class OfflineMeshVoiceTransport(
 
     private val _deafened = MutableStateFlow(false)
     val deafened: StateFlow<Boolean> = _deafened.asStateFlow()
-
-    val currentIdentity: MeshIdentity get() = identity
 
     override val micController: MicController = MicControllerImpl(
         audioEnabled = { audioPlayback != null },
@@ -213,12 +216,12 @@ class OfflineMeshVoiceTransport(
             zeroNeighborsSinceMs = clock()
 
             val currentIdentity = identityProvider()
-            identity = currentIdentity
+            activeIdentity = currentIdentity
 
             val sManager = SessionManager(session, currentIdentity.deviceId, clock)
             sessionManager = sManager
 
-            val gRepo = MeshGraphRepository(identity.deviceId, identity.displayName, clock)
+            val gRepo = MeshGraphRepository(currentIdentity.deviceId, currentIdentity.displayName, clock)
             graphRepository = gRepo
 
             val rTable = RoutingTable()
@@ -234,8 +237,8 @@ class OfflineMeshVoiceTransport(
             link = uLink
 
             val fEngine = ForwardingEngine(
-                selfId = identity.deviceId,
-                selfName = identity.displayName,
+                selfId = currentIdentity.deviceId,
+                selfName = currentIdentity.displayName,
                 sessionManager = sManager,
                 graphRepository = gRepo,
                 routingTable = rTable,
@@ -407,7 +410,7 @@ class OfflineMeshVoiceTransport(
             broadcastAddress = cachedBroadcastAddr,
             authenticatedNeighborsLast10s = authNeighbors10s,
             secondsWithZeroNeighbours = zeroSecs,
-            selfIdOverride = identity.deviceId
+            selfIdOverride = currentIdentity.deviceId
         ) ?: return
 
         _hasValidRoute.value = result.hasValidRoute

@@ -224,7 +224,7 @@ fun NavGraph(
             val rawUserName = back.arguments?.getString("userName") ?: ""
             val roomName = try { android.net.Uri.decode(rawRoomName) } catch (e: Exception) { rawRoomName }
             val userName = try { android.net.Uri.decode(rawUserName) } catch (e: Exception) { rawUserName }
-            if (com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen()) {
+            if (com.ridervoice.mesh.selectRoomHost(com.ridervoice.mesh.OfflineMeshGate.decision()) == com.ridervoice.mesh.RoomHostSelection.OFFLINE_AWARE) {
                 com.ridervoice.mesh.ui.OfflineAwareRoomHost(
                     roomName = roomName,
                     userName = userName,

@@ -43,20 +43,23 @@ class EncryptedPrefsBackupSessionStore(
 ) : BackupSessionStore {
 
     @Volatile private var ramStore: StoredBackupMeta? = null
-    private val prefs: SharedPreferences? = try {
-        prefsFactory?.invoke(context.applicationContext) ?: createSafePreferences(context.applicationContext)
-    } catch (e: Exception) {
-        MeshLog.w(TAG, "EncryptedSharedPreferences init failed; failing closed to RAM-only store: ${e.message}")
-        null
+    private val prefs: SharedPreferences? by lazy {
+        try {
+            prefsFactory?.invoke(context.applicationContext) ?: createSafePreferences(context.applicationContext)
+        } catch (e: Exception) {
+            MeshLog.w(TAG, "EncryptedSharedPreferences init failed; failing closed to RAM-only store: ${e.message}")
+            null
+        }
     }
 
     override fun saveBackup(pairingCode: String, createdAtMs: Long, expiresAtMs: Long) {
-        if (prefs == null) {
+        val p = prefs
+        if (p == null) {
             ramStore = StoredBackupMeta(pairingCode, createdAtMs, expiresAtMs)
             return
         }
         try {
-            prefs.edit()
+            p.edit()
                 .putString(KEY_CODE, pairingCode)
                 .putLong(KEY_CREATED_AT, createdAtMs)
                 .putLong(KEY_EXPIRES_AT, expiresAtMs)
@@ -68,13 +71,11 @@ class EncryptedPrefsBackupSessionStore(
     }
 
     override fun loadBackup(): StoredBackupMeta? {
-        if (prefs == null) {
-            return ramStore
-        }
+        val p = prefs ?: return ramStore
         return try {
-            val code = prefs.getString(KEY_CODE, null)?.takeIf { it.isNotBlank() } ?: return ramStore
-            val created = prefs.getLong(KEY_CREATED_AT, 0L)
-            val expires = prefs.getLong(KEY_EXPIRES_AT, 0L)
+            val code = p.getString(KEY_CODE, null)?.takeIf { it.isNotBlank() } ?: return ramStore
+            val created = p.getLong(KEY_CREATED_AT, 0L)
+            val expires = p.getLong(KEY_EXPIRES_AT, 0L)
             if (created <= 0L || expires <= created) {
                 clearBackup()
                 null
@@ -89,9 +90,9 @@ class EncryptedPrefsBackupSessionStore(
 
     override fun clearBackup() {
         ramStore = null
-        if (prefs == null) return
+        val p = prefs ?: return
         try {
-            prefs.edit()
+            p.edit()
                 .remove(KEY_CODE)
                 .remove(KEY_CREATED_AT)
                 .remove(KEY_EXPIRES_AT)

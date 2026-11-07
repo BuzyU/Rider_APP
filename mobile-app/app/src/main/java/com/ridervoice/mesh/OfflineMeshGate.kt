@@ -10,6 +10,14 @@ enum class GateDecision {
     DISABLED_BY_USER
 }
 
+enum class RoomHostSelection {
+    OFFLINE_AWARE,
+    PLAIN_ONLINE
+}
+
+fun selectRoomHost(gate: GateDecision): RoomHostSelection =
+    if (gate == GateDecision.ENABLED) RoomHostSelection.OFFLINE_AWARE else RoomHostSelection.PLAIN_ONLINE
+
 /**
  * Pure decision logic combining the build-time flag with runtime user settings.
  * Every offline entry point must consult this before doing any work.

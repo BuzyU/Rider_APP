@@ -30,16 +30,51 @@ class MeshSettingsViewModel(
     private val settings: MeshRuntimeSettings,
     private val availabilityFlow: StateFlow<OfflineAvailability>,
     private val wifiCapability: WifiCapabilityChecker,
-    private val sessionHolder: OfflineSessionHolder = OfflineSessionHolder()
+    private val backupFlow: StateFlow<com.ridervoice.mesh.session.OfflineSession?> = MutableStateFlow(null),
+    private val getBackup: () -> com.ridervoice.mesh.session.OfflineSession? = { null },
+    private val clearAll: () -> Unit = {}
 ) : ViewModel() {
 
     @Inject
     constructor(
         settings: MeshRuntimeSettings,
-        coordinator: VoiceSessionCoordinator,
+        coordinator: dagger.Lazy<VoiceSessionCoordinator>,
+        wifiCapability: WifiCapabilityChecker,
+        sessionHolder: dagger.Lazy<OfflineSessionHolder>
+    ) : this(
+        settings = settings,
+        availabilityFlow = if (OfflineMeshGate.isBuildGateOpen()) {
+            coordinator.get().offlineAvailability
+        } else {
+            MutableStateFlow(OfflineAvailability.DISABLED)
+        },
+        wifiCapability = wifiCapability,
+        backupFlow = if (OfflineMeshGate.isBuildGateOpen()) {
+            sessionHolder.get().backup
+        } else {
+            MutableStateFlow(null)
+        },
+        getBackup = {
+            if (OfflineMeshGate.isBuildGateOpen()) sessionHolder.get().getBackup() else null
+        },
+        clearAll = {
+            if (OfflineMeshGate.isBuildGateOpen()) sessionHolder.get().clearAll()
+        }
+    )
+
+    constructor(
+        settings: MeshRuntimeSettings,
+        availabilityFlow: StateFlow<OfflineAvailability>,
         wifiCapability: WifiCapabilityChecker,
         sessionHolder: OfflineSessionHolder
-    ) : this(settings, coordinator.offlineAvailability, wifiCapability, sessionHolder)
+    ) : this(
+        settings = settings,
+        availabilityFlow = availabilityFlow,
+        wifiCapability = wifiCapability,
+        backupFlow = sessionHolder.backup,
+        getBackup = { sessionHolder.getBackup() },
+        clearAll = { sessionHolder.clearAll() }
+    )
 
     constructor(
         settings: MeshRuntimeSettings,
@@ -59,7 +94,7 @@ class MeshSettingsViewModel(
     val uiState: StateFlow<MeshSettingsUiState> = combine(
         settings.settingsFlow,
         availabilityFlow,
-        sessionHolder.backup
+        backupFlow
     ) { snapshot, availability, backup ->
         val now = System.currentTimeMillis()
         val backupValid = backup != null && !backup.isExpired(now)
@@ -79,7 +114,7 @@ class MeshSettingsViewModel(
         initialValue = run {
             val now = System.currentTimeMillis()
             val s = settings.settingsFlow.value
-            val backup = sessionHolder.getBackup()
+            val backup = getBackup()
             val hasWifi = wifiCapability.isWifiHardwareAvailable()
             MeshSettingsUiState(
                 buildGateOpen = OfflineMeshGate.isBuildGateOpen(),
@@ -110,6 +145,6 @@ class MeshSettingsViewModel(
     }
 
     fun clearAllOnSignOut() {
-        sessionHolder.clearAll()
+        clearAll()
     }
 }

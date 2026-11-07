@@ -71,60 +71,43 @@ class FlagOffIsolationTest {
     }
 
     @Test
-    fun appScope_lazyMeshAutoSwitch_neverCallsGet_whenBuildGateClosed() = runTest {
+    fun meshAutoSwitchLauncher_neverCallsGet_whenBuildGateClosed() = runTest {
         var getCalled = false
-        val lazyManager = Lazy {
+        val lazyManager = Lazy<com.ridervoice.mesh.switching.MeshAutoSwitchManager> {
             getCalled = true
             throw AssertionError("Lazy.get() must not be called when gate is closed")
         }
 
-        // Build gate closed
-        val isBuildGateOpen = false
         val settingsFlow = MutableStateFlow(
             com.ridervoice.mesh.MeshSettingsSnapshot(
-                offlineMeshEnabled = false,
+                offlineMeshEnabled = true,
                 automaticFallbackEnabled = false,
                 warmStandbyEnabled = false
             )
         )
 
-        if (isBuildGateOpen) {
-            val job = launch {
-                settingsFlow
-                    .map { it.offlineMeshEnabled }
-                    .distinctUntilChanged()
-                    .collect { on ->
-                        if (on) lazyManager.get()
-                    }
-            }
-            advanceUntilIdle()
-            job.cancel()
-        }
-
+        val launcher = com.ridervoice.mesh.switching.MeshAutoSwitchLauncher(
+            settingsFlow = settingsFlow,
+            buildGateOpen = false,
+            lazyManager = lazyManager,
+            scope = this
+        )
+        val job = launcher.start()
         advanceUntilIdle()
+
         assertFalse("Lazy.get() was called despite closed build gate", getCalled)
+        assertEquals(null, job)
     }
 
     @Test
-    fun appScope_lazyMeshAutoSwitch_onlyCallsGet_whenUserSettingToggledOn() = runTest {
+    fun meshAutoSwitchLauncher_onlyCallsGet_whenUserSettingToggledOn() = runTest {
         var getCount = 0
+        val mockManager = io.mockk.mockk<com.ridervoice.mesh.switching.MeshAutoSwitchManager>(relaxed = true)
 
-        class FakeManager {
-            var isStarted = false
-            var isStopped = false
-            fun start() { isStarted = true }
-            fun stop() { isStopped = true }
-        }
-        val fakeManager = FakeManager()
-
-        val lazyManager = object : Lazy<FakeManager> {
-            private var inst: FakeManager? = null
-            override fun get(): FakeManager {
-                if (inst == null) {
-                    getCount++
-                    inst = fakeManager
-                }
-                return inst!!
+        val lazyManager = object : Lazy<com.ridervoice.mesh.switching.MeshAutoSwitchManager> {
+            override fun get(): com.ridervoice.mesh.switching.MeshAutoSwitchManager {
+                getCount++
+                return mockManager
             }
         }
 
@@ -136,38 +119,31 @@ class FlagOffIsolationTest {
             )
         )
 
-        var managerStarted = false
-        val job = launch {
-            settingsFlow
-                .map { it.offlineMeshEnabled }
-                .distinctUntilChanged()
-                .collect { on ->
-                    if (on) {
-                        managerStarted = true
-                        lazyManager.get().start()
-                    } else if (managerStarted) {
-                        lazyManager.get().stop()
-                    }
-                }
-        }
+        val launcher = com.ridervoice.mesh.switching.MeshAutoSwitchLauncher(
+            settingsFlow = settingsFlow,
+            buildGateOpen = true,
+            lazyManager = lazyManager,
+            scope = this
+        )
+        val job = launcher.start()
 
         advanceUntilIdle()
         assertEquals("Lazy.get() must not be called while offlineMeshEnabled is false", 0, getCount)
-        assertFalse(fakeManager.isStarted)
+        io.mockk.verify(exactly = 0) { mockManager.start() }
 
         // Toggle setting ON
         settingsFlow.value = settingsFlow.value.copy(offlineMeshEnabled = true)
         advanceUntilIdle()
-        assertEquals("Lazy.get() called exactly once when enabled", 1, getCount)
-        assertTrue("start() should be called", fakeManager.isStarted)
+        assertEquals("Lazy.get() called when enabled", 1, getCount)
+        io.mockk.verify(exactly = 1) { mockManager.start() }
 
         // Toggle setting OFF
         settingsFlow.value = settingsFlow.value.copy(offlineMeshEnabled = false)
         advanceUntilIdle()
-        assertEquals("Lazy.get() should reuse existing instance or get again", 1, getCount)
-        assertTrue("stop() should be called", fakeManager.isStopped)
+        assertEquals("Lazy.get() called when disabled to stop", 2, getCount)
+        io.mockk.verify(exactly = 1) { mockManager.stop() }
 
-        job.cancel()
+        launcher.stop()
     }
 }
 

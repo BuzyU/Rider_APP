@@ -59,21 +59,12 @@ class App : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         com.ridervoice.mesh.OfflineMeshGate.install(meshRuntimeSettings)
-        if (com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen()) {
-            appScope.launch {
-                com.ridervoice.mesh.OfflineMeshGate.settingsFlow
-                    .map { it.offlineMeshEnabled }
-                    .distinctUntilChanged()
-                    .collect { on ->
-                        if (on) {
-                            meshAutoSwitchStarted = true
-                            meshAutoSwitch.get().start()
-                        } else if (meshAutoSwitchStarted) {
-                            meshAutoSwitch.get().stop()
-                        }
-                    }
-            }
-        }
+        com.ridervoice.mesh.switching.MeshAutoSwitchLauncher(
+            settingsFlow = com.ridervoice.mesh.OfflineMeshGate.settingsFlow,
+            isBuildGateOpen = { com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen() },
+            lazyManager = meshAutoSwitch,
+            scope = appScope
+        ).start()
         setupCrashHandler()
         createNotificationChannels()
         finalizeOrphanedDiagnosticSessions()

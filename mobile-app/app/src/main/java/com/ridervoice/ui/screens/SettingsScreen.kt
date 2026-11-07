@@ -247,6 +247,15 @@ fun SettingsScreen(
                         )
                     }
 
+                    if (meshUiState.backupSessionPresent && !meshUiState.backupPersisted) {
+                        Text(
+                            text = stringResource(R.string.mesh_backup_not_persisted_warning),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
+
                     SettingsItemToggle(
                         label = stringResource(R.string.mesh_settings_warm_standby_title),
                         icon = Icons.Default.WifiTethering,

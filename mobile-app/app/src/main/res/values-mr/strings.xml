@@ -357,4 +357,5 @@
     <string name="mesh_overlay_searching_peers">मेशवर जवळच्या रायडर्सचा शोध सुरू आहे…</string>
     <string name="mesh_tactical_summary">%1$d साथी · कमाल %2$d हॉप</string>
     <string name="mesh_clock_skew_warning">फोन घड्याळ %1$s पेक्षा %2$d से. वेगळे आहे</string>
+    <string name="mesh_backup_not_persisted_warning">बॅकअप कोड या डिव्हाइसवर सेव्ह केलेला नाही; ॲप बंद झाल्यास तो नष्ट होईल</string>
 </resources>

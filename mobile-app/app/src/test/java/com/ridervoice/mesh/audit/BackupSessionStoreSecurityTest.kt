@@ -94,5 +94,65 @@ class BackupSessionStoreSecurityTest {
         store.clearBackup()
         assertNull(store.loadBackup())
     }
+
+    @Test
+    fun selfHeal_deletesOnlyMeshDedicatedAlias_neverDefaultMasterKeyAlias() {
+        val mockContext = mockk<Context>(relaxed = true)
+        every { mockContext.applicationContext } returns mockContext
+        every { mockContext.filesDir } returns File(System.getProperty("java.io.tmpdir") ?: ".")
+
+        val deletedAliases = mutableListOf<String>()
+        val mockKeyStoreSeam = object : com.ridervoice.mesh.session.KeyStoreSeam {
+            override fun deleteEntry(alias: String) {
+                deletedAliases.add(alias)
+            }
+        }
+
+        EncryptedPrefsBackupSessionStore.createSafePreferences(
+            context = mockContext,
+            keyStoreSeam = mockKeyStoreSeam
+        )
+
+        assertFalse(
+            "Self-heal must NEVER delete DEFAULT_MASTER_KEY_ALIAS",
+            deletedAliases.contains(androidx.security.crypto.MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+        )
+        assertFalse(
+            "Self-heal must NEVER delete _androidx_security_master_key_",
+            deletedAliases.contains("_androidx_security_master_key_")
+        )
+        assertTrue(
+            "Self-heal must delete rvmesh_backup_master_key alias",
+            deletedAliases.contains(EncryptedPrefsBackupSessionStore.BACKUP_MASTER_KEY_ALIAS)
+        )
+    }
+
+    @Test
+    fun ramOnlyFallback_setsBackupPersistedFalse() {
+        val mockContext = mockk<Context>(relaxed = true)
+        every { mockContext.applicationContext } returns mockContext
+
+        val store = EncryptedPrefsBackupSessionStore(
+            context = mockContext,
+            prefsFactory = { throw SecurityException("Keystore failed") }
+        )
+
+        assertFalse("RAM-only fallback store must report isPersisted = false", store.isPersisted)
+
+        val holder = com.ridervoice.mesh.session.OfflineSessionHolder(
+            backupStore = store,
+            restoreAsync = false
+        )
+        assertFalse("OfflineSessionHolder must report backupPersisted = false on RAM fallback", holder.isBackupPersisted)
+    }
+
+    @Test
+    fun securePreferencesAlias_untouchedByMeshSelfHeal() {
+        assertEquals("rvmesh_backup_master_key", EncryptedPrefsBackupSessionStore.BACKUP_MASTER_KEY_ALIAS)
+        org.junit.Assert.assertNotEquals(
+            androidx.security.crypto.MasterKey.DEFAULT_MASTER_KEY_ALIAS,
+            EncryptedPrefsBackupSessionStore.BACKUP_MASTER_KEY_ALIAS
+        )
+    }
 }
 

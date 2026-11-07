@@ -22,6 +22,7 @@ data class MeshSettingsUiState(
     val warmStandby: Boolean = false,
     val offlineAvailability: OfflineAvailability = OfflineAvailability.DISABLED,
     val backupSessionPresent: Boolean = false,
+    val backupPersisted: Boolean = true,
     val hasWifiHardware: Boolean = true
 )
 
@@ -32,6 +33,7 @@ class MeshSettingsViewModel(
     private val wifiCapability: WifiCapabilityChecker,
     private val backupFlow: StateFlow<com.ridervoice.mesh.session.OfflineSession?> = MutableStateFlow(null),
     private val getBackup: () -> com.ridervoice.mesh.session.OfflineSession? = { null },
+    private val isBackupPersisted: () -> Boolean = { true },
     private val clearAll: () -> Unit = {}
 ) : ViewModel() {
 
@@ -57,6 +59,9 @@ class MeshSettingsViewModel(
         getBackup = {
             if (OfflineMeshGate.isBuildGateOpen()) sessionHolder.get().getBackup() else null
         },
+        isBackupPersisted = {
+            if (OfflineMeshGate.isBuildGateOpen()) sessionHolder.get().isBackupPersisted else true
+        },
         clearAll = {
             if (OfflineMeshGate.isBuildGateOpen()) sessionHolder.get().clearAll()
         }
@@ -73,6 +78,7 @@ class MeshSettingsViewModel(
         wifiCapability = wifiCapability,
         backupFlow = sessionHolder.backup,
         getBackup = { sessionHolder.getBackup() },
+        isBackupPersisted = { sessionHolder.isBackupPersisted },
         clearAll = { sessionHolder.clearAll() }
     )
 
@@ -99,6 +105,7 @@ class MeshSettingsViewModel(
         val now = System.currentTimeMillis()
         val backupValid = backup != null && !backup.isExpired(now)
         val hasWifi = wifiCapability.isWifiHardwareAvailable()
+        val persisted = if (backupValid) isBackupPersisted() else true
         MeshSettingsUiState(
             buildGateOpen = OfflineMeshGate.isBuildGateOpen(),
             offlineMeshEnabled = snapshot.offlineMeshEnabled,
@@ -106,6 +113,7 @@ class MeshSettingsViewModel(
             warmStandby = snapshot.warmStandbyEnabled,
             offlineAvailability = availability,
             backupSessionPresent = backupValid,
+            backupPersisted = persisted,
             hasWifiHardware = hasWifi
         )
     }.stateIn(
@@ -116,13 +124,16 @@ class MeshSettingsViewModel(
             val s = settings.settingsFlow.value
             val backup = getBackup()
             val hasWifi = wifiCapability.isWifiHardwareAvailable()
+            val backupValid = backup != null && !backup.isExpired(now)
+            val persisted = if (backupValid) isBackupPersisted() else true
             MeshSettingsUiState(
                 buildGateOpen = OfflineMeshGate.isBuildGateOpen(),
                 offlineMeshEnabled = s.offlineMeshEnabled,
                 autoFallback = s.automaticFallbackEnabled && hasWifi,
                 warmStandby = s.warmStandbyEnabled,
                 offlineAvailability = availabilityFlow.value,
-                backupSessionPresent = backup != null && !backup.isExpired(now),
+                backupSessionPresent = backupValid,
+                backupPersisted = persisted,
                 hasWifiHardware = hasWifi
             )
         }

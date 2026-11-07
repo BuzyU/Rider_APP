@@ -25,13 +25,27 @@ data class StoredBackupMeta(
     val expiresAtMs: Long
 )
 
+interface KeyStoreSeam {
+    fun deleteEntry(alias: String)
+}
+
+object AndroidKeyStoreSeam : KeyStoreSeam {
+    override fun deleteEntry(alias: String) {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore")
+        keyStore.load(null)
+        keyStore.deleteEntry(alias)
+    }
+}
+
 interface BackupSessionStore {
+    val isPersisted: Boolean get() = false
     fun saveBackup(pairingCode: String, createdAtMs: Long, expiresAtMs: Long)
     fun loadBackup(): StoredBackupMeta?
     fun clearBackup()
 }
 
 object NoOpBackupSessionStore : BackupSessionStore {
+    override val isPersisted: Boolean get() = false
     override fun saveBackup(pairingCode: String, createdAtMs: Long, expiresAtMs: Long) {}
     override fun loadBackup(): StoredBackupMeta? = null
     override fun clearBackup() {}
@@ -39,18 +53,22 @@ object NoOpBackupSessionStore : BackupSessionStore {
 
 class EncryptedPrefsBackupSessionStore(
     context: Context,
-    prefsFactory: ((Context) -> SharedPreferences)? = null
+    prefsFactory: ((Context) -> SharedPreferences)? = null,
+    private val keyStoreSeam: KeyStoreSeam = AndroidKeyStoreSeam
 ) : BackupSessionStore {
 
     @Volatile private var ramStore: StoredBackupMeta? = null
     private val prefs: SharedPreferences? by lazy {
         try {
-            prefsFactory?.invoke(context.applicationContext) ?: createSafePreferences(context.applicationContext)
+            prefsFactory?.invoke(context.applicationContext) ?: createSafePreferences(context.applicationContext, keyStoreSeam)
         } catch (e: Exception) {
             MeshLog.w(TAG, "EncryptedSharedPreferences init failed; failing closed to RAM-only store: ${e.message}")
             null
         }
     }
+
+    override val isPersisted: Boolean
+        get() = prefs != null
 
     override fun saveBackup(pairingCode: String, createdAtMs: Long, expiresAtMs: Long) {
         val p = prefs
@@ -104,12 +122,16 @@ class EncryptedPrefsBackupSessionStore(
 
     companion object {
         private const val TAG = "EncryptedPrefsBackupSessionStore"
-        private const val PREFS_FILE = "mesh_backup_session_secure_prefs"
+        const val PREFS_FILE = "mesh_backup_session_secure_prefs"
+        const val BACKUP_MASTER_KEY_ALIAS = "rvmesh_backup_master_key"
         private const val KEY_CODE = "backup_pairing_code"
         private const val KEY_CREATED_AT = "backup_created_at_ms"
         private const val KEY_EXPIRES_AT = "backup_expires_at_ms"
 
-        private fun createSafePreferences(context: Context): SharedPreferences? {
+        internal fun createSafePreferences(
+            context: Context,
+            keyStoreSeam: KeyStoreSeam = AndroidKeyStoreSeam
+        ): SharedPreferences? {
             return try {
                 createEncryptedPrefs(context)
             } catch (e: Exception) {
@@ -123,9 +145,7 @@ class EncryptedPrefsBackupSessionStore(
                         }
                     }
                     try {
-                        val keyStore = KeyStore.getInstance("AndroidKeyStore")
-                        keyStore.load(null)
-                        keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                        keyStoreSeam.deleteEntry(BACKUP_MASTER_KEY_ALIAS)
                     } catch (ksEx: Exception) {
                         MeshLog.w(TAG, "Keystore entry cleanup skipped: ${ksEx.message}")
                     }
@@ -137,8 +157,8 @@ class EncryptedPrefsBackupSessionStore(
             }
         }
 
-        private fun createEncryptedPrefs(context: Context): SharedPreferences {
-            val masterKey = MasterKey.Builder(context)
+        internal fun createEncryptedPrefs(context: Context): SharedPreferences {
+            val masterKey = MasterKey.Builder(context, BACKUP_MASTER_KEY_ALIAS)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .build()
             return EncryptedSharedPreferences.create(
@@ -230,6 +250,7 @@ class OfflineSessionHolder(
 
     fun get(): OfflineSession? = _current.value
     fun set(s: OfflineSession?) = setCurrent(s)
+    val isBackupPersisted: Boolean get() = backupStore.isPersisted
     fun getBackup(): OfflineSession? {
         val b = _backup.value ?: return null
         if (b.isExpired(clock())) {

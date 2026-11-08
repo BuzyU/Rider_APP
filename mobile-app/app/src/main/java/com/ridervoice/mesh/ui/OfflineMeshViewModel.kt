@@ -6,6 +6,7 @@ import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.OfflineSessionHolder
 import com.ridervoice.mesh.transport.AudioOwner
 import com.ridervoice.mesh.transport.AudioOwnershipArbiter
+import com.ridervoice.mesh.transport.EnableAudioResult
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceSession
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -60,6 +61,7 @@ class OfflineMeshViewModel @Inject constructor(
 
     val activeSession: StateFlow<OfflineSession?> = holder.current
     val backupSession: StateFlow<OfflineSession?> = holder.backup
+    val audioFailure: StateFlow<EnableAudioResult.Failure?> = transport.audioFailure
 
     @Volatile private var startedStandaloneSession: Boolean = false
 

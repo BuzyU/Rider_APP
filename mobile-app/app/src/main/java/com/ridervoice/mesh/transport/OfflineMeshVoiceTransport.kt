@@ -36,6 +36,7 @@ import com.ridervoice.mesh.protocol.DuplicatePacketCache
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionManager
+import com.ridervoice.mesh.util.runCatchingCancellable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -177,6 +178,9 @@ class OfflineMeshVoiceTransport(
     override val activeSpeakers: StateFlow<Set<String>> = _activeSpeakers.asStateFlow()
 
     override val audioOwner: StateFlow<AudioOwner> = audioOwnershipArbiter.owner
+
+    private val _audioFailure = MutableStateFlow<EnableAudioResult.Failure?>(null)
+    val audioFailure: StateFlow<EnableAudioResult.Failure?> = _audioFailure.asStateFlow()
 
     private val _hasValidRoute = MutableStateFlow(false)
     override val hasValidRoute: StateFlow<Boolean> = _hasValidRoute.asStateFlow()
@@ -558,6 +562,12 @@ class OfflineMeshVoiceTransport(
         audioCapture = aCapture
         aCapture.setMicEnabled(micWanted)
 
+        // Validate audioRecordFactory if provided so hardware or allocation errors throw during initialization
+        audioRecordFactory?.let { factory ->
+            val probe = factory.invoke()
+            probe?.release()
+        }
+
         val wantCapture = micWanted || micController.micToggleOn.value || micController.pttHeld.value || micController.voxEnabled.value
         if (wantCapture) {
             _micState.value = MicState.STARTING
@@ -633,11 +643,18 @@ class OfflineMeshVoiceTransport(
             is VoiceSession.Offline -> session.session
             is VoiceSession.Online -> throw IllegalArgumentException("OfflineMeshVoiceTransport cannot start online session")
         }
+        _audioFailure.value = null
         startDiscoveryOnly(offlineSession)
         if (_state.value == VoiceTransportState.CONNECTED) {
-            val res = enableAudio()
-            if (res is EnableAudioResult.Failure) {
+            val audioRes = runCatchingCancellable { enableAudio() }.getOrElse { err ->
+                EnableAudioResult.AudioRecordFailed(err.message ?: err.javaClass.simpleName)
+            }
+            if (audioRes is EnableAudioResult.Failure) {
+                com.ridervoice.mesh.MeshLog.w("MeshTransport", "enableAudio failed during start: ${audioRes.javaClass.simpleName} - stopping transport")
+                stop()
+                _audioFailure.value = audioRes
                 _state.value = VoiceTransportState.FAILED
+                return
             }
         }
     }
@@ -709,6 +726,7 @@ class OfflineMeshVoiceTransport(
             micController.reset()
             micWanted = false
             paused = false
+            _audioFailure.value = null
             _micState.value = MicState.OFF
         }
     }

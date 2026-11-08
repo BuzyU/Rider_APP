@@ -104,6 +104,7 @@ fun OfflineMeshLobbyScreen(
     val backupSession by viewModel.backupSession.collectAsState()
     val isDerivingKey by viewModel.isDerivingKey.collectAsState()
     val sessionError by viewModel.sessionError.collectAsState()
+    val audioFailure by viewModel.audioFailure.collectAsState()
     val diagSnapshot by viewModel.transport.diagnostics.collectAsState()
 
     var localIp by remember { mutableStateOf<String?>(null) }
@@ -195,6 +196,33 @@ fun OfflineMeshLobbyScreen(
                 color = TextSecondary,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
+
+            if (audioFailure != null) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = AlertRed.copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = stringResource(R.string.mesh_cd_error),
+                            tint = AlertRed
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.mesh_banner_audio_failed),
+                            color = AlertRed,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
 
             // Active Backup Session Status Card (if configured)
             val currentBackup = backupSession

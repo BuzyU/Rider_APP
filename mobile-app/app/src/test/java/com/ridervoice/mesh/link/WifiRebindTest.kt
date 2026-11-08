@@ -82,7 +82,7 @@ class WifiRebindTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "Rider1")
 
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { link },

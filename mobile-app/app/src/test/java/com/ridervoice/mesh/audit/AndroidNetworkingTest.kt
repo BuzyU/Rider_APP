@@ -105,7 +105,7 @@ class AndroidNetworkingTest {
     fun networkLocksAcquiredOnStartReleasedOnStopAndSymmetric() = runBlocking {
         val locks = CountingNetworkLocks()
         val transport = OfflineMeshVoiceTransport(
-            identity = MeshIdentity(java.util.UUID.randomUUID().toString(), "Alice"),
+            identityProvider = { MeshIdentity(java.util.UUID.randomUUID().toString(), "Alice") },
             audioOwnershipArbiter = AudioOwnershipArbiter(),
             gateAllowed = { true },
             linkFactory = { FakeTestLink(initialState = MeshLinkState.RUNNING) },
@@ -129,7 +129,7 @@ class AndroidNetworkingTest {
         // 4. Failed start leaves zero outstanding acquires
         val failLocks = CountingNetworkLocks()
         val failingTransport = OfflineMeshVoiceTransport(
-            identity = MeshIdentity(java.util.UUID.randomUUID().toString(), "Bob"),
+            identityProvider = { MeshIdentity(java.util.UUID.randomUUID().toString(), "Bob") },
             audioOwnershipArbiter = AudioOwnershipArbiter(),
             gateAllowed = { true },
             linkFactory = { FakeTestLink(initialState = MeshLinkState.FAILED) },
@@ -149,7 +149,7 @@ class AndroidNetworkingTest {
         }
         val fakeLink = FakeTestLink()
         val transport = OfflineMeshVoiceTransport(
-            identity = MeshIdentity(java.util.UUID.randomUUID().toString(), "Charlie"),
+            identityProvider = { MeshIdentity(java.util.UUID.randomUUID().toString(), "Charlie") },
             audioOwnershipArbiter = AudioOwnershipArbiter(),
             gateAllowed = { true },
             clock = { 1_000L },

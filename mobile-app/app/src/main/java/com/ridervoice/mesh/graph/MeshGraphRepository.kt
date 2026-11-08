@@ -44,14 +44,9 @@ internal fun isStaleReport(prevEpoch: Int, prevSeq: Int, epoch: Int, seq: Int): 
 class MeshGraphRepository(
     private val selfId: String,
     private val selfName: String,
-    private val selfOnlineTagProvider: () -> String? = { null },
     private val clock: () -> Long
 ) {
-    constructor(
-        selfId: String,
-        selfName: String,
-        clock: () -> Long
-    ) : this(selfId, selfName, { null }, clock)
+    var selfOnlineTagProvider: () -> String? = { null }
 
     private class Neighbor(var name: String, var endpoint: MeshEndpoint, var lastSeen: Long, var onlineIdTag: String? = null)
     private class Report(var name: String, var neighbors: Set<String>, var lastSeen: Long, var sequence: Int = 0, var epoch: Int = 0, var onlineIdTag: String? = null)

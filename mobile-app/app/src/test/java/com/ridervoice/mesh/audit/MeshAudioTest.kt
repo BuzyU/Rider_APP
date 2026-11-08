@@ -159,7 +159,7 @@ class MeshAudioTest {
 
         var permissionGranted = false
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { link },

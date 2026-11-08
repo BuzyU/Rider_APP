@@ -133,7 +133,6 @@ class Stage3ReachabilityTest {
 
         val arbiter = AudioOwnershipArbiter()
         val transport = OfflineMeshVoiceTransport(
-            identity = identityRepo.get(),
             identityProvider = { identityRepo.get() },
             audioOwnershipArbiter = arbiter,
             locks = NoNetworkLocks,

@@ -67,7 +67,7 @@ class OfflineMeshViewModelTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "test-rider")
         val link = FakeMeshLink()
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { link }
@@ -99,7 +99,7 @@ class OfflineMeshViewModelTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "test-rider")
         val link = FakeMeshLink()
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { link }

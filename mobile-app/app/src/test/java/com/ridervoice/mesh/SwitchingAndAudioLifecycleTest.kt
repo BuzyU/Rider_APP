@@ -321,7 +321,7 @@ class SwitchingAndAudioLifecycleTest {
         val arbiter = AudioOwnershipArbiter()
         val identity = MeshIdentity(UUID.randomUUID().toString(), "test-rider")
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { FakeMeshLink() },
@@ -359,7 +359,7 @@ class SwitchingAndAudioLifecycleTest {
             override fun read(audioData: ByteArray, offsetInBytes: Int, sizeInBytes: Int): Int = -1
         }
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { FakeMeshLink() },
@@ -385,7 +385,7 @@ class SwitchingAndAudioLifecycleTest {
         val arbiter = AudioOwnershipArbiter()
         val identity = MeshIdentity(UUID.randomUUID().toString(), "test-rider")
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { FakeMeshLink() }

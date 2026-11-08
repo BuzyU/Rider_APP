@@ -88,7 +88,7 @@ class FlagOffIsolationTest {
 
         val launcher = com.ridervoice.mesh.switching.MeshAutoSwitchLauncher(
             settingsFlow = settingsFlow,
-            buildGateOpen = false,
+            isBuildGateOpen = { false },
             lazyManager = lazyManager,
             scope = this
         )
@@ -121,7 +121,7 @@ class FlagOffIsolationTest {
 
         val launcher = com.ridervoice.mesh.switching.MeshAutoSwitchLauncher(
             settingsFlow = settingsFlow,
-            buildGateOpen = true,
+            isBuildGateOpen = { true },
             lazyManager = lazyManager,
             scope = this
         )

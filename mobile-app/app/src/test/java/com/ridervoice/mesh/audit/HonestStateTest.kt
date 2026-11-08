@@ -121,7 +121,7 @@ class HonestStateTest {
         var hasPermission = false
         val arbiter = AudioOwnershipArbiter()
         val transport = OfflineMeshVoiceTransport(
-            identity = MeshIdentity(UUID.randomUUID().toString(), "Alice"),
+            identityProvider = { MeshIdentity(UUID.randomUUID().toString(), "Alice") },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             clock = { 1_000L },
@@ -167,7 +167,7 @@ class HonestStateTest {
         val s = OfflineSession.create(t)
 
         val transport = OfflineMeshVoiceTransport(
-            identity = MeshIdentity(id, "Self"),
+            identityProvider = { MeshIdentity(id, "Self") },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             clock = clock,

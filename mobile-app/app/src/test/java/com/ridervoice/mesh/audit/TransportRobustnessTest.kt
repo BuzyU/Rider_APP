@@ -70,7 +70,7 @@ class TransportRobustnessTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "test-rider")
         val failingLink = FailingLink()
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { failingLink }
@@ -95,7 +95,7 @@ class TransportRobustnessTest {
         var linksCreated = 0
         val countingLink = CountingLink()
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = {

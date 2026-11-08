@@ -127,7 +127,7 @@ class TransportPauseResumeTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "test-rider")
         val fakeLink = FakeMeshLink()
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { fakeLink }

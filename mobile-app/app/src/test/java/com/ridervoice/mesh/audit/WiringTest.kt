@@ -68,7 +68,7 @@ class WiringTest {
             val locks = NoNetworkLocks
 
             val transport = OfflineMeshVoiceTransport(
-                identity = identityRepo.get(),
+                identityProvider = { identityRepo.get() },
                 audioOwnershipArbiter = arbiter,
                 locks = locks,
                 gateAllowed = { OfflineMeshGate.isOfflineAllowed() }
@@ -110,7 +110,7 @@ class WiringTest {
             val fakeStore = InMemoryMeshKeyValueStore()
             val identityRepo = MeshIdentityRepository(fakeStore, { "GateNode" }, { "node-gate" })
             val transport = OfflineMeshVoiceTransport(
-                identity = identityRepo.get(),
+                identityProvider = { identityRepo.get() },
                 audioOwnershipArbiter = AudioOwnershipArbiter(),
                 locks = NoNetworkLocks,
                 gateAllowed = { OfflineMeshGate.isOfflineAllowed() }

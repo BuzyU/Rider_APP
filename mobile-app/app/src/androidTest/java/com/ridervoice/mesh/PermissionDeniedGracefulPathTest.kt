@@ -29,7 +29,7 @@ class PermissionDeniedGracefulPathTest {
 
         var micPermissionGranted = false
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             hasMicPermission = { micPermissionGranted }
         )
@@ -46,7 +46,7 @@ class PermissionDeniedGracefulPathTest {
 
         var micPermissionGranted = true
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             hasMicPermission = { micPermissionGranted }
         )

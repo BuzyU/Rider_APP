@@ -69,7 +69,7 @@ class CompositionRootTest {
 
         val identityRepo = MeshIdentityRepository(InMemoryMeshKeyValueStore(), { "Rider1" }, { UUID.randomUUID().toString() })
         val transport = OfflineMeshVoiceTransport(
-            identity = identityRepo.get(),
+            identityProvider = { identityRepo.get() },
             audioOwnershipArbiter = arbiter,
             locks = NoNetworkLocks,
             gateAllowed = { true }
@@ -111,7 +111,7 @@ class CompositionRootTest {
         val arbiter = AudioOwnershipArbiter()
         val identityRepo = MeshIdentityRepository(InMemoryMeshKeyValueStore(), { "Rider2" }, { UUID.randomUUID().toString() })
         val transport = OfflineMeshVoiceTransport(
-            identity = identityRepo.get(),
+            identityProvider = { identityRepo.get() },
             audioOwnershipArbiter = arbiter,
             locks = NoNetworkLocks,
             gateAllowed = { true }

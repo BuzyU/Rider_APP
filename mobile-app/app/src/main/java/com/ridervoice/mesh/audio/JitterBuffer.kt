@@ -147,9 +147,6 @@ class SourceJitterBuffer(
     }
 }
 
-/**
- * Manages one [SourceJitterBuffer] per remote participant.
- */
 data class JitterBufferStats(
     val lateDropped: Long,
     val overflowDropped: Long,
@@ -157,6 +154,9 @@ data class JitterBufferStats(
     val activeSources: Int
 )
 
+/**
+ * Manages one [SourceJitterBuffer] per remote participant.
+ */
 class MultiSourceJitterBufferManager(
     private val targetDelayFrames: Int = 3,
     private val maxQueueFrames: Int = 16,
@@ -184,12 +184,6 @@ class MultiSourceJitterBufferManager(
             concealedFrames = concealed,
             activeSources = buffers.size
         )
-    }
-
-    @Synchronized
-    fun activeSourceCount(): Int {
-        evictExpiredSources()
-        return buffers.size
     }
 
     @Synchronized

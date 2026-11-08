@@ -137,7 +137,7 @@ class MicCaptureViaControllerTest {
         val identity = MeshIdentity("00000000-0000-0000-0000-000000000001", "tester-01")
         val link = FakeMeshLink()
         val t = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { link },

@@ -84,7 +84,7 @@ class KeyZeroizationTest {
         val diagRepo = MeshDiagnosticsRepository()
 
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             linkFactory = { FakeLink() },
             locks = locks,

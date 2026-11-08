@@ -77,7 +77,7 @@ class TransportLifecycleAndPeerFilterTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "RiderA")
 
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             clock = { virtualTime },
             dispatcher = testDispatcher,
@@ -114,7 +114,7 @@ class TransportLifecycleAndPeerFilterTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "RiderB")
 
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             clock = { now },
             dispatcher = testDispatcher,

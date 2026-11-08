@@ -90,7 +90,7 @@ class StartAudioFailureTeardownTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "tester-fail")
 
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { link },

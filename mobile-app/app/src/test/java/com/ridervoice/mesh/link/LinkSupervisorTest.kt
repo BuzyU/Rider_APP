@@ -82,7 +82,7 @@ class LinkSupervisorTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "Rider1")
 
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { link },
@@ -125,7 +125,7 @@ class LinkSupervisorTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "Rider2")
 
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             clock = { virtualTime },
             gateAllowed = { true },

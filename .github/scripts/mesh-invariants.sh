@@ -32,6 +32,7 @@ check "runCatching around suspend in mesh" bash -c "grep -rnE '\brunCatching\b.*
 check "main AndroidManifest contains no MeshDebugReceiver" grep -n "MeshDebugReceiver" mobile-app/app/src/main/AndroidManifest.xml
 check "PeerFilterHolder.port assignment only in debug" bash -c "grep -rn 'PeerFilterHolder\.port\s*=' mobile-app/app/src/main || true"
 check "mesh code never references DEFAULT_MASTER_KEY_ALIAS" bash -c "grep -rn 'DEFAULT_MASTER_KEY_ALIAS' $M/mesh || true"
+check "no MD5 under mesh"                   grep -rn 'MessageDigest.getInstance("MD5")' $M/mesh
 
 if [ -f "mobile-app/app/build/intermediates/merged_manifests/release/AndroidManifest.xml" ]; then
   check "release merged manifest contains no MeshDebugReceiver" grep -n "MeshDebugReceiver" mobile-app/app/build/intermediates/merged_manifests/release/AndroidManifest.xml

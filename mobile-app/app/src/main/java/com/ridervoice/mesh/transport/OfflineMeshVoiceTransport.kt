@@ -65,7 +65,6 @@ import kotlinx.coroutines.withContext
  * Manages the mesh network lifecycle, forwarding engine, jitter buffer, and audio capture/playback.
  */
 class OfflineMeshVoiceTransport(
-    identity: MeshIdentity? = null,
     val audioOwnershipArbiter: AudioOwnershipArbiter,
     private val onAudioRouteChanged: (AudioRoute) -> Unit = {},
     private val clock: () -> Long = { System.currentTimeMillis() },
@@ -89,7 +88,7 @@ class OfflineMeshVoiceTransport(
     private val audioTrackFactory: (() -> AudioTrackSink?)? = null,
     val routeController: MeshAudioRouteController? = null,
     val hardwarePttPort: HardwarePttPort? = null,
-    private val identityProvider: () -> MeshIdentity = { identity ?: error("Identity not provided") },
+    private val identityProvider: () -> MeshIdentity,
     private val peerFilterPort: com.ridervoice.mesh.forwarding.PeerFilterPort =
         com.ridervoice.mesh.forwarding.PeerFilterPort { id ->
             com.ridervoice.mesh.forwarding.PeerFilterHolder.port?.shouldAccept(id) ?: true
@@ -111,7 +110,7 @@ class OfflineMeshVoiceTransport(
     val diagnostics: StateFlow<MeshDiagnosticsSnapshot> = diagnosticsRepo.snapshot
 
     private val _isLinkAlive = MutableStateFlow(true)
-    private var activeIdentity: MeshIdentity? = identity
+    private var activeIdentity: MeshIdentity? = null
 
     val currentIdentity: MeshIdentity
         get() = activeIdentity ?: identityProvider().also { activeIdentity = it }
@@ -238,13 +237,14 @@ class OfflineMeshVoiceTransport(
             val gRepo = MeshGraphRepository(
                 selfId = currentIdentity.deviceId,
                 selfName = currentIdentity.displayName,
-                clock = clock,
+                clock = clock
+            ).apply {
                 selfOnlineTagProvider = {
                     onlineIdentitySupplier()?.let { onlineId ->
                         com.ridervoice.mesh.protocol.PayloadCrypto.computeOnlineIdTag(session.payloadKey(), onlineId)
                     }
                 }
-            )
+            }
             graphRepository = gRepo
 
             val rTable = RoutingTable()

@@ -125,6 +125,11 @@ object MeshPacketCodec {
         return mac.doFinal(body).copyOf(TAG_LEN)
     }
 
+    fun uuidParts(id: String): Pair<Long, Long> {
+        val u = UUID.fromString(id)
+        return Pair(u.mostSignificantBits, u.leastSignificantBits)
+    }
+
     fun uuidBytes(id: String): ByteArray {
         val u = UUID.fromString(id)
         return ByteBuffer.allocate(16).putLong(u.mostSignificantBits).putLong(u.leastSignificantBits).array()

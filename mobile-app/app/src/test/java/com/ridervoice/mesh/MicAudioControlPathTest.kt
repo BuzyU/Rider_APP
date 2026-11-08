@@ -338,7 +338,7 @@ class MicAudioControlPathTest {
         val link = FakeMeshLink()
 
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { link },

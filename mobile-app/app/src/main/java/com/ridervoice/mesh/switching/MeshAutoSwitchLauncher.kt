@@ -15,18 +15,6 @@ class MeshAutoSwitchLauncher(
     private val lazyManager: Lazy<MeshAutoSwitchManager>,
     private val scope: CoroutineScope
 ) {
-    constructor(
-        settingsFlow: StateFlow<MeshSettingsSnapshot>,
-        buildGateOpen: Boolean,
-        lazyManager: Lazy<MeshAutoSwitchManager>,
-        scope: CoroutineScope
-    ) : this(
-        settingsFlow = settingsFlow,
-        isBuildGateOpen = { buildGateOpen },
-        lazyManager = lazyManager,
-        scope = scope
-    )
-
     private var job: Job? = null
     @Volatile private var started = false
 

@@ -99,7 +99,7 @@ class MulticastLockLifecycleTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "Rider1")
 
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             locks = locks,
@@ -140,7 +140,7 @@ class MulticastLockLifecycleTest {
         val identity = MeshIdentity(UUID.randomUUID().toString(), "Rider1")
 
         val transport = OfflineMeshVoiceTransport(
-            identity = identity,
+            identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { guardedLink },

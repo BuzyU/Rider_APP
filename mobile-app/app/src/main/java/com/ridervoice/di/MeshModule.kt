@@ -129,8 +129,7 @@ object MeshModule {
     fun provideOfflineSessionHolder(
         @ApplicationContext context: Context
     ): OfflineSessionHolder = OfflineSessionHolder(
-        backupStore = EncryptedPrefsBackupSessionStore(context),
-        restoreAsync = true
+        backupStore = EncryptedPrefsBackupSessionStore(context)
     )
 
     fun provideOfflineSessionHolder(): OfflineSessionHolder = OfflineSessionHolder()

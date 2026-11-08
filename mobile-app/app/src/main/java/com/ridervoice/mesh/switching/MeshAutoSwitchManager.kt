@@ -69,8 +69,8 @@ class MeshAutoSwitchManager(
 
     fun start() {
         if (!OfflineMeshGate.isBuildGateOpen() || OfflineMeshGate.decision() == com.ridervoice.mesh.GateDecision.DISABLED_BY_BUILD) return
-        sessionHolder?.restoreBackupIfAllowed()
         if (drivingJob?.isActive == true) return
+        sessionHolder?.restoreBackupIfAllowed()
         healthSignalsProvider.startWatching()
         meshTransport.onlineIdentitySupplier = {
             if (liveKitManager.connectionState.value == ConnectionState.CONNECTED) {

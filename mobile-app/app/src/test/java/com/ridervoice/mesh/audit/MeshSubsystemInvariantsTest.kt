@@ -176,19 +176,19 @@ class MeshSubsystemInvariantsTest {
 
         val now = 1_000_000L
         val session = OfflineSession.create(now)
-        val holder1 = OfflineSessionHolder(backupStore = fakeStore, clock = { now }, restoreAsync = false)
+        val holder1 = OfflineSessionHolder(backupStore = fakeStore, clock = { now })
         holder1.setBackup(session)
         assertNotNull("Backup metadata must be saved to store", savedMeta)
 
         // Simulate app restart with unexpired backup
-        val holder2 = OfflineSessionHolder(backupStore = fakeStore, clock = { now + 60_000L }, restoreAsync = false)
+        val holder2 = OfflineSessionHolder(backupStore = fakeStore, clock = { now + 60_000L })
         holder2.restoreFromStoreIfValid()
         val restored = holder2.getBackup()
         assertNotNull("Unexpired backup session must be restored", restored)
         assertEquals(session.sessionId, restored?.sessionId)
 
         // Simulate app restart after expiry
-        val holder3 = OfflineSessionHolder(backupStore = fakeStore, clock = { session.expiresAt + 1_000L }, restoreAsync = false)
+        val holder3 = OfflineSessionHolder(backupStore = fakeStore, clock = { session.expiresAt + 1_000L })
         holder3.restoreFromStoreIfValid()
         assertNull("Expired backup session must not be restored", holder3.getBackup())
         assertNull("Expired backup metadata must be cleared from store", savedMeta)

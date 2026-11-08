@@ -110,8 +110,7 @@ class SignOutWipeTest {
             coordinator = coordinatorLazy,
             wifiCapability = wifiChecker,
             sessionHolder = Lazy { holder },
-            appScope = testScope,
-            ioDispatcher = testDispatcher
+            appScope = testScope
         )
 
         vm.clearAllOnSignOut()
@@ -140,8 +139,7 @@ class SignOutWipeTest {
             coordinator = Lazy { error("Coordinator should not be touched") },
             wifiCapability = wifiChecker,
             sessionHolder = Lazy { holder },
-            appScope = testScope,
-            ioDispatcher = testDispatcher
+            appScope = testScope
         )
 
         vm.clearAllOnSignOut()
@@ -171,8 +169,7 @@ class SignOutWipeTest {
             coordinator = Lazy { error("Coordinator should not be touched") },
             wifiCapability = wifiChecker,
             sessionHolder = Lazy { holder },
-            appScope = testScope,
-            ioDispatcher = testDispatcher
+            appScope = testScope
         )
 
         vm.clearAllOnSignOut()
@@ -205,8 +202,7 @@ class SignOutWipeTest {
             coordinator = Lazy { mockCoordinator },
             wifiCapability = wifiChecker,
             sessionHolder = Lazy { holder },
-            appScope = testScope,
-            ioDispatcher = testDispatcher
+            appScope = testScope
         )
 
         vm.setOfflineMeshEnabled(false)
@@ -231,8 +227,7 @@ class SignOutWipeTest {
             coordinator = coordinatorLazy,
             wifiCapability = wifiChecker,
             sessionHolder = Lazy { holder },
-            appScope = testScope,
-            ioDispatcher = testDispatcher
+            appScope = testScope
         )
 
         vm.clearAllOnSignOut()

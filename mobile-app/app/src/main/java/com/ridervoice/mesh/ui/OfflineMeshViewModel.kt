@@ -33,23 +33,6 @@ class OfflineMeshViewModel @Inject constructor(
     @MeshApplicationScope private val appScope: CoroutineScope
 ) : ViewModel() {
 
-    constructor(
-        transport: OfflineMeshVoiceTransport,
-        arbiter: AudioOwnershipArbiter
-    ) : this(transport, arbiter, OfflineSessionHolder(), CoroutineScope(SupervisorJob() + Dispatchers.IO))
-
-    constructor(
-        transport: OfflineMeshVoiceTransport,
-        arbiter: AudioOwnershipArbiter,
-        appScope: CoroutineScope
-    ) : this(transport, arbiter, OfflineSessionHolder(), appScope)
-
-    constructor(
-        transport: OfflineMeshVoiceTransport,
-        arbiter: AudioOwnershipArbiter,
-        holder: OfflineSessionHolder
-    ) : this(transport, arbiter, holder, CoroutineScope(SupervisorJob() + Dispatchers.IO))
-
     private val _liveKitConflictError = MutableStateFlow(false)
     val liveKitConflictError: StateFlow<Boolean> = _liveKitConflictError.asStateFlow()
 

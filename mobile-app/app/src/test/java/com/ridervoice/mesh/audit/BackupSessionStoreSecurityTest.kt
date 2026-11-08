@@ -141,8 +141,7 @@ class BackupSessionStoreSecurityTest {
         assertFalse("RAM-only fallback store must report isPersisted = false", store.isPersisted)
 
         val holder = com.ridervoice.mesh.session.OfflineSessionHolder(
-            backupStore = store,
-            restoreAsync = false
+            backupStore = store
         )
         assertFalse("OfflineSessionHolder must report backupPersisted = false on RAM fallback", holder.isBackupPersisted)
     }

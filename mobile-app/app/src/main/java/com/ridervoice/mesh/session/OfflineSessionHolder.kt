@@ -204,8 +204,7 @@ class OfflineSessionHolder(
     private val backupStore: BackupSessionStore = NoOpBackupSessionStore,
     private val clock: () -> Long = { System.currentTimeMillis() },
     private val kdfIterations: Int = SessionKdf.DEFAULT_ITERATIONS,
-    restoreAsync: Boolean = false,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default
 ) {
     @Inject
     constructor() : this(NoOpBackupSessionStore)
@@ -216,12 +215,24 @@ class OfflineSessionHolder(
     val current: StateFlow<OfflineSession?> = _current.asStateFlow()
     val backup: StateFlow<OfflineSession?> = _backup.asStateFlow()
 
+    @Volatile private var restoreJob: Job? = null
+    @Volatile private var restoreCompleted: Boolean = false
+    private val restoreLock = Any()
+
     fun restoreBackupIfAllowed(): Job? {
         if (!OfflineMeshGate.isOfflineAllowed()) return null
-        return restoreScope.launch(Dispatchers.Default) {
-            if (OfflineMeshGate.isOfflineAllowed()) {
-                restoreFromStoreIfValid()
+        synchronized(restoreLock) {
+            if (restoreCompleted) return null
+            val existing = restoreJob
+            if (existing != null && existing.isActive) return existing
+            val job = restoreScope.launch {
+                if (OfflineMeshGate.isOfflineAllowed()) {
+                    restoreFromStoreIfValid()
+                }
+                restoreCompleted = true
             }
+            restoreJob = job
+            return job
         }
     }
 
@@ -286,5 +297,9 @@ class OfflineSessionHolder(
     fun clearAll() {
         setCurrent(null)
         setBackup(null)
+        synchronized(restoreLock) {
+            restoreJob = null
+            restoreCompleted = false
+        }
     }
 }

@@ -255,7 +255,7 @@ class HonestStateTest {
         val snap1 = MeshGraphSnapshot(
             selfId = self,
             nodes = mapOf(self to com.ridervoice.mesh.graph.MeshNodeInfo(self, "Self"), b to com.ridervoice.mesh.graph.MeshNodeInfo(b, "B")),
-            edges = listOf(com.ridervoice.mesh.graph.MeshEdge(self, b, ep, now, 10_000L, null, true)),
+            edges = listOf(com.ridervoice.mesh.graph.MeshEdge(self, b, ep, now, 10_000L, true)),
             version = 1
         )
         table.recompute(snap1, now)
@@ -284,8 +284,8 @@ class HonestStateTest {
                 c to com.ridervoice.mesh.graph.MeshNodeInfo(c, "C")
             ),
             edges = listOf(
-                com.ridervoice.mesh.graph.MeshEdge(self, c, ep, now, 10_000L, null, true),
-                com.ridervoice.mesh.graph.MeshEdge(c, b, null, now, 10_000L, null, true)
+                com.ridervoice.mesh.graph.MeshEdge(self, c, ep, now, 10_000L, true),
+                com.ridervoice.mesh.graph.MeshEdge(c, b, null, now, 10_000L, true)
             ),
             version = 2
         )
@@ -345,9 +345,9 @@ class HonestStateTest {
                 relay to com.ridervoice.mesh.graph.MeshNodeInfo(relay, "Relay")
             ),
             edges = listOf(
-                com.ridervoice.mesh.graph.MeshEdge(self, dest, ep, now, now + 10_000L, null, bidirectional = false),
-                com.ridervoice.mesh.graph.MeshEdge(self, relay, ep, now, now + 10_000L, null, bidirectional = true),
-                com.ridervoice.mesh.graph.MeshEdge(relay, dest, null, now, now + 10_000L, null, bidirectional = true)
+                com.ridervoice.mesh.graph.MeshEdge(self, dest, ep, now, now + 10_000L, bidirectional = false),
+                com.ridervoice.mesh.graph.MeshEdge(self, relay, ep, now, now + 10_000L, bidirectional = true),
+                com.ridervoice.mesh.graph.MeshEdge(relay, dest, null, now, now + 10_000L, bidirectional = true)
             ),
             version = 1
         )

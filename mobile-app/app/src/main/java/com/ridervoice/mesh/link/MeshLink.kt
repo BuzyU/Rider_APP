@@ -22,5 +22,6 @@ interface MeshLink {
     fun endpoints(): Set<MeshEndpoint>
 
     fun noteAuthenticatedEndpoint(endpoint: MeshEndpoint) {}
+    fun datagramRates(): Pair<Int, Int> = Pair(0, 0)
 }
 

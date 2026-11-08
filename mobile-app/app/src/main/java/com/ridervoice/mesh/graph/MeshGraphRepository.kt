@@ -14,7 +14,6 @@ data class MeshEdge(
     val endpoint: MeshEndpoint?,
     val lastSeenAt: Long,
     val expiresAt: Long,
-    val latencyMs: Long?,
     val bidirectional: Boolean
 )
 
@@ -221,7 +220,6 @@ class MeshGraphRepository(
                     from = key.first, to = key.second, endpoint = ep,
                     lastSeenAt = maxOf(c.lastSeen, reverse?.lastSeen ?: 0L),
                     expiresAt = maxOf(c.expiresAt, reverse?.expiresAt ?: 0L),
-                    latencyMs = null,
                     bidirectional = reverse != null
                 )
             )

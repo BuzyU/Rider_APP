@@ -137,6 +137,7 @@ class OfflineMeshVoiceTransport(
         audioEnabled = { audioPlayback != null },
         applyCapture = { wantCapture ->
             startMutex.withLock {
+                if (wantCapture != micWanted) return@withLock
                 micWanted = wantCapture
                 val cap = audioCapture
                 if (cap != null) {
@@ -417,6 +418,10 @@ class OfflineMeshVoiceTransport(
         }
         val zeroSecs = if (authNeighbors10s > 0) 0L else ((now - zeroNeighborsSinceMs) / 1000L).coerceAtLeast(0L)
 
+        val rates = link?.datagramRates() ?: Pair(0, 0)
+        val jStats = jitterManager?.stats()
+        val underruns = audioPlayback?.underrunCount ?: 0L
+
         val result = peerProjector.project(
             snapshot = snapshot,
             sessionManager = sessionManager,
@@ -428,7 +433,11 @@ class OfflineMeshVoiceTransport(
             broadcastAddress = cachedBroadcastAddr,
             authenticatedNeighborsLast10s = authNeighbors10s,
             secondsWithZeroNeighbours = zeroSecs,
-            selfIdOverride = currentIdentity.deviceId
+            selfIdOverride = currentIdentity.deviceId,
+            txDatagramsPerSec = rates.first,
+            rxDatagramsPerSec = rates.second,
+            jitterStats = jStats,
+            playoutUnderruns = underruns
         ) ?: return
 
         _hasValidRoute.value = result.hasValidRoute

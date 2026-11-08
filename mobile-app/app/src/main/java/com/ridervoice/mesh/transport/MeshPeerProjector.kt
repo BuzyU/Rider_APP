@@ -35,7 +35,11 @@ class MeshPeerProjector(
         broadcastAddress: String = "",
         authenticatedNeighborsLast10s: Int = 0,
         secondsWithZeroNeighbours: Long = 0L,
-        selfIdOverride: String? = null
+        selfIdOverride: String? = null,
+        txDatagramsPerSec: Int = 0,
+        rxDatagramsPerSec: Int = 0,
+        jitterStats: com.ridervoice.mesh.audio.JitterBufferStats? = null,
+        playoutUnderruns: Long = 0L
     ): ProjectionResult? {
         val sManager = sessionManager ?: return null
         val rTable = routingTable ?: return null
@@ -89,7 +93,14 @@ class MeshPeerProjector(
             localIp = localIp,
             broadcastAddress = broadcastAddress,
             authenticatedNeighborsLast10s = effectiveNeighbors10s,
-            isolationWarningHint = selfTestState.isolationWarningHint
+            isolationWarningHint = selfTestState.isolationWarningHint,
+            txDatagramsPerSec = txDatagramsPerSec,
+            rxDatagramsPerSec = rxDatagramsPerSec,
+            jitterLateDropped = jitterStats?.lateDropped ?: 0L,
+            jitterOverflowDropped = jitterStats?.overflowDropped ?: 0L,
+            jitterConcealed = jitterStats?.concealedFrames ?: 0L,
+            playoutUnderruns = playoutUnderruns,
+            activeSourceCount = jitterStats?.activeSources ?: 0
         )
 
         return ProjectionResult(

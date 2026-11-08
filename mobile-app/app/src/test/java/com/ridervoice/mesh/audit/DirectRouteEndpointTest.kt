@@ -28,7 +28,6 @@ class DirectRouteEndpointTest {
             endpoint = MeshEndpoint("192.168.49.12", 45454),
             lastSeenAt = now,
             expiresAt = expiry,
-            latencyMs = 10L,
             bidirectional = true
         )
 
@@ -39,7 +38,6 @@ class DirectRouteEndpointTest {
             endpoint = MeshEndpoint("192.168.49.13", 45454),
             lastSeenAt = now,
             expiresAt = expiry,
-            latencyMs = 10L,
             bidirectional = true
         )
 
@@ -50,7 +48,6 @@ class DirectRouteEndpointTest {
             endpoint = null,
             lastSeenAt = now,
             expiresAt = expiry,
-            latencyMs = null,
             bidirectional = true
         )
 
@@ -93,7 +90,6 @@ class DirectRouteEndpointTest {
             endpoint = null,
             lastSeenAt = now,
             expiresAt = expiry,
-            latencyMs = null,
             bidirectional = false
         )
 

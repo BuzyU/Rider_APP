@@ -153,6 +153,13 @@ class SourceJitterBuffer(
 /**
  * Manages one [SourceJitterBuffer] per remote participant.
  */
+data class JitterBufferStats(
+    val lateDropped: Long,
+    val overflowDropped: Long,
+    val concealedFrames: Long,
+    val activeSources: Int
+)
+
 class MultiSourceJitterBufferManager(
     private val targetDelayFrames: Int = 3,
     private val maxQueueFrames: Int = 16,
@@ -160,6 +167,33 @@ class MultiSourceJitterBufferManager(
     private val clock: () -> Long
 ) {
     private val buffers = LinkedHashMap<String, SourceJitterBuffer>()
+    private var cumulativeLateDropped = 0L
+    private var cumulativeOverflowDropped = 0L
+    private var cumulativeConcealed = 0L
+
+    @Synchronized
+    fun stats(): JitterBufferStats {
+        var late = cumulativeLateDropped
+        var overflow = cumulativeOverflowDropped
+        var concealed = cumulativeConcealed
+        for (buf in buffers.values) {
+            late += buf.lateDroppedCount
+            overflow += buf.overflowDroppedCount
+            concealed += buf.concealedCount
+        }
+        return JitterBufferStats(
+            lateDropped = late,
+            overflowDropped = overflow,
+            concealedFrames = concealed,
+            activeSources = buffers.size
+        )
+    }
+
+    @Synchronized
+    fun activeSourceCount(): Int {
+        evictExpiredSources()
+        return buffers.size
+    }
 
     @Synchronized
     fun onVoicePacket(sourceId: String, sequence: Int, pcmBytes: ByteArray, epoch: Int = 0) {
@@ -225,6 +259,11 @@ class MultiSourceJitterBufferManager(
 
     @Synchronized
     fun clear() {
+        for (buf in buffers.values) {
+            cumulativeLateDropped += buf.lateDroppedCount
+            cumulativeOverflowDropped += buf.overflowDroppedCount
+            cumulativeConcealed += buf.concealedCount
+        }
         buffers.clear()
     }
 
@@ -234,6 +273,9 @@ class MultiSourceJitterBufferManager(
         while (it.hasNext()) {
             val entry = it.next()
             if (now - entry.value.lastEnqueueTimeMs > sourceTimeoutMs) {
+                cumulativeLateDropped += entry.value.lateDroppedCount
+                cumulativeOverflowDropped += entry.value.overflowDroppedCount
+                cumulativeConcealed += entry.value.concealedCount
                 it.remove()
             }
         }

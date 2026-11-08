@@ -308,6 +308,13 @@
     <string name="mesh_diag_dropped_ttl">Dropped TTL</string>
     <string name="mesh_diag_dropped_buffer">Dropped at Buffer</string>
     <string name="mesh_diag_graph_version">Graph Version</string>
+    <string name="mesh_diag_tx_rate">TX Datagrams</string>
+    <string name="mesh_diag_rx_rate">RX Datagrams</string>
+    <string name="mesh_diag_jitter_late">Jitter Late Dropped</string>
+    <string name="mesh_diag_jitter_overflow">Jitter Overflow Dropped</string>
+    <string name="mesh_diag_jitter_concealed">Jitter Concealed Frames</string>
+    <string name="mesh_diag_playout_underruns">Playout Underruns</string>
+    <string name="mesh_diag_active_sources">Active Audio Sources</string>
 
     <!-- Settings Mesh Section -->
     <string name="mesh_settings_title">Offline mesh intercom</string>

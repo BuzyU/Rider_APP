@@ -30,7 +30,14 @@ data class MeshDiagnosticsSnapshot(
     val localIp: String = "",
     val broadcastAddress: String = "",
     val authenticatedNeighborsLast10s: Int = 0,
-    val isolationWarningHint: String? = null
+    val isolationWarningHint: String? = null,
+    val txDatagramsPerSec: Int = 0,
+    val rxDatagramsPerSec: Int = 0,
+    val jitterLateDropped: Long = 0L,
+    val jitterOverflowDropped: Long = 0L,
+    val jitterConcealed: Long = 0L,
+    val playoutUnderruns: Long = 0L,
+    val activeSourceCount: Int = 0
 )
 
 class MeshDiagnosticsRepository {
@@ -63,7 +70,14 @@ class MeshDiagnosticsRepository {
         localIp: String = "",
         broadcastAddress: String = "",
         authenticatedNeighborsLast10s: Int = 0,
-        isolationWarningHint: String? = null
+        isolationWarningHint: String? = null,
+        txDatagramsPerSec: Int = 0,
+        rxDatagramsPerSec: Int = 0,
+        jitterLateDropped: Long = 0L,
+        jitterOverflowDropped: Long = 0L,
+        jitterConcealed: Long = 0L,
+        playoutUnderruns: Long = 0L,
+        activeSourceCount: Int = 0
     ) {
         val neighborsCount = if (authenticatedNeighborsLast10s > 0) authenticatedNeighborsLast10s
         else graph.edges.count { (it.from == selfDeviceId || it.to == selfDeviceId) && it.endpoint != null }
@@ -90,7 +104,14 @@ class MeshDiagnosticsRepository {
             localIp = localIp,
             broadcastAddress = broadcastAddress,
             authenticatedNeighborsLast10s = neighborsCount,
-            isolationWarningHint = isolationWarningHint
+            isolationWarningHint = isolationWarningHint,
+            txDatagramsPerSec = txDatagramsPerSec,
+            rxDatagramsPerSec = rxDatagramsPerSec,
+            jitterLateDropped = jitterLateDropped,
+            jitterOverflowDropped = jitterOverflowDropped,
+            jitterConcealed = jitterConcealed,
+            playoutUnderruns = playoutUnderruns,
+            activeSourceCount = activeSourceCount
         )
     }
 

@@ -60,6 +60,35 @@ class UdpMeshLink(
     private var scope: CoroutineScope? = null
     private var receiveJob: Job? = null
 
+    private val txCount = java.util.concurrent.atomic.AtomicLong(0L)
+    private val rxCount = java.util.concurrent.atomic.AtomicLong(0L)
+    @Volatile private var lastRateCalcMs = 0L
+    @Volatile private var lastTxSnapshot = 0L
+    @Volatile private var lastRxSnapshot = 0L
+    @Volatile private var currentTxRate = 0
+    @Volatile private var currentRxRate = 0
+
+    val totalTxDatagrams: Long get() = txCount.get()
+    val totalRxDatagrams: Long get() = rxCount.get()
+
+    override fun datagramRates(): Pair<Int, Int> = calculateDatagramRates(clock())
+
+    fun calculateDatagramRates(nowMs: Long = clock()): Pair<Int, Int> {
+        synchronized(this) {
+            val dt = nowMs - lastRateCalcMs
+            if (dt >= 1000L) {
+                val curTx = txCount.get()
+                val curRx = rxCount.get()
+                currentTxRate = if (lastRateCalcMs == 0L) 0 else (((curTx - lastTxSnapshot) * 1000L) / dt).toInt()
+                currentRxRate = if (lastRateCalcMs == 0L) 0 else (((curRx - lastRxSnapshot) * 1000L) / dt).toInt()
+                lastRateCalcMs = nowMs
+                lastTxSnapshot = curTx
+                lastRxSnapshot = curRx
+            }
+            return Pair(currentTxRate, currentRxRate)
+        }
+    }
+
     override suspend fun start() {
         if (!gateAllowed()) {
             _state.value = MeshLinkState.STOPPED
@@ -87,6 +116,7 @@ class UdpMeshLink(
                     try {
                         val packet = DatagramPacket(buf, buf.size)
                         sock.receive(packet)
+                        rxCount.incrementAndGet()
                         backoffMs = 100L
                         val host = packet.address?.hostAddress ?: continue
                         val from = MeshEndpoint(host, packet.port)
@@ -133,6 +163,7 @@ class UdpMeshLink(
             val addr = resolveEndpointAddress(endpoint.host)
             val pkt = DatagramPacket(payload, payload.size, addr, endpoint.port)
             sock.send(pkt)
+            txCount.incrementAndGet()
             true
         } catch (e: Exception) {
             MeshLog.w("UdpMeshLink", "Send datagram failed: ${e.javaClass.simpleName}")

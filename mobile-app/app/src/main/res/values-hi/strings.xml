@@ -308,6 +308,13 @@
     <string name="mesh_diag_dropped_ttl">हटाए गए टीटीएल</string>
     <string name="mesh_diag_dropped_buffer">बफ़र पर छोड़ा गया</string>
     <string name="mesh_diag_graph_version">ग्राफ संस्करण</string>
+    <string name="mesh_diag_tx_rate">भेजे गए डेटाग्राम (TX)</string>
+    <string name="mesh_diag_rx_rate">प्राप्त डेटाग्राम (RX)</string>
+    <string name="mesh_diag_jitter_late">विलंबित पैकेट छोड़े गए</string>
+    <string name="mesh_diag_jitter_overflow">बफर ओवरफ्लो पैकेट छोड़े गए</string>
+    <string name="mesh_diag_jitter_concealed">छुपाए गए फ्रेम (PLC)</string>
+    <string name="mesh_diag_playout_underruns">प्लेआउट अंडररन</string>
+    <string name="mesh_diag_active_sources">सक्रिय ऑडियो स्रोत</string>
 
     <!-- Settings Mesh Section -->
     <string name="mesh_settings_title">ऑफ़लाइन मेश इंटरकॉम</string>

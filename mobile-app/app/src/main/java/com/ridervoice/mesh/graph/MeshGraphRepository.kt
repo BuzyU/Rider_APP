@@ -20,27 +20,8 @@ data class MeshEdge(
 data class MeshNodeInfo(
     val deviceId: String,
     val displayName: String,
-    val onlineIdTag: ByteArray? = null
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is MeshNodeInfo) return false
-        if (deviceId != other.deviceId) return false
-        if (displayName != other.displayName) return false
-        if (onlineIdTag != null) {
-            if (other.onlineIdTag == null) return false
-            if (!onlineIdTag.contentEquals(other.onlineIdTag)) return false
-        } else if (other.onlineIdTag != null) return false
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = deviceId.hashCode()
-        result = 31 * result + displayName.hashCode()
-        result = 31 * result + (onlineIdTag?.contentHashCode() ?: 0)
-        return result
-    }
-}
+    val onlineIdTag: String? = null
+)
 
 /** Immutable view of the graph as known by one device. */
 data class MeshGraphSnapshot(
@@ -63,7 +44,7 @@ internal fun isStaleReport(prevEpoch: Int, prevSeq: Int, epoch: Int, seq: Int): 
 class MeshGraphRepository(
     private val selfId: String,
     private val selfName: String,
-    private val selfOnlineTagProvider: () -> ByteArray? = { null },
+    private val selfOnlineTagProvider: () -> String? = { null },
     private val clock: () -> Long
 ) {
     constructor(
@@ -72,8 +53,8 @@ class MeshGraphRepository(
         clock: () -> Long
     ) : this(selfId, selfName, { null }, clock)
 
-    private class Neighbor(var name: String, var endpoint: MeshEndpoint, var lastSeen: Long, var onlineIdTag: ByteArray? = null)
-    private class Report(var name: String, var neighbors: Set<String>, var lastSeen: Long, var sequence: Int = 0, var epoch: Int = 0, var onlineIdTag: ByteArray? = null)
+    private class Neighbor(var name: String, var endpoint: MeshEndpoint, var lastSeen: Long, var onlineIdTag: String? = null)
+    private class Report(var name: String, var neighbors: Set<String>, var lastSeen: Long, var sequence: Int = 0, var epoch: Int = 0, var onlineIdTag: String? = null)
 
     private val neighbors = LinkedHashMap<String, Neighbor>()
     private val reports = HashMap<String, Report>()
@@ -96,7 +77,7 @@ class MeshGraphRepository(
         neighborIds: Collection<String>,
         sequence: Int = 0,
         epoch: Int = 0,
-        onlineIdTag: ByteArray? = null
+        onlineIdTag: String? = null
     ): Boolean {
         if (sourceId == selfId) return false
         val now = clock()
@@ -106,8 +87,8 @@ class MeshGraphRepository(
             if (n == null) {
                 neighbors[sourceId] = Neighbor(name, endpoint, now, onlineIdTag); changed = true
             } else {
-                if (n.endpoint != endpoint || n.name != name || (onlineIdTag != null && !onlineIdTag.contentEquals(n.onlineIdTag))) changed = true
-                n.endpoint = endpoint; n.name = name; n.lastSeen = now; if (onlineIdTag != null) n.onlineIdTag = onlineIdTag
+                if (n.endpoint != endpoint || n.name != name || n.onlineIdTag != onlineIdTag) changed = true
+                n.endpoint = endpoint; n.name = name; n.lastSeen = now; n.onlineIdTag = onlineIdTag
             }
         }
         val set = neighborIds.filter { it != sourceId }.toSet()
@@ -118,12 +99,12 @@ class MeshGraphRepository(
         } else {
             val isStale = isStaleReport(r.epoch, r.sequence, epoch, sequence)
             if (!isStale) {
-                if (r.neighbors != set || r.name != name || r.epoch != epoch || (onlineIdTag != null && !onlineIdTag.contentEquals(r.onlineIdTag))) changed = true
+                if (r.neighbors != set || r.name != name || r.epoch != epoch || r.onlineIdTag != onlineIdTag) changed = true
                 r.neighbors = set
                 r.name = name
                 r.lastSeen = now
                 r.epoch = epoch
-                if (onlineIdTag != null) r.onlineIdTag = onlineIdTag
+                r.onlineIdTag = onlineIdTag
                 if (sequence != 0) r.sequence = sequence
             }
         }

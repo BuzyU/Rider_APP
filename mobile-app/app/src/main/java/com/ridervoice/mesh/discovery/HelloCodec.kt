@@ -2,6 +2,7 @@ package com.ridervoice.mesh.discovery
 
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.protocol.MeshPacketCodec
+import com.ridervoice.mesh.protocol.PayloadCrypto
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.StandardCharsets
@@ -9,36 +10,16 @@ import java.util.UUID
 
 /**
  * HELLO payload: the sender's display name, its graph version and its direct neighbor ids.
- * Optionally carries an 8-byte online identity tag [0xA1][0x08][tag] when the sender is in an online ride.
+ * Optionally carries an 8-byte online identity tag [0xA1][0x08][tag] (represented as 16 hex chars)
+ * when the sender is in an online ride.
  * HELLOs are flooded with a small TTL, so every device learns each other device's adjacency.
  */
 data class HelloPayload(
     val name: String,
     val graphVersion: Int,
     val neighborIds: List<String>,
-    val onlineIdTag: ByteArray? = null
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is HelloPayload) return false
-        if (name != other.name) return false
-        if (graphVersion != other.graphVersion) return false
-        if (neighborIds != other.neighborIds) return false
-        if (onlineIdTag != null) {
-            if (other.onlineIdTag == null) return false
-            if (!onlineIdTag.contentEquals(other.onlineIdTag)) return false
-        } else if (other.onlineIdTag != null) return false
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = name.hashCode()
-        result = 31 * result + graphVersion
-        result = 31 * result + neighborIds.hashCode()
-        result = 31 * result + (onlineIdTag?.contentHashCode() ?: 0)
-        return result
-    }
-}
+    val onlineIdTag: String? = null
+)
 
 object HelloCodec {
     const val TAG_TYPE: Byte = 0xA1.toByte()
@@ -47,8 +28,10 @@ object HelloCodec {
     fun encode(p: HelloPayload): ByteArray {
         val nameBytes = p.name.toByteArray(StandardCharsets.UTF_8).let { if (it.size > 96) it.copyOf(96) else it }
         val ids = p.neighborIds.take(MeshConfig.MAX_NEIGHBORS_IN_HELLO)
-        val tagBytes = p.onlineIdTag
-        require(tagBytes == null || tagBytes.size == 8) { "onlineIdTag must be 8 bytes when present" }
+        val tagHex = p.onlineIdTag
+        val tagBytes = tagHex?.let {
+            PayloadCrypto.hexToBytes(it)
+        }
         val extraLen = if (tagBytes != null) 10 else 0
         val buf = ByteBuffer.allocate(1 + nameBytes.size + 4 + 1 + ids.size * 16 + extraLen).order(ByteOrder.BIG_ENDIAN)
         buf.put(nameBytes.size.toByte()).put(nameBytes).putInt(p.graphVersion).put(ids.size.toByte())
@@ -78,7 +61,7 @@ object HelloCodec {
                 if (t != TAG_TYPE || l != TAG_LEN) return null
                 val tag = ByteArray(8)
                 buf.get(tag)
-                tag
+                PayloadCrypto.bytesToHex(tag)
             }
             else -> return null // any other trailing bytes -> reject
         }

@@ -31,11 +31,45 @@ object PayloadCrypto {
     }
 
     /**
-     * Computes an 8-byte authentication tag identifying an online LiveKit identity.
-     * tag = HMAC-SHA256(payloadKey, livekitIdentityUtf8)[0..8]
+     * Converts a ByteArray to a lowercase hex string.
      */
-    fun computeOnlineIdTag(payloadKey: ByteArray, livekitIdentity: String): ByteArray =
-        hmac(salt = payloadKey, data = livekitIdentity.toByteArray(Charsets.UTF_8)).copyOf(8)
+    fun bytesToHex(bytes: ByteArray): String {
+        val hexChars = "0123456789abcdef"
+        val result = java.lang.StringBuilder(bytes.size * 2)
+        for (b in bytes) {
+            val i = b.toInt() and 0xFF
+            result.append(hexChars[i ushr 4])
+            result.append(hexChars[i and 0x0F])
+        }
+        return result.toString()
+    }
+
+    /**
+     * Converts a 16-character hex string into an 8-byte ByteArray.
+     */
+    fun hexToBytes(hex: String): ByteArray {
+        require(hex.length == 16) { "onlineIdTag must be 16 hex characters (8 bytes)" }
+        val bytes = ByteArray(8)
+        for (i in 0 until 8) {
+            val high = Character.digit(hex[i * 2], 16)
+            val low = Character.digit(hex[i * 2 + 1], 16)
+            require(high != -1 && low != -1) { "Invalid hex in onlineIdTag: $hex" }
+            bytes[i] = ((high shl 4) or low).toByte()
+        }
+        return bytes
+    }
+
+    /**
+     * Computes a 16-character lowercase hex tag identifying an online LiveKit identity.
+     * Derives onlineKey = hkdfExpand(extract(salt="rvmesh/v3/online-id", payloadKey), info="tag")
+     * and returns HMAC(onlineKey, livekitIdentityUtf8)[0..8] as hex.
+     */
+    fun computeOnlineIdTag(payloadKey: ByteArray, livekitIdentity: String): String {
+        val prk = hmac(salt = "rvmesh/v3/online-id".toByteArray(Charsets.UTF_8), data = payloadKey)
+        val onlineKey = hmac(salt = prk, data = "tag".toByteArray(Charsets.UTF_8) + byteArrayOf(1)).copyOf(32)
+        val tagBytes = hmac(salt = onlineKey, data = livekitIdentity.toByteArray(Charsets.UTF_8)).copyOf(8)
+        return bytesToHex(tagBytes)
+    }
 
     fun nonce(epoch: Int, sequence: Int, typeCode: Int): ByteArray =
         ByteBuffer.allocate(NONCE_LEN).order(ByteOrder.BIG_ENDIAN)

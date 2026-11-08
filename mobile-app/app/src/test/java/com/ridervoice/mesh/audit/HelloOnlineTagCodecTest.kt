@@ -33,7 +33,7 @@ class HelloOnlineTagCodecTest {
     @Test
     fun roundTripWithValidTag() {
         val u1 = UUID.randomUUID().toString()
-        val tag = byteArrayOf(0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08)
+        val tag = "0102030405060708"
         val payload = HelloPayload("Bob", 5, listOf(u1), tag)
 
         val encoded = HelloCodec.encode(payload)
@@ -44,19 +44,19 @@ class HelloOnlineTagCodecTest {
         assertEquals(5, decoded.graphVersion)
         assertEquals(listOf(u1), decoded.neighborIds)
         assertNotNull("onlineIdTag must not be null", decoded.onlineIdTag)
-        assertArrayEquals(tag, decoded.onlineIdTag)
+        assertEquals(tag, decoded.onlineIdTag)
         assertEquals(payload, decoded)
     }
 
     @Test
     fun tagWrongLengthRejectedAtEncode() {
-        val wrongTag = byteArrayOf(0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07) // 7 bytes
+        val wrongTag = "01020304050607" // 14 chars (7 bytes)
         val payload = HelloPayload("Charlie", 1, emptyList(), wrongTag)
         try {
             HelloCodec.encode(payload)
-            fail("Expected IllegalArgumentException for 7-byte tag")
+            fail("Expected IllegalArgumentException for non-16-char tag")
         } catch (e: IllegalArgumentException) {
-            assertTrue("Exception message mentions 8 bytes", e.message?.contains("8 bytes") == true)
+            assertTrue("Exception message mentions 16 hex characters or 8 bytes", e.message?.contains("8 bytes") == true || e.message?.contains("16 hex") == true)
         }
     }
 

@@ -31,41 +31,8 @@ data class OfflineMeshDevice(
     val routeExpiresAt: Long,
     val isSpeaking: Boolean,
     val routeSince: Long = 0L,
-    val onlineIdTag: ByteArray? = null
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is OfflineMeshDevice) return false
-        if (deviceId != other.deviceId) return false
-        if (displayName != other.displayName) return false
-        if (reachable != other.reachable) return false
-        if (direct != other.direct) return false
-        if (hopCount != other.hopCount) return false
-        if (nextHopDeviceId != other.nextHopDeviceId) return false
-        if (routeExpiresAt != other.routeExpiresAt) return false
-        if (isSpeaking != other.isSpeaking) return false
-        if (routeSince != other.routeSince) return false
-        if (onlineIdTag != null) {
-            if (other.onlineIdTag == null) return false
-            if (!onlineIdTag.contentEquals(other.onlineIdTag)) return false
-        } else if (other.onlineIdTag != null) return false
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = deviceId.hashCode()
-        result = 31 * result + displayName.hashCode()
-        result = 31 * result + reachable.hashCode()
-        result = 31 * result + direct.hashCode()
-        result = 31 * result + hopCount
-        result = 31 * result + (nextHopDeviceId?.hashCode() ?: 0)
-        result = 31 * result + routeExpiresAt.hashCode()
-        result = 31 * result + isSpeaking.hashCode()
-        result = 31 * result + routeSince.hashCode()
-        result = 31 * result + (onlineIdTag?.contentHashCode() ?: 0)
-        return result
-    }
-}
+    val onlineIdTag: String? = null
+)
 
 /**
  * UI projection model combining online/offline peer metadata while preserving transport semantics.
@@ -82,47 +49,10 @@ data class UnifiedVoicePeer(
     val routeAgeMs: Long,
     val isSpeaking: Boolean,
     val routeTtlRemainingMs: Long = 0L,
-    val onlineIdTag: ByteArray? = null
+    val onlineIdTag: String? = null
 ) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is UnifiedVoicePeer) return false
-        if (id != other.id) return false
-        if (name != other.name) return false
-        if (isOnline != other.isOnline) return false
-        if (transport != other.transport) return false
-        if (hopCount != other.hopCount) return false
-        if (nextHopId != other.nextHopId) return false
-        if (isDirect != other.isDirect) return false
-        if (isRelayed != other.isRelayed) return false
-        if (routeAgeMs != other.routeAgeMs) return false
-        if (isSpeaking != other.isSpeaking) return false
-        if (routeTtlRemainingMs != other.routeTtlRemainingMs) return false
-        if (onlineIdTag != null) {
-            if (other.onlineIdTag == null) return false
-            if (!onlineIdTag.contentEquals(other.onlineIdTag)) return false
-        } else if (other.onlineIdTag != null) return false
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = id.hashCode()
-        result = 31 * result + name.hashCode()
-        result = 31 * result + isOnline.hashCode()
-        result = 31 * result + transport.hashCode()
-        result = 31 * result + hopCount
-        result = 31 * result + (nextHopId?.hashCode() ?: 0)
-        result = 31 * result + isDirect.hashCode()
-        result = 31 * result + isRelayed.hashCode()
-        result = 31 * result + routeAgeMs.hashCode()
-        result = 31 * result + isSpeaking.hashCode()
-        result = 31 * result + routeTtlRemainingMs.hashCode()
-        result = 31 * result + (onlineIdTag?.contentHashCode() ?: 0)
-        return result
-    }
-
     companion object {
-        fun fromOnline(p: OnlineParticipant, onlineIdTag: ByteArray? = null): UnifiedVoicePeer = UnifiedVoicePeer(
+        fun fromOnline(p: OnlineParticipant, onlineIdTag: String? = null): UnifiedVoicePeer = UnifiedVoicePeer(
             id = p.identity,
             name = p.displayName,
             isOnline = p.isConnected,

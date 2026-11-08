@@ -102,7 +102,7 @@ class UnifiedListDedupTest {
         assertEquals("Without shared secret to compute tags, peers cannot be deduped", 2, list.size)
     }
 
-    private fun createPeer(deviceId: String, name: String, onlineIdTag: ByteArray?): UnifiedVoicePeer =
+    private fun createPeer(deviceId: String, name: String, onlineIdTag: String?): UnifiedVoicePeer =
         UnifiedVoicePeer(
             id = deviceId,
             name = name,

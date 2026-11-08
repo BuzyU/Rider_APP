@@ -39,7 +39,8 @@ class MeshAutoSwitchManager(
     private val clock: Clock = SystemClock,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val isStandaloneSessionActive: () -> Boolean = { false },
-    private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder? = null
+    private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder? = null,
+    private val localOnlineIdentity: () -> String? = { runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid }.getOrNull() }
 ) {
 
     private var scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -73,8 +74,7 @@ class MeshAutoSwitchManager(
         healthSignalsProvider.startWatching()
         meshTransport.onlineIdentitySupplier = {
             if (liveKitManager.connectionState.value == ConnectionState.CONNECTED) {
-                liveKitManager.participants.value.firstOrNull { !it.isGhost }?.identity
-                    ?: runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid }.getOrNull()
+                localOnlineIdentity()
             } else null
         }
         if (!scope.isActive) {
@@ -208,11 +208,11 @@ class MeshAutoSwitchManager(
             )
         }
 
-        val onlineTags = lkPeers.mapNotNull { it.onlineIdTag }
+        val onlineTags = lkPeers.filter { it.isOnline }.mapNotNull { it.onlineIdTag }.toSet()
         val deduplicatedMeshPeers = if (onlineTags.isNotEmpty()) {
             meshPeers.filter { meshPeer ->
                 val meshTag = meshPeer.onlineIdTag
-                meshTag == null || onlineTags.none { onlineTag -> onlineTag.contentEquals(meshTag) }
+                meshTag == null || meshTag !in onlineTags
             }
         } else {
             meshPeers

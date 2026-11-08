@@ -273,7 +273,7 @@ class OfflineMeshVoiceTransport(
                     jManager.onVoicePacket(pkt.sourceId, pkt.sequence, pkt.payload, pkt.epoch)
                 },
                 peerFilterPort = peerFilterPort,
-                onlineIdentitySupplier = onlineIdentitySupplier
+                onlineIdentitySupplier = { onlineIdentitySupplier() }
             )
             forwardingEngine = fEngine
             lastForwardingEngineForTest = fEngine

@@ -178,7 +178,7 @@ class Stage3ReachabilityTest {
         val senderEndpoint = MeshEndpoint("192.168.1.50", 45454)
         val helloPayload = HelloCodec.encode(HelloPayload(name = "Peer1", graphVersion = 1, neighborIds = emptyList()))
         val aad = PayloadCrypto.aad(session.sessionId, peer1Id, MeshPacketType.HELLO.code, 1, 1, 1000L, AudioFormatId.PCM16_16K_MONO)
-        val nonce = PayloadCrypto.nonce(1, 1, MeshPacketType.HELLO.code, peer1Id)
+        val nonce = PayloadCrypto.nonce(1, 1, MeshPacketType.HELLO.code)
         val sourceKey = PayloadCrypto.sourceKey(session.payloadKey(), peer1Id)
         val sealed = PayloadCrypto.seal(sourceKey, nonce, aad, helloPayload)
 
@@ -230,7 +230,7 @@ class Stage3ReachabilityTest {
         val relayEndpoint = MeshEndpoint("192.168.1.99", 45454)
         val helloPayload = HelloCodec.encode(HelloPayload(name = "Peer1", graphVersion = 1, neighborIds = emptyList()))
         val aad = PayloadCrypto.aad(session.sessionId, peer1Id, MeshPacketType.HELLO.code, 1, 1, 1000L, AudioFormatId.PCM16_16K_MONO)
-        val nonce = PayloadCrypto.nonce(1, 1, MeshPacketType.HELLO.code, peer1Id)
+        val nonce = PayloadCrypto.nonce(1, 1, MeshPacketType.HELLO.code)
         val sourceKey = PayloadCrypto.sourceKey(session.payloadKey(), peer1Id)
         val sealed = PayloadCrypto.seal(sourceKey, nonce, aad, helloPayload)
 

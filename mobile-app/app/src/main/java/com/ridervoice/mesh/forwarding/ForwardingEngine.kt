@@ -93,6 +93,7 @@ class ForwardingEngine(
     private val forwardedVoice = AtomicLong(0L)
     private val droppedDup = AtomicLong(0L)
     private val droppedInvalid = AtomicLong(0L)
+    private val droppedBadVersion = AtomicLong(0L)
     private val droppedTtl = AtomicLong(0L)
     private val droppedStaleTimestamp = AtomicLong(0L)
     private val suspectedClockSkewMs = AtomicLong(0L)
@@ -102,6 +103,7 @@ class ForwardingEngine(
     val forwardedVoiceCount: Long get() = forwardedVoice.get()
     val droppedDuplicateCount: Long get() = droppedDup.get()
     val droppedInvalidCount: Long get() = droppedInvalid.get()
+    val droppedBadVersionCount: Long get() = droppedBadVersion.get()
     val droppedTtlCount: Long get() = droppedTtl.get()
     val droppedStaleTimestampCount: Long get() = droppedStaleTimestamp.get()
     val suspectedClockSkew: Long get() = suspectedClockSkewMs.get()
@@ -115,7 +117,8 @@ class ForwardingEngine(
         val ttl: Long,
         val staleTimestamp: Long = 0L,
         val suspectedClockSkewMs: Long = 0L,
-        val suspectedClockSkewPeerId: String? = null
+        val suspectedClockSkewPeerId: String? = null,
+        val droppedBadVersion: Long = 0L
     )
     fun counters() = Counters(
         received = receivedVoice.get(),
@@ -125,7 +128,8 @@ class ForwardingEngine(
         ttl = droppedTtl.get(),
         staleTimestamp = droppedStaleTimestamp.get(),
         suspectedClockSkewMs = suspectedClockSkewMs.get(),
-        suspectedClockSkewPeerId = suspectedClockSkewPeerId
+        suspectedClockSkewPeerId = suspectedClockSkewPeerId,
+        droppedBadVersion = droppedBadVersion.get()
     )
 
     /**
@@ -272,6 +276,9 @@ class ForwardingEngine(
         val decoded = when (val res = MeshPacketCodec.decode(frame.data, authKey)) {
             is DecodeResult.Ok -> res.packet
             is DecodeResult.Invalid -> {
+                if (res.reason == DecodeResult.Reason.BAD_VERSION) {
+                    droppedBadVersion.incrementAndGet()
+                }
                 droppedInvalid.incrementAndGet()
                 return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DECODE_FAILED)
             }

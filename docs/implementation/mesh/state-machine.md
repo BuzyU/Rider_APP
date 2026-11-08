@@ -130,3 +130,8 @@ data class LocalHealthSignals(
 - If `fallbackToMesh()` throws or returns `false`, state machine safely rolls back to `ONLINE`.
 - If `recoverToLiveKit()` throws or returns `false`, state machine safely rolls back to `OFFLINE_ACTIVE`.
 - Android audio hardware is never left stranded without an arbiter owner.
+
+### 3.6 VoiceTransport Lifecycle & Audio Initialization Failure
+- `VoiceTransportState` transitions through `STOPPED` -> `STARTING` -> `CONNECTED`.
+- When `start(session)` executes `enableAudio()`, if hardware acquisition or audio setup fails (such as hardware busy, mic permission denied, or gate closed), `OfflineMeshVoiceTransport` transitions directly to `VoiceTransportState.FAILED`.
+- The tactical HUD and active room overlay observe `VoiceTransportState.FAILED` and present an explicit audio failure state to the rider.

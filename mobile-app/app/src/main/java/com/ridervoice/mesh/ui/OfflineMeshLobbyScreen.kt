@@ -325,7 +325,14 @@ fun OfflineMeshLobbyScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
-                    if (selfTestState.isolationWarningHint != null) {
+                    if (selfTestState.authenticatedNeighboursCount == 0 && diagSnapshot.droppedBadVersion > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.mesh_selftest_bad_version_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AlertRed
+                        )
+                    } else if (selfTestState.isolationWarningHint != null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = stringResource(R.string.mesh_selftest_no_neighbours_hint),

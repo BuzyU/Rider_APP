@@ -82,6 +82,7 @@ class MeshPeerProjector(
             droppedInvalid = cnt.invalid,
             droppedTtl = cnt.ttl,
             droppedStaleTimestamp = cnt.staleTimestamp,
+            droppedBadVersion = cnt.droppedBadVersion,
             suspectedClockSkewMs = cnt.suspectedClockSkewMs,
             suspectedClockSkewPeerName = skewPeerName,
             linkState = selfTestState.linkStateText,

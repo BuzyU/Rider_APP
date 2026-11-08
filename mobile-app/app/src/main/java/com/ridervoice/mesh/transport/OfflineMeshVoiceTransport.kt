@@ -42,6 +42,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
@@ -56,6 +57,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * Full offline mesh implementation of [VoiceTransport] and [MeshControl].
@@ -87,10 +89,14 @@ class OfflineMeshVoiceTransport(
     val routeController: MeshAudioRouteController? = null,
     val hardwarePttPort: HardwarePttPort? = null,
     private val identityProvider: () -> MeshIdentity = { identity ?: error("Identity not provided") },
-    private val peerFilterPort: com.ridervoice.mesh.forwarding.PeerFilterPort? = null
+    private val peerFilterPort: com.ridervoice.mesh.forwarding.PeerFilterPort =
+        com.ridervoice.mesh.forwarding.PeerFilterPort { id ->
+            com.ridervoice.mesh.forwarding.PeerFilterHolder.port?.shouldAccept(id) ?: true
+        }
 ) : VoiceTransport, MeshControl {
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+    private var sessionExpiryJob: Job? = null
     private val startMutex = Mutex()
     private var locksHeld = false
     private var multicastHeld = false
@@ -375,9 +381,10 @@ class OfflineMeshVoiceTransport(
             updateProjectedPeers(gRepo.currentSnapshot())
 
             // Periodic session expiry sweep
+            sessionExpiryJob?.cancel()
             val remaining = session.expiresAt - clock()
             if (remaining > 0L) {
-                scope.launch {
+                sessionExpiryJob = scope.launch {
                     delay(remaining)
                     MeshLog.w("MeshTransport", "session expired id=${session.sessionId.take(8)}")
                     stop()
@@ -606,74 +613,82 @@ class OfflineMeshVoiceTransport(
         }
         startDiscoveryOnly(offlineSession)
         if (_state.value == VoiceTransportState.CONNECTED) {
-            enableAudio()
+            val res = enableAudio()
+            if (res is EnableAudioResult.Failure) {
+                _state.value = VoiceTransportState.FAILED
+            }
         }
     }
 
     override suspend fun stop() = startMutex.withLock {
-        voxBridge.detach()
-        _state.value = VoiceTransportState.STOPPED
-        runCatching { forwardingEngine?.originateBye() }
+        withContext(NonCancellable) {
+            voxBridge.detach()
+            _state.value = VoiceTransportState.STOPPED
+            runCatching { forwardingEngine?.originateBye() }
 
-        linkSupervisorJob?.cancel()
-        linkSupervisorJob = null
-        wifiWatcherJob?.cancel()
-        wifiWatcherJob = null
-        wifiWatcher.stop()
-        if (multicastHeld) {
-            locks.releaseMulticast()
-            multicastHeld = false
+            sessionExpiryJob?.cancel()
+            sessionExpiryJob = null
+
+            linkSupervisorJob?.cancel()
+            linkSupervisorJob = null
+            wifiWatcherJob?.cancel()
+            wifiWatcherJob = null
+            wifiWatcher.stop()
+            if (multicastHeld) {
+                locks.releaseMulticast()
+                multicastHeld = false
+            }
+            _isLinkAlive.value = false
+            heartbeatJob?.cancel()
+            heartbeatJob = null
+            frameListenerJob?.cancel()
+            frameListenerJob = null
+            peerProjectorJob?.cancel()
+            peerProjectorJob = null
+            expireJob?.cancel()
+            expireJob = null
+            playbackSpeakersJob?.cancel()
+            playbackSpeakersJob = null
+            voiceTxJob?.cancel()
+            voiceTxJob = null
+            voiceTxChannel?.close()
+            voiceTxChannel = null
+
+            audioCapture?.stop()
+            audioCapture = null
+
+            audioPlayback?.stop()
+            audioPlayback = null
+            routeController?.releaseCommunicationMode()
+
+            link?.stop()
+            link = null
+
+            transportScope?.cancel()
+            transportScope = null
+            sessionManager = null
+            graphRepository = null
+            routingTable = null
+            forwardingEngine?.close()
+            forwardingEngine = null
+            jitterManager = null
+            currentSession = null
+
+            _hasValidRoute.value = false
+            _participants.value = emptyList()
+            _activeSpeakers.value = emptySet()
+            diagnosticsRepo.reset()
+            if (locksHeld) {
+                locks.release()
+                locksHeld = false
+            }
+            audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
+
+            micController.reset()
+            micWanted = false
+            paused = false
+            _micState.value = MicState.OFF
         }
-        _isLinkAlive.value = false
-        heartbeatJob?.cancel()
-        heartbeatJob = null
-        frameListenerJob?.cancel()
-        frameListenerJob = null
-        peerProjectorJob?.cancel()
-        peerProjectorJob = null
-        expireJob?.cancel()
-        expireJob = null
-        playbackSpeakersJob?.cancel()
-        playbackSpeakersJob = null
-        voiceTxJob?.cancel()
-        voiceTxJob = null
-        voiceTxChannel?.close()
-        voiceTxChannel = null
-
-        audioCapture?.stop()
-        audioCapture = null
-
-        audioPlayback?.stop()
-        audioPlayback = null
-        routeController?.releaseCommunicationMode()
-
-        link?.stop()
-        link = null
-
-        transportScope?.cancel()
-        transportScope = null
-        sessionManager = null
-        graphRepository = null
-        routingTable = null
-        forwardingEngine?.close()
-        forwardingEngine = null
-        jitterManager = null
-        currentSession = null
-
-        _hasValidRoute.value = false
-        _participants.value = emptyList()
-        _activeSpeakers.value = emptySet()
-        diagnosticsRepo.reset()
-        if (locksHeld) {
-            locks.release()
-            locksHeld = false
-        }
-        audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
-
-        micController.reset()
-        micWanted = false
-        paused = false
-        _micState.value = MicState.OFF
     }
 
     private var micWanted = false

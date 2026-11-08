@@ -137,7 +137,7 @@ class AdversarialTest {
 
         val helloPayload = HelloCodec.encode(HelloPayload(name = "B", graphVersion = 1, neighborIds = emptyList()))
         val aad = PayloadCrypto.aad(s.sessionId, bId, MeshPacketType.HELLO.code, 0, 1, t, AudioFormatId.PCM16_16K_MONO)
-        val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.HELLO.code, bId)
+        val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.HELLO.code)
         val sourceKeyB = PayloadCrypto.sourceKey(s.payloadKey(), bId)
         val sealedHello = PayloadCrypto.seal(sourceKeyB, nonce, aad, helloPayload)
 
@@ -267,7 +267,7 @@ class AdversarialTest {
         a.sessionMgr.admit(bId)
 
         val aad = PayloadCrypto.aad(s.sessionId, bId, MeshPacketType.VOICE.code, 0, 1, t, AudioFormatId.PCM16_16K_MONO)
-        val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code, bId)
+        val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code)
         val sourceKeyB = PayloadCrypto.sourceKey(s.payloadKey(), bId)
         val sealed = PayloadCrypto.seal(sourceKeyB, nonce, aad, ByteArray(640))
         val voicePacket = MeshPacket(
@@ -334,7 +334,7 @@ class AdversarialTest {
 
         // Now send authentic packet with same (attackerId, seq=1, epoch=0)
         val aad = PayloadCrypto.aad(s.sessionId, attackerId, MeshPacketType.VOICE.code, 0, 1, t, AudioFormatId.PCM16_16K_MONO)
-        val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code, attackerId)
+        val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code)
         val sourceKeyAttacker = PayloadCrypto.sourceKey(s.payloadKey(), attackerId)
         val validSealed = PayloadCrypto.seal(sourceKeyAttacker, nonce, aad, ByteArray(640))
         val validPacket = forgedPacket.copy(payload = validSealed)

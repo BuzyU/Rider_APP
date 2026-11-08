@@ -51,7 +51,8 @@ class MeshDebugReceiver(
                 val transport = entryPoint?.offlineMeshVoiceTransport()
                 if (transport != null) {
                     val diag = transport.diagnostics.value
-                    Log.i(TAG, "Transport state: ${transport.state.value}, Diag: members=${diag.memberCount}, routes=${diag.routeCount}")
+                    val hasFilter = com.ridervoice.mesh.forwarding.PeerFilterHolder.port != null
+                    Log.i(TAG, "Transport state: ${transport.state.value}, Diag: members=${diag.memberCount}, routes=${diag.routeCount}, PeerFilterActive=$hasFilter")
                 }
             }
             ACTION_CLEAR_SESSION -> {
@@ -69,15 +70,14 @@ class MeshDebugReceiver(
             ACTION_SET_PEER_FILTER, ACTION_LEGACY_SET_PEER_FILTER -> {
                 val allowExtra = intent.getStringExtra(EXTRA_ALLOW) ?: intent.getStringExtra(EXTRA_ALLOWED_PEERS)
                 val filter = parsePeerFilter(allowExtra)
-                debugPeerFilter = if (filter != null) com.ridervoice.mesh.forwarding.PeerFilterPort { filter(it) } else null
-                Log.i(TAG, "Updated debugPeerFilter: ${debugPeerFilter != null}")
+                val port = if (filter != null) com.ridervoice.mesh.forwarding.PeerFilterPort { filter(it) } else null
+                com.ridervoice.mesh.forwarding.PeerFilterHolder.port = port
+                Log.i(TAG, "Updated PeerFilterHolder.port: ${port != null}")
             }
         }
     }
 
     companion object {
-        @Volatile
-        var debugPeerFilter: com.ridervoice.mesh.forwarding.PeerFilterPort? = null
         private const val TAG = "MeshDebugReceiver"
         const val ACTION_DUMP_STATE = "com.ridervoice.mesh.DEBUG_DUMP_STATE"
         const val ACTION_CLEAR_SESSION = "com.ridervoice.mesh.DEBUG_CLEAR_SESSION"

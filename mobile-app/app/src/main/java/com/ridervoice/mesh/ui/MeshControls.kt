@@ -116,7 +116,14 @@ fun MeshDiagnosticsDialog(
                             color = MeshColors.AlertRed
                         )
                     }
-                    if (snapshot.isolationWarningHint != null) {
+                    if (snapshot.memberCount == 0 && snapshot.droppedBadVersion > 0) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.mesh_selftest_bad_version_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MeshColors.AlertRed
+                        )
+                    } else if (snapshot.isolationWarningHint != null) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = stringResource(R.string.mesh_selftest_no_neighbours_hint),
@@ -631,11 +638,12 @@ fun MeshActiveOverlay(
     modifier: Modifier = Modifier,
     backupPairingCode: String? = null
 ) {
-    val title = when (autoSwitchState) {
-        AutoSwitchState.STARTING_OFFLINE_MESH -> stringResource(R.string.mesh_banner_starting_offline)
-        AutoSwitchState.OFFLINE_ACTIVE -> stringResource(R.string.mesh_banner_offline_active)
-        AutoSwitchState.ONLINE_RECOVERING -> stringResource(R.string.mesh_banner_online_restored)
-        AutoSwitchState.HANDING_BACK_TO_LIVEKIT -> stringResource(R.string.mesh_banner_handing_back)
+    val title = when {
+        transportState == VoiceTransportState.FAILED -> stringResource(R.string.mesh_banner_audio_failed)
+        autoSwitchState == AutoSwitchState.STARTING_OFFLINE_MESH -> stringResource(R.string.mesh_banner_starting_offline)
+        autoSwitchState == AutoSwitchState.OFFLINE_ACTIVE -> stringResource(R.string.mesh_banner_offline_active)
+        autoSwitchState == AutoSwitchState.ONLINE_RECOVERING -> stringResource(R.string.mesh_banner_online_restored)
+        autoSwitchState == AutoSwitchState.HANDING_BACK_TO_LIVEKIT -> stringResource(R.string.mesh_banner_handing_back)
         else -> stringResource(R.string.mesh_title)
     }
 

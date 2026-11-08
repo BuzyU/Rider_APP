@@ -358,4 +358,6 @@
     <string name="mesh_tactical_summary">%1$d साथी · कमाल %2$d हॉप</string>
     <string name="mesh_clock_skew_warning">फोन घड्याळ %1$s पेक्षा %2$d से. वेगळे आहे</string>
     <string name="mesh_backup_not_persisted_warning">बॅकअप कोड या डिव्हाइसवर सेव्ह केलेला नाही; ॲप बंद झाल्यास तो नष्ट होईल</string>
+    <string name="mesh_selftest_bad_version_hint">जवळच्या रायडर्सकडून विसंगत प्रोटोकॉल आवृत्ती आढळली. कृपया ॲप अपडेट करा.</string>
+    <string name="mesh_banner_audio_failed">ऑफलाइन मेश ऑडिओ अयशस्वी झाला</string>
 </resources>

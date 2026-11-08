@@ -237,7 +237,7 @@ class ProtocolHardeningTest {
     @Test
     fun debugFilter_noopWhenNotDebug() {
         val receiver = MeshDebugReceiver(isDebug = false)
-        MeshDebugReceiver.debugPeerFilter = null
+        com.ridervoice.mesh.forwarding.PeerFilterHolder.port = null
         val mockContext = mockk<Context>(relaxed = true)
 
         val intent = mockk<Intent>()
@@ -246,6 +246,6 @@ class ProtocolHardeningTest {
         every { intent.getStringExtra(MeshDebugReceiver.EXTRA_ALLOWED_PEERS) } returns null
 
         receiver.onReceive(mockContext, intent)
-        assertNull("debugPeerFilter must not be modified when isDebug is false", MeshDebugReceiver.debugPeerFilter)
+        assertNull("PeerFilterHolder.port must not be modified when isDebug is false", com.ridervoice.mesh.forwarding.PeerFilterHolder.port)
     }
 }

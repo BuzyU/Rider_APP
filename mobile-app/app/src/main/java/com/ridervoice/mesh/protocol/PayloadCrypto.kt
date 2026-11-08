@@ -30,13 +30,7 @@ object PayloadCrypto {
         return hmac(salt = prk, data = srcBytes + byteArrayOf(1)).copyOf(32) // HKDF-Expand, one block
     }
 
-    /**
-     * Backward-compatible alias for sourceKey derivation.
-     */
-    fun deriveSourceKey(sessionPayloadKey: ByteArray, sourceId: String, len: Int = 32): ByteArray =
-        sourceKey(sessionPayloadKey, sourceId).copyOf(len)
-
-    fun nonce(epoch: Int, sequence: Int, typeCode: Int, sourceId: String? = null): ByteArray =
+    fun nonce(epoch: Int, sequence: Int, typeCode: Int): ByteArray =
         ByteBuffer.allocate(NONCE_LEN).order(ByteOrder.BIG_ENDIAN)
             .putInt(epoch)
             .putInt(sequence)

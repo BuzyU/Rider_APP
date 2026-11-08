@@ -211,6 +211,7 @@ object MeshModule {
         hardwarePttPort = hardwarePttPort,
         wifiWatcher = wifiWatcher,
         diagnosticsRepo = diagnosticsRepo,
+        peerFilterPort = com.ridervoice.mesh.forwarding.PeerFilterHolder.delegating,
         linkFactory = {
             UdpMeshLink(
                 bindPort = MeshConfig.MESH_PORT,

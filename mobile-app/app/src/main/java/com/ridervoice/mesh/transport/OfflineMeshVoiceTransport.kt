@@ -135,33 +135,35 @@ class OfflineMeshVoiceTransport(
 
     override val micController: MicController = MicControllerImpl(
         audioEnabled = { audioPlayback != null },
-        applyCapture = { wantCapture ->
-            startMutex.withLock {
-                if (wantCapture != micWanted) return@withLock
-                micWanted = wantCapture
-                val cap = audioCapture
-                if (cap != null) {
-                    cap.setMicEnabled(wantCapture)
-                    if (wantCapture) {
-                        if (!paused && _state.value == VoiceTransportState.CONNECTED &&
-                            audioOwnershipArbiter.owner.value != AudioOwner.OFFLINE_MESH &&
-                            audioOwnershipArbiter.owner.value != AudioOwner.LIVEKIT
-                        ) {
-                            audioOwnershipArbiter.tryClaimOfflineMesh()
-                        }
-                        val res = cap.start()
-                        _micState.value = res.toMicState()
-                    } else {
-                        cap.stop()
-                        _micState.value = if (paused) MicState.MUTED else MicState.OFF
-                    }
-                } else {
-                    _micState.value = if (wantCapture) (if (hasMicPermission()) MicState.STARTING else MicState.PERMISSION_DENIED) else MicState.OFF
-                }
-            }
-        },
+        applyCapture = { want -> startMutex.withLock { applyCaptureLocked(want) } },
         scope = scope
     )
+
+    private suspend fun applyCaptureLocked(want: Boolean) {
+        micWanted = want
+        val cap = audioCapture
+        if (cap == null) {
+            _micState.value = if (want) (if (hasMicPermission()) MicState.STARTING else MicState.PERMISSION_DENIED) else MicState.OFF
+            return
+        }
+        if (paused) {
+            _micState.value = MicState.MUTED
+            return
+        }
+        cap.setMicEnabled(want)
+        if (want) {
+            if (_state.value == VoiceTransportState.CONNECTED &&
+                audioOwnershipArbiter.owner.value !in setOf(AudioOwner.OFFLINE_MESH, AudioOwner.LIVEKIT)
+            ) {
+                audioOwnershipArbiter.tryClaimOfflineMesh()
+            }
+            val res = cap.start()
+            _micState.value = res.toMicState()
+        } else {
+            cap.stop()
+            _micState.value = MicState.OFF
+        }
+    }
 
     val voxBridge: MeshVoxBridge = MeshVoxBridge(this, hardwarePttPort = hardwarePttPort, dispatcher = dispatcher)
 
@@ -743,29 +745,11 @@ class OfflineMeshVoiceTransport(
     }
 
     override suspend fun setMicrophoneEnabled(enabled: Boolean) = startMutex.withLock {
-        micWanted = enabled
         micController.setMicToggled(enabled)
-        if (paused) return@withLock
-        val cap = audioCapture
-        if (cap != null) {
-            val want = MicRules.captureWanted(MicInputs(true, enabled, micController.pttHeld.value, micController.voxEnabled.value, micController.voxArmed.value))
-            cap.setMicEnabled(want)
-            if (want) {
-                if (_state.value == VoiceTransportState.CONNECTED &&
-                    audioOwnershipArbiter.owner.value != AudioOwner.OFFLINE_MESH &&
-                    audioOwnershipArbiter.owner.value != AudioOwner.LIVEKIT
-                ) {
-                    audioOwnershipArbiter.tryClaimOfflineMesh()
-                }
-                val res = cap.start()
-                _micState.value = res.toMicState()
-            } else {
-                cap.stop()
-                _micState.value = if (paused) MicState.MUTED else MicState.OFF
-            }
-        } else {
-            _micState.value = if (enabled) (if (hasMicPermission()) MicState.STARTING else MicState.PERMISSION_DENIED) else MicState.OFF
-        }
+        val want = MicRules.captureWanted(
+            MicInputs(audioPlayback != null, enabled, micController.pttHeld.value, micController.voxEnabled.value, micController.voxArmed.value)
+        )
+        applyCaptureLocked(want)
     }
 
     override suspend fun setDeafened(deafened: Boolean) {

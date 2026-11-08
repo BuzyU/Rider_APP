@@ -6,17 +6,22 @@ import kotlinx.coroutines.flow.StateFlow
 
 sealed interface EnableAudioResult {
     object Success : EnableAudioResult
-    sealed interface Failure : EnableAudioResult {
-        val reason: String
+    data class Failure(val code: Code, val detail: String? = null) : EnableAudioResult {
+        enum class Code {
+            HARDWARE_BUSY,
+            GATE_CLOSED,
+            OWNERSHIP_DENIED,
+            NOT_CONNECTED,
+            NOT_INITIALIZED,
+            PLAYBACK_START_FAILED,
+            UNEXPECTED
+        }
         companion object {
-            operator fun invoke(reason: String): Failure = GenericFailure(reason)
-            val HardwareBusy: Failure = GenericFailure("HARDWARE_BUSY")
-            val GateClosed: Failure = GenericFailure("GATE_CLOSED")
-            val OwnershipDenied: Failure = GenericFailure("OWNERSHIP_DENIED")
+            val HardwareBusy = Failure(Code.HARDWARE_BUSY)
+            val GateClosed = Failure(Code.GATE_CLOSED)
+            val OwnershipDenied = Failure(Code.OWNERSHIP_DENIED)
         }
     }
-    data class GenericFailure(override val reason: String) : Failure
-    data class AudioRecordFailed(override val reason: String) : Failure
 }
 
 /**

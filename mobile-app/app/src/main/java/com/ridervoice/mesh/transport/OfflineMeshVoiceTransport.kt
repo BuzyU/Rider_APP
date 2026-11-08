@@ -473,11 +473,20 @@ class OfflineMeshVoiceTransport(
     }
 
     override suspend fun enableAudio(): EnableAudioResult = startMutex.withLock {
+        try {
+            enableAudioLocked()
+        } catch (e: Exception) {
+            failEnable(EnableAudioResult.Failure(EnableAudioResult.Failure.Code.UNEXPECTED, e.javaClass.simpleName))
+            throw e
+        }
+    }
+
+    private suspend fun enableAudioLocked(): EnableAudioResult {
         if (_state.value != VoiceTransportState.CONNECTED) {
-            return@withLock failEnable(EnableAudioResult.Failure("Mesh transport must be in discovery/CONNECTED state before enabling audio"))
+            return failEnable(EnableAudioResult.Failure(EnableAudioResult.Failure.Code.NOT_CONNECTED, "Mesh transport must be in discovery/CONNECTED state before enabling audio"))
         }
         if (audioPlayback != null && audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH) {
-            return@withLock EnableAudioResult.Success // Already enabled
+            return EnableAudioResult.Success // Already enabled
         }
 
         val roomAlreadyOwnedPttSession = (hardwarePttPort?.isSessionActive == true) ||
@@ -485,11 +494,11 @@ class OfflineMeshVoiceTransport(
             (audioOwnershipArbiter.owner.value == AudioOwner.LIVEKIT)
 
         if (!audioOwnershipArbiter.tryClaimOfflineMesh()) {
-            return@withLock failEnable(EnableAudioResult.Failure.OwnershipDenied)
+            return failEnable(EnableAudioResult.Failure.OwnershipDenied)
         }
 
-        val jManager = jitterManager ?: return@withLock failEnable(EnableAudioResult.Failure("JitterManager not initialized"))
-        val fEngine = forwardingEngine ?: return@withLock failEnable(EnableAudioResult.Failure("ForwardingEngine not initialized"))
+        val jManager = jitterManager ?: return failEnable(EnableAudioResult.Failure(EnableAudioResult.Failure.Code.NOT_INITIALIZED, "JitterManager not initialized"))
+        val fEngine = forwardingEngine ?: return failEnable(EnableAudioResult.Failure(EnableAudioResult.Failure.Code.NOT_INITIALIZED, "ForwardingEngine not initialized"))
 
         val aPlayback = OfflineAudioPlayback(
             jitterManager = jManager,
@@ -510,7 +519,7 @@ class OfflineMeshVoiceTransport(
             false
         }
         if (!playbackStarted && (audioTrackFactory != null || hasHardwareAudioTrack)) {
-            return@withLock failEnable(EnableAudioResult.Failure.HardwareBusy)
+            return failEnable(EnableAudioResult.Failure(EnableAudioResult.Failure.Code.PLAYBACK_START_FAILED))
         }
 
         playbackSpeakersJob?.cancel()
@@ -562,32 +571,14 @@ class OfflineMeshVoiceTransport(
         audioCapture = aCapture
         aCapture.setMicEnabled(micWanted)
 
-        // Validate audioRecordFactory if provided so hardware or allocation errors throw during initialization
-        audioRecordFactory?.let { factory ->
-            val probe = factory.invoke()
-            probe?.release()
-        }
-
         val wantCapture = micWanted || micController.micToggleOn.value || micController.pttHeld.value || micController.voxEnabled.value
         if (wantCapture) {
             _micState.value = MicState.STARTING
             val res = aCapture.start()
             _micState.value = res.toMicState()
-            if (res == CaptureStart.HardwareFailed) {
-                return@withLock failEnable(EnableAudioResult.Failure.HardwareBusy)
-            }
-            if (res == CaptureStart.GateClosed) {
-                return@withLock failEnable(EnableAudioResult.Failure.GateClosed)
-            }
-            if (res == CaptureStart.NoPermission) {
-                return@withLock failEnable(EnableAudioResult.Failure("NO_PERMISSION"))
-            }
-            if (res == CaptureStart.NotOwner) {
-                return@withLock failEnable(EnableAudioResult.Failure.OwnershipDenied)
-            }
         }
         voxBridge.attach(roomAlreadyOwnedPttSession)
-        EnableAudioResult.Success
+        return EnableAudioResult.Success
     }
 
     override suspend fun disableAudio() = startMutex.withLock {
@@ -646,11 +637,16 @@ class OfflineMeshVoiceTransport(
         _audioFailure.value = null
         startDiscoveryOnly(offlineSession)
         if (_state.value == VoiceTransportState.CONNECTED) {
-            val audioRes = runCatchingCancellable { enableAudio() }.getOrElse { err ->
-                EnableAudioResult.AudioRecordFailed(err.message ?: err.javaClass.simpleName)
+            val audioRes = try {
+                runCatchingCancellable { enableAudio() }.getOrElse { err ->
+                    EnableAudioResult.Failure(EnableAudioResult.Failure.Code.UNEXPECTED, err.javaClass.simpleName)
+                }
+            } catch (ce: CancellationException) {
+                stop()
+                throw ce
             }
             if (audioRes is EnableAudioResult.Failure) {
-                com.ridervoice.mesh.MeshLog.w("MeshTransport", "enableAudio failed during start: ${audioRes.javaClass.simpleName} - stopping transport")
+                com.ridervoice.mesh.MeshLog.w("MeshTransport", "enableAudio failed during start: ${audioRes.code} - stopping transport")
                 stop()
                 _audioFailure.value = audioRes
                 _state.value = VoiceTransportState.FAILED

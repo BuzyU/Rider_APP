@@ -4,6 +4,7 @@ import com.ridervoice.mesh.FeatureFlags
 import com.ridervoice.mesh.MeshRuntimeSettings
 import com.ridervoice.mesh.MeshSettingsSnapshot
 import com.ridervoice.mesh.OfflineMeshGate
+import com.ridervoice.mesh.audio.AudioTrackSink
 import com.ridervoice.mesh.identity.MeshIdentity
 import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
@@ -17,6 +18,7 @@ import com.ridervoice.mesh.transport.EnableAudioResult
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceSession
 import com.ridervoice.mesh.transport.VoiceTransportState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -27,7 +29,10 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import java.util.UUID
@@ -39,6 +44,14 @@ class StartAudioFailureTeardownTest {
         var releaseCount = 0
         override fun acquire() { acquireCount++ }
         override fun release() { releaseCount++ }
+    }
+
+    private class FakeAudioTrackSink : AudioTrackSink {
+        override val state: Int = android.media.AudioTrack.STATE_INITIALIZED
+        override fun play() {}
+        override fun write(audioData: ByteArray, offsetInBytes: Int, sizeInBytes: Int): Int = sizeInBytes
+        override fun stop() {}
+        override fun release() {}
     }
 
     private class FakeMeshLink : MeshLink {
@@ -83,7 +96,7 @@ class StartAudioFailureTeardownTest {
     }
 
     @Test
-    fun startWithFailingAudioRecordFactory_rollsBackStateAndTeardownAllResources() = runBlocking {
+    fun startWithFailingAudioTrackFactory_rollsBackStateAndTeardownAllResources() = runBlocking {
         val arbiter = AudioOwnershipArbiter()
         val locks = CountingNetworkLocks()
         val link = FakeMeshLink()
@@ -95,9 +108,7 @@ class StartAudioFailureTeardownTest {
             gateAllowed = { true },
             linkFactory = { link },
             locks = locks,
-            audioRecordFactory = {
-                throw RuntimeException("audio hardware error")
-            }
+            audioTrackFactory = { null }
         )
 
         val session = OfflineSession.create(now = 1_000L)
@@ -106,12 +117,10 @@ class StartAudioFailureTeardownTest {
         // Assert 1: State is FAILED
         assertEquals(VoiceTransportState.FAILED, transport.state.value)
 
-        // Assert 2: audioFailure is EnableAudioResult.AudioRecordFailed
+        // Assert 2: audioFailure is PLAYBACK_START_FAILED
         val failure = transport.audioFailure.value
-        assertTrue(
-            "audioFailure should be EnableAudioResult.AudioRecordFailed, was $failure",
-            failure is EnableAudioResult.AudioRecordFailed
-        )
+        assertNotNull("audioFailure should not be null", failure)
+        assertEquals(EnableAudioResult.Failure.Code.PLAYBACK_START_FAILED, failure?.code)
 
         // Assert 3: link stopped
         assertEquals(MeshLinkState.STOPPED, link.state.value)
@@ -130,5 +139,175 @@ class StartAudioFailureTeardownTest {
         assertEquals(VoiceTransportState.STOPPED, transport.state.value)
         transport.close()
     }
-}
 
+    @Test
+    fun enableAudioReturnsOwnershipDenied_tearsDown() = runBlocking {
+        val arbiter = AudioOwnershipArbiter()
+        arbiter.claimLiveKit() // Claim by LiveKit so mesh ownership claim is denied
+
+        val locks = CountingNetworkLocks()
+        val link = FakeMeshLink()
+        val identity = MeshIdentity(UUID.randomUUID().toString(), "tester-denied")
+
+        val transport = OfflineMeshVoiceTransport(
+            identityProvider = { identity },
+            audioOwnershipArbiter = arbiter,
+            gateAllowed = { true },
+            linkFactory = { link },
+            locks = locks,
+            audioTrackFactory = { FakeAudioTrackSink() }
+        )
+
+        val session = OfflineSession.create(now = 1_000L)
+        transport.start(VoiceSession.Offline(session))
+
+        // Assert 1: State is FAILED
+        assertEquals(VoiceTransportState.FAILED, transport.state.value)
+
+        // Assert 2: audioFailure code is OWNERSHIP_DENIED
+        val failure = transport.audioFailure.value
+        assertNotNull("audioFailure should not be null", failure)
+        assertEquals(EnableAudioResult.Failure.Code.OWNERSHIP_DENIED, failure?.code)
+
+        // Assert 3: link stopped
+        assertEquals(MeshLinkState.STOPPED, link.state.value)
+
+        // Assert 4: arbiter owner not offline mesh
+        assertNotEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+
+        // Assert 5: locks released
+        assertEquals("Locks acquire and release must be balanced", locks.acquireCount, locks.releaseCount)
+
+        // Assert 6: participants is empty
+        assertTrue("Participants list should be empty", transport.participants.value.isEmpty())
+
+        // Assert 7: idempotent stop
+        transport.stop()
+        assertEquals(VoiceTransportState.STOPPED, transport.state.value)
+        transport.close()
+    }
+
+    @Test
+    fun enableAudioThrows_isCaught_codeUnexpected() = runBlocking {
+        val arbiter = AudioOwnershipArbiter()
+        val locks = CountingNetworkLocks()
+        val link = FakeMeshLink()
+        val identity = MeshIdentity(UUID.randomUUID().toString(), "tester-throws")
+
+        val transport = OfflineMeshVoiceTransport(
+            identityProvider = { identity },
+            audioOwnershipArbiter = arbiter,
+            gateAllowed = { true },
+            linkFactory = { link },
+            locks = locks,
+            audioTrackFactory = {
+                throw IllegalStateException("audio track crashed during init")
+            }
+        )
+
+        val session = OfflineSession.create(now = 1_000L)
+        transport.start(VoiceSession.Offline(session))
+
+        // Assert 1: State is FAILED
+        assertEquals(VoiceTransportState.FAILED, transport.state.value)
+
+        // Assert 2: audioFailure is UNEXPECTED with class name
+        val failure = transport.audioFailure.value
+        assertNotNull("audioFailure should not be null", failure)
+        assertEquals(EnableAudioResult.Failure.Code.UNEXPECTED, failure?.code)
+        assertEquals("IllegalStateException", failure?.detail)
+
+        // Assert 3: link stopped
+        assertEquals(MeshLinkState.STOPPED, link.state.value)
+
+        // Assert 4: arbiter owner released
+        assertNotEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+
+        // Assert 5: locks released
+        assertEquals("Locks acquire and release must be balanced", locks.acquireCount, locks.releaseCount)
+
+        // Assert 6: participants empty
+        assertTrue("Participants list should be empty", transport.participants.value.isEmpty())
+
+        transport.close()
+    }
+
+    @Test
+    fun cancellationDuringEnableAudio_isRethrown_andResourcesReleased() = runBlocking {
+        val arbiter = AudioOwnershipArbiter()
+        val locks = CountingNetworkLocks()
+        val link = FakeMeshLink()
+        val identity = MeshIdentity(UUID.randomUUID().toString(), "tester-cancel")
+
+        val transport = OfflineMeshVoiceTransport(
+            identityProvider = { identity },
+            audioOwnershipArbiter = arbiter,
+            gateAllowed = { true },
+            linkFactory = { link },
+            locks = locks,
+            audioTrackFactory = {
+                throw CancellationException("cancelled during audio setup")
+            }
+        )
+
+        val session = OfflineSession.create(now = 1_000L)
+        try {
+            transport.start(VoiceSession.Offline(session))
+            fail("CancellationException must be rethrown")
+        } catch (e: CancellationException) {
+            assertEquals("cancelled during audio setup", e.message)
+        }
+
+        // Arbiter owner must be released
+        assertNotEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+        assertEquals("Locks must be balanced", locks.acquireCount, locks.releaseCount)
+        transport.close()
+    }
+
+    @Test
+    fun secondStartAfterFailureSucceeds() = runBlocking {
+        val arbiter = AudioOwnershipArbiter()
+        val locks = CountingNetworkLocks()
+        val link = FakeMeshLink()
+        val identity = MeshIdentity(UUID.randomUUID().toString(), "tester-retry")
+
+        var shouldFail = true
+        val transport = OfflineMeshVoiceTransport(
+            identityProvider = { identity },
+            audioOwnershipArbiter = arbiter,
+            gateAllowed = { true },
+            linkFactory = { link },
+            locks = locks,
+            audioTrackFactory = {
+                if (shouldFail) null else FakeAudioTrackSink()
+            }
+        )
+
+        val session = OfflineSession.create(now = 1_000L)
+
+        // First start fails
+        transport.start(VoiceSession.Offline(session))
+        assertEquals(VoiceTransportState.FAILED, transport.state.value)
+        assertNotNull(transport.audioFailure.value)
+        assertNotEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+        assertEquals(locks.acquireCount, locks.releaseCount)
+
+        // Enable recovery
+        shouldFail = false
+
+        // Second start succeeds
+        transport.start(VoiceSession.Offline(session))
+        assertEquals(VoiceTransportState.CONNECTED, transport.state.value)
+        assertNull("audioFailure must be cleared on successful start", transport.audioFailure.value)
+        assertEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+        assertEquals(MeshLinkState.RUNNING, link.state.value)
+
+        // Stop cleanly
+        transport.stop()
+        assertEquals(VoiceTransportState.STOPPED, transport.state.value)
+        assertNotEquals(AudioOwner.OFFLINE_MESH, arbiter.owner.value)
+        assertEquals(locks.acquireCount, locks.releaseCount)
+
+        transport.close()
+    }
+}

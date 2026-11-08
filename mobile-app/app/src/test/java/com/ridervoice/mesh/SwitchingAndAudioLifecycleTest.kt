@@ -350,32 +350,23 @@ class SwitchingAndAudioLifecycleTest {
     fun enableAudioFailure_rollsBackPlaybackAndLocks() = runTest {
         val arbiter = AudioOwnershipArbiter()
         val identity = MeshIdentity(UUID.randomUUID().toString(), "test-rider")
-        val uninitSource = object : AudioRecordSource {
-            override val state: Int = AudioRecord.STATE_UNINITIALIZED
-            override val audioSessionId: Int = 42
-            override fun startRecording() {}
-            override fun stop() {}
-            override fun release() {}
-            override fun read(audioData: ByteArray, offsetInBytes: Int, sizeInBytes: Int): Int = -1
-        }
         val transport = OfflineMeshVoiceTransport(
             identityProvider = { identity },
             audioOwnershipArbiter = arbiter,
             gateAllowed = { true },
             linkFactory = { FakeMeshLink() },
-            audioRecordFactory = { uninitSource },
+            audioTrackFactory = { null },
             hasMicPermission = { true }
         )
         transport.startDiscoveryOnly(OfflineSession.create(1_000L))
         transport.setMicrophoneEnabled(true)
 
         val firstRes = transport.enableAudio()
-        assertTrue("Initial enableAudio with uninitialized record must fail", firstRes is EnableAudioResult.Failure)
+        assertTrue("Initial enableAudio with playback failure must fail", firstRes is EnableAudioResult.Failure)
 
-        // On 7919cf8: partial failure left playback running and ownership claimed.
-        // A retry hit `if (audioPlayback != null) return Success`!
+        // Partial failure must roll back playback and ownership
         val retryRes = transport.enableAudio()
-        assertFalse("Retry must not report Success when capture is uninitialized", retryRes is EnableAudioResult.Success)
+        assertFalse("Retry must not report Success when audio is uninitialized", retryRes is EnableAudioResult.Success)
         transport.stop()
     }
 

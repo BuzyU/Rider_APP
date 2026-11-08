@@ -166,7 +166,7 @@ class VoiceSessionCoordinator(
             liveKitTransport.pause()
             if (!verifyLiveKitQuiet(2_000L)) return@withLock false
             if (!audioOwnershipArbiter.handoffLiveKitToOfflineMesh { }) return@withLock false
-            val ok = runCatchingCancellable { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(it.javaClass.simpleName) } is EnableAudioResult.Success &&
+            val ok = runCatchingCancellable { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(EnableAudioResult.Failure.Code.UNEXPECTED, it.javaClass.simpleName) } is EnableAudioResult.Success &&
                 meshTransport.micState.value != MicState.HARDWARE_BUSY
             if (!ok) return@withLock false
             _activeKind.value = PeerTransportKind.OFFLINE_MESH

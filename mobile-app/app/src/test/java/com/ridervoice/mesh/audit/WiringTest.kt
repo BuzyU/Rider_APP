@@ -343,7 +343,7 @@ class WiringTest {
         }
         val arbiter = AudioOwnershipArbiter()
         val transport = com.ridervoice.mesh.transport.LiveKitVoiceTransport(
-            fakePort, arbiter, dispatcher = StandardTestDispatcher(testScheduler)
+            fakePort, arbiter, gateAllowed = { true }, dispatcher = StandardTestDispatcher(testScheduler)
         )
 
         assertEquals(com.ridervoice.mesh.transport.AudioOwner.NONE, arbiter.owner.value)

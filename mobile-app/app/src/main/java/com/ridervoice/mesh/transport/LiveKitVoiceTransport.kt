@@ -68,7 +68,7 @@ class LiveKitVoiceTransport(
     private val liveKitPort: LiveKitPort,
     val audioOwnershipArbiter: AudioOwnershipArbiter,
     private val onAudioRouteChanged: (AudioRoute) -> Unit = {},
-    private val gateAllowed: () -> Boolean = { OfflineMeshGate.isBuildGateOpen() },
+    private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
     private val settingsFlow: StateFlow<MeshSettingsSnapshot>? = null,
     dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
 ) : VoiceTransport {
@@ -80,7 +80,7 @@ class LiveKitVoiceTransport(
         voxRestarter: () -> Unit = {},
         voxRunningCheck: (() -> Boolean)? = null,
         onAudioRouteChanged: (AudioRoute) -> Unit = {},
-        gateAllowed: () -> Boolean = { OfflineMeshGate.isBuildGateOpen() },
+        gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
         settingsFlow: StateFlow<MeshSettingsSnapshot>? = OfflineMeshGate.settingsFlow,
         dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.Default
     ) : this(

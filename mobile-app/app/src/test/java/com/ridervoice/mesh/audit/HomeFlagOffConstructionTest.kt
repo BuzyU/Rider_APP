@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
@@ -82,6 +83,55 @@ class HomeFlagOffConstructionTest {
         // uiState should also evaluate safely with default values
         val state = viewModel.uiState.value
         assertFalse(state.buildGateOpen)
+        assertFalse(state.offlineMeshEnabled)
+        assertFalse(state.backupSessionPresent)
+    }
+
+    @Test
+    fun home_whenBuildGateOpen_butToggleOff_constructingMeshSettingsViewModel_incrementsZeroCounters() {
+        FeatureFlags.localOverride = true
+        OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
+        assertTrue(OfflineMeshGate.isBuildGateOpen())
+        assertFalse(OfflineMeshGate.isOfflineAllowed())
+
+        val transportCounter = AtomicInteger(0)
+        val holderCounter = AtomicInteger(0)
+        val identityCounter = AtomicInteger(0)
+        val keystoreCounter = AtomicInteger(0)
+        val networkCallbackCounter = AtomicInteger(0)
+
+        val coordinatorLazy = Lazy<VoiceSessionCoordinator> {
+            transportCounter.incrementAndGet()
+            throw AssertionError("VoiceSessionCoordinator must not be constructed when toggle is off")
+        }
+
+        val holderLazy = Lazy<OfflineSessionHolder> {
+            holderCounter.incrementAndGet()
+            keystoreCounter.incrementAndGet()
+            throw AssertionError("OfflineSessionHolder must not be constructed when toggle is off")
+        }
+
+        val wifiCapability = object : WifiCapabilityChecker {
+            override fun isWifiHardwareAvailable(): Boolean = true
+        }
+
+        // Construct MeshSettingsViewModel as Hilt/Home would inject it with build gate open but toggle off
+        val viewModel = MeshSettingsViewModel(
+            settings = MeshRuntimeSettings.AllOff,
+            coordinator = coordinatorLazy,
+            wifiCapability = wifiCapability,
+            sessionHolder = holderLazy
+        )
+
+        assertEquals("Zero transport touches", 0, transportCounter.get())
+        assertEquals("Zero session holder touches", 0, holderCounter.get())
+        assertEquals("Zero identity touches", 0, identityCounter.get())
+        assertEquals("Zero keystore touches", 0, keystoreCounter.get())
+        assertEquals("Zero network callbacks", 0, networkCallbackCounter.get())
+
+        // uiState should also evaluate safely with default values
+        val state = viewModel.uiState.value
+        assertTrue(state.buildGateOpen)
         assertFalse(state.offlineMeshEnabled)
         assertFalse(state.backupSessionPresent)
     }

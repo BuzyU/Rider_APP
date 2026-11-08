@@ -263,7 +263,8 @@ object MeshModule {
         meshTransport = meshTransport,
         healthSignalsProvider = healthSignalsProvider,
         secretProvider = secretProvider,
-        isStandaloneSessionActive = { sessionHolder.current.value != null }
+        isStandaloneSessionActive = { sessionHolder.current.value != null },
+        sessionHolder = sessionHolder
     )
 
     @Provides

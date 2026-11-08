@@ -8,10 +8,13 @@ import com.ridervoice.mesh.session.OfflineSessionHolder
 import com.ridervoice.mesh.switching.OfflineAvailability
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -26,15 +29,14 @@ data class MeshSettingsUiState(
     val hasWifiHardware: Boolean = true
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MeshSettingsViewModel(
     private val settings: MeshRuntimeSettings,
-    private val availabilityFlow: StateFlow<OfflineAvailability>,
+    private val coordinator: dagger.Lazy<VoiceSessionCoordinator>,
     private val wifiCapability: WifiCapabilityChecker,
-    private val backupFlow: StateFlow<com.ridervoice.mesh.session.OfflineSession?> = MutableStateFlow(null),
-    private val getBackup: () -> com.ridervoice.mesh.session.OfflineSession? = { null },
-    private val isBackupPersisted: () -> Boolean = { true },
-    private val clearAll: () -> Unit = {}
+    private val sessionHolder: dagger.Lazy<OfflineSessionHolder>,
+    private val overrideAvailabilityFlow: StateFlow<OfflineAvailability>? = null
 ) : ViewModel() {
 
     @Inject
@@ -45,26 +47,10 @@ class MeshSettingsViewModel(
         sessionHolder: dagger.Lazy<OfflineSessionHolder>
     ) : this(
         settings = settings,
-        availabilityFlow = if (OfflineMeshGate.isBuildGateOpen()) {
-            coordinator.get().offlineAvailability
-        } else {
-            MutableStateFlow(OfflineAvailability.DISABLED)
-        },
+        coordinator = coordinator,
         wifiCapability = wifiCapability,
-        backupFlow = if (OfflineMeshGate.isBuildGateOpen()) {
-            sessionHolder.get().backup
-        } else {
-            MutableStateFlow(null)
-        },
-        getBackup = {
-            if (OfflineMeshGate.isBuildGateOpen()) sessionHolder.get().getBackup() else null
-        },
-        isBackupPersisted = {
-            if (OfflineMeshGate.isBuildGateOpen()) sessionHolder.get().isBackupPersisted else true
-        },
-        clearAll = {
-            if (OfflineMeshGate.isBuildGateOpen()) sessionHolder.get().clearAll()
-        }
+        sessionHolder = sessionHolder,
+        overrideAvailabilityFlow = null
     )
 
     constructor(
@@ -74,12 +60,21 @@ class MeshSettingsViewModel(
         sessionHolder: OfflineSessionHolder
     ) : this(
         settings = settings,
+        coordinator = dagger.Lazy { error("Coordinator not available") },
+        wifiCapability = wifiCapability,
+        sessionHolder = dagger.Lazy { sessionHolder },
+        overrideAvailabilityFlow = availabilityFlow
+    )
+
+    constructor(
+        settings: MeshRuntimeSettings,
+        availabilityFlow: StateFlow<OfflineAvailability>,
+        wifiCapability: WifiCapabilityChecker
+    ) : this(
+        settings = settings,
         availabilityFlow = availabilityFlow,
         wifiCapability = wifiCapability,
-        backupFlow = sessionHolder.backup,
-        getBackup = { sessionHolder.getBackup() },
-        isBackupPersisted = { sessionHolder.isBackupPersisted },
-        clearAll = { sessionHolder.clearAll() }
+        sessionHolder = OfflineSessionHolder()
     )
 
     constructor(
@@ -88,14 +83,41 @@ class MeshSettingsViewModel(
     ) : this(
         settings,
         availabilityFlow,
-        object : WifiCapabilityChecker { override fun isWifiHardwareAvailable(): Boolean = true }
+        object : WifiCapabilityChecker { override fun isWifiHardwareAvailable(): Boolean = true },
+        OfflineSessionHolder()
     )
 
     constructor(settings: MeshRuntimeSettings) : this(
         settings,
-        MutableStateFlow(OfflineAvailability.DISABLED),
-        object : WifiCapabilityChecker { override fun isWifiHardwareAvailable(): Boolean = true }
+        MutableStateFlow(OfflineAvailability.DISABLED)
     )
+
+    val availabilityFlow: StateFlow<OfflineAvailability> = overrideAvailabilityFlow
+        ?: settings.settingsFlow.flatMapLatest { snapshot ->
+            if (OfflineMeshGate.isBuildGateOpen() && snapshot.offlineMeshEnabled) {
+                coordinator.get().offlineAvailability
+            } else {
+                flowOf(OfflineAvailability.DISABLED)
+            }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, OfflineAvailability.DISABLED)
+
+    val backupFlow: StateFlow<com.ridervoice.mesh.session.OfflineSession?> = settings.settingsFlow.flatMapLatest { snapshot ->
+        if (OfflineMeshGate.isBuildGateOpen() && snapshot.offlineMeshEnabled) {
+            sessionHolder.get().backup
+        } else {
+            flowOf(null)
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private fun getBackup(): com.ridervoice.mesh.session.OfflineSession? {
+        if (!OfflineMeshGate.isBuildGateOpen() || !settings.offlineMeshEnabled) return null
+        return sessionHolder.get().getBackup()
+    }
+
+    private fun isBackupPersisted(): Boolean {
+        if (!OfflineMeshGate.isBuildGateOpen() || !settings.offlineMeshEnabled) return true
+        return sessionHolder.get().isBackupPersisted
+    }
 
     val uiState: StateFlow<MeshSettingsUiState> = combine(
         settings.settingsFlow,
@@ -119,24 +141,16 @@ class MeshSettingsViewModel(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
-        initialValue = run {
-            val now = System.currentTimeMillis()
-            val s = settings.settingsFlow.value
-            val backup = getBackup()
-            val hasWifi = wifiCapability.isWifiHardwareAvailable()
-            val backupValid = backup != null && !backup.isExpired(now)
-            val persisted = if (backupValid) isBackupPersisted() else true
-            MeshSettingsUiState(
-                buildGateOpen = OfflineMeshGate.isBuildGateOpen(),
-                offlineMeshEnabled = s.offlineMeshEnabled,
-                autoFallback = s.automaticFallbackEnabled && hasWifi,
-                warmStandby = s.warmStandbyEnabled,
-                offlineAvailability = availabilityFlow.value,
-                backupSessionPresent = backupValid,
-                backupPersisted = persisted,
-                hasWifiHardware = hasWifi
-            )
-        }
+        initialValue = MeshSettingsUiState(
+            buildGateOpen = OfflineMeshGate.isBuildGateOpen(),
+            offlineMeshEnabled = settings.offlineMeshEnabled,
+            autoFallback = settings.automaticFallbackEnabled && wifiCapability.isWifiHardwareAvailable(),
+            warmStandby = settings.warmStandbyEnabled,
+            offlineAvailability = overrideAvailabilityFlow?.value ?: OfflineAvailability.DISABLED,
+            backupSessionPresent = false,
+            backupPersisted = true,
+            hasWifiHardware = wifiCapability.isWifiHardwareAvailable()
+        )
     )
 
     fun setOfflineMeshEnabled(enabled: Boolean) {
@@ -156,6 +170,7 @@ class MeshSettingsViewModel(
     }
 
     fun clearAllOnSignOut() {
-        clearAll()
+        if (!OfflineMeshGate.isBuildGateOpen() || !settings.offlineMeshEnabled) return
+        sessionHolder.get().clearAll()
     }
 }

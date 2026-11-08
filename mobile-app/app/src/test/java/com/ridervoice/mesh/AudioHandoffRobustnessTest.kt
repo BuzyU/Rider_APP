@@ -170,7 +170,7 @@ class AudioHandoffRobustnessTest {
         lkPort.canStopVox = false
 
         val arbiter = AudioOwnershipArbiter()
-        val liveKit = LiveKitVoiceTransport(lkPort, arbiter)
+        val liveKit = LiveKitVoiceTransport(lkPort, arbiter, gateAllowed = { true })
         val mesh = FakeMeshTransport()
         mesh._hasValidRoute.value = true
 
@@ -206,7 +206,7 @@ class AudioHandoffRobustnessTest {
         lkPort.isVoxRunningState = false
 
         val arbiter = AudioOwnershipArbiter()
-        val liveKit = LiveKitVoiceTransport(lkPort, arbiter)
+        val liveKit = LiveKitVoiceTransport(lkPort, arbiter, gateAllowed = { true })
         val mesh = FakeMeshTransport()
         mesh._hasValidRoute.value = true
         // Mesh fails on enableAudio()
@@ -358,7 +358,7 @@ class AudioHandoffRobustnessTest {
         lkPort.isVoxRunningState = false
 
         val arbiter = AudioOwnershipArbiter()
-        val liveKit = LiveKitVoiceTransport(lkPort, arbiter)
+        val liveKit = LiveKitVoiceTransport(lkPort, arbiter, gateAllowed = { true })
         val mesh = FakeMeshTransport()
         mesh._hasValidRoute.value = true
 

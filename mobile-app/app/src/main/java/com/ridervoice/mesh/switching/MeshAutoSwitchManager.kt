@@ -38,7 +38,8 @@ class MeshAutoSwitchManager(
     private val secretProvider: OfflineSecretProvider = NullOfflineSecretProvider(),
     private val clock: Clock = SystemClock,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
-    private val isStandaloneSessionActive: () -> Boolean = { false }
+    private val isStandaloneSessionActive: () -> Boolean = { false },
+    private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder? = null
 ) {
 
     private var scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -67,6 +68,7 @@ class MeshAutoSwitchManager(
 
     fun start() {
         if (!OfflineMeshGate.isBuildGateOpen() || OfflineMeshGate.decision() == com.ridervoice.mesh.GateDecision.DISABLED_BY_BUILD) return
+        sessionHolder?.restoreBackupIfAllowed()
         if (drivingJob?.isActive == true) return
         healthSignalsProvider.startWatching()
         meshTransport.onlineIdentitySupplier = {

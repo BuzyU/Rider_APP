@@ -5,9 +5,11 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.ridervoice.mesh.MeshLog
+import com.ridervoice.mesh.OfflineMeshGate
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -194,13 +196,12 @@ class OfflineSessionHolder(
     val current: StateFlow<OfflineSession?> = _current.asStateFlow()
     val backup: StateFlow<OfflineSession?> = _backup.asStateFlow()
 
-    init {
-        if (restoreAsync) {
-            restoreScope.launch {
+    fun restoreBackupIfAllowed(): Job? {
+        if (!OfflineMeshGate.isOfflineAllowed()) return null
+        return restoreScope.launch(Dispatchers.Default) {
+            if (OfflineMeshGate.isOfflineAllowed()) {
                 restoreFromStoreIfValid()
             }
-        } else {
-            restoreFromStoreIfValid()
         }
     }
 

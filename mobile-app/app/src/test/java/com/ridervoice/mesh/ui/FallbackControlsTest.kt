@@ -238,7 +238,7 @@ class FallbackControlsTest {
     fun offlineActive_overlayPttDrivesOfflineCapture_notLiveKit() = runTest {
         val lkPort = FakeLiveKitPort()
         val arbiter = AudioOwnershipArbiter()
-        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, dispatcher = testDispatcher)
+        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, gateAllowed = { true }, dispatcher = testDispatcher)
 
         val mesh = FakeMeshVoiceTransport(arbiter, micScope)
 
@@ -284,7 +284,7 @@ class FallbackControlsTest {
     fun offlineActive_overlayMicToggleDrivesOfflineCapture_notLiveKit() = runTest {
         val lkPort = FakeLiveKitPort()
         val arbiter = AudioOwnershipArbiter()
-        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, dispatcher = testDispatcher)
+        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, gateAllowed = { true }, dispatcher = testDispatcher)
 
         val mesh = FakeMeshVoiceTransport(arbiter, micScope)
 
@@ -332,7 +332,7 @@ class FallbackControlsTest {
         val lkPort = FakeLiveKitPort()
         lkPort.voxRunning = true // LiveKit VOX is currently active
         val arbiter = AudioOwnershipArbiter()
-        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, dispatcher = testDispatcher)
+        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, gateAllowed = { true }, dispatcher = testDispatcher)
 
         val mesh = FakeMeshVoiceTransport(arbiter, micScope)
 
@@ -367,7 +367,7 @@ class FallbackControlsTest {
         val lkPort = FakeLiveKitPort()
         lkPort.voxRunning = false // LiveKit VOX is inactive
         val arbiter = AudioOwnershipArbiter()
-        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, dispatcher = testDispatcher)
+        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, gateAllowed = { true }, dispatcher = testDispatcher)
 
         val mesh = FakeMeshVoiceTransport(arbiter, micScope)
 
@@ -399,7 +399,7 @@ class FallbackControlsTest {
     fun micCarryOver_meshToLiveKit_onRecovery() = runTest {
         val lkPort = FakeLiveKitPort()
         val arbiter = AudioOwnershipArbiter()
-        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, dispatcher = testDispatcher)
+        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, gateAllowed = { true }, dispatcher = testDispatcher)
 
         val mesh = FakeMeshVoiceTransport(arbiter, micScope)
 
@@ -444,7 +444,7 @@ class FallbackControlsTest {
     fun micCarryOver_meshMutedToLiveKit_onRecovery() = runTest {
         val lkPort = FakeLiveKitPort()
         val arbiter = AudioOwnershipArbiter()
-        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, dispatcher = testDispatcher)
+        val liveKit = LiveKitVoiceTransport(liveKitPort = lkPort, audioOwnershipArbiter = arbiter, gateAllowed = { true }, dispatcher = testDispatcher)
 
         val mesh = FakeMeshVoiceTransport(arbiter, micScope)
 

@@ -63,6 +63,10 @@ class OfflineMeshViewModel @Inject constructor(
     val backupSession: StateFlow<OfflineSession?> = holder.backup
     val audioFailure: StateFlow<EnableAudioResult.Failure?> = transport.audioFailure
 
+    init {
+        holder.restoreBackupIfAllowed()
+    }
+
     @Volatile private var startedStandaloneSession: Boolean = false
 
     fun isMicOwnedByLiveKit(): Boolean = arbiter.owner.value == AudioOwner.LIVEKIT

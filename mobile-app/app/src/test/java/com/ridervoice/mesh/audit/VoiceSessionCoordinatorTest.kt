@@ -269,7 +269,7 @@ class VoiceSessionCoordinatorTest {
         }
 
         val arbiter = AudioOwnershipArbiter()
-        val liveKit = com.ridervoice.mesh.transport.LiveKitVoiceTransport(port, arbiter)
+        val liveKit = com.ridervoice.mesh.transport.LiveKitVoiceTransport(port, arbiter, gateAllowed = { true })
         val mesh = FakeMeshTransport()
         val coordinator = VoiceSessionCoordinator(liveKit, mesh, arbiter)
 

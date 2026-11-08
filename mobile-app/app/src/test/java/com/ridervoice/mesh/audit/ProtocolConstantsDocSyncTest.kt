@@ -14,6 +14,17 @@ import java.io.File
  */
 class ProtocolConstantsDocSyncTest {
 
+    private fun findRepoRoot(): File {
+        val candidates = listOf(
+            File("../../"),
+            File("../"),
+            File("."),
+            File("../..")
+        )
+        return candidates.map { it.canonicalFile }.firstOrNull { File(it, "docs").isDirectory && File(it, "README.md").isFile }
+            ?: throw IllegalStateException("Could not locate repository root. Checked: ${candidates.map { it.absolutePath }}")
+    }
+
     @Test
     fun pbkdf2IterationsConstant_is120k() {
         assertEquals(120_000, SessionKdf.DEFAULT_ITERATIONS)
@@ -32,15 +43,8 @@ class ProtocolConstantsDocSyncTest {
 
     @Test
     fun protocolDocumentation_matchesPbkdf2Iterations() {
-        // Resolve project root docs directory across different test execution working directories
-        val candidates = listOf(
-            File("../../docs"),
-            File("../docs"),
-            File("docs"),
-            File("../../docs/protocol/mesh-v2.md").parentFile?.parentFile
-        )
-        val docsDir = candidates.firstOrNull { it?.exists() == true && File(it, "protocol/mesh-v2.md").exists() }
-            ?: throw IllegalStateException("Could not locate docs directory. Checked: ${candidates.map { it?.absolutePath }}")
+        val root = findRepoRoot()
+        val docsDir = File(root, "docs")
 
         val meshV2Doc = File(docsDir, "protocol/mesh-v2.md").readText()
         assertFalse("mesh-v2.md must not reference obsolete 100,000 iterations", meshV2Doc.contains("100,000"))
@@ -65,5 +69,58 @@ class ProtocolConstantsDocSyncTest {
         val decisionsDoc = File(docsDir, "implementation/mesh/DECISIONS.md").readText()
         assertTrue("DECISIONS.md must document 120,000 iterations", decisionsDoc.contains("120,000"))
     }
-}
 
+    @Test
+    fun documentationTruthAndForbiddenTerms() {
+        val root = findRepoRoot()
+        val filesToScan = mutableListOf<File>()
+
+        val readme = File(root, "README.md")
+        if (readme.exists()) filesToScan.add(readme)
+
+        val codeDepth = File(root, "CODE_DEPTH_STRUCTURE.md")
+        if (codeDepth.exists()) filesToScan.add(codeDepth)
+
+        val docsDir = File(root, "docs")
+        docsDir.walkTopDown()
+            .filter { it.isFile && it.extension == "md" }
+            .filter { it.name != "RELEASE_NOTES.md" }
+            .forEach { filesToScan.add(it) }
+
+        val forbiddenPhrases = listOf(
+            "100,000",
+            "sliding-window replay",
+            "sliding-window deduplication",
+            "Relays never decrypt",
+            "verify-test-refs",
+            "DEFECT_REGISTER",
+            "AtomicReference<RoutingSnapshot>",
+            "OWNER_FLAGS",
+            "protocol version (0x02)"
+        )
+
+        for (file in filesToScan) {
+            val content = file.readText()
+            for (phrase in forbiddenPhrases) {
+                assertFalse(
+                    "File ${file.relativeTo(root)} must not contain forbidden phrase '$phrase'",
+                    content.contains(phrase)
+                )
+            }
+        }
+
+        // Header version check
+        val expectedVersion = "${MeshPacketCodec.VERSION}.0.0"
+        val threatModel = File(docsDir, "security/mesh-threat-model.md").readText()
+        assertTrue(
+            "mesh-threat-model.md version header must equal $expectedVersion",
+            threatModel.contains("**Version:** $expectedVersion")
+        )
+
+        val testPlan = File(docsDir, "testing/mesh-test-plan.md").readText()
+        assertTrue(
+            "mesh-test-plan.md version header must equal $expectedVersion",
+            testPlan.contains("**Version:** $expectedVersion")
+        )
+    }
+}

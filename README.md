@@ -11,7 +11,7 @@ RiderVoice is a Jetpack Compose Android application designed for motorcycle conv
 
 ## 🚀 Key Features
 
-- **Offline Mesh Intercom Engine v2.0 (v0.0.3.20)** – Zero-infrastructure peer-to-peer ad-hoc Wi-Fi/UDP multi-hop voice mesh on port `45454` (`MeshConfig.MESH_PORT`) for motorcycle convoys outside cellular coverage. Standard release builds ship with the mesh OFF unless explicitly compiled with `-PenableOfflineMeshInRelease=true`. Automatic fallback during an online ride uses a 16-character Crockford Base32 pairing-code backup session pre-shared and saved in the offline lobby before the ride (persisted encrypted via `EncryptedPrefsBackupSessionStore` with an 8h TTL across process death and wiped on sign-out). Includes an 8-state deterministic `AutomaticSwitchStateMachine` with non-disruptive recovery and 400ms quiet-guard windows, daisy-hop packet forwarding up to 6 devices / 5 hops (`DEFAULT_TTL = 5`, `MAX_HOPS = 5`, `SUPPRESS_REDUNDANT_RELAYS = false` default for maximum multi-hop resilience), monotonic 20ms `OfflineAudioPlayback` tick pacing, Audio HAL mutual-exclusion via `AudioOwnershipArbiter` (preserving Bluetooth SCO and helmet `MediaSessionCompat` across handbacks), and PBKDF2 (`120,000` iterations, salt `"rvmesh/v2/session"`) / AES-256-GCM authenticated payload encryption with sliding-window replay rejection.
+- **Offline Mesh Intercom Engine (v3 wire)** – Zero-infrastructure peer-to-peer ad-hoc Wi-Fi/UDP multi-hop voice mesh on port `45454` (`MeshConfig.MESH_PORT`) for motorcycle convoys outside cellular coverage. Standard release builds ship with the mesh OFF unless explicitly compiled with `-PenableOfflineMeshInRelease=true`. Automatic fallback during an online ride uses a 16-character Crockford Base32 pairing-code backup session pre-shared in the offline lobby (persisted encrypted via `EncryptedPrefsBackupSessionStore` with an 8h TTL across process death and wiped on sign-out). Includes an 8-state deterministic `AutomaticSwitchStateMachine` with non-disruptive recovery, daisy-hop packet forwarding up to 6 devices / 5 hops (`DEFAULT_TTL = 5`), monotonic 20ms `OfflineAudioPlayback` tick pacing, Audio HAL mutual-exclusion via `AudioOwnershipArbiter`, and PBKDF2 (`120,000` iterations, salt `"rvmesh/v2/session"`) / AES-256-GCM authenticated payload encryption with bounded duplicate cache and ±60 s timestamp check.
 - **Lobby Reliability, Missing Column Resilience & SOS Protection (v0.0.3.19)** – Resolved convoy creation lobby hang with bounded exponential backoff and immediate local shell rendering; fixed unhandled `ReferenceError: riderCallsign` 500 error; added dynamic probing and runtime Prisma `P2022` fallback resilience for `lastEmptyAt`; guaranteed write circuit-breaker exemptions for emergency SOS alerts and webhooks; hardened transaction-scoped advisory locks; and completely eliminated `TelephonyManager` to clear Google Play Protect flags.
 - **Staged Room Identity, Create Idempotency & Webhook Defense (v0.0.3.18)** – Per-ride persisted LiveKit room identity migration layer with legacy room fallback, database-backed atomic ride create idempotency (`clientRequestId`), race-condition-safe room termination, retryable sweeper cleanup queue, readiness health probe with webhook enforcement, and APK signing certificate validation on OTA updates.
 - **Google Play Protect Heuristic Clean-up & Production Keystore (v0.0.3.17)** – Replaced telephony carrier inspection with non-intrusive locale region detection in emergency SOS routing, eliminating false-positive toll-fraud heuristic flags from Google Play Protect on sideloaded updates. Added dedicated production release keystore infrastructure.
@@ -76,7 +76,7 @@ You can download the latest signed APK directly from GitHub Releases:
 ```
 Rider_APP/
 ├── .github/
-│   ├── scripts/         # CI verification guards (mesh-commit-guard, mesh-invariants, verify-test-refs)
+│   ├── scripts/         # CI verification guards (mesh-commit-guard, mesh-invariants)
 │   └── workflows/       # CI/CD workflows: release.yml (APK release) & build.yml (test verification)
 ├── docs/                # Protocol specs, security threat model, settings contract, and UI/UX showcase
 ├── mobile-app/          # Android app (Kotlin + Jetpack Compose + Material 3)
@@ -241,7 +241,6 @@ cd mobile-app
 ```bash
 bash .github/scripts/mesh-commit-guard.sh
 bash .github/scripts/mesh-invariants.sh
-bash .github/scripts/verify-test-refs.sh
 ```
 
 ---

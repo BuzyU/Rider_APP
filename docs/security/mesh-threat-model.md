@@ -1,6 +1,6 @@
 # RiderVoice Offline Mesh Intercom Security Architecture & Threat Model
 
-**Version:** 2.0.0  
+**Version:** 3.0.0  
 **Target:** RiderVoice Offline Mesh Intercom (`com.ridervoice.mesh`)  
 **Scope:** Local ad-hoc shared Wi-Fi / UDP mesh intercom (v1 transport = UDP over a Wi-Fi/hotspot network that all riders are already connected to; the app does not create or join that network)  
 
@@ -70,7 +70,7 @@ Session   authKey   payloadKey
 ```
 
 - **`authKey`:** Used solely for wire datagram authentication (HMAC-SHA256). An intermediate relay node verifies this key to authenticate frames before forwarding, without needing to decrypt the audio.
-- **`payloadKey`:** Used exclusively for payload encryption and decryption (AES-256-GCM). Relays never decrypt, re-encrypt, or alter the payload.
+- **`payloadKey`:** Used exclusively for payload encryption and decryption (AES-256-GCM). Every session member holding payloadKey decrypts each packet it plays or forwards; per-source subkeys prevent IV reuse across senders and are not sender authentication.
 
 ---
 

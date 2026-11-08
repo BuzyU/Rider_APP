@@ -21,15 +21,15 @@ object MeshSelfTestMapper {
     const val ZERO_NEIGHBOURS_HINT_THRESHOLD_SECONDS = 20L
     const val HINT_TEXT = "No nearby riders on this network. Are you on the same hotspot/Wi-Fi? Some networks block device-to-device traffic."
 
-    fun map(input: MeshSelfTestInput): MeshSelfTestUiState {
+    fun map(input: MeshSelfTestInput, noneFallback: String = "-"): MeshSelfTestUiState {
         val linkText = when (input.linkState) {
             MeshLinkState.RUNNING -> "RUNNING"
             MeshLinkState.STARTING -> "STARTING"
             MeshLinkState.FAILED -> "FAILED"
             MeshLinkState.STOPPED -> "STOPPED"
         }
-        val ipText = input.localIp?.takeIf { it.isNotBlank() } ?: "None"
-        val bcastText = input.broadcastAddress?.takeIf { it.isNotBlank() } ?: "None"
+        val ipText = input.localIp?.takeIf { it.isNotBlank() } ?: noneFallback
+        val bcastText = input.broadcastAddress?.takeIf { it.isNotBlank() } ?: noneFallback
         val addrText = "Local: $ipText | Broadcast: $bcastText"
 
         val warningHint = if (input.authenticatedNeighboursHeardLast10s == 0 &&

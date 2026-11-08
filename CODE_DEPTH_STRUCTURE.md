@@ -11,8 +11,7 @@ Rider_APP/
 ├── .github/
 │   ├── scripts/
 │   │   ├── mesh-commit-guard.sh          Frozen online contract diff guard
-│   │   ├── mesh-invariants.sh            Static mesh architecture & test census guard
-│   │   └── verify-test-refs.sh           Verifies DEFECT_REGISTER test references
+│   │   └── mesh-invariants.sh            Static mesh architecture & test census guard
 │   ├── test-census-floor                 Minimum enforced JVM unit test count (495)
 │   └── workflows/
 │       ├── build.yml                     Android, Backend & Web CI verification workflow
@@ -316,11 +315,11 @@ The offline mesh subsystem provides an autonomous, multi-hop peer-to-peer voice 
   - `NetworkLocks.kt` & `WifiNetworkWatcher.kt`: Manages Android `MulticastLock` during discovery/standby, `WifiLock` during active audio, and debounced Wi-Fi interface rebinds.
 
 - **Wire Protocol & Cryptography (`mesh/protocol/`, `mesh/session/`)**:
-  - `MeshPacket.kt` (`MeshPacketCodec`): Encodes and decodes the 747-byte wire packet v2 layout, validating magic bytes (`0x52564D31`), protocol version (`0x02`), and packet size bounds.
+  - `MeshPacket.kt` (`MeshPacketCodec`): Encodes and decodes the wire packet v3 layout with 75-byte header, validating magic bytes (`0x52564D31`), protocol version (`0x03`), and packet size bounds.
   - `PayloadCrypto.kt`: AES-256-GCM authenticated payload encryption and decryption with 12-byte deterministic nonces.
-  - `SessionKdf.kt` & `OfflineSession.kt`: PBKDF2-HMAC-SHA256 (`100,000` iterations, salt `"rvmesh/v2/session"`) key derivation generating session UUID, 256-bit authentication key, and 256-bit AES-GCM payload encryption key from 16-character Crockford Base32 pairing codes.
+  - `SessionKdf.kt` & `OfflineSession.kt`: PBKDF2-HMAC-SHA256 (`120,000` iterations, salt `"rvmesh/v2/session"`) key derivation generating session UUID, 256-bit authentication key, and 256-bit AES-GCM payload encryption key from 16-character Crockford Base32 pairing codes.
   - `OfflineSessionHolder.kt`: Manages active standalone and encrypted-persisted backup sessions.
-  - `DuplicatePacketCache.kt`: Sliding-window deduplication filter to reject replays within cache TTL.
+  - `DuplicatePacketCache.kt`: Bounded duplicate cache filter to reject replays within cache TTL.
   - `SessionManager.kt`: Enforces the 6-device session admission cap across source and relay nodes.
 
 - **Automatic Handoff & Transport Coordination (`mesh/switching/`, `mesh/transport/`)**:

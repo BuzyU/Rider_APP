@@ -323,7 +323,8 @@ fun OfflineMeshLobbyScreen(
                     secondsWithZeroNeighbours = if (neighboursCount > 0) 0L else elapsedZeroNeighboursSec
                 )
             }
-            val selfTestState = MeshSelfTestMapper.map(selfTestInput)
+            val noneFallback = stringResource(R.string.mesh_value_none)
+            val selfTestState = MeshSelfTestMapper.map(selfTestInput, noneFallback = noneFallback)
 
             Card(
                 colors = CardDefaults.cardColors(containerColor = CardDark),
@@ -348,7 +349,7 @@ fun OfflineMeshLobbyScreen(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = stringResource(R.string.mesh_selftest_local_addresses, effectiveIp ?: "None", effectiveBcast),
+                        text = stringResource(R.string.mesh_selftest_local_addresses, effectiveIp ?: noneFallback, effectiveBcast),
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )

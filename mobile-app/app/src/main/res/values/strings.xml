@@ -355,6 +355,8 @@
     <string name="mesh_diag_link_state">Link State</string>
     <string name="mesh_diag_local_ip">Local IPv4</string>
     <string name="mesh_diag_broadcast">Broadcast Address</string>
+    <string name="mesh_diag_stale_timestamps">Stale Timestamps</string>
+    <string name="mesh_value_none">None</string>
     <string name="mesh_settings_no_wifi_hardware">Device lacks Wi-Fi hardware. Offline mesh fallback requires Wi-Fi.</string>
     <string name="mesh_backup_active_label">Active Backup Code: %1$s</string>
     <string name="mesh_backup_clear_action">Clear Backup</string>

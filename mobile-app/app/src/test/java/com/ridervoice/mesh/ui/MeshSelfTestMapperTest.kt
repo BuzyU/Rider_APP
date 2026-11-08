@@ -91,6 +91,21 @@ class MeshSelfTestMapperTest {
 
         val state = MeshSelfTestMapper.map(input)
 
+        assertEquals("Local: - | Broadcast: -", state.localAddressesText)
+    }
+
+    @Test
+    fun handlesNullAddressesWithCustomFallback() {
+        val input = MeshSelfTestInput(
+            linkState = MeshLinkState.STOPPED,
+            localIp = null,
+            broadcastAddress = null,
+            authenticatedNeighboursHeardLast10s = 0,
+            secondsWithZeroNeighbours = 0L
+        )
+
+        val state = MeshSelfTestMapper.map(input, noneFallback = "None")
+
         assertEquals("Local: None | Broadcast: None", state.localAddressesText)
     }
 }

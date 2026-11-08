@@ -5,6 +5,11 @@ set -euo pipefail
 FROZEN_BASE="${FROZEN_BASE:-a37ef09}"
 RANGE="${1:-}"
 
+if ! git rev-parse --verify "${FROZEN_BASE}^{commit}" >/dev/null 2>&1; then
+  echo "ERROR: FROZEN_BASE '$FROZEN_BASE' is not a valid commit in this repository."
+  exit 1
+fi
+
 FROZEN_PATHS=(
   "mobile-app/app/src/main/java/com/ridervoice/network/LiveKitManager.kt"
   "mobile-app/app/src/main/java/com/ridervoice/network/ConnectionState.kt"
@@ -18,7 +23,6 @@ FROZEN_PATHS=(
   "backend"
   "web-app"
   "livekit-server"
-  "docs/plan/OFFLINE_MESH_PLAN.md"
 )
 
 # Read allowlist
@@ -42,37 +46,25 @@ is_allowlisted() {
   return 1
 }
 
-is_frozen() {
-  local file="$1"
-  for fp in "${FROZEN_PATHS[@]}"; do
-    if [[ "$file" == "$fp"* ]] || [ "$file" = "$fp" ]; then
-      return 0
-    fi
-  done
-  return 1
-}
-
-if [ -n "$RANGE" ]; then
-  CHANGED_FILES=$(git diff --name-only "$RANGE")
-else
-  # Check current tree against baseline FROZEN_BASE
-  CHANGED_FILES=$(git diff --name-only "$FROZEN_BASE")
-fi
-
+BASE="${RANGE:-$FROZEN_BASE}"
 violations=0
-for file in $CHANGED_FILES; do
-  if is_frozen "$file"; then
-    if ! is_allowlisted "$file"; then
-      echo "VIOLATION: Frozen path was modified: $file (differs from baseline $FROZEN_BASE)"
-      violations=$((violations + 1))
-    fi
+
+while IFS= read -r -d '' file; do
+  [ -z "$file" ] && continue
+  if ! is_allowlisted "$file"; then
+    echo "VIOLATION: Frozen path was modified: $file (differs from baseline $FROZEN_BASE)"
+    violations=$((violations + 1))
   fi
-done
+done < <(git diff --name-only -z "$BASE" -- "${FROZEN_PATHS[@]}")
 
 # In addition, ensure docs/plan/OFFLINE_MESH_PLAN.md is not modified from canonical 4c6aa85
-if git rev-parse --verify 4c6aa85 >/dev/null 2>&1; then
-  if ! git diff --quiet 4c6aa85 HEAD -- docs/plan/OFFLINE_MESH_PLAN.md 2>/dev/null; then
-    echo "VIOLATION: docs/plan/OFFLINE_MESH_PLAN.md was modified from canonical spec 4c6aa85"
+CANONICAL_PLAN_REF="4c6aa85"
+if ! git rev-parse --verify "$CANONICAL_PLAN_REF" >/dev/null 2>&1; then
+  echo "VIOLATION: Canonical plan ref $CANONICAL_PLAN_REF is missing from git history"
+  violations=$((violations + 1))
+else
+  if ! git diff --quiet "$CANONICAL_PLAN_REF" HEAD -- docs/plan/OFFLINE_MESH_PLAN.md 2>/dev/null; then
+    echo "VIOLATION: docs/plan/OFFLINE_MESH_PLAN.md was modified from canonical spec $CANONICAL_PLAN_REF"
     violations=$((violations + 1))
   fi
 fi

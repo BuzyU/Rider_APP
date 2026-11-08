@@ -35,6 +35,9 @@ jobs:
       - name: Mesh Commit Guard
         run: bash .github/scripts/mesh-commit-guard.sh
 
+      - name: Mesh Commit Guard Self-Test
+        run: bash .github/scripts/mesh-commit-guard.test.sh
+
       - name: Mesh Invariants
         run: bash .github/scripts/mesh-invariants.sh
 
@@ -68,20 +71,18 @@ jobs:
           with open('.github/plan-test-matrix.md', 'r') as f:
               matrix = f.read()
 
-          required_tests = re.findall(r'\x60([A-Za-z0-9_]+#[A-Za-z0-9_ ]+)\x60', matrix)
-          print(f'Verifying {len(required_tests)} plan requirement test mappings against executed test suite...')
-          missing = []
-          for req in required_tests:
-              if req not in executed_tests:
-                  missing.append(req)
-
+          ticks = re.findall(r'\x60([^\x60\n]*#[^\x60\n]*)\x60', matrix)
+          refs  = [t for t in ticks if re.fullmatch(r'[A-Za-z0-9_]+#[^\x60#]+', t)]
+          assert len(refs) == len(ticks), f'unparseable matrix refs: {[t for t in ticks if t not in refs]}'
+          missing = [r for r in refs if r not in executed_tests]
           if missing:
-              print('ERROR: The following required plan tests from .github/plan-test-matrix.md were not executed:')
+              print(f'ERROR: {len(missing)} missing tests from .github/plan-test-matrix.md:')
               for m in missing:
                   print(f'  - {m}')
               sys.exit(1)
 
-          print(f'SUCCESS: All {len(required_tests)} plan verification tests from sections 1.11, 2.6, and 5 verified passing!')
+          print(f'Verified {len(refs)}/{len(ticks)} mappings')
+          print(f'SUCCESS: All {len(refs)} plan verification tests from sections 1.11, 2.6, and 5 verified passing!')
           "
 
       - name: Run Android Lint

@@ -136,6 +136,7 @@ class BackupSessionStoreSecurityTest {
             context = mockContext,
             prefsFactory = { throw SecurityException("Keystore failed") }
         )
+        store.saveBackup("ABCD1234EFGH5678", 1000L, 2000L)
 
         assertFalse("RAM-only fallback store must report isPersisted = false", store.isPersisted)
 

@@ -60,6 +60,7 @@ class EncryptedPrefsBackupSessionStore(
 ) : BackupSessionStore {
 
     @Volatile private var ramStore: StoredBackupMeta? = null
+    @Volatile private var lastWritePersisted: Boolean? = null
     private val prefs: SharedPreferences? by lazy {
         try {
             prefsFactory?.invoke(context.applicationContext) ?: createSafePreferences(context.applicationContext, keyStoreSeam)
@@ -70,12 +71,13 @@ class EncryptedPrefsBackupSessionStore(
     }
 
     override val isPersisted: Boolean
-        get() = prefs != null
+        get() = lastWritePersisted ?: true
 
     override fun saveBackup(pairingCode: String, createdAtMs: Long, expiresAtMs: Long) {
         val p = prefs
         if (p == null) {
             ramStore = StoredBackupMeta(pairingCode, createdAtMs, expiresAtMs)
+            lastWritePersisted = false
             return
         }
         try {
@@ -84,9 +86,11 @@ class EncryptedPrefsBackupSessionStore(
                 .putLong(KEY_CREATED_AT, createdAtMs)
                 .putLong(KEY_EXPIRES_AT, expiresAtMs)
                 .apply()
+            lastWritePersisted = true
         } catch (e: Exception) {
             MeshLog.w(TAG, "Failed to save backup session metadata to encrypted prefs, failing closed to RAM: ${e.message}")
             ramStore = StoredBackupMeta(pairingCode, createdAtMs, expiresAtMs)
+            lastWritePersisted = false
         }
     }
 
@@ -110,6 +114,7 @@ class EncryptedPrefsBackupSessionStore(
 
     override fun clearBackup() {
         ramStore = null
+        lastWritePersisted = null
         val p = prefs ?: return
         try {
             p.edit()

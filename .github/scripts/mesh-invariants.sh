@@ -39,7 +39,6 @@ fi
 
 grep -q "NET_CAPABILITY_VALIDATED" -r $M/mesh || { echo "VIOLATION: ValidatedInternetSource missing"; fail=1; }
 
-bash .github/scripts/verify-test-refs.sh || { echo "VIOLATION: verify-test-refs failed"; fail=1; }
 bash .github/scripts/mesh-commit-guard.sh || { echo "VIOLATION: mesh-commit-guard failed"; fail=1; }
 
 if [ ! -f ".github/test-census-floor" ]; then

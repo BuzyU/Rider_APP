@@ -22,8 +22,33 @@ Run all unit tests and verification checks via Gradle:
 ./gradlew testDebugUnitTest
 ./gradlew lintDebug
 bash .github/scripts/mesh-invariants.sh
-bash .github/scripts/verify-test-refs.sh
 ```
+
+## Baseline and Rollback (S-2)
+
+### Baseline Verification
+- **Baseline Commit:** `a37ef09`
+- **Baseline Test Census:**
+  - Unit Tests: **216** `@Test` methods passed (`0` failures, `0` ignored) in 4.93s (`testDebugUnitTest`).
+  - Instrumented Tests: **0** (all mesh instrumented tests in `androidTest` were introduced in later mesh work packages).
+- **Current Test Census (HEAD):**
+  - Unit Tests: **550** `@Test` methods passed (`0` failures, `0` ignored).
+  - Instrumented Tests: **10** (all marked `NOT RUN` in CI per environment constraint).
+
+### Three-Level Rollback Plan
+1. **Level 1 — Runtime User Setting Off:**
+   - Turn off the mesh intercom toggle in app settings: `FeatureFlags.OFFLINE_MESH_ENABLED = false`.
+   - Result: All mesh background services, sockets, discovery, audio capture/playback, and switching state machines remain completely dormant and stopped. The app functions exclusively as an online LiveKit client.
+2. **Level 2 — Compile-Time Build Gate Off:**
+   - Build with `BuildConfig.OFFLINE_MESH_BUILD_ENABLED = false` (default for release builds via `mobile-app/app/build.gradle`).
+   - Result: Mesh dependency graphs, ViewModels, and services are compile-time gated or nullified; release builds cannot initialize or execute mesh subsystems.
+3. **Level 3 — Complete Source Revert:**
+   - Execute git revert of all mesh commits from baseline `a37ef09` to HEAD:
+     ```bash
+     git revert --no-commit a37ef09..HEAD
+     ```
+   - All mesh files, services, DI modules, UI screens, tests, and documentation are cleanly restored to the baseline commit `a37ef09`.
+   - **Rollback Drill Verification:** A Level 3 rollback dry-run was executed on branch `temp-rollback-drill`. The command `git revert --no-commit a37ef09..HEAD` reverted all changes cleanly with zero conflicts, and `ALLOW_INSECURE_RELEASE_BUILD=true ./gradlew assembleRelease` succeeded (`BUILD SUCCESSFUL in 4m 22s`, 58 actionable tasks: 37 executed, 21 up-to-date).
 
 ## Core Reference Documents
 - [Three-Stage Mesh Plan](../../plan/OFFLINE_MESH_PLAN.md): Authoritative architectural plan and execution requirements.
@@ -33,4 +58,3 @@ bash .github/scripts/verify-test-refs.sh
 - [Mesh Test Plan](../../testing/mesh-test-plan.md): Test census, testing philosophy, and unit test strategy.
 - [State Machine Specification](state-machine.md): Formal transition rules and backoff logic.
 - [Architecture Decisions Log](DECISIONS.md): Engineering decisions, rationale, and approvals.
-- [Defect Register](DEFECT_REGISTER.md): Defect tracking for historical A1–A47, B1–B27, and C1–C11 findings.

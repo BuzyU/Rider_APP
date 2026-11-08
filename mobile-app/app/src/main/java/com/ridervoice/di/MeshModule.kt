@@ -41,7 +41,6 @@ import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import com.ridervoice.mesh.ui.MeshApplicationScope
 import com.ridervoice.network.ConnectionState
 import com.ridervoice.network.LiveKitManager
-import com.ridervoice.network.NetworkObserver
 import com.ridervoice.security.SecurePreferences
 import com.ridervoice.state.ActiveRideRepository
 import dagger.Module
@@ -73,12 +72,6 @@ object MeshModule {
     fun provideNetworkLocks(
         @ApplicationContext context: Context
     ): NetworkLocks = AndroidNetworkLocks(context)
-
-    @Provides
-    @Singleton
-    fun provideNetworkObserver(
-        @ApplicationContext context: Context
-    ): NetworkObserver = NetworkObserver(context)
 
     @Provides
     @Singleton
@@ -256,13 +249,11 @@ object MeshModule {
     @Provides
     @Singleton
     fun provideLocalHealthSignalsProvider(
-        networkObserver: NetworkObserver,
         liveKitManager: LiveKitManager,
         liveKitVoiceTransport: LiveKitVoiceTransport,
         meshTransport: OfflineMeshVoiceTransport,
         validated: ValidatedInternetSource
     ): LocalHealthSignalsProvider = LocalHealthSignalsProvider(
-        networkObserver = networkObserver,
         liveKitConnectionState = liveKitManager.connectionState,
         liveKitReconnectAttempts = { liveKitVoiceTransport.reconnectAttempts.value },
         meshControl = meshTransport,

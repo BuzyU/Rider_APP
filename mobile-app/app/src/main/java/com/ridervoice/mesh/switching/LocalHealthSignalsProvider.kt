@@ -3,7 +3,6 @@ package com.ridervoice.mesh.switching
 import com.ridervoice.mesh.transport.MeshControl
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import com.ridervoice.network.ConnectionState
-import com.ridervoice.network.NetworkObserver
 import com.ridervoice.utils.Constants
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -29,7 +28,6 @@ import java.util.concurrent.TimeUnit
  * Drives AutomaticSwitchStateMachine once per second while active.
  */
 class LocalHealthSignalsProvider(
-    private val networkObserver: NetworkObserver? = null,
     private val liveKitConnectionState: StateFlow<ConnectionState>? = null,
     private val liveKitReconnectAttempts: () -> Int = { 0 },
     private val meshControl: MeshControl? = null,

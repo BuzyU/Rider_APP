@@ -206,7 +206,6 @@ class WiringTest {
         var validRoute = true
 
         val provider = LocalHealthSignalsProvider(
-            networkObserver = null,
             liveKitConnectionState = lkState,
             liveKitReconnectAttempts = { 2 },
             meshControl = object : com.ridervoice.mesh.transport.MeshControl {

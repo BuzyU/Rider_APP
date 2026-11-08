@@ -103,7 +103,7 @@ class AutomaticSwitchStateMachine(
                 AutoSwitchState.ONLINE -> {
                     if (signals.isOnlineFailing() && isGateAllowed()) {
                         suspectStartTimeMs = now
-                        transitionTo(AutoSwitchState.ONLINE_SUSPECT, "Total loss suspected")
+                        transitionTo(AutoSwitchState.ONLINE_SUSPECT, "Total loss suspected (reconnectAttempts=${signals.liveKitReconnectAttempts})")
                         onProbeMesh?.invoke()
                     }
                 }
@@ -120,7 +120,7 @@ class AutomaticSwitchStateMachine(
                         } else if (signals.hasValidMeshRoute) {
                             pending = beginHandoff(Direction.TO_OFFLINE, now)
                         } else {
-                            transitionTo(AutoSwitchState.FALLBACK_UNAVAILABLE, "Total loss confirmed, no mesh route")
+                            transitionTo(AutoSwitchState.FALLBACK_UNAVAILABLE, "Total loss confirmed, no mesh route (reconnectAttempts=${signals.liveKitReconnectAttempts})")
                         }
                     }
                 }
@@ -143,10 +143,10 @@ class AutomaticSwitchStateMachine(
                     val inBackoff = lastRecoveryAttemptMs > 0L &&
                         (now - lastRecoveryAttemptMs) < config.recoveryStabilityMs * recoveryBackoffMultiplier
                     if (!signals.isMeshTransportAlive && signals.isOnlineRecoveredAndStable()) {
-                        pending = beginHandoff(Direction.TO_ONLINE, now)
+                        if (!inBackoff && !isFlappingSuppressed(now)) pending = beginHandoff(Direction.TO_ONLINE, now)
                     } else if (signals.isOnlineRecoveredAndStable() && !inDwell && !inBackoff && !isFlappingSuppressed(now)) {
                         recoveryStartTimeMs = now
-                        transitionTo(AutoSwitchState.ONLINE_RECOVERING, "LiveKit connected; verifying stability")
+                        transitionTo(AutoSwitchState.ONLINE_RECOVERING, "LiveKit connected; verifying stability (reconnectAttempts=${signals.liveKitReconnectAttempts})")
                     }
                 }
 

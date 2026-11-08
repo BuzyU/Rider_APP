@@ -239,6 +239,7 @@ class VoiceSessionCoordinator(
 
     companion object {
         const val RECOVERY_CONNECT_TIMEOUT_MS = 15_000L
+        const val RECOVERY_CONFIRM_TIMEOUT_MS = 3_000L
     }
 
     suspend fun recoverToLiveKit(): Boolean = switchMutex.withLock {
@@ -249,11 +250,12 @@ class VoiceSessionCoordinator(
         var committed = false
         try {
             mesh.pauseCaptureOnly()
-            if (!audioOwnershipArbiter.claimLiveKit()) return@withLock false
+            if (!audioOwnershipArbiter.claimLiveKit(onStopOfflineFirst = { mesh.pauseCaptureOnly() })) return@withLock false
             liveKitTransport.resume()
-            withTimeoutOrNull(3_000L) {
+            val confirmed = withTimeoutOrNull(RECOVERY_CONFIRM_TIMEOUT_MS) {
                 liveKitTransport.state.first { it == VoiceTransportState.CONNECTED }
-            }
+            } != null
+            if (!confirmed) return@withLock false
             withContext(NonCancellable) { mesh.disableAudio() }
             if (meshMicCtrl != null) {
                 runCatchingCancellable { liveKitTransport.setMicrophoneEnabled(meshMicWanted) }

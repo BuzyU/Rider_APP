@@ -17,6 +17,13 @@ enum class MeshPacketType(val code: Int) {
 /** Only raw 16 kHz mono PCM16 is defined. Any other value is rejected until a codec is negotiated. */
 object AudioFormatId { const val PCM16_16K_MONO = 1 }
 
+data class PacketIds(
+    val sessionHi: Long,
+    val sessionLo: Long,
+    val sourceHi: Long,
+    val sourceLo: Long
+)
+
 data class MeshPacket(
     val type: MeshPacketType,
     val sessionId: String,
@@ -31,8 +38,21 @@ data class MeshPacket(
     val previousHopId: String,
     val audioFormat: Int = AudioFormatId.PCM16_16K_MONO,
     val epoch: Int = 0,
-    val payload: ByteArray = ByteArray(0)
+    val payload: ByteArray = ByteArray(0),
+    val sessionHi: Long = 0L,
+    val sessionLo: Long = 0L,
+    val sourceHi: Long = 0L,
+    val sourceLo: Long = 0L
 ) {
+    val packetIds: PacketIds
+        get() = if (sessionHi != 0L || sessionLo != 0L || sourceHi != 0L || sourceLo != 0L) {
+            PacketIds(sessionHi, sessionLo, sourceHi, sourceLo)
+        } else {
+            val (sHi, sLo) = MeshPacketCodec.uuidParts(sessionId)
+            val (oHi, oLo) = MeshPacketCodec.uuidParts(sourceId)
+            PacketIds(sHi, sLo, oHi, oLo)
+        }
+
     /** Copy prepared for relaying by [selfId]; source, sequence, epoch and timestamp are preserved. */
     fun forwardedBy(selfId: String): MeshPacket =
         copy(ttl = ttl - 1, hopCount = hopCount + 1, previousHopId = selfId)
@@ -94,8 +114,12 @@ object MeshPacketCodec {
         if ((buf.get().toInt() and 0xFF) != VERSION) return DecodeResult.Invalid(DecodeResult.Reason.BAD_VERSION)
         val type = MeshPacketType.fromCode(buf.get().toInt() and 0xFF)
             ?: return DecodeResult.Invalid(DecodeResult.Reason.BAD_TYPE)
-        val session = readUuid(buf)
-        val source = readUuid(buf)
+        val sHi = buf.long
+        val sLo = buf.long
+        val session = UUID(sHi, sLo).toString()
+        val oHi = buf.long
+        val oLo = buf.long
+        val source = UUID(oHi, oLo).toString()
         val seq = buf.int
         val ts = buf.long
         val ttl = buf.get().toInt() and 0xFF
@@ -113,7 +137,25 @@ object MeshPacketCodec {
         if (type == MeshPacketType.VOICE && format != AudioFormatId.PCM16_16K_MONO)
             return DecodeResult.Invalid(DecodeResult.Reason.BAD_FORMAT)
         val payload = ByteArray(len).also { System.arraycopy(data, HEADER_LEN, it, 0, len) }
-            DecodeResult.Ok(MeshPacket(type, session, source, seq, ts, ttl, hop, prev, format, epoch, payload))
+            DecodeResult.Ok(
+                MeshPacket(
+                    type = type,
+                    sessionId = session,
+                    sourceId = source,
+                    sequence = seq,
+                    captureTimestamp = ts,
+                    ttl = ttl,
+                    hopCount = hop,
+                    previousHopId = prev,
+                    audioFormat = format,
+                    epoch = epoch,
+                    payload = payload,
+                    sessionHi = sHi,
+                    sessionLo = sLo,
+                    sourceHi = oHi,
+                    sourceLo = oLo
+                )
+            )
         } catch (e: Exception) {
             DecodeResult.Invalid(DecodeResult.Reason.TOO_SHORT)
         }
@@ -126,13 +168,19 @@ object MeshPacketCodec {
     }
 
     fun uuidParts(id: String): Pair<Long, Long> {
-        val u = UUID.fromString(id)
+        val u = try {
+            UUID.fromString(id)
+        } catch (_: Exception) {
+            val hash = MessageDigest.getInstance("SHA-256").digest(id.toByteArray(Charsets.UTF_8))
+            val buf = ByteBuffer.wrap(hash)
+            return Pair(buf.long, buf.long)
+        }
         return Pair(u.mostSignificantBits, u.leastSignificantBits)
     }
 
     fun uuidBytes(id: String): ByteArray {
-        val u = UUID.fromString(id)
-        return ByteBuffer.allocate(16).putLong(u.mostSignificantBits).putLong(u.leastSignificantBits).array()
+        val (hi, lo) = uuidParts(id)
+        return ByteBuffer.allocate(16).putLong(hi).putLong(lo).array()
     }
 
     private fun readUuid(buf: ByteBuffer): String = UUID(buf.long, buf.long).toString()

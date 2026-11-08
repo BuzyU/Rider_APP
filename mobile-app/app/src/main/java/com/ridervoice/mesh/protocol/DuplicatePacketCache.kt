@@ -15,8 +15,23 @@ import com.ridervoice.mesh.MeshConfig
 class DuplicatePacketCache(
     private val maxEntries: Int = MeshConfig.DUP_CACHE_MAX_ENTRIES,
     private val ttlMs: Long = MeshConfig.DUP_CACHE_TTL_MS,
+    private val uuidParser: (String) -> Pair<Long, Long> = { MeshPacketCodec.uuidParts(it) },
     private val clock: () -> Long
 ) {
+    constructor(clock: () -> Long) : this(
+        maxEntries = MeshConfig.DUP_CACHE_MAX_ENTRIES,
+        ttlMs = MeshConfig.DUP_CACHE_TTL_MS,
+        uuidParser = { MeshPacketCodec.uuidParts(it) },
+        clock = clock
+    )
+
+    constructor(maxEntries: Int, ttlMs: Long, clock: () -> Long) : this(
+        maxEntries = maxEntries,
+        ttlMs = ttlMs,
+        uuidParser = { MeshPacketCodec.uuidParts(it) },
+        clock = clock
+    )
+
     private data class Key(
         val sHi: Long,
         val sLo: Long,
@@ -30,12 +45,25 @@ class DuplicatePacketCache(
     // Insertion-ordered: the first entry is always the oldest.
     private val entries = LinkedHashMap<Key, Long>()
 
-    /** Returns true if the packet is new (and records it), false if it is a duplicate. */
+    /** Primary packet-based overload using decoded long IDs directly without string parsing. */
     @Synchronized
-    fun markIfNew(sessionId: String, sourceId: String, sequence: Int, kind: Int = 0, epoch: Int = 0): Boolean {
+    fun markIfNew(ids: PacketIds, epoch: Int, kind: Int, seq: Int): Boolean =
+        markIfNew(ids.sessionHi, ids.sessionLo, ids.sourceHi, ids.sourceLo, seq, kind, epoch)
+
+    /** Raw primitive long overload without object allocation. */
+    @Synchronized
+    fun markIfNew(
+        sessionHi: Long,
+        sessionLo: Long,
+        sourceHi: Long,
+        sourceLo: Long,
+        sequence: Int,
+        kind: Int = 0,
+        epoch: Int = 0
+    ): Boolean {
         val now = clock()
         purgeExpired(now)
-        val key = makeKey(sessionId, sourceId, epoch, kind, sequence)
+        val key = Key(sessionHi, sessionLo, sourceHi, sourceLo, epoch, kind, sequence)
         if (entries.containsKey(key)) return false
         entries[key] = now
         while (entries.size > maxEntries) {
@@ -44,13 +72,42 @@ class DuplicatePacketCache(
         return true
     }
 
-    /** Non-mutating duplicate check for pre-AEAD validation. */
+    /** Legacy string wrapper kept for test compatibility. */
     @Synchronized
-    fun isDuplicate(sessionId: String, sourceId: String, sequence: Int, kind: Int = 0, epoch: Int = 0): Boolean {
+    fun markIfNew(sessionId: String, sourceId: String, sequence: Int, kind: Int = 0, epoch: Int = 0): Boolean {
+        val (sHi, sLo) = uuidParser(sessionId)
+        val (oHi, oLo) = uuidParser(sourceId)
+        return markIfNew(sHi, sLo, oHi, oLo, sequence, kind, epoch)
+    }
+
+    /** Primary packet-based duplicate check using decoded long IDs directly without string parsing. */
+    @Synchronized
+    fun isDuplicate(ids: PacketIds, epoch: Int, kind: Int, seq: Int): Boolean =
+        isDuplicate(ids.sessionHi, ids.sessionLo, ids.sourceHi, ids.sourceLo, seq, kind, epoch)
+
+    /** Raw primitive long overload without object allocation. */
+    @Synchronized
+    fun isDuplicate(
+        sessionHi: Long,
+        sessionLo: Long,
+        sourceHi: Long,
+        sourceLo: Long,
+        sequence: Int,
+        kind: Int = 0,
+        epoch: Int = 0
+    ): Boolean {
         val now = clock()
         purgeExpired(now)
-        val key = makeKey(sessionId, sourceId, epoch, kind, sequence)
+        val key = Key(sessionHi, sessionLo, sourceHi, sourceLo, epoch, kind, sequence)
         return entries.containsKey(key)
+    }
+
+    /** Legacy string wrapper kept for test compatibility. */
+    @Synchronized
+    fun isDuplicate(sessionId: String, sourceId: String, sequence: Int, kind: Int = 0, epoch: Int = 0): Boolean {
+        val (sHi, sLo) = uuidParser(sessionId)
+        val (oHi, oLo) = uuidParser(sourceId)
+        return isDuplicate(sHi, sLo, oHi, oLo, sequence, kind, epoch)
     }
 
     @Synchronized
@@ -64,11 +121,5 @@ class DuplicatePacketCache(
         while (it.hasNext()) {
             if (now - it.next().value > ttlMs) it.remove() else break  // ordered by insertion time
         }
-    }
-
-    private fun makeKey(sessionId: String, sourceId: String, epoch: Int, kind: Int, sequence: Int): Key {
-        val (sHi, sLo) = MeshPacketCodec.uuidParts(sessionId)
-        val (oHi, oLo) = MeshPacketCodec.uuidParts(sourceId)
-        return Key(sHi, sLo, oHi, oLo, epoch, kind, sequence)
     }
 }

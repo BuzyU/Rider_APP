@@ -14,6 +14,7 @@ import com.ridervoice.mesh.protocol.DuplicatePacketCache
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
+import com.ridervoice.mesh.protocol.PacketIds
 import com.ridervoice.mesh.protocol.PayloadCrypto
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.SessionManager
@@ -78,6 +79,9 @@ class ForwardingEngine(
     private val authKey: ByteArray = sessionManager.session.authKey()
     private val payloadKey: ByteArray = sessionManager.session.payloadKey()
     private val sessionId: String = sessionManager.session.sessionId
+    private val sParts = MeshPacketCodec.uuidParts(sessionId)
+    private val selfParts = MeshPacketCodec.uuidParts(selfId)
+    private val localPacketIds = PacketIds(sParts.first, sParts.second, selfParts.first, selfParts.second)
     private val sourceKeyCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
 
     private fun getSourcePayloadKey(srcId: String): ByteArray =
@@ -154,9 +158,13 @@ class ForwardingEngine(
             previousHopId = selfId,
             audioFormat = AudioFormatId.PCM16_16K_MONO,
             epoch = localEpoch,
-            payload = sealed
+            payload = sealed,
+            sessionHi = sParts.first,
+            sessionLo = sParts.second,
+            sourceHi = selfParts.first,
+            sourceLo = selfParts.second
         )
-        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet), localEpoch)
+        duplicateCache.markIfNew(localPacketIds, epoch = localEpoch, kind = dedupKind(packet), seq = seq)
         val wire = MeshPacketCodec.encode(packet, authKey)
         graphRepository.expire()
         val targets = graphRepository.directNeighbors()
@@ -211,9 +219,13 @@ class ForwardingEngine(
             previousHopId = selfId,
             audioFormat = AudioFormatId.PCM16_16K_MONO,
             epoch = localEpoch,
-            payload = sealed
+            payload = sealed,
+            sessionHi = sParts.first,
+            sessionLo = sParts.second,
+            sourceHi = selfParts.first,
+            sourceLo = selfParts.second
         )
-        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet), localEpoch)
+        duplicateCache.markIfNew(localPacketIds, epoch = localEpoch, kind = dedupKind(packet), seq = seq)
         val wire = MeshPacketCodec.encode(packet, authKey)
         val endpoints = LinkedHashSet<MeshEndpoint>()
         graphRepository.directNeighbors().forEach { endpoints.add(it.endpoint) }
@@ -254,9 +266,13 @@ class ForwardingEngine(
             previousHopId = selfId,
             audioFormat = AudioFormatId.PCM16_16K_MONO,
             epoch = localEpoch,
-            payload = sealed
+            payload = sealed,
+            sessionHi = sParts.first,
+            sessionLo = sParts.second,
+            sourceHi = selfParts.first,
+            sourceLo = selfParts.second
         )
-        duplicateCache.markIfNew(sessionId, selfId, seq, dedupKind(packet), localEpoch)
+        duplicateCache.markIfNew(localPacketIds, epoch = localEpoch, kind = dedupKind(packet), seq = seq)
         val wire = MeshPacketCodec.encode(packet, authKey)
         val targets = graphRepository.directNeighbors()
         for (neighbor in targets) {
@@ -339,7 +355,7 @@ class ForwardingEngine(
         }
 
         // Fast non-mutating duplicate check BEFORE decrypting
-        if (duplicateCache.isDuplicate(decoded.sessionId, decoded.sourceId, decoded.sequence, dedupKind(decoded), decoded.epoch)) {
+        if (duplicateCache.isDuplicate(decoded.packetIds, epoch = decoded.epoch, kind = dedupKind(decoded), seq = decoded.sequence)) {
             droppedDup.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DUPLICATE)
         }
@@ -406,7 +422,7 @@ class ForwardingEngine(
         }
 
         // ONLY AFTER AEAD decryption and payload format validation succeed:
-        if (!duplicateCache.markIfNew(decoded.sessionId, decoded.sourceId, decoded.sequence, dedupKind(decoded), decoded.epoch)) {
+        if (!duplicateCache.markIfNew(decoded.packetIds, epoch = decoded.epoch, kind = dedupKind(decoded), seq = decoded.sequence)) {
             droppedDup.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DUPLICATE)
         }

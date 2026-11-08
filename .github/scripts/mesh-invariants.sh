@@ -40,8 +40,12 @@ fi
 grep -q "NET_CAPABILITY_VALIDATED" -r $M/mesh || { echo "VIOLATION: ValidatedInternetSource missing"; fail=1; }
 
 bash .github/scripts/verify-test-refs.sh || { echo "VIOLATION: verify-test-refs failed"; fail=1; }
+bash .github/scripts/mesh-commit-guard.sh || { echo "VIOLATION: mesh-commit-guard failed"; fail=1; }
 
-if [ -f ".github/test-census-floor" ] && [ -d "mobile-app/app/build/test-results/testDebugUnitTest" ]; then
+if [ ! -f ".github/test-census-floor" ]; then
+  echo "VIOLATION: .github/test-census-floor missing"
+  fail=1
+elif [ -d "mobile-app/app/build/test-results/testDebugUnitTest" ]; then
   if ls mobile-app/app/build/test-results/testDebugUnitTest/*.xml >/dev/null 2>&1; then
     FLOOR=$(cat .github/test-census-floor | tr -d '[:space:]')
     TOTAL=$(grep -h -o 'tests="[0-9]*"' mobile-app/app/build/test-results/testDebugUnitTest/*.xml | awk -F'"' '{s+=$2} END {print s}')

@@ -57,9 +57,10 @@ jobs:
               skip += int(tree.attrib.get('skipped', 0))
               for tc in tree.findall('.//testcase'):
                   classname = tc.attrib.get('classname', '')
+                  simple_cls = classname.split('.')[-1]
                   name = tc.attrib.get('name', '')
+                  executed_tests.add(f'{simple_cls}#{name}')
                   executed_tests.add(f'{classname}#{name}')
-                  executed_tests.add(name)
           print(f'Total Tests: {total}, Failures: {fail}, Errors: {err}, Skipped: {skip}')
           if fail > 0 or err > 0:
               sys.exit(1)
@@ -67,13 +68,11 @@ jobs:
           with open('.github/plan-test-matrix.md', 'r') as f:
               matrix = f.read()
 
-          required_tests = re.findall(r'\x60([A-Za-z0-9_]+#[A-Za-z0-9_]+)\x60', matrix)
+          required_tests = re.findall(r'\x60([A-Za-z0-9_]+#[A-Za-z0-9_ ]+)\x60', matrix)
           print(f'Verifying {len(required_tests)} plan requirement test mappings against executed test suite...')
           missing = []
           for req in required_tests:
-              cls, method = req.split('#')
-              matched = any(req in t or (t.endswith(method) and cls in t) for t in executed_tests)
-              if not matched:
+              if req not in executed_tests:
                   missing.append(req)
 
           if missing:
@@ -133,25 +132,7 @@ jobs:
 
       - name: Lint Backend Code
         working-directory: backend
-        run: |
-          if [ ! -f .eslintrc.json ] && [ ! -f .eslintrc.js ] && [ ! -f .eslintrc.yml ]; then
-            cat << 'EOF' > .eslintrc.json
-          {
-            "env": {
-              "node": true,
-              "es2022": true
-            },
-            "parserOptions": {
-              "ecmaVersion": 2022
-            },
-            "rules": {
-              "no-undef": "error",
-              "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }]
-            }
-          }
-          EOF
-          fi
-          npm run lint
+        run: npm run lint
 
       - name: Validate Prisma Schema
         working-directory: backend

@@ -16,13 +16,13 @@ This table maps the explicit test verification requirements from `docs/plan/OFFL
 | **1.11** | Jitter buffer sequence wrap-around ordering | `AudioHandoffRobustnessTest#jitterWrapAround` |
 | **1.11** | 6-node linear chain full topology learning | `ScheduledDeliveryScenarioTest#sixChain_everyNodeLearnsFullTopology` |
 | **1.11** | Joint admission cap (rejection beyond 6 devices) | `MeshSubsystemInvariantsTest#sessionManager_canAdmitAll_rejectsWhenAdmittingSourceAndPreviousHopExceedsCap` |
-| **2.6** | Online mode isolation (zero mesh sockets / collectors) | `FlagOffIsolationTest#appScope_lazyMeshAutoSwitch_neverCallsGet_whenBuildGateClosed`, `FlagOffIsolationTest#localHealthSignalsProvider_doesNotCollectInInit_untilStartWatchingCalled` |
+| **2.6** | Online mode isolation (zero mesh sockets / collectors) | `FlagOffIsolationTest#meshAutoSwitchLauncher_neverCallsGet_whenBuildGateClosed`, `FlagOffIsolationTest#localHealthSignalsProvider_doesNotCollectInInit_untilStartWatchingCalled` |
 | **2.6** | Offline mode runs independently without LiveKit | `Stage2IntegrationTest#voice session coordinator manages atomic handoff between transports`, `Stage3ReachabilityTest#noSocketsWhileGateClosed` |
 | **2.6** | Exactly one audio capture owner enforced | `AudioOwnershipArbiterTest#claimLiveKit_whenStopOfflineCallbackFails_returnsFalseAndPreservesOwner`, `AudioOwnershipArbiterTest#mutualExclusionBasicTransitions` |
 | **2.6** | Audio route controller preserves Bluetooth SCO | `MeshSubsystemInvariantsTest#meshAudioRouteController_doesNotReleaseBluetoothScoWhenLiveKitOwnsAudio` |
 | **2.6** | Headset MediaSession deactivation safety | `MeshSubsystemInvariantsTest#meshVoxBridge_doesNotDeactivateMediaSessionWhenRoomOwnsAudio` |
 | **2.6** | Monotonic 20ms playback pacing (0 false underruns) | `MeshSubsystemInvariantsTest#offlineAudioPlayback_monotonicTickPacing_doesNotCountIdleSilenceAsUnderrun` |
-| **2.6** | Online RoomScreen decoupled from mesh DI | `OnlineRoomDiIsolationTest#navGraph_activeRideRoute_branchesOnBuildGate`, `OnlineRoomDiIsolationTest#meshActiveOverlay_consumesAllPointerEvents` |
+| **2.6** | Online RoomScreen decoupled from mesh DI | `OnlineRoomDiIsolationTest#selectRoomHost_returnsOfflineAware_onlyWhenGateEnabled`, `OnlineRoomDiIsolationTest#selectRoomHost_returnsPlainOnline_whenDisabledByBuild` |
 | **5.0** | Daisy-hop multi-hop playout and forwarding chain | `Stage5AcceptanceTest#daisyHopAcceptance_multiNodeAudioFlowAndSourceIntegrity` |
 | **5.0** | Daisy-hop source-ID preservation across relays | `Stage5AcceptanceTest#daisyHopAcceptance_multiNodeAudioFlowAndSourceIntegrity` |
 | **5.0** | Relay disappearance and dynamic route recovery | `MeshStage1SimulationTest#daisy-hop 4 nodes adapts dynamically from A-B-C-D to A-C-B-D without restart` |

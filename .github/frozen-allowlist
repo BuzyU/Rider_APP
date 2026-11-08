@@ -1,0 +1,3 @@
+# Allowed deviations from frozen base commit a37ef09
+# docs/plan/OFFLINE_MESH_PLAN.md is the specification plan document added after baseline a37ef09
+docs/plan/OFFLINE_MESH_PLAN.md

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +36,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,6 +51,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -99,12 +102,14 @@ fun OfflineMeshLobbyScreen(
     var useAsBackup by remember { mutableStateOf(viewModel.isMicOwnedByLiveKit()) }
 
     val backupSession by viewModel.backupSession.collectAsState()
+    val isDerivingKey by viewModel.isDerivingKey.collectAsState()
+    val sessionError by viewModel.sessionError.collectAsState()
     val diagSnapshot by viewModel.transport.diagnostics.collectAsState()
 
     var localIp by remember { mutableStateOf<String?>(null) }
     var bcastAddr by remember { mutableStateOf("255.255.255.255") }
     val zeroNeighboursStartMs = remember { System.currentTimeMillis() }
-    var elapsedZeroNeighboursSec by remember { mutableStateOf(0L) }
+    var elapsedZeroNeighboursSec by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -437,11 +442,20 @@ fun OfflineMeshLobbyScreen(
                                     generatedCode = code
                                 }
                             },
+                            enabled = !isDerivingKey,
                             colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(stringResource(R.string.mesh_lobby_generate_code), color = Color.Black, fontWeight = FontWeight.Bold)
+                            if (isDerivingKey) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.Black,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(stringResource(R.string.mesh_lobby_generate_code), color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
                         }
                     } else {
                         val formattedCode = OfflineSession.format(currentGeneratedCode)
@@ -484,10 +498,8 @@ fun OfflineMeshLobbyScreen(
                                         context.getString(R.string.mesh_lobby_channel_code_header),
                                         formattedCode
                                     )
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                                        clip.description.extras = PersistableBundle().apply {
-                                            putBoolean("android.content.extra.IS_SENSITIVE", true)
-                                        }
+                                    clip.description.extras = PersistableBundle().apply {
+                                        putBoolean("android.content.extra.IS_SENSITIVE", true)
                                     }
                                     cm.setPrimaryClip(clip)
                                     Toast.makeText(context, context.getString(R.string.mesh_lobby_code_copied), Toast.LENGTH_SHORT).show()
@@ -567,6 +579,7 @@ fun OfflineMeshLobbyScreen(
                         onValueChange = {
                             joinCodeInput = it.uppercase()
                             joinError = null
+                            viewModel.clearSessionError()
                         },
                         label = { Text(stringResource(R.string.mesh_lobby_pairing_code_label)) },
                         placeholder = { Text(stringResource(R.string.mesh_lobby_pairing_code_placeholder)) },
@@ -586,7 +599,7 @@ fun OfflineMeshLobbyScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    if (joinError != null) {
+                    if (joinError != null || sessionError) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -596,7 +609,7 @@ fun OfflineMeshLobbyScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = joinError!!,
+                                text = joinError ?: stringResource(R.string.mesh_invalid_code),
                                 color = AlertRed,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -607,16 +620,25 @@ fun OfflineMeshLobbyScreen(
 
                     Button(
                         onClick = { submitJoinCode() },
+                        enabled = !isDerivingKey && joinCodeInput.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        val joinCtaText = if (useAsBackup) {
-                            stringResource(R.string.mesh_settings_pair_code_action)
+                        if (isDerivingKey) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.Black,
+                                strokeWidth = 2.dp
+                            )
                         } else {
-                            stringResource(R.string.mesh_lobby_join_button)
+                            val joinCtaText = if (useAsBackup) {
+                                stringResource(R.string.mesh_settings_pair_code_action)
+                            } else {
+                                stringResource(R.string.mesh_lobby_join_button)
+                            }
+                            Text(joinCtaText, color = Color.Black, fontWeight = FontWeight.Bold)
                         }
-                        Text(joinCtaText, color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }

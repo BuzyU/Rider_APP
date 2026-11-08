@@ -261,8 +261,8 @@ fun MeshTopBar(
     transportState: VoiceTransportState,
     peerCount: Int,
     onInfoClick: () -> Unit,
-    onSosClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSosClick: (() -> Unit)? = null
 ) {
     val stateText = when (transportState) {
         VoiceTransportState.STOPPED -> stringResource(R.string.mesh_state_stopped)

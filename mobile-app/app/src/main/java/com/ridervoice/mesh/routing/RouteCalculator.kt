@@ -102,5 +102,4 @@ class RoutingTable {
     }
 
     fun routeTo(id: String): RouteEntry? = _routes.value[id]
-    fun hasAnyRoute(): Boolean = _routes.value.isNotEmpty()
 }

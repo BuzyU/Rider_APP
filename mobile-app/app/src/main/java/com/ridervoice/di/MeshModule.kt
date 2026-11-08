@@ -90,11 +90,7 @@ object MeshModule {
         }.getOrNull()?.takeIf { it.isNotBlank() }
         if (prefName != null) return@RiderNameProvider prefName
 
-        val emailPrefix = runCatching {
-            FirebaseAuth.getInstance().currentUser?.email?.substringBefore("@")
-        }.getOrNull()?.takeIf { it.isNotBlank() }
-
-        emailPrefix ?: "Rider"
+        "Rider"
     }
 
     @Provides
@@ -161,17 +157,6 @@ object MeshModule {
             securePreferences.getBoolean("settings_open_mic", true) &&
                 liveKitManager.connectionState.value == ConnectionState.CONNECTED
         }
-    )
-
-    fun provideLiveKitVoiceTransport(
-        liveKitManager: LiveKitManager,
-        arbiter: AudioOwnershipArbiter,
-        voxEngine: VoxEngine
-    ): LiveKitVoiceTransport = provideLiveKitVoiceTransport(
-        liveKitManager = liveKitManager,
-        arbiter = arbiter,
-        voxEngine = voxEngine,
-        securePreferences = SecurePreferences()
     )
 
     @Provides

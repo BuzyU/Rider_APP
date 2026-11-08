@@ -64,7 +64,7 @@ Format: `ID | Sev | Class | Status | Code evidence (file:line) | Test reference`
 | B11 | HIGH | Coroutines | FIXED (WP-49) | `Cancellable.kt:3` | VoiceSessionCoordinatorTest#cancellationDuringEnableAudio_rethrowsAndCancelsJob |
 | B12 | MEDIUM | Link | FIXED (WP-47) | `NetworkLocks.kt:25` | MulticastLockLifecycleTest#multicastLockAcquiredOnDiscoveryStart_releasedOnStop_wifiLockOnlyOnAudio |
 | B13 | MEDIUM | Resources | FIXED (WP-44) | `SettingsScreen.kt:265` | StringsParityTest#allRequiredMeshSettingsKeysPresentAcrossLocales |
-| B14 | MEDIUM | UI | FIXED (WP-44) | `SettingsScreen.kt:225` | OfflineAvailabilityUiTest#noSharedSecret_returnsNoBackupCodeState |
+| B14 | MEDIUM | UI | FIXED (WP-44) | `SettingsScreen.kt:225` | OfflineAvailabilityUiTest#mapTransitionReason_mapsCorrectly |
 | B15 | LOW | Switching | FIXED (WP-46) | `AutomaticSwitchStateMachine.kt:35` | FailedHandoffBackoffTest#failedHandoff_realDispatcherConcurrencyTest |
 | B16 | HIGH | Switching | FIXED (WP-46) | `LocalHealthSignalsProvider.kt:85` | WiringTest#localHealthSignalsProviderSamplesLocalSignalsAccurately |
 | B17 | HIGH | Security | FIXED (WP-49) | `ForwardingEngine.kt:502` | KeyZeroizationTest#forwardingEngine_closeZeroizesKeyArrays |

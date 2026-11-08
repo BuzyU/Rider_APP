@@ -66,44 +66,28 @@ class AndroidAudioManagerPort(
             emptyList()
         }
 
-    @SuppressLint("NewApi")
     override fun requestCommunicationFocus(): Boolean {
         val am = audioManager ?: return false
         return runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
-                    .setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                            .build()
-                    )
-                    .setOnAudioFocusChangeListener { }
-                    .build()
-                audioFocusRequest = req
-                am.requestAudioFocus(req) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-            } else {
-                @Suppress("DEPRECATION")
-                am.requestAudioFocus(
-                    null,
-                    AudioManager.STREAM_VOICE_CALL,
-                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE
-                ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-            }
+            val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                .setOnAudioFocusChangeListener { }
+                .build()
+            audioFocusRequest = req
+            am.requestAudioFocus(req) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         }.getOrDefault(false)
     }
 
-    @SuppressLint("NewApi")
     override fun abandonCommunicationFocus() {
         val am = audioManager ?: return
         runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                audioFocusRequest?.let { am.abandonAudioFocusRequest(it) }
-                audioFocusRequest = null
-            } else {
-                @Suppress("DEPRECATION")
-                am.abandonAudioFocus(null)
-            }
+            audioFocusRequest?.let { am.abandonAudioFocusRequest(it) }
+            audioFocusRequest = null
         }
     }
 

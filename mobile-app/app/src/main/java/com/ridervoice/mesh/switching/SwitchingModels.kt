@@ -25,13 +25,7 @@ enum class GroupConnectivityStatus {
     ONLINE_ALL,
     MIXED,
     OFFLINE_MESH_ONLY,
-    ALONE;
-
-    companion object {
-        val ENTIRE_GROUP_ONLINE get() = ONLINE_ALL
-        val LOCAL_ONLINE_SOME_PEERS_OFFLINE get() = MIXED
-        val LOCAL_OFFLINE_MESH_ACTIVE get() = OFFLINE_MESH_ONLY
-    }
+    ALONE
 }
 
 

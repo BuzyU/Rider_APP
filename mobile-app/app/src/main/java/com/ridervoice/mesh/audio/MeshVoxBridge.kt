@@ -150,14 +150,6 @@ class MeshVoxBridge(
         refreshGateOpen()
     }
 
-    /** Direct update of VOX speech active state (testing or external detector). */
-    fun setVoxSpeechActive(active: Boolean) {
-        if (active) {
-            micController.setVoxEnabled(true)
-        }
-        micController.setVoxArmed(active)
-        refreshGateOpen()
-    }
 
     /**
      * Inspects a raw PCM frame (640-byte 16 kHz mono 16-bit PCM = 320 samples) and returns

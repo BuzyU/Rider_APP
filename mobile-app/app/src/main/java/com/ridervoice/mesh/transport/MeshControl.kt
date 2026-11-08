@@ -11,7 +11,6 @@ sealed interface EnableAudioResult {
             val HardwareBusy = Failure("HARDWARE_BUSY")
             val GateClosed = Failure("GATE_CLOSED")
             val OwnershipDenied = Failure("OWNERSHIP_DENIED")
-            val RecordInitFailed = Failure("RECORD_INIT_FAILED")
         }
     }
 }

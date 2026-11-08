@@ -127,43 +127,4 @@ class OfflineMeshViewModelTest {
         assertNull(viewModel.activeSession.value)
     }
 
-    @Test
-    fun resolveAndStartSessionWithValidCodeStartsSession() = runBlocking {
-        val arbiter = AudioOwnershipArbiter()
-        val identity = MeshIdentity(UUID.randomUUID().toString(), "test-rider")
-        val link = FakeMeshLink()
-        val transport = OfflineMeshVoiceTransport(
-            identity = identity,
-            audioOwnershipArbiter = arbiter,
-            gateAllowed = { true },
-            linkFactory = { link }
-        )
-        val viewModel = OfflineMeshViewModel(transport, arbiter)
-
-        val realSession = OfflineSession.create(1_000L)
-        var invalidCalled = false
-
-        viewModel.resolveAndStartSession(realSession.pairingCode) {
-            invalidCalled = true
-        }
-
-        withTimeout(5_000L) {
-            while ((viewModel.activeSession.value == null || transport.state.value != VoiceTransportState.CONNECTED) && !invalidCalled) {
-                delay(20L)
-            }
-        }
-
-        assertFalse("Valid code must not invoke onInvalid", invalidCalled)
-        assertNotNull(viewModel.activeSession.value)
-        assertEquals(VoiceTransportState.CONNECTED, transport.state.value)
-
-        viewModel.stopSession()
-        withTimeout(5_000L) {
-            while (transport.state.value != VoiceTransportState.STOPPED || viewModel.activeSession.value != null) {
-                delay(20L)
-            }
-        }
-        assertEquals(VoiceTransportState.STOPPED, transport.state.value)
-        assertNull(viewModel.activeSession.value)
-    }
 }

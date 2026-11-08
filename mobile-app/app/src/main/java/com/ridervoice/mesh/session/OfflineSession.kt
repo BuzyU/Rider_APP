@@ -133,18 +133,6 @@ class SessionManager(
         return Admission.ADMITTED
     }
 
-    /** Non-mutating admission check for pre-AEAD validation. */
-    @Synchronized
-    fun canAdmit(deviceId: String): Admission {
-        val now = clock()
-        if (session.isExpired(now)) return Admission.REJECTED_EXPIRED
-        purgeStale(now)
-        if (lastSeen.containsKey(deviceId)) {
-            return Admission.ALREADY_MEMBER
-        }
-        if (lastSeen.size >= session.maxDevices) return Admission.REJECTED_FULL
-        return Admission.ADMITTED
-    }
 
     /**
      * Non-mutating joint admission check for pre-AEAD validation of relayed packets
@@ -171,8 +159,6 @@ class SessionManager(
     @Synchronized
     fun members(): Set<String> { purgeStale(clock()); return lastSeen.keys.toSet() }
 
-    @Synchronized
-    fun isMember(deviceId: String): Boolean { purgeStale(clock()); return lastSeen.containsKey(deviceId) }
 
     /** Leaving clears all remote membership state. */
     @Synchronized

@@ -98,10 +98,6 @@ class ClockSkewDiagnosisTest {
         val outcome = engine.onIncomingFrame(MeshFrame(from = MeshEndpoint("10.0.0.5", 45454), data = wire))
 
         assertEquals(ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.STALE_TIMESTAMP), outcome)
-        assertEquals(1L, engine.droppedStaleTimestampCount)
-        assertEquals(15_000L, engine.suspectedClockSkew)
-        assertEquals(peerId, engine.suspectedClockSkewPeer)
-
         val cnt = engine.counters()
         assertEquals(1L, cnt.staleTimestamp)
         assertEquals(15_000L, cnt.suspectedClockSkewMs)
@@ -164,8 +160,9 @@ class ClockSkewDiagnosisTest {
         val outcome = engine.onIncomingFrame(MeshFrame(from = MeshEndpoint("10.0.0.5", 45454), data = corruptedWire))
 
         assertEquals(ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DECODE_FAILED), outcome)
-        assertEquals(0L, engine.droppedStaleTimestampCount)
-        assertEquals(0L, engine.suspectedClockSkew)
+        val cnt = engine.counters()
+        assertEquals(0L, cnt.staleTimestamp)
+        assertEquals(0L, cnt.suspectedClockSkewMs)
     }
 
     @Test

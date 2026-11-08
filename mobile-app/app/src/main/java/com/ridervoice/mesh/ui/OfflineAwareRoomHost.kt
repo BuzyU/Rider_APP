@@ -279,9 +279,9 @@ fun TacticalBanner(
     groupStatus: GroupConnectivityStatus,
     peerCount: Int,
     maxHops: Int,
-    fallbackReason: FallbackReason = FallbackReason.UNKNOWN,
     onViewDiagnostics: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    fallbackReason: FallbackReason = FallbackReason.UNKNOWN
 ) {
     val (statusText, statusColor) = when (state) {
         AutoSwitchState.OFFLINE_ACTIVE -> stringResource(R.string.mesh_banner_offline_active) to MeshColors.Emerald

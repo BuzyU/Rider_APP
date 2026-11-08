@@ -118,9 +118,6 @@ class SourceJitterBuffer(
     }
 
     @Synchronized
-    fun bufferedFrameCount(): Int = queue.size
-
-    @Synchronized
     fun isPrimed(): Boolean = primed
 
     private fun synthesizePlcFrame(missingStreak: Int): ByteArray {

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">RiderVoice</string>
     <string name="app_tagline">Talk to your riding group, hands-free.</string>
     <string name="mapbox_access_token" translatable="false">pk.eyJ1IjoicmlkZXJ2b2ljZSIsImEiOiJjbTByaWRlcnZvaWNlMDAwMDExIn0.dummy_public_key</string>
@@ -250,7 +250,6 @@
     <string name="mesh_lobby_pairing_code_label">Pairing Code</string>
     <string name="mesh_lobby_pairing_code_placeholder">XXXX-XXXX-XXXX-XXXX</string>
     <string name="mesh_lobby_join_button">Join Channel</string>
-    <string name="mesh_lobby_invalid_code_error">Invalid pairing code. Code must be 16 alphanumeric characters.</string>
     <string name="mesh_lobby_code_copied">Pairing code copied!</string>
     <string name="mesh_cd_back">Back</string>
     <string name="mesh_cd_copy">Copy</string>
@@ -272,8 +271,8 @@
 
     <!-- Mesh Routing & Age -->
     <string name="mesh_direct_link">DIRECT LINK (1 Hop)</string>
-    <string name="mesh_relayed_via">RELAYED · %1$d Hops via %2$s</string>
-    <string name="mesh_relayed_hops">RELAYED · %1$d Hops</string>
+    <string name="mesh_relayed_via" tools:ignore="PluralsCandidate">RELAYED · %1$d Hops via %2$s</string>
+    <string name="mesh_relayed_hops" tools:ignore="PluralsCandidate">RELAYED · %1$d Hops</string>
     <string name="mesh_unreachable">UNREACHABLE</string>
     <string name="mesh_route_age">Age: %1$ds</string>
 
@@ -282,7 +281,6 @@
     <string name="mesh_audio_route_bluetooth">Bluetooth</string>
     <string name="mesh_audio_route_wired">Wired Headset</string>
     <string name="mesh_audio_route_earpiece">Earpiece</string>
-    <string name="mesh_vox_toggle">VOX</string>
     <string name="mesh_vox_on">VOX: ON</string>
     <string name="mesh_vox_off">VOX: OFF</string>
     <string name="mesh_ptt_button">HOLD TO TALK</string>
@@ -330,7 +328,7 @@
     <string name="mesh_notif_channel_name">Offline Mesh Intercom</string>
     <string name="mesh_notif_channel_desc">Shows active offline mesh intercom status</string>
     <string name="mesh_notif_title">Offline Mesh Intercom Active</string>
-    <string name="mesh_notif_content">Offline Mesh: %1$s | %2$d peers</string>
+    <string name="mesh_notif_content" tools:ignore="PluralsCandidate">Offline Mesh: %1$s | %2$d peers</string>
     <string name="mesh_notif_disconnect">Disconnect</string>
     <string name="mesh_use_as_ride_backup">Use this code as backup for online rides</string>
     <string name="mesh_invalid_code">Invalid pairing code</string>
@@ -362,7 +360,7 @@
     <string name="mesh_backup_clear_action">Clear Backup</string>
     <string name="mesh_backup_saved_toast">Backup pairing code saved for online rides</string>
     <string name="mesh_overlay_searching_peers">Searching for nearby riders on the mesh…</string>
-    <string name="mesh_tactical_summary">%1$d peers · Max %2$d hops</string>
+    <string name="mesh_tactical_summary" tools:ignore="PluralsCandidate">%1$d peers · Max %2$d hops</string>
     <string name="mesh_clock_skew_warning">Phone clock differs from %1$s by %2$ds</string>
     <string name="mesh_backup_not_persisted_warning">Backup code not saved on this device; it will be lost if the app closes</string>
     <string name="mesh_selftest_bad_version_hint">Incompatible protocol version detected from nearby riders. Please update the app.</string>

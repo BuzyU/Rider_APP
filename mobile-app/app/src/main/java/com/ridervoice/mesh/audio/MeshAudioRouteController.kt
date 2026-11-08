@@ -76,6 +76,7 @@ class MeshAudioRouteController @Inject constructor(
         }
     }
 
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.S)
     private fun applyModernRoute(route: AudioRoute) {
         val devices = port.availableCommunicationDevices
         when (route) {

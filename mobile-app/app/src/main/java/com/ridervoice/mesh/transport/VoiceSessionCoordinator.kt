@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.transport
 
+import androidx.annotation.VisibleForTesting
 import com.ridervoice.mesh.MeshLog
 import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
@@ -69,7 +70,6 @@ class VoiceSessionCoordinator(
     val activeKind: StateFlow<PeerTransportKind> = _activeKind.asStateFlow()
 
     private val _activeTransport = MutableStateFlow(liveKitTransport)
-    val activeTransport: StateFlow<VoiceTransport> = _activeTransport.asStateFlow()
 
     private val _transportState = MutableStateFlow(VoiceTransportState.STOPPED)
     val transportState: StateFlow<VoiceTransportState> = _transportState.asStateFlow()
@@ -124,6 +124,7 @@ class VoiceSessionCoordinator(
     /**
      * Atomically switches active transport.
      */
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     suspend fun switchToTransport(
         targetKind: PeerTransportKind,
         newSession: VoiceSession
@@ -282,6 +283,7 @@ class VoiceSessionCoordinator(
         }
     }
 
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     suspend fun stopCurrent() = switchMutex.withLock {
         _activeTransport.value.stop()
         audioOwnershipArbiter.releaseAll()

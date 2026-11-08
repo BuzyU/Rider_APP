@@ -152,31 +152,6 @@ class OfflineMeshViewModel @Inject constructor(
         _sessionError.value = false
     }
 
-    fun resolveAndStartSession(sessionCode: String, onInvalid: () -> Unit = {}) {
-        viewModelScope.launch {
-            val current = holder.current.value
-            if (current != null && current.pairingCode == sessionCode) {
-                startSession(current)
-                return@launch
-            }
-
-            _isDerivingKey.value = true
-            _sessionError.value = false
-            val session = withContext(Dispatchers.Default) {
-                OfflineSession.fromCode(sessionCode, System.currentTimeMillis())
-            }
-            _isDerivingKey.value = false
-
-            if (session == null) {
-                _sessionError.value = true
-                onInvalid()
-                return@launch
-            }
-
-            holder.setCurrent(session)
-            startSession(session)
-        }
-    }
 
     suspend fun startSession(session: OfflineSession) {
         if (isMicOwnedByLiveKit()) {

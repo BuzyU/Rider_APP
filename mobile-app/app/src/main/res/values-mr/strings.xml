@@ -250,7 +250,6 @@
     <string name="mesh_lobby_pairing_code_label">पेअरिंग कोड</string>
     <string name="mesh_lobby_pairing_code_placeholder">XXXX-XXXX-XXXX-XXXX</string>
     <string name="mesh_lobby_join_button">चॅनेलमध्ये सामील व्हा</string>
-    <string name="mesh_lobby_invalid_code_error">अमान्य पेअरिंग कोड. कोड 16 अक्षरांचा असावा.</string>
     <string name="mesh_lobby_code_copied">पेअरिंग कोड कॉपी केला!</string>
     <string name="mesh_cd_back">मागे</string>
     <string name="mesh_cd_copy">कॉपी</string>
@@ -282,7 +281,6 @@
     <string name="mesh_audio_route_bluetooth">ब्लूटूथ</string>
     <string name="mesh_audio_route_wired">वायर्ड हेडसेट</string>
     <string name="mesh_audio_route_earpiece">इअरपीस</string>
-    <string name="mesh_vox_toggle">VOX</string>
     <string name="mesh_vox_on">VOX: चालू</string>
     <string name="mesh_vox_off">VOX: बंद</string>
     <string name="mesh_ptt_button">बोलण्यासाठी दाबून ठेवा</string>

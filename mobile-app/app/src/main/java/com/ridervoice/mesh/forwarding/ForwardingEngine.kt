@@ -100,15 +100,6 @@ class ForwardingEngine(
     private val suspectedClockSkewMs = AtomicLong(0L)
     @Volatile private var suspectedClockSkewPeerId: String? = null
 
-    val receivedVoiceCount: Long get() = receivedVoice.get()
-    val forwardedVoiceCount: Long get() = forwardedVoice.get()
-    val droppedDuplicateCount: Long get() = droppedDup.get()
-    val droppedInvalidCount: Long get() = droppedInvalid.get()
-    val droppedBadVersionCount: Long get() = droppedBadVersion.get()
-    val droppedTtlCount: Long get() = droppedTtl.get()
-    val droppedStaleTimestampCount: Long get() = droppedStaleTimestamp.get()
-    val suspectedClockSkew: Long get() = suspectedClockSkewMs.get()
-    val suspectedClockSkewPeer: String? get() = suspectedClockSkewPeerId
 
     data class Counters(
         val received: Long,

@@ -87,9 +87,7 @@ open class ValidatedInternetSource(
         }
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                cm.registerDefaultNetworkCallback(callback)
-            }
+            cm.registerDefaultNetworkCallback(callback)
         } catch (e: SecurityException) {
             MeshLog.w("ValidatedNet", "callback register denied: ${e.javaClass.simpleName}")
         } catch (e: RuntimeException) {

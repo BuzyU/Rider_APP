@@ -57,9 +57,3 @@
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 -dontwarn kotlinx.coroutines.**
-
-# Offline Mesh Protocol, Models & Diagnostics
--keep class com.ridervoice.mesh.protocol.** { *; }
--keep class com.ridervoice.mesh.discovery.** { *; }
--keep class com.ridervoice.mesh.session.** { *; }
--keep class com.ridervoice.mesh.diagnostics.** { *; }

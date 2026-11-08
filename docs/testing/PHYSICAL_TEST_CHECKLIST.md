@@ -14,7 +14,8 @@ Per the verification contract and rule R4, tests that have not been run on real 
 | Test ID | Test Scenario | Hardware Setup | Numerical Pass/Fail Criteria | Status |
 |---|---|---|---|---|
 | **PHYS-01** | Multi-Device P2P Group Formation | 3x Physical Android devices (Android 11, 13, 14) on shared hotspot | Subnet IP assigned; socket bound on port 45454; HELLO discovery packets received within <= 2.0 s | **NOT EXECUTED** |
-| **PHYS-02** | RF Range & Multi-Hop Relay | 6x Motorcycles in linear convoy spaced 100m apart (5 hops) | Packet loss at 5 hops <= 5.0%; mouth-to-ear latency < 150 ms | **NOT EXECUTED** |
+| **PHYS-02** | Multi-Hop Relay (Forced Filter) | All 6 devices on one Wi-Fi hotspot; multi-hop forced with MESH_SET_PEER_FILTER to A->B->C->D->E->F | Packet loss at 5 hops <= 5.0%; mouth-to-ear latency < 150 ms | **NOT EXECUTED** |
+| **PHYS-02b** | True RF Multi-Hop Relay | 6x Motorcycles in linear convoy spaced 100m apart out of direct RF range | Packet loss at 5 hops <= 5.0%; mouth-to-ear latency < 150 ms | **BLOCKED — requires a multi-hop-capable link (owner decision S-1)** |
 | **PHYS-03** | Helmet Bluetooth Intercom & PTT Keypress | Helmet headset (Cardo PackTalk / Sena 50S) paired via BT SCO | Bluetooth helmet PTT switch latency < 200 ms; SCO audio route switch time < 500 ms | **NOT EXECUTED** |
 | **PHYS-04** | Cellular Blackout Tunnel Entry (LiveKit -> Mesh) | Physical vehicle entering an RF shielded chamber / tunnel | Automatic fallback to offline mesh within 10.0 s debounce window; audio dropout < 500 ms | **NOT EXECUTED** |
 | **PHYS-05** | Cellular Recovery Tunnel Exit (Mesh -> LiveKit) | Physical vehicle exiting RF shielded chamber to 5G coverage | HTTP probe succeeds within <= 5.0 s; stability window 8.0 s; relay-loss recovery < 8.0 s | **NOT EXECUTED** |

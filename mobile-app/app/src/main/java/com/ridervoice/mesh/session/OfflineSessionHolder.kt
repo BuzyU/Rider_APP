@@ -54,27 +54,41 @@ object NoOpBackupSessionStore : BackupSessionStore {
 }
 
 class EncryptedPrefsBackupSessionStore(
-    context: Context,
-    prefsFactory: ((Context) -> SharedPreferences)? = null,
+    private val context: Context,
+    private val prefsFactory: ((Context) -> SharedPreferences)? = null,
     private val keyStoreSeam: KeyStoreSeam = AndroidKeyStoreSeam
 ) : BackupSessionStore {
 
     @Volatile private var ramStore: StoredBackupMeta? = null
     @Volatile private var lastWritePersisted: Boolean? = null
-    private val prefs: SharedPreferences? by lazy {
-        try {
-            prefsFactory?.invoke(context.applicationContext) ?: createSafePreferences(context.applicationContext, keyStoreSeam)
-        } catch (e: Exception) {
-            MeshLog.w(TAG, "EncryptedSharedPreferences init failed; failing closed to RAM-only store: ${e.message}")
-            null
+
+    private val prefsLock = Any()
+    @Volatile private var prefsInitialized = false
+    private var prefsInstance: SharedPreferences? = null
+
+    private fun getPrefs(): SharedPreferences? {
+        if (!prefsInitialized) {
+            synchronized(prefsLock) {
+                if (!prefsInitialized) {
+                    prefsInstance = try {
+                        prefsFactory?.invoke(context.applicationContext)
+                            ?: createSafePreferences(context.applicationContext, keyStoreSeam)
+                    } catch (e: Exception) {
+                        MeshLog.w(TAG, "EncryptedSharedPreferences init failed; failing closed to RAM-only store: ${e.message}")
+                        null
+                    }
+                    prefsInitialized = true
+                }
+            }
         }
+        return prefsInstance
     }
 
     override val isPersisted: Boolean
         get() = lastWritePersisted ?: true
 
     override fun saveBackup(pairingCode: String, createdAtMs: Long, expiresAtMs: Long) {
-        val p = prefs
+        val p = getPrefs()
         if (p == null) {
             ramStore = StoredBackupMeta(pairingCode, createdAtMs, expiresAtMs)
             lastWritePersisted = false
@@ -95,7 +109,7 @@ class EncryptedPrefsBackupSessionStore(
     }
 
     override fun loadBackup(): StoredBackupMeta? {
-        val p = prefs ?: return ramStore
+        val p = getPrefs() ?: return ramStore
         return try {
             val code = p.getString(KEY_CODE, null)?.takeIf { it.isNotBlank() } ?: return ramStore
             val created = p.getLong(KEY_CREATED_AT, 0L)
@@ -115,7 +129,8 @@ class EncryptedPrefsBackupSessionStore(
     override fun clearBackup() {
         ramStore = null
         lastWritePersisted = null
-        val p = prefs ?: return
+        if (!prefsInitialized) return
+        val p = prefsInstance ?: return
         try {
             p.edit()
                 .remove(KEY_CODE)

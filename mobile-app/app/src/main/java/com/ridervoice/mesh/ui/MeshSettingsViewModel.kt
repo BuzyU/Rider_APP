@@ -8,7 +8,11 @@ import com.ridervoice.mesh.session.OfflineSessionHolder
 import com.ridervoice.mesh.switching.OfflineAvailability
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +20,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class MeshSettingsUiState(
@@ -36,6 +41,8 @@ class MeshSettingsViewModel(
     private val coordinator: dagger.Lazy<VoiceSessionCoordinator>,
     private val wifiCapability: WifiCapabilityChecker,
     private val sessionHolder: dagger.Lazy<OfflineSessionHolder>,
+    private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val overrideAvailabilityFlow: StateFlow<OfflineAvailability>? = null
 ) : ViewModel() {
 
@@ -44,12 +51,15 @@ class MeshSettingsViewModel(
         settings: MeshRuntimeSettings,
         coordinator: dagger.Lazy<VoiceSessionCoordinator>,
         wifiCapability: WifiCapabilityChecker,
-        sessionHolder: dagger.Lazy<OfflineSessionHolder>
+        sessionHolder: dagger.Lazy<OfflineSessionHolder>,
+        @MeshApplicationScope appScope: CoroutineScope
     ) : this(
         settings = settings,
         coordinator = coordinator,
         wifiCapability = wifiCapability,
         sessionHolder = sessionHolder,
+        appScope = appScope,
+        ioDispatcher = Dispatchers.IO,
         overrideAvailabilityFlow = null
     )
 
@@ -155,6 +165,9 @@ class MeshSettingsViewModel(
 
     fun setOfflineMeshEnabled(enabled: Boolean) {
         settings.setOfflineMeshEnabled(enabled)
+        if (!enabled) {
+            appScope.launch(ioDispatcher) { sessionHolder.get().clearBackup() }
+        }
     }
 
     fun setAutomaticFallbackEnabled(enabled: Boolean) {
@@ -170,7 +183,6 @@ class MeshSettingsViewModel(
     }
 
     fun clearAllOnSignOut() {
-        if (!OfflineMeshGate.isBuildGateOpen() || !settings.offlineMeshEnabled) return
-        sessionHolder.get().clearAll()
+        appScope.launch(ioDispatcher) { sessionHolder.get().clearAll() }
     }
 }

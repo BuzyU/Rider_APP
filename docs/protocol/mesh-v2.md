@@ -1,6 +1,6 @@
-# RiderVoice Offline Mesh Intercom Protocol Specification (v2)
+# RiderVoice Offline Mesh Intercom Protocol Specification (v3)
 
-**Version:** 2.0.0  
+**Version:** 3.0.0  
 **Status:** Implemented and Audited  
 **Transport:** UDP Broadcast / Multicast / Unicast on Port 45454 (`MeshConfig.MESH_PORT`)  
 **Target Topology:** Up to 6 motorcycling intercom devices in ad-hoc P2P mesh  
@@ -13,11 +13,11 @@
 2. **Daisy-Hop Routing:** Messages are forwarded over multi-hop paths using BFS shortest-path routing, bounded to at most 6 nodes and 5 hops.
 3. **End-to-End Encryption & Hop Authentication:**
    - **Hop Authentication:** Every UDP datagram carries a 16-byte outer authentication tag (truncated HMAC-SHA256) calculated over the header and sealed payload using the session `authKey`.
-   - **Payload Confidentiality:** Voice payloads are encrypted end-to-end using AES-256-GCM with a 12-byte deterministic nonce (`epoch(4) + sequence(4) + typeCode(1) + sourceIdPrefix(3)`), 16-byte GCM tag, and AAD binding (`sessionId + sourceId + typeCode + epoch + sequence + captureTimestamp + audioFormat`) derived from `payloadKey`.
+   - **Payload Confidentiality:** Voice payloads are encrypted end-to-end using AES-256-GCM with a 12-byte deterministic nonce (`epoch(4) + sequence(4) + typeCode(1) + 3 zero bytes`), 16-byte GCM tag, and AAD binding (`sessionId + sourceId + typeCode + epoch + sequence + captureTimestamp + audioFormat`). Each source uses a distinct subkey derived via HKDF-SHA256 (`PayloadCrypto.sourceKey(payloadKey, sourceId)`). Note: HKDF subkeys prevent cross-source IV reuse; they do not authenticate sender identity among convoy members possessing `payloadKey`.
 4. **Relay Suppression & Airtime Hygiene:**
-   - Redundant relaying is suppressed when a neighbor has already directly heard a packet from the source or prior hop.
+   - Redundant relay suppression is implemented in `ForwardingEngine` but is **OFF by default** (`MeshConfig.SUPPRESS_REDUNDANT_RELAYS = false`) to guarantee maximum reliability on multi-hop topologies until physical measurements (PHYS-06) prove airtime savings.
    - Forwarding excludes `previousHopId` (never bounce backward) and `sourceId` (never return to sender).
-   - Duplicate packets are dropped via a sliding-window duplicate packet cache.
+   - Duplicate packets are dropped via a bounded FIFO duplicate packet cache (60,000 entries max) with TTL expiration.
 5. **Session Isolation:**
    - Sessions are identified by a 128-bit UUID derived from a 16-symbol pairing code.
    - Keys are derived via Slow KDF (`PBKDF2WithHmacSHA256`, 120,000 iterations, salt `"rvmesh/v2/session"`, 80-byte output).
@@ -72,7 +72,7 @@ Every datagram transmitted on the network adheres to the binary big-endian layou
 | Offset | Field | Type | Description |
 |---|---|---|---|
 | 0..3 | `Magic` | uint32 | Magic constant `0x52564D31` (ASCII `"RVM1"`). |
-| 4 | `Version` | uint8 | Protocol version (`0x02`). |
+| 4 | `Version` | uint8 | Protocol version (`0x03`). |
 | 5 | `Packet Type` | uint8 | `1` = HELLO, `2` = VOICE, `3` = BYE. |
 | 6..21 | `Session ID` | 16 bytes | 128-bit UUID identifying the active mesh session. |
 | 22..37 | `Source ID` | 16 bytes | 128-bit UUID of the node originating the packet. Unmodified during relays. |
@@ -98,7 +98,7 @@ Upon receiving a UDP packet on port 45454, every node executes the following det
 
 1. **Datagram Sizing:** Verify `datagram.length >= 75 + 16 = 91 bytes` (header + minimum tag). If smaller, reject (`TOO_SHORT`).
 2. **Magic Validation:** Verify bytes 0..3 match `0x52564D31`. If mismatch, reject (`BAD_MAGIC`).
-3. **Version Validation:** Verify byte 4 equals `0x02`. If mismatch, reject (`BAD_VERSION`).
+3. **Version Validation:** Verify byte 4 equals `0x03`. If mismatch, reject (`BAD_VERSION`).
 4. **Packet Type Validation:** Verify byte 5 matches known type (`HELLO`, `VOICE`, `BYE`). If invalid, reject (`BAD_TYPE`).
 5. **Length Bounds Validation:** Verify `payloadLength <= 1200` and `datagram.length == 75 + payloadLength + 16`. If mismatch, reject (`BAD_LENGTH`).
 6. **Wire HMAC Verification:** Compute HMAC-SHA256 over bytes `0 until (length - 16)` using session `authKey`. Compare the first 16 bytes against the trailing 16 bytes using constant-time `MessageDigest.isEqual`. If mismatch, reject (`BAD_TAG`).
@@ -111,7 +111,7 @@ Upon receiving a UDP packet on port 45454, every node executes the following det
     - If `HELLO`: Ingest topology discovery into `MeshGraphRepository`.
     - If `BYE`: Immediately evict sender from neighbor list and routing table.
     - If `VOICE`: Proceed to audio decryption and local playout.
-13. **Voice Playout Decryption (VOICE only):** Decrypt sealed payload using AES-256-GCM with `payloadKey` and deterministic nonce. Unsealed PCM bytes are submitted to `MultiSourceJitterBufferManager` under `sourceId`.
+13. **Voice Playout Decryption (VOICE only):** Decrypt sealed payload using AES-256-GCM with per-source subkey (`PayloadCrypto.sourceKey(payloadKey, sourceId)`) and 12-byte zero-padded deterministic nonce. Unsealed PCM bytes are submitted to `MultiSourceJitterBufferManager` under `sourceId`.
 14. **TTL & Hop Count Policy Enforcement:** 
     - Invariant: Drop and reject packet immediately if `ttl <= 0`, `hopCount > MAX_HOPS` (5), or `ttl + hopCount > DEFAULT_TTL` (5).
     - Forwarding Stop Condition: If `ttl <= 1` or `hopCount >= MAX_HOPS` (5), do not relay further.
@@ -119,7 +119,7 @@ Upon receiving a UDP packet on port 45454, every node executes the following det
     - `previousHopId` (never bounce backward to the immediate transmitter).
     - `sourceId` (never send back to the original originator).
     - Expired neighbors.
-16. **Redundant Relay Suppression:** Determine nodes that directly heard this packet by checking bidirectional edges from `sourceId` and `previousHopId`. Suppress forwarding to any candidate already covered.
+16. **Redundant Relay Suppression:** When `SUPPRESS_REDUNDANT_RELAYS = true` (disabled by default), nodes determine candidates already covered by checking bidirectional edges from `sourceId` and `previousHopId` before forwarding.
 17. **Header Re-Encoding & HMAC Recalculation:** Prepare forwarded packet:
     - `ttl = packet.ttl - 1`
     - `hopCount = packet.hopCount + 1`
@@ -127,7 +127,7 @@ Upon receiving a UDP packet on port 45454, every node executes the following det
     - Retain original `sourceId`, `sequence`, `captureTimestamp`, `epoch`, and sealed `payload`.
     - Recompute outer truncated HMAC-SHA256 with `authKey` over modified header and payload, and transmit datagram to candidate neighbor endpoints via UDP unified port 45454 (`MeshConfig.MESH_PORT`).
 18. **Endpoint Learning Invariant (D22):** Inbound unauthenticated packets are NEVER learned into the active endpoint table. Endpoints are registered strictly upon successful wire HMAC-SHA256 verification or explicit verified registration.
-19. **Thread-Safe Routing Table:** `RoutingTable` employs `@Synchronized recompute` and atomic immutable snapshot swapping (`AtomicReference<RoutingSnapshot>`) so concurrent lookups and background graph updates never race or corrupt route states.
+19. **Thread-Safe Routing Table:** `RoutingTable` employs `@Synchronized recompute` and `MutableStateFlow<RoutingSnapshot>` so concurrent lookups and background graph updates never race or corrupt route states.
 
 ---
 

@@ -1,6 +1,7 @@
 package com.ridervoice.mesh.audit
 
 import com.ridervoice.mesh.MeshConfig
+import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.session.SessionKdf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -45,6 +46,17 @@ class ProtocolConstantsDocSyncTest {
         assertFalse("mesh-v2.md must not reference obsolete 100,000 iterations", meshV2Doc.contains("100,000"))
         assertFalse("mesh-v2.md must not reference obsolete 100_000 iterations", meshV2Doc.contains("100_000"))
         assertTrue("mesh-v2.md must reference 120,000 iterations", meshV2Doc.contains("120,000") || meshV2Doc.contains("120_000"))
+        assertTrue(
+            "mesh-v2.md must document protocol version ${MeshPacketCodec.VERSION}",
+            meshV2Doc.contains("0x0${MeshPacketCodec.VERSION}") ||
+                meshV2Doc.contains("Version: ${MeshPacketCodec.VERSION}.0.0") ||
+                meshV2Doc.contains("Protocol version (`0x0${MeshPacketCodec.VERSION}`)")
+        )
+        assertTrue(
+            "mesh-v2.md must document header length ${MeshPacketCodec.HEADER_LEN} bytes",
+            meshV2Doc.contains("${MeshPacketCodec.HEADER_LEN} Bytes Total") ||
+                meshV2Doc.contains("${MeshPacketCodec.HEADER_LEN} (Header)")
+        )
 
         val threatModelDoc = File(docsDir, "security/mesh-threat-model.md").readText()
         assertFalse("mesh-threat-model.md must not reference obsolete 100,000 iterations", threatModelDoc.contains("100,000"))

@@ -27,11 +27,10 @@ bash .github/scripts/verify-test-refs.sh
 
 ## Core Reference Documents
 - [Three-Stage Mesh Plan](../../plan/OFFLINE_MESH_PLAN.md): Authoritative architectural plan and execution requirements.
-- [Protocol Specification v2](../../protocol/mesh-v2.md): Wire format, packet framing, and crypto spec.
+- [Protocol Specification v3](../../protocol/mesh-v2.md): Wire format, packet framing, and crypto spec.
 - [Mesh Threat Model](../../security/mesh-threat-model.md): Security analysis, key derivation, and attack mitigations.
 - [Physical Test Checklist](../../testing/PHYSICAL_TEST_CHECKLIST.md): Hardware verification checklist (all marked `NOT EXECUTED`).
 - [Mesh Test Plan](../../testing/mesh-test-plan.md): Test census, testing philosophy, and unit test strategy.
 - [State Machine Specification](state-machine.md): Formal transition rules and backoff logic.
 - [Architecture Decisions Log](DECISIONS.md): Engineering decisions, rationale, and approvals.
 - [Defect Register](DEFECT_REGISTER.md): Defect tracking for historical A1–A47, B1–B27, and C1–C11 findings.
-- [Changelog](CHANGELOG.md): Consolidated work package log (WP-25 through WP-61).

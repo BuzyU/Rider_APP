@@ -10,6 +10,7 @@ import com.ridervoice.mesh.transport.UnifiedVoicePeer
 import com.ridervoice.mesh.transport.VoiceSession
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import com.ridervoice.mesh.transport.VoiceTransportState
+import com.ridervoice.network.ConnectionState
 import com.ridervoice.network.LiveKitManager
 import com.ridervoice.state.ActiveRideRepository
 import com.ridervoice.utils.Constants
@@ -68,6 +69,12 @@ class MeshAutoSwitchManager(
         if (!OfflineMeshGate.isBuildGateOpen() || OfflineMeshGate.decision() == com.ridervoice.mesh.GateDecision.DISABLED_BY_BUILD) return
         if (drivingJob?.isActive == true) return
         healthSignalsProvider.startWatching()
+        meshTransport.onlineIdentitySupplier = {
+            if (liveKitManager.connectionState.value == ConnectionState.CONNECTED) {
+                liveKitManager.participants.value.firstOrNull { !it.isGhost }?.identity
+                    ?: runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid }.getOrNull()
+            } else null
+        }
         if (!scope.isActive) {
             scope = CoroutineScope(SupervisorJob() + dispatcher)
         }
@@ -174,7 +181,7 @@ class MeshAutoSwitchManager(
         }
     }
 
-    private fun buildUnifiedParticipantList(isLocalOffline: Boolean): List<UnifiedVoicePeer> {
+    internal fun buildUnifiedParticipantList(isLocalOffline: Boolean): List<UnifiedVoicePeer> {
         val rawMesh = meshTransport.participants.value
         val meshPeers = (rawMesh as? List<*>)?.filterIsInstance<UnifiedVoicePeer>() ?: emptyList()
         if (isLocalOffline) {
@@ -182,17 +189,34 @@ class MeshAutoSwitchManager(
         }
         val rawLk = liveKitManager.participants.value
         val lkParticipants = (rawLk as? List<*>)?.filterIsInstance<com.ridervoice.models.Participant>() ?: emptyList()
+
+        val session = secretProvider.backupSession.value
+        val payloadKey = session?.payloadKey()
+
         val lkPeers = lkParticipants.map { p ->
+            val tag = if (payloadKey != null) com.ridervoice.mesh.protocol.PayloadCrypto.computeOnlineIdTag(payloadKey, p.identity) else null
             UnifiedVoicePeer.fromOnline(
                 OnlineParticipant(
                     identity = p.identity,
                     displayName = p.displayName?.takeIf { it.isNotBlank() } ?: p.identity,
                     isSpeaking = liveKitManager.activeSpeaker.value == p.identity,
                     isConnected = !p.isGhost
-                )
+                ),
+                onlineIdTag = tag
             )
         }
-        return if (meshPeers.isEmpty()) lkPeers else lkPeers + meshPeers
+
+        val onlineTags = lkPeers.mapNotNull { it.onlineIdTag }
+        val deduplicatedMeshPeers = if (onlineTags.isNotEmpty()) {
+            meshPeers.filter { meshPeer ->
+                val meshTag = meshPeer.onlineIdTag
+                meshTag == null || onlineTags.none { onlineTag -> onlineTag.contentEquals(meshTag) }
+            }
+        } else {
+            meshPeers
+        }
+
+        return if (deduplicatedMeshPeers.isEmpty()) lkPeers else lkPeers + deduplicatedMeshPeers
     }
 
     fun stop() {

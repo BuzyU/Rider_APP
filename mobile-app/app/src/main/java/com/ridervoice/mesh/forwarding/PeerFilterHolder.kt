@@ -9,6 +9,8 @@ object PeerFilterHolder {
     @Volatile
     var port: PeerFilterPort? = null
 
+    val delegating = PeerFilterPort { id -> port?.shouldAccept(id) ?: true }
+
     fun reset() {
         port = null
     }

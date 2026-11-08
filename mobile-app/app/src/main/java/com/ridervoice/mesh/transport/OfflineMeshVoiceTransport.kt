@@ -92,7 +92,8 @@ class OfflineMeshVoiceTransport(
     private val peerFilterPort: com.ridervoice.mesh.forwarding.PeerFilterPort =
         com.ridervoice.mesh.forwarding.PeerFilterPort { id ->
             com.ridervoice.mesh.forwarding.PeerFilterHolder.port?.shouldAccept(id) ?: true
-        }
+        },
+    var onlineIdentitySupplier: () -> String? = { null }
 ) : VoiceTransport, MeshControl {
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -227,7 +228,16 @@ class OfflineMeshVoiceTransport(
             val sManager = SessionManager(session, currentIdentity.deviceId, clock)
             sessionManager = sManager
 
-            val gRepo = MeshGraphRepository(currentIdentity.deviceId, currentIdentity.displayName, clock)
+            val gRepo = MeshGraphRepository(
+                selfId = currentIdentity.deviceId,
+                selfName = currentIdentity.displayName,
+                clock = clock,
+                selfOnlineTagProvider = {
+                    onlineIdentitySupplier()?.let { onlineId ->
+                        com.ridervoice.mesh.protocol.PayloadCrypto.computeOnlineIdTag(session.payloadKey(), onlineId)
+                    }
+                }
+            )
             graphRepository = gRepo
 
             val rTable = RoutingTable()
@@ -255,7 +265,8 @@ class OfflineMeshVoiceTransport(
                 onLocalVoicePacket = { pkt ->
                     jManager.onVoicePacket(pkt.sourceId, pkt.sequence, pkt.payload, pkt.epoch)
                 },
-                peerFilterPort = peerFilterPort
+                peerFilterPort = peerFilterPort,
+                onlineIdentitySupplier = onlineIdentitySupplier
             )
             forwardingEngine = fEngine
             lastForwardingEngineForTest = fEngine

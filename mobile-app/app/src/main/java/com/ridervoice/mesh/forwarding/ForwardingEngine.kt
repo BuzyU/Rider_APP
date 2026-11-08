@@ -70,7 +70,8 @@ class ForwardingEngine(
     private val onLocalVoicePacket: (MeshPacket) -> Unit = {},
     private val localEpoch: Int = SecureRandom().nextInt(),
     private val suppressRedundantRelays: Boolean = MeshConfig.SUPPRESS_REDUNDANT_RELAYS,
-    private val peerFilterPort: PeerFilterPort? = null
+    private val peerFilterPort: PeerFilterPort? = null,
+    private val onlineIdentitySupplier: () -> String? = { null }
 ) {
     private val voiceSeqGen = AtomicInteger(0)
     private val controlSeqGen = AtomicInteger(0)
@@ -185,10 +186,15 @@ class ForwardingEngine(
         routingTable.recompute(snapshot, now)
 
         val seq = controlSeqGen.incrementAndGet()
+        val onlineId = onlineIdentitySupplier()
+        val onlineTag = if (onlineId != null) {
+            PayloadCrypto.computeOnlineIdTag(payloadKey, onlineId)
+        } else null
         val hello = HelloPayload(
             name = selfName,
             graphVersion = snapshot.version.toInt(),
-            neighborIds = graphRepository.directNeighborIds()
+            neighborIds = graphRepository.directNeighborIds(),
+            onlineIdTag = onlineTag
         )
         val plainHello = HelloCodec.encode(hello)
         val aad = PayloadCrypto.aad(
@@ -432,7 +438,8 @@ class ForwardingEngine(
                     endpoint = frame.from,
                     neighborIds = hello.neighborIds,
                     sequence = decoded.sequence,
-                    epoch = decoded.epoch
+                    epoch = decoded.epoch,
+                    onlineIdTag = hello.onlineIdTag
                 )
                 if (changed) {
                     routingTable.recompute(graphRepository.currentSnapshot(), now)

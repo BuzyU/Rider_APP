@@ -30,6 +30,13 @@ object PayloadCrypto {
         return hmac(salt = prk, data = srcBytes + byteArrayOf(1)).copyOf(32) // HKDF-Expand, one block
     }
 
+    /**
+     * Computes an 8-byte authentication tag identifying an online LiveKit identity.
+     * tag = HMAC-SHA256(payloadKey, livekitIdentityUtf8)[0..8]
+     */
+    fun computeOnlineIdTag(payloadKey: ByteArray, livekitIdentity: String): ByteArray =
+        hmac(salt = payloadKey, data = livekitIdentity.toByteArray(Charsets.UTF_8)).copyOf(8)
+
     fun nonce(epoch: Int, sequence: Int, typeCode: Int): ByteArray =
         ByteBuffer.allocate(NONCE_LEN).order(ByteOrder.BIG_ENDIAN)
             .putInt(epoch)

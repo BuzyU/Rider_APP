@@ -18,7 +18,30 @@ data class MeshEdge(
     val bidirectional: Boolean
 )
 
-data class MeshNodeInfo(val deviceId: String, val displayName: String)
+data class MeshNodeInfo(
+    val deviceId: String,
+    val displayName: String,
+    val onlineIdTag: ByteArray? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MeshNodeInfo) return false
+        if (deviceId != other.deviceId) return false
+        if (displayName != other.displayName) return false
+        if (onlineIdTag != null) {
+            if (other.onlineIdTag == null) return false
+            if (!onlineIdTag.contentEquals(other.onlineIdTag)) return false
+        } else if (other.onlineIdTag != null) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = deviceId.hashCode()
+        result = 31 * result + displayName.hashCode()
+        result = 31 * result + (onlineIdTag?.contentHashCode() ?: 0)
+        return result
+    }
+}
 
 /** Immutable view of the graph as known by one device. */
 data class MeshGraphSnapshot(
@@ -41,10 +64,17 @@ internal fun isStaleReport(prevEpoch: Int, prevSeq: Int, epoch: Int, seq: Int): 
 class MeshGraphRepository(
     private val selfId: String,
     private val selfName: String,
+    private val selfOnlineTagProvider: () -> ByteArray? = { null },
     private val clock: () -> Long
 ) {
-    private class Neighbor(var name: String, var endpoint: MeshEndpoint, var lastSeen: Long)
-    private class Report(var name: String, var neighbors: Set<String>, var lastSeen: Long, var sequence: Int = 0, var epoch: Int = 0)
+    constructor(
+        selfId: String,
+        selfName: String,
+        clock: () -> Long
+    ) : this(selfId, selfName, { null }, clock)
+
+    private class Neighbor(var name: String, var endpoint: MeshEndpoint, var lastSeen: Long, var onlineIdTag: ByteArray? = null)
+    private class Report(var name: String, var neighbors: Set<String>, var lastSeen: Long, var sequence: Int = 0, var epoch: Int = 0, var onlineIdTag: ByteArray? = null)
 
     private val neighbors = LinkedHashMap<String, Neighbor>()
     private val reports = HashMap<String, Report>()
@@ -66,7 +96,8 @@ class MeshGraphRepository(
         endpoint: MeshEndpoint,
         neighborIds: Collection<String>,
         sequence: Int = 0,
-        epoch: Int = 0
+        epoch: Int = 0,
+        onlineIdTag: ByteArray? = null
     ): Boolean {
         if (sourceId == selfId) return false
         val now = clock()
@@ -74,25 +105,26 @@ class MeshGraphRepository(
         if (hopCount == 0) {
             val n = neighbors[sourceId]
             if (n == null) {
-                neighbors[sourceId] = Neighbor(name, endpoint, now); changed = true
+                neighbors[sourceId] = Neighbor(name, endpoint, now, onlineIdTag); changed = true
             } else {
-                if (n.endpoint != endpoint || n.name != name) changed = true  // IP change updates endpoint only
-                n.endpoint = endpoint; n.name = name; n.lastSeen = now
+                if (n.endpoint != endpoint || n.name != name || (onlineIdTag != null && !onlineIdTag.contentEquals(n.onlineIdTag))) changed = true
+                n.endpoint = endpoint; n.name = name; n.lastSeen = now; if (onlineIdTag != null) n.onlineIdTag = onlineIdTag
             }
         }
         val set = neighborIds.filter { it != sourceId }.toSet()
         val r = reports[sourceId]
         if (r == null) {
-            reports[sourceId] = Report(name, set, now, sequence, epoch)
+            reports[sourceId] = Report(name, set, now, sequence, epoch, onlineIdTag)
             changed = true
         } else {
             val isStale = isStaleReport(r.epoch, r.sequence, epoch, sequence)
             if (!isStale) {
-                if (r.neighbors != set || r.name != name || r.epoch != epoch) changed = true
+                if (r.neighbors != set || r.name != name || r.epoch != epoch || (onlineIdTag != null && !onlineIdTag.contentEquals(r.onlineIdTag))) changed = true
                 r.neighbors = set
                 r.name = name
                 r.lastSeen = now
                 r.epoch = epoch
+                if (onlineIdTag != null) r.onlineIdTag = onlineIdTag
                 if (sequence != 0) r.sequence = sequence
             }
         }
@@ -156,10 +188,12 @@ class MeshGraphRepository(
 
     private fun buildSnapshot(): MeshGraphSnapshot {
         val nodes = LinkedHashMap<String, MeshNodeInfo>()
-        nodes[selfId] = MeshNodeInfo(selfId, selfName)
-        neighbors.forEach { (id, n) -> nodes[id] = MeshNodeInfo(id, n.name) }
+        nodes[selfId] = MeshNodeInfo(selfId, selfName, selfOnlineTagProvider())
+        neighbors.forEach { (id, n) -> nodes[id] = MeshNodeInfo(id, n.name, n.onlineIdTag) }
         reports.forEach { (id, r) ->
-            nodes[id] = MeshNodeInfo(id, r.name)
+            val existing = nodes[id]
+            val tag = r.onlineIdTag ?: existing?.onlineIdTag
+            nodes[id] = MeshNodeInfo(id, r.name, tag)
             r.neighbors.forEach { nid -> if (nid != selfId && !nodes.containsKey(nid)) nodes[nid] = MeshNodeInfo(nid, nid.take(8)) }
         }
 

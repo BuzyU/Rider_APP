@@ -150,14 +150,19 @@ class SignOutWipeTest {
     }
 
     @Test
-    fun storeNeverCreated_clearAllOnSignOut_zeroPrefsFactoryInvocations() = runTest {
+    fun clearAll_doesNotInitializeKeystoreBackedPrefs_butStillDeletesFile() = runTest {
         val mockContext = mockk<Context>(relaxed = true)
         val factoryCounter = AtomicInteger(0)
+        val deleteFileCalled = java.util.concurrent.atomic.AtomicBoolean(false)
         val store = EncryptedPrefsBackupSessionStore(
             context = mockContext,
             prefsFactory = {
                 factoryCounter.incrementAndGet()
                 mockk(relaxed = true)
+            },
+            deleteStoreFile = {
+                deleteFileCalled.set(true)
+                true
             }
         )
         val holder = OfflineSessionHolder(backupStore = store)
@@ -176,6 +181,7 @@ class SignOutWipeTest {
         testScope.advanceUntilIdle()
 
         assertEquals("Prefs factory must have 0 invocations when store was never populated", 0, factoryCounter.get())
+        org.junit.Assert.assertTrue("deleteStoreFile must still be called even when prefs not initialized", deleteFileCalled.get())
     }
 
     @Test

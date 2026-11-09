@@ -56,7 +56,8 @@ object NoOpBackupSessionStore : BackupSessionStore {
 class EncryptedPrefsBackupSessionStore(
     private val context: Context,
     private val prefsFactory: ((Context) -> SharedPreferences)? = null,
-    private val keyStoreSeam: KeyStoreSeam = AndroidKeyStoreSeam
+    private val keyStoreSeam: KeyStoreSeam = AndroidKeyStoreSeam,
+    private val deleteStoreFile: (Context) -> Boolean = { it.applicationContext.deleteSharedPreferences(PREFS_FILE) }
 ) : BackupSessionStore {
 
     @Volatile private var ramStore: StoredBackupMeta? = null
@@ -129,17 +130,12 @@ class EncryptedPrefsBackupSessionStore(
     override fun clearBackup() {
         ramStore = null
         lastWritePersisted = null
-        if (!prefsInitialized) return
-        val p = prefsInstance ?: return
-        try {
-            p.edit()
-                .remove(KEY_CODE)
-                .remove(KEY_CREATED_AT)
-                .remove(KEY_EXPIRES_AT)
-                .apply()
-        } catch (e: Exception) {
-            MeshLog.w(TAG, "Failed to clear backup session metadata: ${e.message}")
+        // 1) best effort through the opened prefs (also invalidates any in-memory copy)
+        if (prefsInitialized) runCatching {
+            prefsInstance?.edit()?.remove(KEY_CODE)?.remove(KEY_CREATED_AT)?.remove(KEY_EXPIRES_AT)?.commit()
         }
+        // 2) always remove the file itself — no Keystore access needed, works on a fresh process
+        runCatching { deleteStoreFile(context) }.onFailure { MeshLog.w(TAG, "backup file delete failed: ${it.javaClass.simpleName}") }
     }
 
     companion object {
@@ -293,7 +289,13 @@ class OfflineSessionHolder(
     }
 
     fun clearCurrent() = setCurrent(null)
-    fun clearBackup() = setBackup(null)
+    fun clearBackup() {
+        setBackup(null)
+        synchronized(restoreLock) {
+            restoreJob = null
+            restoreCompleted = false
+        }
+    }
     fun clearAll() {
         setCurrent(null)
         setBackup(null)

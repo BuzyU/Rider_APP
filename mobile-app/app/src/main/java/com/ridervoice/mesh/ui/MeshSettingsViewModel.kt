@@ -3,6 +3,7 @@ package com.ridervoice.mesh.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ridervoice.mesh.MeshRuntimeSettings
+import com.ridervoice.mesh.MeshSettingsSnapshot
 import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.OfflineSessionHolder
@@ -54,7 +55,7 @@ class MeshSettingsViewModel : ViewModel {
         coordinator: dagger.Lazy<VoiceSessionCoordinator>,
         wifiCapability: WifiCapabilityChecker,
         sessionHolder: dagger.Lazy<OfflineSessionHolder>,
-        @MeshApplicationScope appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        @MeshApplicationScope appScope: CoroutineScope
     ) : super() {
         this.settings = settings
         this.wifiCapability = wifiCapability
@@ -86,38 +87,13 @@ class MeshSettingsViewModel : ViewModel {
             else sessionHolder.get().isBackupPersisted
         }
 
-        this.uiState = combine(
-            settings.settingsFlow,
-            avail,
-            bkp
-        ) { snapshot, availValue, bkpValue ->
-            val now = System.currentTimeMillis()
-            val backupValid = bkpValue != null && !bkpValue.isExpired(now)
-            val hasWifi = wifiCapability.isWifiHardwareAvailable()
-            val persisted = if (backupValid) isPersistedCheck() else true
-            MeshSettingsUiState(
-                buildGateOpen = OfflineMeshGate.isBuildGateOpen(),
-                offlineMeshEnabled = snapshot.offlineMeshEnabled,
-                autoFallback = snapshot.automaticFallbackEnabled && hasWifi,
-                warmStandby = snapshot.warmStandbyEnabled,
-                offlineAvailability = availValue,
-                backupSessionPresent = backupValid,
-                backupPersisted = persisted,
-                hasWifiHardware = hasWifi
-            )
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = MeshSettingsUiState(
-                buildGateOpen = OfflineMeshGate.isBuildGateOpen(),
-                offlineMeshEnabled = settings.offlineMeshEnabled,
-                autoFallback = settings.automaticFallbackEnabled && wifiCapability.isWifiHardwareAvailable(),
-                warmStandby = settings.warmStandbyEnabled,
-                offlineAvailability = OfflineAvailability.DISABLED,
-                backupSessionPresent = false,
-                backupPersisted = true,
-                hasWifiHardware = wifiCapability.isWifiHardwareAvailable()
-            )
+        this.uiState = buildUiState(
+            settingsFlow = settings.settingsFlow,
+            availFlow = avail,
+            bkpFlow = bkp,
+            isPersistedCheck = isPersistedCheck,
+            wifiCapability = wifiCapability,
+            settings = settings
         )
     }
 
@@ -143,10 +119,28 @@ class MeshSettingsViewModel : ViewModel {
             holderForWipe().isBackupPersisted
         }
 
-        this.uiState = combine(
-            settings.settingsFlow,
-            avail,
-            bkp
+        this.uiState = buildUiState(
+            settingsFlow = settings.settingsFlow,
+            availFlow = avail,
+            bkpFlow = bkp,
+            isPersistedCheck = isPersistedCheck,
+            wifiCapability = wifiCapability,
+            settings = settings
+        )
+    }
+
+    private fun buildUiState(
+        settingsFlow: Flow<MeshSettingsSnapshot>,
+        availFlow: StateFlow<OfflineAvailability>,
+        bkpFlow: StateFlow<OfflineSession?>,
+        isPersistedCheck: () -> Boolean,
+        wifiCapability: WifiCapabilityChecker,
+        settings: MeshRuntimeSettings
+    ): StateFlow<MeshSettingsUiState> {
+        return combine(
+            settingsFlow,
+            availFlow,
+            bkpFlow
         ) { snapshot, availValue, bkpValue ->
             val now = System.currentTimeMillis()
             val backupValid = bkpValue != null && !bkpValue.isExpired(now)

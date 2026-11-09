@@ -132,8 +132,6 @@ object MeshModule {
         backupStore = EncryptedPrefsBackupSessionStore(context)
     )
 
-    fun provideOfflineSessionHolder(): OfflineSessionHolder = OfflineSessionHolder()
-
     @Provides
     @Singleton
     fun provideOfflineSecretProvider(

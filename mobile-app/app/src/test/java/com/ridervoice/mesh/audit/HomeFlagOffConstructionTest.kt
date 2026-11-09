@@ -8,8 +8,10 @@ import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import com.ridervoice.mesh.ui.MeshSettingsViewModel
 import com.ridervoice.mesh.ui.WifiCapabilityChecker
 import dagger.Lazy
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -71,7 +73,8 @@ class HomeFlagOffConstructionTest {
             settings = MeshRuntimeSettings.AllOff,
             coordinator = coordinatorLazy,
             wifiCapability = wifiCapability,
-            sessionHolder = holderLazy
+            sessionHolder = holderLazy,
+            appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         )
 
         assertEquals("Zero transport touches", 0, transportCounter.get())
@@ -120,7 +123,8 @@ class HomeFlagOffConstructionTest {
             settings = MeshRuntimeSettings.AllOff,
             coordinator = coordinatorLazy,
             wifiCapability = wifiCapability,
-            sessionHolder = holderLazy
+            sessionHolder = holderLazy,
+            appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         )
 
         assertEquals("Zero transport touches", 0, transportCounter.get())

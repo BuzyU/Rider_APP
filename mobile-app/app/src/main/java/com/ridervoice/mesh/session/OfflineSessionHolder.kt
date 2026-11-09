@@ -194,6 +194,9 @@ class EncryptedPrefsBackupSessionStore(
  * In-memory holder for the active offline mesh session and online ride backup session.
  * Retains session across Activity configuration changes (rotations)
  * and optionally restores unexpired backup metadata via [BackupSessionStore] off the main thread.
+ *
+ * Dispatcher defaults to [Dispatchers.Default] for tests and standalone callers who don't supply one,
+ * while production Hilt binds [Dispatchers.IO] via [com.ridervoice.di.MeshModule].
  */
 @Singleton
 class OfflineSessionHolder(
@@ -215,6 +218,8 @@ class OfflineSessionHolder(
     @Volatile private var restoreCompleted: Boolean = false
     private val restoreLock = Any()
 
+    internal val isRestoreCompletedForTest: Boolean get() = restoreCompleted
+
     fun restoreBackupIfAllowed(): Job? {
         if (!OfflineMeshGate.isOfflineAllowed()) return null
         synchronized(restoreLock) {
@@ -224,8 +229,8 @@ class OfflineSessionHolder(
             val job = restoreScope.launch {
                 if (OfflineMeshGate.isOfflineAllowed()) {
                     restoreFromStoreIfValid()
+                    restoreCompleted = true
                 }
-                restoreCompleted = true
             }
             restoreJob = job
             return job

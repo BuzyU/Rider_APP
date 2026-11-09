@@ -45,7 +45,7 @@ class CompositionRootTest {
         val liveKitManager = mockk<LiveKitManager>(relaxed = true)
         val voxEngine = mockk<com.ridervoice.audio.VoxEngine>(relaxed = true)
         val lkTransport = MeshModule.provideLiveKitVoiceTransport(liveKitManager, arbiter, voxEngine, mockk(relaxed = true))
-        val secretProvider = MeshModule.provideOfflineSecretProvider(MeshModule.provideOfflineSessionHolder())
+        val secretProvider = MeshModule.provideOfflineSecretProvider(MeshModule.provideOfflineSessionHolder(mockContext))
         val coordinator = MeshModule.provideVoiceSessionCoordinator(lkTransport, meshTransport, arbiter, secretProvider)
 
         // Single shared arbiter

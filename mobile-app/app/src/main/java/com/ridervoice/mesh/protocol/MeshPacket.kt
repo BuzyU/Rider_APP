@@ -3,7 +3,6 @@ package com.ridervoice.mesh.protocol
 import com.ridervoice.mesh.MeshConfig
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.security.MessageDigest
 import java.util.UUID
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -133,7 +132,7 @@ object MeshPacketCodec {
         // Verify the tag before trusting any content.
         val body = data.copyOf(HEADER_LEN + len)
         val got = data.copyOfRange(HEADER_LEN + len, data.size)
-        if (!MessageDigest.isEqual(tag(body, key), got)) return DecodeResult.Invalid(DecodeResult.Reason.BAD_TAG)
+        if (!constantTimeEquals(tag(body, key), got)) return DecodeResult.Invalid(DecodeResult.Reason.BAD_TAG)
         if (type == MeshPacketType.VOICE && format != AudioFormatId.PCM16_16K_MONO)
             return DecodeResult.Invalid(DecodeResult.Reason.BAD_FORMAT)
         val payload = ByteArray(len).also { System.arraycopy(data, HEADER_LEN, it, 0, len) }
@@ -161,6 +160,15 @@ object MeshPacketCodec {
         }
     }
 
+    private fun constantTimeEquals(a: ByteArray, b: ByteArray): Boolean {
+        if (a.size != b.size) return false
+        var result = 0
+        for (i in a.indices) {
+            result = result or (a[i].toInt() xor b[i].toInt())
+        }
+        return result == 0
+    }
+
     private fun tag(body: ByteArray, key: ByteArray): ByteArray {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(key, "HmacSHA256"))
@@ -168,19 +176,13 @@ object MeshPacketCodec {
     }
 
     fun uuidParts(id: String): Pair<Long, Long> {
-        val u = try {
-            UUID.fromString(id)
-        } catch (_: Exception) {
-            val hash = MessageDigest.getInstance("SHA-256").digest(id.toByteArray(Charsets.UTF_8))
-            val buf = ByteBuffer.wrap(hash)
-            return Pair(buf.long, buf.long)
-        }
+        val u = UUID.fromString(id)
         return Pair(u.mostSignificantBits, u.leastSignificantBits)
     }
 
     fun uuidBytes(id: String): ByteArray {
-        val (hi, lo) = uuidParts(id)
-        return ByteBuffer.allocate(16).putLong(hi).putLong(lo).array()
+        val u = UUID.fromString(id)
+        return ByteBuffer.allocate(16).putLong(u.mostSignificantBits).putLong(u.leastSignificantBits).array()
     }
 
     private fun readUuid(buf: ByteBuffer): String = UUID(buf.long, buf.long).toString()

@@ -4,6 +4,7 @@ import com.ridervoice.mesh.FeatureFlags
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.MeshRuntimeSettings
 import com.ridervoice.mesh.OfflineMeshGate
+import com.ridervoice.mesh.TestIds
 import com.ridervoice.mesh.audio.MeshVoxBridge
 import com.ridervoice.mesh.identity.InMemoryMeshKeyValueStore
 import com.ridervoice.mesh.identity.MeshIdentity
@@ -108,7 +109,7 @@ class WiringTest {
 
             // 1. Transport opens no socket
             val fakeStore = InMemoryMeshKeyValueStore()
-            val identityRepo = MeshIdentityRepository(fakeStore, { "GateNode" }, { "node-gate" })
+            val identityRepo = MeshIdentityRepository(fakeStore, { "GateNode" }, { TestIds.uuid("node-gate") })
             val transport = OfflineMeshVoiceTransport(
                 identityProvider = { identityRepo.get() },
                 audioOwnershipArbiter = AudioOwnershipArbiter(),

@@ -239,20 +239,21 @@ class NetworkProtocolHardeningTest {
         val cache = DuplicatePacketCache(maxEntries = 5, ttlMs = 100_000L, clock = { 1000L })
         val session = UUID.randomUUID().toString()
         val source = UUID.randomUUID().toString()
+        val ids = TestIds.packetIds(session, source)
 
         for (seq in 1..5) {
-            assertTrue("Seq $seq should be new", cache.markIfNew(session, source, sequence = seq))
+            assertTrue("Seq $seq should be new", cache.markIfNew(ids, seq = seq))
         }
         assertEquals(5, cache.size())
 
         // Insert 6th packet -> should evict seq 1 (oldest)
-        assertTrue("Seq 6 should be new", cache.markIfNew(session, source, sequence = 6))
+        assertTrue("Seq 6 should be new", cache.markIfNew(ids, seq = 6))
         assertEquals(5, cache.size())
 
         // Seq 1 was evicted, so it is treated as new again if received
-        assertTrue("Seq 1 was evicted and can be accepted again", cache.markIfNew(session, source, sequence = 1))
+        assertTrue("Seq 1 was evicted and can be accepted again", cache.markIfNew(ids, seq = 1))
         // Seq 6 should still be duplicate
-        assertFalse("Seq 6 is already in cache", cache.markIfNew(session, source, sequence = 6))
+        assertFalse("Seq 6 is already in cache", cache.markIfNew(ids, seq = 6))
     }
 
     @Test

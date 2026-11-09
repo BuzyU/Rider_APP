@@ -129,7 +129,7 @@ class Stage3ReachabilityTest {
     fun nameChange_beforeSessionStart_isUsed() = runTest {
         val store = InMemoryMeshKeyValueStore()
         var currentName = "InitialRider"
-        val identityRepo = MeshIdentityRepository(store, { currentName }, { "test-device-id" })
+        val identityRepo = MeshIdentityRepository(store, { currentName }, { TestIds.uuid("test-device-id") })
 
         val arbiter = AudioOwnershipArbiter()
         val transport = OfflineMeshVoiceTransport(

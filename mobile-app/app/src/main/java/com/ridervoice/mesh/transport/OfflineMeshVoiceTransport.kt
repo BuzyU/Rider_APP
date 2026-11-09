@@ -576,6 +576,11 @@ class OfflineMeshVoiceTransport(
             _micState.value = MicState.STARTING
             val res = aCapture.start()
             _micState.value = res.toMicState()
+            when (res) {
+                CaptureStart.GateClosed -> return failEnable(EnableAudioResult.Failure.GateClosed)
+                CaptureStart.NotOwner   -> return failEnable(EnableAudioResult.Failure.OwnershipDenied)
+                else -> Unit    // HardwareFailed / NoPermission: receive-only, reported through micState
+            }
         }
         voxBridge.attach(roomAlreadyOwnedPttSession)
         return EnableAudioResult.Success
@@ -635,23 +640,23 @@ class OfflineMeshVoiceTransport(
             is VoiceSession.Online -> throw IllegalArgumentException("OfflineMeshVoiceTransport cannot start online session")
         }
         _audioFailure.value = null
-        startDiscoveryOnly(offlineSession)
-        if (_state.value == VoiceTransportState.CONNECTED) {
-            val audioRes = try {
-                runCatchingCancellable { enableAudio() }.getOrElse { err ->
+        try {
+            startDiscoveryOnly(offlineSession)
+            if (_state.value == VoiceTransportState.CONNECTED) {
+                val audioRes = runCatchingCancellable { enableAudio() }.getOrElse { err ->
                     EnableAudioResult.Failure(EnableAudioResult.Failure.Code.UNEXPECTED, err.javaClass.simpleName)
                 }
-            } catch (ce: CancellationException) {
-                stop()
-                throw ce
+                if (audioRes is EnableAudioResult.Failure) {
+                    com.ridervoice.mesh.MeshLog.w("MeshTransport", "enableAudio failed during start: ${audioRes.code} - stopping transport")
+                    stop()
+                    _audioFailure.value = audioRes
+                    _state.value = VoiceTransportState.FAILED
+                    return
+                }
             }
-            if (audioRes is EnableAudioResult.Failure) {
-                com.ridervoice.mesh.MeshLog.w("MeshTransport", "enableAudio failed during start: ${audioRes.code} - stopping transport")
-                stop()
-                _audioFailure.value = audioRes
-                _state.value = VoiceTransportState.FAILED
-                return
-            }
+        } catch (ce: CancellationException) {
+            withContext(NonCancellable) { stop() }
+            throw ce
         }
     }
 

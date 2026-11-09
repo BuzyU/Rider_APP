@@ -77,3 +77,4 @@ The following 34 engineering decisions require explicit owner review and sign-of
 - [ ] D-R5-04-SECURITY-OPTIONS
 - [ ] D-R5-16-PHYSICAL-GATE
 - [ ] D-S-1-PHYS02-TRUTH
+- [ ] D-RECEIVE-ONLY-FALLBACK

@@ -264,6 +264,7 @@
     <string name="mesh_banner_starting_offline">ऑफ़लाइन मेश प्रारंभ हो रहा है…</string>
     <string name="mesh_banner_handing_back">ऑनलाइन से पुनः कनेक्ट हो रहा है…</string>
     <string name="mesh_banner_fallback_unavailable">ऑफ़लाइन मेश अनुपलब्ध है</string>
+    <string name="mesh_banner_mic_denied">माइक्रोफ़ोन अनुमति अस्वीकृत (केवल सुन सकते हैं)</string>
     <string name="mesh_group_entire_online">पूरा समूह ऑनलाइन है</string>
     <string name="mesh_group_some_offline">लोकल ऑनलाइन पुनर्प्राप्त · कुछ साथी अभी भी ऑफ़लाइन हैं</string>
     <string name="mesh_group_offline_active">ऑफ़लाइन मेश सक्रिय है</string>

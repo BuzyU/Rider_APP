@@ -135,3 +135,7 @@ data class LocalHealthSignals(
 - `VoiceTransportState` transitions through `STOPPED` -> `STARTING` -> `CONNECTED`.
 - When `start(session)` executes `enableAudio()`, if hardware acquisition or audio setup fails (such as hardware busy, mic permission denied, or gate closed), `OfflineMeshVoiceTransport` transitions directly to `VoiceTransportState.FAILED`.
 - The tactical HUD and active room overlay observe `VoiceTransportState.FAILED` and present an explicit audio failure state to the rider.
+
+### 3.7 Receive-Only Fallback & Audio Ownership Semantics
+- **Receive-Only Operation:** When mic capture cannot start due to missing `RECORD_AUDIO` permission (`NoPermission`) or non-fatal hardware busy, `OfflineMeshVoiceTransport` operates in receive-only mode (`micState == PERMISSION_DENIED`). As long as playback started successfully, fallback to mesh succeeds, allowing the rider to hear incoming mesh communications while displaying a `mesh_banner_mic_denied` banner.
+- **Fail-Closed Conditions:** If audio ownership is denied (`CaptureStart.NotOwner`) or the gate is closed (`CaptureStart.GateClosed`), audio enable fails closed (`OwnershipDenied`/`GateClosed`), triggering a full rollback to retain online connectivity.

@@ -264,6 +264,7 @@
     <string name="mesh_banner_starting_offline">Starting offline mesh…</string>
     <string name="mesh_banner_handing_back">Reconnecting to online…</string>
     <string name="mesh_banner_fallback_unavailable">Offline mesh unavailable</string>
+    <string name="mesh_banner_mic_denied">Microphone permission denied (listening only)</string>
     <string name="mesh_group_entire_online">Entire known group online</string>
     <string name="mesh_group_some_offline">Local online recovered · Some peers still offline</string>
     <string name="mesh_group_offline_active">Offline mesh active</string>

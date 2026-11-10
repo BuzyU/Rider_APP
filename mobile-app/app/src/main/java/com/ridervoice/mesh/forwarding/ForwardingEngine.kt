@@ -498,6 +498,32 @@ class ForwardingEngine(
             link.noteAuthenticatedEndpoint(frame.from)
         }
 
+        val forwardedTo = ArrayList<String>()
+
+        // Earlier forwarding for VOICE: forward immediately before local delivery to minimize relay hop latency
+        if (decoded.type == MeshPacketType.VOICE) {
+            if (ttlPolicy.canForwardAfterReceive(decoded.ttl) &&
+                ttlPolicy.tryConsumeForwardBudget(decoded.sourceId)
+            ) {
+                val forwardedPacket = decoded.forwardedBy(selfId, selfParts.first, selfParts.second)
+                val wire = MeshPacketCodec.encode(forwardedPacket, authKey)
+
+                val candidateNeighbors = selectForwardNeighbors(
+                    sourceId = decoded.sourceId,
+                    previousHopId = decoded.previousHopId,
+                    now = now
+                )
+                for (neighbor in candidateNeighbors) {
+                    if (link.send(neighbor.endpoint, wire)) {
+                        forwardedTo.add(neighbor.deviceId)
+                    }
+                }
+                if (forwardedTo.isNotEmpty()) {
+                    forwardedVoice.incrementAndGet()
+                }
+            }
+        }
+
         when (decoded.type) {
             MeshPacketType.HELLO -> {
                 val hello = decodedHello!!
@@ -534,12 +560,12 @@ class ForwardingEngine(
             }
         }
 
-        // 13-18. Decrease TTL, select valid next-hop neighbors, exclude incoming & source & expired, forward
-        val forwardedTo = ArrayList<String>()
-        if (ttlPolicy.canForwardAfterReceive(decoded.ttl) &&
+        // 13-18. Decrease TTL, select valid next-hop neighbors, exclude incoming & source & expired, forward non-VOICE
+        if (decoded.type != MeshPacketType.VOICE &&
+            ttlPolicy.canForwardAfterReceive(decoded.ttl) &&
             ttlPolicy.tryConsumeForwardBudget(decoded.sourceId)
         ) {
-            val forwardedPacket = decoded.forwardedBy(selfId, selfParts.first, selfParts.second) // preserves originalSourceDeviceId and epoch
+            val forwardedPacket = decoded.forwardedBy(selfId, selfParts.first, selfParts.second)
             val wire = MeshPacketCodec.encode(forwardedPacket, authKey)
 
             val candidateNeighbors = selectForwardNeighbors(
@@ -551,9 +577,6 @@ class ForwardingEngine(
                 if (link.send(neighbor.endpoint, wire)) {
                     forwardedTo.add(neighbor.deviceId)
                 }
-            }
-            if (decoded.type == MeshPacketType.VOICE && forwardedTo.isNotEmpty()) {
-                forwardedVoice.incrementAndGet()
             }
         }
 

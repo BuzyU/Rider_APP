@@ -379,20 +379,24 @@ class MultiSourceJitterBufferManager(
         }
 
         val activeContributingSpeakers = mutableSetOf<String>()
-        val framesToMix = mutableListOf<ByteArray>()
+        val framesWithWeight = mutableListOf<Pair<ByteArray, Float>>()
         var anyMidTalkspurt = false
+        var hasRealAudio = false
 
         for ((sourceId, buffer) in buffers) {
             when (val frame = buffer.pollFrame()) {
                 is PlayoutFrame.Audio -> {
-                    framesToMix.add(frame.pcmBytes)
+                    framesWithWeight.add(Pair(frame.pcmBytes, 1.0f))
                     activeContributingSpeakers.add(sourceId)
+                    hasRealAudio = true
                 }
                 is PlayoutFrame.Concealed -> {
-                    framesToMix.add(frame.pcmBytes)
                     if (frame.isMidTalkspurt) {
                         anyMidTalkspurt = true
                     }
+                    // Concealed frames are de-weighted if another stream has real audio
+                    val weight = if (hasRealAudio) 0.25f else 1.0f
+                    framesWithWeight.add(Pair(frame.pcmBytes, weight))
                 }
                 is PlayoutFrame.Buffering -> {
                     // Still buffering initial delay or idle
@@ -401,10 +405,19 @@ class MultiSourceJitterBufferManager(
         }
         lastHadMidTalkspurtConcealment = anyMidTalkspurt
 
+        // If real audio was found, adjust any earlier concealed frames to 0.25f
+        if (hasRealAudio) {
+            for (i in framesWithWeight.indices) {
+                if (framesWithWeight[i].second == 1.0f && !activeContributingSpeakers.contains(buffers.keys.elementAtOrNull(i))) {
+                    framesWithWeight[i] = Pair(framesWithWeight[i].first, 0.25f)
+                }
+            }
+        }
+
         return when {
-            framesToMix.isEmpty() -> Pair(null, emptySet())
-            framesToMix.size == 1 -> Pair(framesToMix[0], activeContributingSpeakers)
-            else -> Pair(mixPcm16Frames(framesToMix), activeContributingSpeakers)
+            framesWithWeight.isEmpty() -> Pair(null, emptySet())
+            framesWithWeight.size == 1 -> Pair(framesWithWeight[0].first, activeContributingSpeakers)
+            else -> Pair(mixPcm16FramesWeighted(framesWithWeight), activeContributingSpeakers)
         }
     }
 
@@ -438,21 +451,40 @@ class MultiSourceJitterBufferManager(
         }
     }
 
-    private fun mixPcm16Frames(frames: List<ByteArray>): ByteArray {
+    fun softLimitSample(sum: Int, count: Int): Short {
+        if (count <= 1) {
+            return sum.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+        }
+        val maxVal = 32767.0
+        val x = sum / maxVal
+        val y = if (x > 0.7) {
+            0.7 + 0.3 * Math.tanh((x - 0.7) / 0.3)
+        } else if (x < -0.7) {
+            -0.7 + 0.3 * Math.tanh((x + 0.7) / 0.3)
+        } else {
+            x
+        }
+        return (y * maxVal).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+    }
+
+    fun mixPcm16Frames(frames: List<ByteArray>): ByteArray =
+        mixPcm16FramesWeighted(frames.map { Pair(it, 1.0f) })
+
+    fun mixPcm16FramesWeighted(frames: List<Pair<ByteArray, Float>>): ByteArray {
         val frameBytes = MeshConfig.BYTES_PER_FRAME
         val numSamples = frameBytes / 2
         val mixedOut = ByteArray(frameBytes)
         val outBuf = ByteBuffer.wrap(mixedOut).order(ByteOrder.LITTLE_ENDIAN)
 
-        val inBuffers = frames.map { ByteBuffer.wrap(it).order(ByteOrder.LITTLE_ENDIAN) }
+        val inBuffers = frames.map { ByteBuffer.wrap(it.first).order(ByteOrder.LITTLE_ENDIAN) }
 
         for (i in 0 until numSamples) {
-            var sum = 0
-            for (buf in inBuffers) {
-                sum += buf.short
+            var sum = 0.0
+            for (j in frames.indices) {
+                sum += inBuffers[j].short * frames[j].second
             }
-            val clamped = sum.coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-            outBuf.putShort(clamped)
+            val limited = softLimitSample(sum.toInt(), frames.size)
+            outBuf.putShort(limited)
         }
         return mixedOut
     }

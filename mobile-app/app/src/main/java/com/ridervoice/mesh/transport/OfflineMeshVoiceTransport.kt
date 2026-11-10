@@ -586,6 +586,16 @@ class OfflineMeshVoiceTransport(
             }
         }
         aCapture.frameGate = { pcm: ByteArray -> micController.shouldTransmitPcmFrame(pcm) }
+        micController.onPreRollFrames = { preRoll ->
+            val ch = voiceTxChannel
+            for (f in preRoll) {
+                if (ch != null) {
+                    ch.trySend(CapturedAudioFrame(f, 0L))
+                } else {
+                    fEngine.originateVoice(f, 0L)
+                }
+            }
+        }
         audioCapture = aCapture
         aCapture.setMicEnabled(micWanted)
 

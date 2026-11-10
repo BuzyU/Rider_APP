@@ -31,6 +31,10 @@ interface MicController {
     val pttHeld: StateFlow<Boolean>
     val voxEnabled: StateFlow<Boolean>
     val voxArmed: StateFlow<Boolean>
+    var onPreRollFrames: ((List<ByteArray>) -> Unit)?
+        get() = null
+        set(_) {}
+    fun popPreRollFrames(): List<ByteArray> = emptyList()
     fun setMicToggled(on: Boolean)
     fun toggleMic()                       // helmet key
     fun setPttPressed(pressed: Boolean)
@@ -59,6 +63,16 @@ class MicControllerImpl(
 
     private val _armed = MutableStateFlow(false)
     override val voxArmed: StateFlow<Boolean> = _armed.asStateFlow()
+
+    override var onPreRollFrames: ((List<ByteArray>) -> Unit)? = null
+    private val preRollBuffer = ArrayDeque<ByteArray>(4)
+    private val preRollOutputQueue = mutableListOf<ByteArray>()
+
+    override fun popPreRollFrames(): List<ByteArray> {
+        val result = preRollOutputQueue.toList()
+        preRollOutputQueue.clear()
+        return result
+    }
 
     // CONFLATED: only the latest desired capture state matters, and order is preserved.
     private val desired = Channel<Boolean>(Channel.CONFLATED)
@@ -115,14 +129,40 @@ class MicControllerImpl(
 
     @Synchronized
     override fun shouldTransmitPcmFrame(pcm: ByteArray, nowMs: Long): Boolean {
-        if (_toggle.value || _ptt.value) return true
-        if (!_vox.value) return false
+        if (_toggle.value || _ptt.value) {
+            preRollBuffer.clear()
+            return true
+        }
+        if (!_vox.value) {
+            preRollBuffer.clear()
+            return false
+        }
         val shorts = ShortArray(pcm.size / 2)
         ByteBuffer.wrap(pcm).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
-        when (voxDetector.onFrame(shorts, 16_000, nowMs, _armed.value)) {
-            VoxDetector.Decision.OPEN -> _armed.value = true
-            VoxDetector.Decision.CLOSE -> _armed.value = false
+        val wasArmed = _armed.value
+        when (voxDetector.onFrame(shorts, 16_000, nowMs, wasArmed)) {
+            VoxDetector.Decision.OPEN -> {
+                _armed.value = true
+                if (!wasArmed) {
+                    val preRoll = preRollBuffer.toList()
+                    preRollBuffer.clear()
+                    if (preRoll.isNotEmpty()) {
+                        preRollOutputQueue.addAll(preRoll)
+                        onPreRollFrames?.invoke(preRoll)
+                    }
+                }
+            }
+            VoxDetector.Decision.CLOSE -> {
+                _armed.value = false
+            }
             VoxDetector.Decision.NONE -> Unit
+        }
+        if (!_armed.value) {
+            // Retain up to 4 pre-roll frames while gate is closed
+            if (preRollBuffer.size >= 4) {
+                preRollBuffer.removeFirst()
+            }
+            preRollBuffer.addLast(pcm.copyOf())
         }
         return MicRules.transmit(inputs())
     }
@@ -132,6 +172,8 @@ class MicControllerImpl(
         _ptt.value = false
         _vox.value = false
         _armed.value = false
+        preRollBuffer.clear()
+        preRollOutputQueue.clear()
         publish()
     }
 

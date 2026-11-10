@@ -36,6 +36,7 @@ class UdpMeshLink(
     private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val clock: () -> Long = { System.currentTimeMillis() },
+    private val monotonicClock: () -> Long = clock,
     private val expiryWindowMs: Long = MeshConfig.NEIGHBOR_TIMEOUT_MS,
     private val networkBinder: (DatagramSocket) -> Unit = {},
     private val onBufferDropped: () -> Unit = {}
@@ -221,7 +222,7 @@ class UdpMeshLink(
     }
 
     override fun endpoints(): Set<MeshEndpoint> {
-        val now = clock()
+        val now = monotonicClock()
         endpointTimestamps.entries.removeIf { now - it.value > expiryWindowMs }
         return endpointTimestamps.keys.toSet()
     }
@@ -231,7 +232,7 @@ class UdpMeshLink(
     }
 
     fun registerEndpoint(endpoint: MeshEndpoint) {
-        endpointTimestamps[endpoint] = clock()
+        endpointTimestamps[endpoint] = monotonicClock()
     }
 
     private fun closeSocket() {

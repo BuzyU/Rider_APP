@@ -11,8 +11,18 @@ class TtlPolicy(
     val maxHops: Int = MeshConfig.MAX_HOPS,
     private val maxClockSkewMs: Long = MeshConfig.MAX_CLOCK_SKEW_MS,
     private val forwardBudgetPerSec: Int = MeshConfig.FORWARD_BUDGET_PER_SEC,
-    private val clock: () -> Long = { System.currentTimeMillis() }
+    private val clock: () -> Long = { System.currentTimeMillis() },
+    private val monotonicClock: () -> Long = clock
 ) {
+    constructor(clock: () -> Long) : this(
+        defaultTtl = MeshConfig.DEFAULT_TTL,
+        maxHops = MeshConfig.MAX_HOPS,
+        maxClockSkewMs = MeshConfig.MAX_CLOCK_SKEW_MS,
+        forwardBudgetPerSec = MeshConfig.FORWARD_BUDGET_PER_SEC,
+        clock = clock,
+        monotonicClock = clock
+    )
+
     private class WindowCounter(var windowStartMs: Long, var count: Int)
     private val budgetCounters = HashMap<String, WindowCounter>()
 
@@ -36,7 +46,7 @@ class TtlPolicy(
 
     @Synchronized
     fun tryConsumeForwardBudget(sourceId: String): Boolean {
-        val now = clock()
+        val now = monotonicClock()
         val counter = budgetCounters[sourceId]
         if (counter == null || now - counter.windowStartMs >= 1_000L) {
             budgetCounters[sourceId] = WindowCounter(now, 1)

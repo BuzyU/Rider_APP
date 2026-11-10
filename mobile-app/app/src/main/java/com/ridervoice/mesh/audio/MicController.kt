@@ -41,7 +41,7 @@ interface MicController {
     fun setVoxEnabled(enabled: Boolean)   // default false
     fun setVoxArmed(armed: Boolean)
     fun shouldTransmitPcmFrame(pcm: ByteArray, nowMs: Long = System.currentTimeMillis()): Boolean
-    fun reset()                           // called from transport.stop()
+    fun reset(resetVoxPreference: Boolean = false) // called from transport.stop()
     fun close() {}
 }
 
@@ -167,10 +167,12 @@ class MicControllerImpl(
         return MicRules.transmit(inputs())
     }
 
-    override fun reset() {
+    override fun reset(resetVoxPreference: Boolean) {
         _toggle.value = false
         _ptt.value = false
-        _vox.value = false
+        if (resetVoxPreference) {
+            _vox.value = false
+        }
         _armed.value = false
         preRollBuffer.clear()
         preRollOutputQueue.clear()

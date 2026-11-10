@@ -72,7 +72,8 @@ class ForwardingEngine(
     private val localEpoch: Int = SecureRandom().nextInt(),
     private val suppressRedundantRelays: Boolean = MeshConfig.SUPPRESS_REDUNDANT_RELAYS,
     private val peerFilterPort: PeerFilterPort? = null,
-    private val onlineIdentitySupplier: () -> String? = { null }
+    private val onlineIdentitySupplier: () -> String? = { null },
+    private val monotonicClock: () -> Long = clock
 ) {
     private val voiceSeqGen = AtomicInteger(0)
     private val controlSeqGen = AtomicInteger(0)
@@ -196,8 +197,8 @@ class ForwardingEngine(
         val curAvg = avgVoiceDatagramBytes.get()
         avgVoiceDatagramBytes.set(if (curAvg == 0L) wireLen else (0.9 * curAvg + 0.1 * wireLen).toLong())
 
-        graphRepository.expire()
-        val targets = graphRepository.directNeighbors()
+        val monoNow = monotonicClock()
+        val targets = graphRepository.forwardingView().neighbors.filter { (monoNow - it.lastSeen) <= MeshConfig.NEIGHBOR_TIMEOUT_MS }
         var sentFirst = false
         for (neighbor in targets) {
             val sent = link.send(neighbor.endpoint, wire)
@@ -489,9 +490,10 @@ class ForwardingEngine(
             droppedDup.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.DUPLICATE)
         }
-        sessionManager.admit(decoded.sourceId)
         if (decoded.previousHopId != decoded.sourceId) {
-            sessionManager.admit(decoded.previousHopId)
+            sessionManager.admitAndTouch(decoded.sourceId, decoded.previousHopId)
+        } else {
+            sessionManager.admitAndTouch(decoded.sourceId)
         }
 
         if (decoded.hopCount == 0) {
@@ -593,15 +595,17 @@ class ForwardingEngine(
     private fun selectForwardNeighbors(
         sourceId: String,
         previousHopId: String,
-        now: Long
+        now: Long = monotonicClock()
     ): List<com.ridervoice.mesh.graph.DirectNeighbor> {
+        val monoNow = now
+        val view = graphRepository.forwardingView()
         val alreadyCovered: Set<String> =
-            if (suppressRedundantRelays) coveredByDirectHearing(sourceId, previousHopId, now) else emptySet()
-        return graphRepository.directNeighbors().filter { neighbor ->
+            if (suppressRedundantRelays) view.coveredBy(sourceId, previousHopId, monoNow) else emptySet()
+        return view.neighbors.filter { neighbor ->
             neighbor.deviceId != previousHopId &&
                 neighbor.deviceId != sourceId &&
                 neighbor.deviceId !in alreadyCovered &&
-                (now - neighbor.lastSeen) <= MeshConfig.NEIGHBOR_TIMEOUT_MS
+                (monoNow - neighbor.lastSeen) <= MeshConfig.NEIGHBOR_TIMEOUT_MS
         }
     }
 
@@ -612,13 +616,7 @@ class ForwardingEngine(
      * never suppress a relay that is actually needed.
      */
     private fun coveredByDirectHearing(sourceId: String, previousHopId: String, now: Long): Set<String> {
-        val covered = HashSet<String>()
-        for (e in graphRepository.currentSnapshot().edges) {
-            if (!e.bidirectional || e.expiresAt <= now) continue
-            if (e.from == sourceId || e.from == previousHopId) covered.add(e.to)
-            if (e.to == sourceId || e.to == previousHopId) covered.add(e.from)
-        }
-        return covered
+        return graphRepository.forwardingView().coveredBy(sourceId, previousHopId, now)
     }
 
     fun close() {

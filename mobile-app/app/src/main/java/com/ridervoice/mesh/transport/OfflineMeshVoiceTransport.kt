@@ -68,13 +68,19 @@ class OfflineMeshVoiceTransport(
     val audioOwnershipArbiter: AudioOwnershipArbiter,
     private val onAudioRouteChanged: (AudioRoute) -> Unit = {},
     private val clock: () -> Long = { System.currentTimeMillis() },
+    private val monotonicClock: () -> Long = {
+        runCatching { android.os.SystemClock.elapsedRealtime() }.getOrNull()?.takeIf { it != 0L }
+            ?: (System.nanoTime() / 1_000_000L)
+    },
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val gateAllowed: () -> Boolean = { OfflineMeshGate.isOfflineAllowed() },
     private val linkFactory: () -> MeshLink = {
         UdpMeshLink(
             bindPort = MeshConfig.MESH_PORT,
             gateAllowed = gateAllowed,
-            dispatcher = dispatcher
+            dispatcher = dispatcher,
+            clock = clock,
+            monotonicClock = monotonicClock
         )
     },
     private val locks: NetworkLocks = NoNetworkLocks,
@@ -232,13 +238,14 @@ class OfflineMeshVoiceTransport(
             val currentIdentity = identityProvider()
             activeIdentity = currentIdentity
 
-            val sManager = SessionManager(session, currentIdentity.deviceId, clock)
+            val sManager = SessionManager(session, currentIdentity.deviceId, clock, monotonicClock)
             sessionManager = sManager
 
             val gRepo = MeshGraphRepository(
                 selfId = currentIdentity.deviceId,
                 selfName = currentIdentity.displayName,
-                clock = clock
+                clock = clock,
+                monotonicClock = monotonicClock
             ).apply {
                 selfOnlineTagProvider = {
                     onlineIdentitySupplier()?.let { onlineId ->
@@ -252,9 +259,9 @@ class OfflineMeshVoiceTransport(
             routingTable = rTable
 
             val dupCache = DuplicatePacketCache(clock = clock)
-            val ttlPolicy = TtlPolicy(clock = clock)
+            val ttlPolicy = TtlPolicy(clock = clock, monotonicClock = monotonicClock)
 
-            val jManager = MultiSourceJitterBufferManager(clock = clock)
+            val jManager = MultiSourceJitterBufferManager(clock = monotonicClock)
             jitterManager = jManager
 
             val uLink = linkFactory()
@@ -270,6 +277,7 @@ class OfflineMeshVoiceTransport(
                 ttlPolicy = ttlPolicy,
                 link = uLink,
                 clock = clock,
+                monotonicClock = monotonicClock,
                 onLocalVoicePacket = { pkt ->
                     jManager.onVoicePacket(pkt.sourceId, pkt.sequence, pkt.payload, pkt.epoch)
                 },

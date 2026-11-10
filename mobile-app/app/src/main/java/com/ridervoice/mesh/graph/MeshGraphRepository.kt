@@ -38,14 +38,36 @@ data class MeshGraphSnapshot(
 
 data class DirectNeighbor(val deviceId: String, val name: String, val endpoint: MeshEndpoint, val lastSeen: Long)
 
+data class ForwardingView(
+    val version: Long,
+    val neighbors: List<DirectNeighbor>,
+    val edges: List<MeshEdge> = emptyList(),
+    val coveredBy: java.util.concurrent.ConcurrentHashMap<Pair<String, String>, Set<String>> = java.util.concurrent.ConcurrentHashMap()
+) {
+    fun coveredBy(sourceId: String, previousHopId: String, now: Long): Set<String> {
+        return coveredBy.computeIfAbsent(sourceId to previousHopId) {
+            val set = HashSet<String>()
+            for (e in edges) {
+                if (!e.bidirectional || e.expiresAt <= now) continue
+                if (e.from == sourceId || e.from == previousHopId) set.add(e.to)
+                if (e.to == sourceId || e.to == previousHopId) set.add(e.from)
+            }
+            set
+        }
+    }
+}
+
 internal fun isStaleReport(prevEpoch: Int, prevSeq: Int, epoch: Int, seq: Int): Boolean =
     prevSeq != 0 && seq != 0 && prevEpoch == epoch && (seq - prevSeq) < 0
 
 class MeshGraphRepository(
     private val selfId: String,
     private val selfName: String,
-    private val clock: () -> Long
+    private val clock: () -> Long,
+    private val monotonicClock: () -> Long
 ) {
+    constructor(selfId: String, selfName: String, clock: () -> Long) :
+        this(selfId, selfName, clock, clock)
     var selfOnlineTagProvider: () -> String? = { null }
 
     private class Neighbor(var name: String, var endpoint: MeshEndpoint, var lastSeen: Long, var onlineIdTag: String? = null)
@@ -58,6 +80,10 @@ class MeshGraphRepository(
     val graphRebuildCount = java.util.concurrent.atomic.AtomicLong(0L)
     private val _snapshots = MutableStateFlow(buildSnapshot())
     val snapshots: StateFlow<MeshGraphSnapshot> = _snapshots.asStateFlow()
+    private var currentForwardingView: ForwardingView = buildForwardingView(_snapshots.value)
+
+    @Synchronized
+    fun forwardingView(): ForwardingView = currentForwardingView
 
     /**
      * @param hopCount 0 when received directly from [sourceId]; the sender is then a direct neighbor.
@@ -76,7 +102,7 @@ class MeshGraphRepository(
         onlineIdTag: String? = null
     ): Boolean {
         if (sourceId == selfId) return false
-        val now = clock()
+        val now = monotonicClock()
         var changed = false
         if (hopCount == 0) {
             val n = neighbors[sourceId]
@@ -107,9 +133,38 @@ class MeshGraphRepository(
         if (changed) {
             publish()
         } else {
-            // Refresh edge lastSeenAt and expiresAt timestamps in the published snapshot
-            // without incrementing the structural graph version.
-            _snapshots.value = buildSnapshot()
+            // Update lastSeen in forwardingView and snapshots in place without full snapshot rebuild
+            val cur = currentForwardingView
+            val snap = _snapshots.value
+            val updated = cur.neighbors.map { n ->
+                val live = neighbors[n.deviceId]
+                if (live != null && live.lastSeen != n.lastSeen) {
+                    DirectNeighbor(n.deviceId, n.name, n.endpoint, live.lastSeen)
+                } else n
+            }
+            val updatedEdges = snap.edges.map { edge ->
+                if (edge.from == sourceId || edge.to == sourceId) {
+                    val other = if (edge.from == sourceId) edge.to else edge.from
+                    val directClaim = if (sourceId == selfId || other == selfId) {
+                        val peerId = if (sourceId == selfId) other else sourceId
+                        neighbors[peerId]?.let { it.lastSeen to (it.lastSeen + MeshConfig.NEIGHBOR_TIMEOUT_MS) }
+                    } else null
+                    val reportClaim = reports[sourceId]?.let { it.lastSeen to (it.lastSeen + MeshConfig.REMOTE_REPORT_TIMEOUT_MS) }
+                    val reportOtherClaim = reports[other]?.let { it.lastSeen to (it.lastSeen + MeshConfig.REMOTE_REPORT_TIMEOUT_MS) }
+                    val newLastSeen = maxOf(edge.lastSeenAt, directClaim?.first ?: 0L, reportClaim?.first ?: 0L, reportOtherClaim?.first ?: 0L)
+                    val newExpiresAt = maxOf(edge.expiresAt, directClaim?.second ?: 0L, reportClaim?.second ?: 0L, reportOtherClaim?.second ?: 0L)
+                    edge.copy(lastSeenAt = newLastSeen, expiresAt = newExpiresAt)
+                } else edge
+            }
+            _snapshots.value = snap.copy(
+                edges = updatedEdges
+            )
+            currentForwardingView = ForwardingView(
+                version = cur.version,
+                neighbors = updated,
+                edges = updatedEdges,
+                coveredBy = cur.coveredBy
+            )
         }
         return changed
     }
@@ -125,7 +180,7 @@ class MeshGraphRepository(
     /** Drops timed-out neighbors and reports. Returns true if anything changed. */
     @Synchronized
     fun expire(): Boolean {
-        val now = clock()
+        val now = monotonicClock()
         var changed = false
         val dead = neighbors.filter { now - it.value.lastSeen > MeshConfig.NEIGHBOR_TIMEOUT_MS }.keys.toList()
         for (id in dead) {
@@ -160,7 +215,23 @@ class MeshGraphRepository(
     @Synchronized
     fun currentSnapshot(): MeshGraphSnapshot = buildSnapshot()
 
-    private fun publish() { version++; _snapshots.value = buildSnapshot() }
+    private fun publish() {
+        version++
+        val snap = buildSnapshot()
+        _snapshots.value = snap
+        currentForwardingView = buildForwardingView(snap)
+    }
+
+    private fun buildForwardingView(snap: MeshGraphSnapshot = buildSnapshot()): ForwardingView {
+        val sorted = neighbors.entries.sortedBy { it.key }.map {
+            DirectNeighbor(it.key, it.value.name, it.value.endpoint, it.value.lastSeen)
+        }
+        return ForwardingView(
+            version = version,
+            neighbors = sorted,
+            edges = snap.edges
+        )
+    }
 
     private fun buildSnapshot(): MeshGraphSnapshot {
         graphRebuildCount.incrementAndGet()

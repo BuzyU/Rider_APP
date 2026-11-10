@@ -113,26 +113,53 @@ class OfflineSession private constructor(
 class SessionManager(
     val session: OfflineSession,
     private val selfId: String,
-    private val clock: () -> Long
+    private val clock: () -> Long,
+    private val monotonicClock: () -> Long
 ) {
-    private val lastSeen = LinkedHashMap<String, Long>().apply { put(selfId, clock()) }
+    constructor(session: OfflineSession, selfId: String, clock: () -> Long) :
+        this(session, selfId, clock, clock)
+
+    private val lastSeen = LinkedHashMap<String, Long>().apply { put(selfId, monotonicClock()) }
+    private var lastPurgeMs = 0L
 
     enum class Admission { ADMITTED, ALREADY_MEMBER, REJECTED_FULL, REJECTED_EXPIRED }
 
     @Synchronized
     fun admit(deviceId: String): Admission {
-        val now = clock()
-        if (session.isExpired(now)) return Admission.REJECTED_EXPIRED
-        purgeStale(now)
+        val wallNow = clock()
+        if (session.isExpired(wallNow)) return Admission.REJECTED_EXPIRED
+        val monoNow = monotonicClock()
+        purgeStale(monoNow)
         if (lastSeen.containsKey(deviceId)) {
-            lastSeen[deviceId] = now
+            lastSeen[deviceId] = monoNow
             return Admission.ALREADY_MEMBER
         }
         if (lastSeen.size >= session.maxDevices) return Admission.REJECTED_FULL
-        lastSeen[deviceId] = now
+        lastSeen[deviceId] = monoNow
         return Admission.ADMITTED
     }
 
+    @Synchronized
+    fun admitAndTouch(vararg deviceIds: String): Admission {
+        val wallNow = clock()
+        if (session.isExpired(wallNow)) return Admission.REJECTED_EXPIRED
+        val monoNow = monotonicClock()
+        purgeStale(monoNow)
+        var anyAdmitted = false
+        for (id in deviceIds) {
+            if (lastSeen.containsKey(id)) {
+                lastSeen[id] = monoNow
+            } else {
+                if (lastSeen.size >= session.maxDevices) {
+                    if (!anyAdmitted) return Admission.REJECTED_FULL
+                } else {
+                    lastSeen[id] = monoNow
+                    anyAdmitted = true
+                }
+            }
+        }
+        return if (anyAdmitted) Admission.ADMITTED else Admission.ALREADY_MEMBER
+    }
 
     /**
      * Non-mutating joint admission check for pre-AEAD validation of relayed packets
@@ -140,9 +167,10 @@ class SessionManager(
      */
     @Synchronized
     fun canAdmitAll(deviceIds: Collection<String>): Admission {
-        val now = clock()
-        if (session.isExpired(now)) return Admission.REJECTED_EXPIRED
-        purgeStale(now)
+        val wallNow = clock()
+        if (session.isExpired(wallNow)) return Admission.REJECTED_EXPIRED
+        val monoNow = monotonicClock()
+        purgeStale(monoNow)
         val distinctIds = deviceIds.distinct()
         val newCount = distinctIds.count { !lastSeen.containsKey(it) }
         if (newCount == 0) return Admission.ALREADY_MEMBER
@@ -151,20 +179,21 @@ class SessionManager(
     }
 
     @Synchronized
-    fun touch(deviceId: String) { if (lastSeen.containsKey(deviceId)) lastSeen[deviceId] = clock() }
+    fun touch(deviceId: String) { if (lastSeen.containsKey(deviceId)) lastSeen[deviceId] = monotonicClock() }
 
     @Synchronized
     fun remove(deviceId: String) { if (deviceId != selfId) lastSeen.remove(deviceId) }
 
     @Synchronized
-    fun members(): Set<String> { purgeStale(clock()); return lastSeen.keys.toSet() }
-
+    fun members(): Set<String> { purgeStale(monotonicClock()); return lastSeen.keys.toSet() }
 
     /** Leaving clears all remote membership state. */
     @Synchronized
-    fun clear() { lastSeen.clear(); lastSeen[selfId] = clock() }
+    fun clear() { lastSeen.clear(); lastSeen[selfId] = monotonicClock() }
 
     private fun purgeStale(now: Long) {
+        if (lastPurgeMs != 0L && now - lastPurgeMs < 1_000L) return
+        lastPurgeMs = now
         val it = lastSeen.entries.iterator()
         while (it.hasNext()) {
             val e = it.next()

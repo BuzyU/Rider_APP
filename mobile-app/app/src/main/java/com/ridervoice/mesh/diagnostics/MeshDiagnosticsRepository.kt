@@ -5,7 +5,6 @@ import com.ridervoice.mesh.routing.RouteEntry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-
 import java.util.concurrent.atomic.AtomicLong
 
 data class MeshDiagnosticsSnapshot(
@@ -22,8 +21,10 @@ data class MeshDiagnosticsSnapshot(
     val droppedTtl: Long = 0L,
     val droppedStaleTimestamp: Long = 0L,
     val droppedBadVersion: Long = 0L,
-    val suspectedClockSkewMs: Long = 0L,
-    val suspectedClockSkewPeerName: String? = null,
+    val droppedUnknownSource: Long = 0L,
+    val droppedOversize: Long = 0L,
+    val droppedStaleEpoch: Long = 0L,
+    val idCollision: Long = 0L,
     val droppedAtLinkBuffer: Long = 0L,
     val graphVersion: Long = 0L,
     val linkState: String = "STOPPED",
@@ -74,8 +75,10 @@ class MeshDiagnosticsRepository {
         droppedTtl: Long,
         droppedStaleTimestamp: Long = 0L,
         droppedBadVersion: Long = 0L,
-        suspectedClockSkewMs: Long = 0L,
-        suspectedClockSkewPeerName: String? = null,
+        droppedUnknownSource: Long = 0L,
+        droppedOversize: Long = 0L,
+        droppedStaleEpoch: Long = 0L,
+        idCollision: Long = 0L,
         linkState: String = "RUNNING",
         localIp: String = "",
         broadcastAddress: String = "",
@@ -116,8 +119,10 @@ class MeshDiagnosticsRepository {
             droppedTtl = droppedTtl,
             droppedStaleTimestamp = droppedStaleTimestamp,
             droppedBadVersion = droppedBadVersion,
-            suspectedClockSkewMs = suspectedClockSkewMs,
-            suspectedClockSkewPeerName = suspectedClockSkewPeerName,
+            droppedUnknownSource = droppedUnknownSource,
+            droppedOversize = droppedOversize,
+            droppedStaleEpoch = droppedStaleEpoch,
+            idCollision = idCollision,
             droppedAtLinkBuffer = _droppedAtLinkBuffer.get(),
             graphVersion = graph.version,
             linkState = linkState,
@@ -150,4 +155,3 @@ class MeshDiagnosticsRepository {
         _snapshot.value = MeshDiagnosticsSnapshot()
     }
 }
-

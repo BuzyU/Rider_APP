@@ -3,6 +3,7 @@ package com.ridervoice.mesh.protocol
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.GeneralSecurityException
+import java.security.InvalidAlgorithmParameterException
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -17,8 +18,19 @@ object PayloadCrypto {
     const val TAG_LEN = 16
     const val NONCE_LEN = 12
 
+    const val TAG_LEN_V4 = 12
+    const val NONCE_LEN_V4 = 12
+    const val AAD_LEN_V4 = 12
+
     private val cipherThreadLocal: ThreadLocal<Cipher> = ThreadLocal.withInitial { Cipher.getInstance("AES/GCM/NoPadding") }
     private val hmacThreadLocal: ThreadLocal<javax.crypto.Mac> = ThreadLocal.withInitial { javax.crypto.Mac.getInstance("HmacSHA256") }
+
+    private data class SourceKeyCacheKey(val payloadKeyHash: Int, val srcShort: Int, val epoch: Int)
+    private val v4KeyCache = object : LinkedHashMap<SourceKeyCacheKey, SecretKeySpec>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<SourceKeyCacheKey, SecretKeySpec>?): Boolean {
+            return size > 16
+        }
+    }
 
     private fun hmac(salt: ByteArray, data: ByteArray): ByteArray {
         val mac = hmacThreadLocal.get()!!
@@ -35,6 +47,103 @@ object PayloadCrypto {
         val srcBytes = MeshPacketCodec.uuidBytes(sourceId)
         return hmac(salt = prk, data = srcBytes + byteArrayOf(1)).copyOf(32) // HKDF-Expand, one block
     }
+
+    /**
+     * Protocol v4: Derives a dedicated 32-byte AES payload subkey using HKDF-SHA256:
+     * sourceKey = HKDF-SHA256(ikm = payloadKey, salt = "rvmesh/v4/src", info = srcShort(4) || epoch(4))
+     */
+    fun sourceKeyV4(payloadKey: ByteArray, srcShort: Int, epoch: Int): ByteArray {
+        val prk = hmac(salt = "rvmesh/v4/src".toByteArray(Charsets.UTF_8), data = payloadKey) // HKDF-Extract
+        val info = ByteBuffer.allocate(8).order(ByteOrder.BIG_ENDIAN)
+            .putInt(srcShort)
+            .putInt(epoch)
+            .array()
+        return hmac(salt = prk, data = info + byteArrayOf(1)).copyOf(32) // HKDF-Expand, one block
+    }
+
+    fun sourceKeySpecV4(payloadKey: ByteArray, srcShort: Int, epoch: Int): SecretKeySpec {
+        val key = SourceKeyCacheKey(payloadKey.contentHashCode(), srcShort, epoch)
+        synchronized(v4KeyCache) {
+            val cached = v4KeyCache[key]
+            if (cached != null) return cached
+            val raw = sourceKeyV4(payloadKey, srcShort, epoch)
+            val spec = SecretKeySpec(raw, "AES")
+            v4KeyCache[key] = spec
+            return spec
+        }
+    }
+
+    fun clearKeyCache() {
+        synchronized(v4KeyCache) {
+            v4KeyCache.clear()
+        }
+    }
+
+    fun nonceV4(typeCode: Int, seq: Int, epoch: Int): ByteArray =
+        ByteBuffer.allocate(NONCE_LEN_V4).order(ByteOrder.BIG_ENDIAN)
+            .put(typeCode.toByte())
+            .put((seq ushr 16).toByte())
+            .put((seq ushr 8).toByte())
+            .put(seq.toByte())
+            .putInt(0)
+            .putInt(epoch)
+            .array()
+
+    fun aadV4(vtf: Byte, srcShort: Int, epoch: Int, seq: Int): ByteArray =
+        ByteBuffer.allocate(AAD_LEN_V4).order(ByteOrder.BIG_ENDIAN)
+            .put(vtf)
+            .putInt(srcShort)
+            .putInt(epoch)
+            .put((seq ushr 16).toByte())
+            .put((seq ushr 8).toByte())
+            .put(seq.toByte())
+            .array()
+
+    fun sealV4(keySpec: SecretKeySpec, nonce: ByteArray, aad: ByteArray, plain: ByteArray): ByteArray {
+        val c = try {
+            val cached = cipherThreadLocal.get()!!
+            cached.init(
+                Cipher.ENCRYPT_MODE,
+                keySpec,
+                GCMParameterSpec(96, nonce)
+            )
+            cached
+        } catch (e: InvalidAlgorithmParameterException) {
+            val fresh = Cipher.getInstance("AES/GCM/NoPadding")
+            cipherThreadLocal.set(fresh)
+            fresh.init(
+                Cipher.ENCRYPT_MODE,
+                keySpec,
+                GCMParameterSpec(96, nonce)
+            )
+            fresh
+        }
+        if (aad.isNotEmpty()) {
+            c.updateAAD(aad)
+        }
+        return c.doFinal(plain)
+    }
+
+    fun sealV4(key: ByteArray, nonce: ByteArray, aad: ByteArray, plain: ByteArray): ByteArray =
+        sealV4(SecretKeySpec(key, "AES"), nonce, aad, plain)
+
+    fun openV4(keySpec: SecretKeySpec, nonce: ByteArray, aad: ByteArray, sealed: ByteArray): ByteArray? = try {
+        val c = cipherThreadLocal.get()!!
+        c.init(
+            Cipher.DECRYPT_MODE,
+            keySpec,
+            GCMParameterSpec(96, nonce)
+        )
+        if (aad.isNotEmpty()) {
+            c.updateAAD(aad)
+        }
+        c.doFinal(sealed)
+    } catch (e: GeneralSecurityException) {
+        null
+    }
+
+    fun openV4(key: ByteArray, nonce: ByteArray, aad: ByteArray, sealed: ByteArray): ByteArray? =
+        openV4(SecretKeySpec(key, "AES"), nonce, aad, sealed)
 
     /**
      * Converts a ByteArray to a lowercase hex string.
@@ -128,12 +237,24 @@ object PayloadCrypto {
         .array()
 
     fun seal(keySpec: SecretKeySpec, nonce: ByteArray, aad: ByteArray, plain: ByteArray): ByteArray {
-        val c = cipherThreadLocal.get()!!
-        c.init(
-            Cipher.ENCRYPT_MODE,
-            keySpec,
-            GCMParameterSpec(128, nonce)
-        )
+        val c = try {
+            val cached = cipherThreadLocal.get()!!
+            cached.init(
+                Cipher.ENCRYPT_MODE,
+                keySpec,
+                GCMParameterSpec(128, nonce)
+            )
+            cached
+        } catch (e: InvalidAlgorithmParameterException) {
+            val fresh = Cipher.getInstance("AES/GCM/NoPadding")
+            cipherThreadLocal.set(fresh)
+            fresh.init(
+                Cipher.ENCRYPT_MODE,
+                keySpec,
+                GCMParameterSpec(128, nonce)
+            )
+            fresh
+        }
         if (aad.isNotEmpty()) {
             c.updateAAD(aad)
         }

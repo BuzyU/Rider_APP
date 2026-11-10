@@ -1,9 +1,15 @@
 package com.ridervoice.mesh.audit
 
 import com.ridervoice.mesh.MeshConfig
+import com.ridervoice.mesh.discovery.HelloCodec
+import com.ridervoice.mesh.discovery.HelloPayload
 import com.ridervoice.mesh.protocol.AudioFormatId
+import com.ridervoice.mesh.protocol.DecodeResult
+import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
+import com.ridervoice.mesh.protocol.MeshPacketV4
+import com.ridervoice.mesh.protocol.PayloadCrypto
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionKdf
 import com.ridervoice.mesh.switching.AntiFlappingConfig
@@ -22,15 +28,15 @@ class ProtocolSpecVectorTest {
     fun protocolConstantsMatchSpec() {
         assertEquals("Mesh port must be 45454", 45454, MeshConfig.MESH_PORT)
         assertEquals("Magic must be 0x52564D31 (ASCII 'RVM1')", 0x52564D31, MeshPacketCodec.MAGIC)
-        assertEquals("Protocol version must be 3", 3, MeshPacketCodec.VERSION)
-        assertEquals("Header length must be 75 bytes", 75, MeshPacketCodec.HEADER_LEN)
-        assertEquals("Outer auth tag length must be 16 bytes", 16, MeshPacketCodec.TAG_LEN)
-        assertEquals("GCM tag bytes must be 16 bytes", 16, MeshConfig.GCM_TAG_BYTES)
+        assertEquals("Protocol version must be 4", 4, MeshPacketCodec.VERSION)
+        assertEquals("Header length must be 17 bytes", 17, MeshPacketCodec.HEADER_LEN)
+        assertEquals("AEAD auth tag length must be 12 bytes", 12, MeshPacketCodec.TAG_LEN)
+        assertEquals("GCM tag bytes must be 12 bytes", 12, MeshConfig.GCM_TAG_BYTES)
         assertEquals("PCM bytes per frame must be 640 (20ms at 16kHz mono)", 640, MeshConfig.BYTES_PER_FRAME)
-        assertEquals("Encrypted voice payload must be 656 bytes", 656, MeshConfig.ENCRYPTED_VOICE_PAYLOAD_BYTES)
+        assertEquals("Encrypted voice payload must be 652 bytes", 652, MeshConfig.ENCRYPTED_VOICE_PAYLOAD_BYTES)
 
-        val totalVoiceDatagramSize = MeshPacketCodec.HEADER_LEN + MeshConfig.ENCRYPTED_VOICE_PAYLOAD_BYTES + MeshPacketCodec.TAG_LEN
-        assertEquals("Voice datagram size must be exactly 747 bytes", 747, totalVoiceDatagramSize)
+        val totalVoiceDatagramSize = MeshPacketCodec.HEADER_LEN + 40 + MeshPacketCodec.TAG_LEN
+        assertEquals("Voice datagram size for Opus 16k must be exactly 69 bytes", 69, totalVoiceDatagramSize)
     }
 
     @Test
@@ -38,55 +44,140 @@ class ProtocolSpecVectorTest {
         assertEquals(1, MeshPacketType.HELLO.code)
         assertEquals(2, MeshPacketType.VOICE.code)
         assertEquals(3, MeshPacketType.BYE.code)
+        assertEquals(0, MeshPacketType.VOICE.codeV4)
+        assertEquals(1, MeshPacketType.HELLO.codeV4)
+        assertEquals(2, MeshPacketType.BYE.codeV4)
         assertEquals(1, AudioFormatId.PCM16_16K_MONO)
+        assertEquals(2, AudioFormatId.OPUS_16K_MONO_20MS)
     }
 
     @Test
     fun headerFieldOffsetsAndLengthsMatchSpec() {
-        val dummyKey = ByteArray(32) { it.toByte() }
-        val dummySession = "11111111-1111-1111-1111-111111111111"
-        val dummySource = "22222222-2222-2222-2222-222222222222"
-        val dummyPrevHop = "33333333-3333-3333-3333-333333333333"
+        val dummyKey = ByteArray(32) { (it + 1).toByte() }
+        val dummySource = "11111111-1111-4111-8111-111111111111"
+        val dummyPrevHop = "22222222-2222-4222-8222-222222222222"
 
-        val packet = com.ridervoice.mesh.protocol.MeshPacket(
+        val packet = MeshPacket(
             type = MeshPacketType.VOICE,
-            sessionId = dummySession,
             sourceId = dummySource,
             sequence = 12345,
-            captureTimestamp = 9876543210L,
             ttl = 5,
             hopCount = 1,
             previousHopId = dummyPrevHop,
-            audioFormat = AudioFormatId.PCM16_16K_MONO,
+            audioFormat = AudioFormatId.OPUS_16K_MONO_20MS,
             epoch = 42,
-            payload = ByteArray(10) { 0xAA.toByte() }
+            payload = ByteArray(40) { 0xAA.toByte() }
         )
 
         val encoded = MeshPacketCodec.encode(packet, dummyKey)
         val buf = ByteBuffer.wrap(encoded).order(ByteOrder.BIG_ENDIAN)
 
-        assertEquals("Magic at offset 0", MeshPacketCodec.MAGIC, buf.int)
-        assertEquals("Version at offset 4", 3, buf.get().toInt() and 0xFF)
-        assertEquals("Type at offset 5", MeshPacketType.VOICE.code, buf.get().toInt() and 0xFF)
+        // Offset 0 (1 B): vtf = ver(3)=4, type(2)=0(VOICE), fmt(3)=2(OPUS16) -> (4 shl 5) | (0 shl 3) | 2 = 0x82
+        val vtf = buf.get().toInt() and 0xFF
+        assertEquals("Version at offset 0 must be 4", 4, (vtf ushr 5) and 0x07)
+        assertEquals("Type at offset 0 must be 0 (VOICE)", 0, (vtf ushr 3) and 0x03)
+        assertEquals("Format at offset 0 must be 2 (OPUS16)", 2, vtf and 0x07)
 
-        val sessUuid = java.util.UUID(buf.long, buf.long).toString()
-        assertEquals("Session UUID at offset 6", dummySession, sessUuid)
+        // Offset 1 (1 B): ttlHop = ttl(4)=5, hop(4)=1 -> (5 shl 4) | 1 = 0x51
+        val ttlHop = buf.get().toInt() and 0xFF
+        assertEquals("TTL at offset 1 must be 5", 5, (ttlHop ushr 4) and 0x0F)
+        assertEquals("Hop at offset 1 must be 1", 1, ttlHop and 0x0F)
 
-        val srcUuid = java.util.UUID(buf.long, buf.long).toString()
-        assertEquals("Source UUID at offset 22", dummySource, srcUuid)
+        // Offset 2 (4 B): srcShort
+        assertEquals("srcShort at offset 2", MeshPacketV4.shortId(dummySource), buf.int)
 
-        assertEquals("Sequence at offset 38", 12345, buf.int)
-        assertEquals("Timestamp at offset 42", 9876543210L, buf.long)
-        assertEquals("TTL at offset 50", 5, buf.get().toInt() and 0xFF)
-        assertEquals("Hop at offset 51", 1, buf.get().toInt() and 0xFF)
+        // Offset 6 (4 B): prevShort
+        assertEquals("prevShort at offset 6", MeshPacketV4.shortId(dummyPrevHop), buf.int)
 
-        val prevUuid = java.util.UUID(buf.long, buf.long).toString()
-        assertEquals("PreviousHop UUID at offset 52", dummyPrevHop, prevUuid)
+        // Offset 10 (4 B): epoch
+        assertEquals("epoch at offset 10", 42, buf.int)
 
-        assertEquals("Format at offset 68", AudioFormatId.PCM16_16K_MONO, buf.get().toInt() and 0xFF)
-        assertEquals("Epoch at offset 69", 42, buf.int)
-        assertEquals("Payload length at offset 73", 10, buf.short.toInt() and 0xFFFF)
-        assertEquals("Buffer position after header must be 75", 75, buf.position())
+        // Offset 14 (3 B): seq
+        val b14 = buf.get().toInt() and 0xFF
+        val b15 = buf.get().toInt() and 0xFF
+        val b16 = buf.get().toInt() and 0xFF
+        val seq = (b14 shl 16) or (b15 shl 8) or b16
+        assertEquals("sequence at offset 14 must be 12345", 12345, seq)
+
+        assertEquals("Buffer position after header must be 17", 17, buf.position())
+        assertEquals("Total datagram size for 40-byte payload + 12-byte tag must be 69 bytes", 69, encoded.size)
+    }
+
+    @Test
+    fun fixedTestVectors_voiceHelloBye() {
+        val payloadKey = ByteArray(32) { (it + 1).toByte() }
+        val devA = "11111111-1111-4111-8111-111111111111"
+
+        // 1. Voice Opus 16k
+        val voicePkt = MeshPacket(
+            type = MeshPacketType.VOICE,
+            sourceId = devA,
+            previousHopId = devA,
+            sequence = 1,
+            ttl = 5,
+            hopCount = 0,
+            audioFormat = AudioFormatId.OPUS_16K_MONO_20MS,
+            epoch = 1,
+            payload = ByteArray(40) { 0x55 }
+        )
+        val voiceWire = MeshPacketCodec.encode(voicePkt, payloadKey)
+        val voiceHex = PayloadCrypto.bytesToHex(voiceWire)
+        assertEquals(69, voiceWire.size)
+        assertEquals(
+            "8250111111111111111100000001000001fd1eab64dcd0c2490875ea8fb3ffc59284c325110d750f0cb032114907e9d5ad0328ac0db646c6937501d53308b213b05cdd5298",
+            voiceHex
+        )
+
+        // 2. Hello
+        val helloPayload = HelloPayload(
+            deviceId = devA,
+            name = "Alice",
+            graphVersion = 1,
+            neighborIds = emptyList(),
+            supportedFormats = 3
+        )
+        val helloPkt = MeshPacket(
+            type = MeshPacketType.HELLO,
+            sourceId = devA,
+            previousHopId = devA,
+            sequence = 1,
+            ttl = 5,
+            hopCount = 0,
+            audioFormat = AudioFormatId.NONE,
+            epoch = 1,
+            payload = HelloCodec.encode(helloPayload)
+        )
+        val helloWire = MeshPacketCodec.encode(helloPkt, payloadKey)
+        val helloHex = PayloadCrypto.bytesToHex(helloWire)
+        assertEquals(
+            "8850111111111111111100000001000001e35d3186fa192364b2f517c95ac4a6c9d2056296e12a707d1e9dc2dc588febe4aba0dfa967f9eb734974323657",
+            helloHex
+        )
+
+        // 3. Bye
+        val byePkt = MeshPacket(
+            type = MeshPacketType.BYE,
+            sourceId = devA,
+            previousHopId = devA,
+            sequence = 1,
+            ttl = 5,
+            hopCount = 0,
+            audioFormat = AudioFormatId.NONE,
+            epoch = 1,
+            payload = ByteArray(0)
+        )
+        val byeWire = MeshPacketCodec.encode(byePkt, payloadKey)
+        val byeHex = PayloadCrypto.bytesToHex(byeWire)
+        assertEquals(29, byeWire.size)
+        assertEquals(
+            "90501111111111111111000000010000017f49d34882e571ae898a49d6",
+            byeHex
+        )
+
+        // Assert all 3 round-trip decode cleanly
+        assertTrue(MeshPacketCodec.decode(voiceWire, payloadKey) is DecodeResult.Ok)
+        assertTrue(MeshPacketCodec.decode(helloWire, payloadKey) is DecodeResult.Ok)
+        assertTrue(MeshPacketCodec.decode(byeWire, payloadKey) is DecodeResult.Ok)
     }
 
     @Test

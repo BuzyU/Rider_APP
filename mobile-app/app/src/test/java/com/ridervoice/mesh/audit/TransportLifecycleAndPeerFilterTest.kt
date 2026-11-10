@@ -13,7 +13,8 @@ import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.protocol.AudioFormatId
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
+import com.ridervoice.mesh.protocol.ShortIdDirectory
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
@@ -143,13 +144,18 @@ class TransportLifecycleAndPeerFilterTest {
         sessionMgr.admit(aId)
         sessionMgr.admit(bId)
 
+        val shortIdDir = ShortIdDirectory()
+        shortIdDir.register(aId)
+        shortIdDir.register(bId)
+
         val engineC = ForwardingEngine(
             selfId = cId,
             selfName = "C",
             sessionManager = sessionMgr,
             graphRepository = MeshGraphRepository(cId, "C", { now }),
             routingTable = RoutingTable(),
-            duplicateCache = DuplicatePacketCache(clock = { now }),
+            replayWindow = ReplayWindow(),
+            shortIdDirectory = shortIdDir,
             ttlPolicy = TtlPolicy(clock = { now }),
             link = mockLink,
             clock = { now },
@@ -157,10 +163,6 @@ class TransportLifecycleAndPeerFilterTest {
         )
 
         val voicePayload = ByteArray(640) { 0x11 }
-        val aad = PayloadCrypto.aad(session.sessionId, aId, MeshPacketType.VOICE.code, 0, 1, now, AudioFormatId.PCM16_16K_MONO)
-        val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.VOICE.code)
-        val sourceKeyA = PayloadCrypto.sourceKey(session.payloadKey(), aId)
-        val sealed = PayloadCrypto.seal(sourceKeyA, nonce, aad, voicePayload)
 
         // Packet originated by A, received directly from A (previousHopId = aId, hopCount = 0)
         val directPacketFromA = MeshPacket(
@@ -168,13 +170,13 @@ class TransportLifecycleAndPeerFilterTest {
             sessionId = session.sessionId,
             sourceId = aId,
             sequence = 1,
-            captureTimestamp = now,
             ttl = MeshConfig.DEFAULT_TTL,
             hopCount = 0,
             previousHopId = aId,
-            payload = sealed
+            audioFormat = AudioFormatId.PCM16_16K_MONO,
+            payload = voicePayload
         )
-        val directFrame = MeshFrame(MeshEndpoint("10.0.0.1", MeshConfig.MESH_PORT), MeshPacketCodec.encode(directPacketFromA, session.authKey()))
+        val directFrame = MeshFrame(MeshEndpoint("10.0.0.1", MeshConfig.MESH_PORT), MeshPacketCodec.encode(directPacketFromA, session.payloadKey()))
 
         // Set peer filter on C to reject previousHopId == aId (forcing traffic through B)
         PeerFilterHolder.port = PeerFilterPort { id -> id != aId }
@@ -189,10 +191,7 @@ class TransportLifecycleAndPeerFilterTest {
             hopCount = 1,
             previousHopId = bId
         )
-        val relayedAad = PayloadCrypto.aad(session.sessionId, aId, MeshPacketType.VOICE.code, 0, 2, now, AudioFormatId.PCM16_16K_MONO)
-        val relayedNonce = PayloadCrypto.nonce(0, 2, MeshPacketType.VOICE.code)
-        val relayedSealed = PayloadCrypto.seal(sourceKeyA, relayedNonce, relayedAad, voicePayload)
-        val relayedWire = MeshPacketCodec.encode(relayedPacketViaB.copy(payload = relayedSealed), session.authKey())
+        val relayedWire = MeshPacketCodec.encode(relayedPacketViaB, session.payloadKey())
         val relayedFrame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), relayedWire)
 
         val relayedOutcome = engineC.onIncomingFrame(relayedFrame)
@@ -201,10 +200,7 @@ class TransportLifecycleAndPeerFilterTest {
         // Clear peer filter -> direct packet from A is now accepted
         PeerFilterHolder.reset()
         val directPacket2 = directPacketFromA.copy(sequence = 3)
-        val directAad2 = PayloadCrypto.aad(session.sessionId, aId, MeshPacketType.VOICE.code, 0, 3, now, AudioFormatId.PCM16_16K_MONO)
-        val directNonce2 = PayloadCrypto.nonce(0, 3, MeshPacketType.VOICE.code)
-        val directSealed2 = PayloadCrypto.seal(sourceKeyA, directNonce2, directAad2, voicePayload)
-        val directFrame2 = MeshFrame(MeshEndpoint("10.0.0.1", MeshConfig.MESH_PORT), MeshPacketCodec.encode(directPacket2.copy(payload = directSealed2), session.authKey()))
+        val directFrame2 = MeshFrame(MeshEndpoint("10.0.0.1", MeshConfig.MESH_PORT), MeshPacketCodec.encode(directPacket2, session.payloadKey()))
 
         val directOutcome2 = engineC.onIncomingFrame(directFrame2)
         assertTrue("Direct packet from A must be accepted after clearing filter: $directOutcome2", directOutcome2 is ReceiveOutcome.Accepted)
@@ -229,7 +225,7 @@ class TransportLifecycleAndPeerFilterTest {
             sessionManager = SessionManager(session, selfId, { now }),
             graphRepository = MeshGraphRepository(selfId, "Self", { now }),
             routingTable = RoutingTable(),
-            duplicateCache = DuplicatePacketCache(clock = { now }),
+            replayWindow = ReplayWindow(),
             ttlPolicy = TtlPolicy(clock = { now }),
             link = mockLink,
             clock = { now }
@@ -237,21 +233,21 @@ class TransportLifecycleAndPeerFilterTest {
 
         assertEquals(0L, engine.counters().droppedBadVersion)
 
-        // Craft a frame with wire version 2 instead of 3
+        // Craft a frame with wire version 2 instead of 4
         val validPkt = MeshPacket(
             type = MeshPacketType.VOICE,
             sessionId = session.sessionId,
             sourceId = UUID.randomUUID().toString(),
             sequence = 1,
-            captureTimestamp = now,
             ttl = 5,
             hopCount = 0,
             previousHopId = UUID.randomUUID().toString(),
-            payload = ByteArray(32)
+            audioFormat = AudioFormatId.PCM16_16K_MONO,
+            payload = ByteArray(640)
         )
-        val encoded = MeshPacketCodec.encode(validPkt, session.authKey())
-        // Offset 4 is version byte in MeshPacketCodec
-        encoded[4] = 2.toByte()
+        val encoded = MeshPacketCodec.encode(validPkt, session.payloadKey())
+        // Offset 0 high 3 bits is version in MeshPacketV4
+        encoded[0] = ((2 shl 5) or (encoded[0].toInt() and 0x1F)).toByte()
 
         val outcome = engine.onIncomingFrame(MeshFrame(MeshEndpoint("10.0.0.2", 45454), encoded))
         assertTrue("Bad version frame must be dropped", outcome is ReceiveOutcome.Dropped)

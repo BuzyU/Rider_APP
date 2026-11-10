@@ -101,20 +101,30 @@ class OpusVoiceEncoder(
         return enc
     }
 
+    @Synchronized
     override fun encode(pcm640: ByteArray): ByteArray {
         if (pcm640.size < MeshConfig.BYTES_PER_FRAME) {
             return ByteArray(1)
         }
-        val bb = ByteBuffer.wrap(pcm640).order(ByteOrder.LITTLE_ENDIAN)
-        for (i in 0 until MeshConfig.SAMPLES_PER_FRAME) {
-            shortBuf[i] = bb.short
+        return try {
+            val bb = ByteBuffer.wrap(pcm640).order(ByteOrder.LITTLE_ENDIAN)
+            for (i in 0 until MeshConfig.SAMPLES_PER_FRAME) {
+                shortBuf[i] = bb.short
+            }
+            val encodedLen = encoder.encode(shortBuf, 0, MeshConfig.SAMPLES_PER_FRAME, outBuf, 0, outBuf.size)
+            if (encodedLen > 0) outBuf.copyOf(encodedLen) else ByteArray(1)
+        } catch (e: Exception) {
+            runCatching { encoder.resetState() }
+            ByteArray(1)
+        } catch (err: AssertionError) {
+            runCatching { encoder.resetState() }
+            ByteArray(1)
         }
-        val encodedLen = encoder.encode(shortBuf, 0, MeshConfig.SAMPLES_PER_FRAME, outBuf, 0, outBuf.size)
-        return if (encodedLen > 0) outBuf.copyOf(encodedLen) else ByteArray(1)
     }
 
+    @Synchronized
     override fun reset() {
-        encoder.resetState()
+        runCatching { encoder.resetState() }
     }
 
     override fun release() {}
@@ -127,21 +137,30 @@ class OpusVoiceDecoder : VoiceDecoder {
     private val outShorts = ShortArray(MeshConfig.SAMPLES_PER_FRAME)
     private var consecutiveConcealed = 0
 
+    @Synchronized
     override fun decode(payload: ByteArray?): ByteArray {
-        if (payload == null) {
-            consecutiveConcealed++
-            if (consecutiveConcealed > 2) {
+        return try {
+            if (payload == null) {
+                consecutiveConcealed++
+                if (consecutiveConcealed > 2) {
+                    return ByteArray(MeshConfig.BYTES_PER_FRAME)
+                }
+                val decodedSamples = decoder.decode(null, 0, 0, outShorts, 0, MeshConfig.SAMPLES_PER_FRAME, false)
+                return shortsToBytes(outShorts, decodedSamples)
+            }
+            consecutiveConcealed = 0
+            if (payload.size <= 2) {
                 return ByteArray(MeshConfig.BYTES_PER_FRAME)
             }
-            val decodedSamples = decoder.decode(null, 0, 0, outShorts, 0, MeshConfig.SAMPLES_PER_FRAME, false)
-            return shortsToBytes(outShorts, decodedSamples)
+            val decodedSamples = decoder.decode(payload, 0, payload.size, outShorts, 0, MeshConfig.SAMPLES_PER_FRAME, false)
+            shortsToBytes(outShorts, decodedSamples)
+        } catch (e: Exception) {
+            runCatching { decoder.resetState() }
+            ByteArray(MeshConfig.BYTES_PER_FRAME)
+        } catch (err: AssertionError) {
+            runCatching { decoder.resetState() }
+            ByteArray(MeshConfig.BYTES_PER_FRAME)
         }
-        consecutiveConcealed = 0
-        if (payload.size <= 2) {
-            return ByteArray(MeshConfig.BYTES_PER_FRAME)
-        }
-        val decodedSamples = decoder.decode(payload, 0, payload.size, outShorts, 0, MeshConfig.SAMPLES_PER_FRAME, false)
-        return shortsToBytes(outShorts, decodedSamples)
     }
 
     private fun shortsToBytes(shorts: ShortArray, count: Int): ByteArray {
@@ -153,10 +172,12 @@ class OpusVoiceDecoder : VoiceDecoder {
         return out
     }
 
+    @Synchronized
     override fun reset() {
-        decoder.resetState()
+        runCatching { decoder.resetState() }
         consecutiveConcealed = 0
     }
 
     override fun release() {}
 }
+

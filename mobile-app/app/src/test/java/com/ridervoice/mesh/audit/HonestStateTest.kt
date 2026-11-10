@@ -176,46 +176,38 @@ class HonestStateTest {
 
         transport.start(VoiceSession.Offline(s))
 
-        // Deliver 10 distinct voice packets through the incoming link flow
-        val rawFrames = (1..10).map { seq ->
-            val aad = PayloadCrypto.aad(s.sessionId, peerId, MeshPacketType.VOICE.code, 0, seq, t, AudioFormatId.PCM16_16K_MONO)
-            val nonce = PayloadCrypto.nonce(0, seq, MeshPacketType.VOICE.code)
-            val sourceKey = PayloadCrypto.sourceKey(s.payloadKey(), peerId)
-            val sealed = PayloadCrypto.seal(sourceKey, nonce, aad, ByteArray(640))
-            val packet = MeshPacket(
-                type = MeshPacketType.VOICE,
-                sessionId = s.sessionId,
-                sourceId = peerId,
-                sequence = seq,
-                captureTimestamp = t,
-                ttl = MeshConfig.DEFAULT_TTL,
-                hopCount = 0,
-                previousHopId = peerId,
-                payload = sealed
-            )
-            MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(packet, s.authKey()))
-        }
-
         // Send a direct HELLO so peerId is admitted and direct neighbor
         val helloPayload = com.ridervoice.mesh.discovery.HelloCodec.encode(
-            com.ridervoice.mesh.discovery.HelloPayload(name = "Peer", graphVersion = 1, neighborIds = emptyList())
+            com.ridervoice.mesh.discovery.HelloPayload(deviceId = peerId, name = "Peer", graphVersion = 1, neighborIds = emptyList())
         )
-        val helloAad = PayloadCrypto.aad(s.sessionId, peerId, MeshPacketType.HELLO.code, 0, 100, t, AudioFormatId.PCM16_16K_MONO)
-        val helloNonce = PayloadCrypto.nonce(0, 100, MeshPacketType.HELLO.code)
-        val helloSourceKey = PayloadCrypto.sourceKey(s.payloadKey(), peerId)
-        val sealedHello = PayloadCrypto.seal(helloSourceKey, helloNonce, helloAad, helloPayload)
         val helloPacket = MeshPacket(
             type = MeshPacketType.HELLO,
             sessionId = s.sessionId,
             sourceId = peerId,
             sequence = 100,
-            captureTimestamp = t,
             ttl = MeshConfig.HELLO_TTL,
             hopCount = 0,
             previousHopId = peerId,
-            payload = sealedHello
+            audioFormat = AudioFormatId.NONE,
+            payload = helloPayload
         )
-        val helloFrame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(helloPacket, s.authKey()))
+        val helloFrame = MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(helloPacket, s.payloadKey()))
+
+        // Deliver 10 distinct voice packets through the incoming link flow
+        val rawFrames = (1..10).map { seq ->
+            val packet = MeshPacket(
+                type = MeshPacketType.VOICE,
+                sessionId = s.sessionId,
+                sourceId = peerId,
+                sequence = seq,
+                ttl = MeshConfig.DEFAULT_TTL,
+                hopCount = 0,
+                previousHopId = peerId,
+                audioFormat = AudioFormatId.PCM16_16K_MONO,
+                payload = ByteArray(640)
+            )
+            MeshFrame(MeshEndpoint("10.0.0.2", MeshConfig.MESH_PORT), MeshPacketCodec.encode(packet, s.payloadKey()))
+        }
 
         // Simulate incoming frames via fake link reflection
         val field = OfflineMeshVoiceTransport::class.java.getDeclaredField("forwardingEngine")

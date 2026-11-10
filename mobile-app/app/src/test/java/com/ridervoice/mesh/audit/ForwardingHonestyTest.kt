@@ -8,7 +8,7 @@ import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionManager
@@ -39,7 +39,7 @@ class ForwardingHonestyTest {
         class SimCliqueNode(val name: String, val id: String, val endpoint: MeshEndpoint) {
             val graph = MeshGraphRepository(id, name) { now }
             val routing = RoutingTable()
-            val dup = DuplicatePacketCache(clock = { now })
+            val dup = ReplayWindow()
             val ttl = TtlPolicy(clock = { now })
             val sm = SessionManager(session, id) { now }
             var allNodes: List<SimCliqueNode> = emptyList()
@@ -68,7 +68,7 @@ class ForwardingHonestyTest {
                 sessionManager = sm,
                 graphRepository = graph,
                 routingTable = routing,
-                duplicateCache = dup,
+                replayWindow = dup,
                 ttlPolicy = ttl,
                 link = link,
                 clock = { now },

@@ -374,7 +374,6 @@
     <string name="mesh_backup_saved_toast">Backup pairing code saved for online rides</string>
     <string name="mesh_overlay_searching_peers">Searching for nearby riders on the mesh…</string>
     <string name="mesh_tactical_summary" tools:ignore="PluralsCandidate">%1$d peers · Max %2$d hops</string>
-    <string name="mesh_clock_skew_warning">Phone clock differs from %1$s by %2$ds</string>
     <string name="mesh_backup_not_persisted_warning">Backup code not saved on this device; it will be lost if the app closes</string>
     <string name="mesh_selftest_bad_version_hint">Incompatible protocol version detected from nearby riders. Please update the app.</string>
     <string name="mesh_banner_audio_failed">Offline Mesh Audio Failed</string>

@@ -112,23 +112,7 @@ class OnlineTagKeySeparationTest {
         val helloPacket = fEngine!!.originateHello()
         assertNotNull("HELLO packet must be generated", helloPacket)
 
-        val plainHello = com.ridervoice.mesh.protocol.PayloadCrypto.open(
-            key = PayloadCrypto.sourceKey(session.payloadKey(), identity.deviceId),
-            nonce = PayloadCrypto.nonce(helloPacket!!.epoch, helloPacket.sequence, helloPacket.type.code),
-            aad = PayloadCrypto.aad(
-                sessionId = session.sessionId,
-                sourceId = identity.deviceId,
-                typeCode = helloPacket.type.code,
-                epoch = helloPacket.epoch,
-                sequence = helloPacket.sequence,
-                captureTimestamp = 1000L,
-                audioFormat = com.ridervoice.mesh.protocol.AudioFormatId.PCM16_16K_MONO
-            ),
-            sealed = helloPacket.payload
-        )
-        assertNotNull("Decryption must succeed", plainHello)
-
-        val hello = HelloCodec.decode(plainHello!!)
+        val hello = HelloCodec.decode(helloPacket!!.payload)
         assertNotNull("HELLO payload must decode", hello)
 
         val expectedTag = PayloadCrypto.computeOnlineIdTag(session.payloadKey(), "late-online-rider")

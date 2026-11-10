@@ -25,10 +25,8 @@ object MeshConfig {
     const val HELLO_TTL = DEFAULT_TTL
     const val MAX_NEIGHBORS_IN_HELLO = 5
 
-    /** Sanity bound only: offline phones may have skewed clocks, so this is deliberately loose. */
-    const val MAX_CLOCK_SKEW_MS = 60_000L
+    const val REPLAY_WINDOW_MAX_ENTRIES = 16
     const val DUP_CACHE_MAX_ENTRIES = 60_000
-    const val DUP_CACHE_TTL_MS = 2 * MAX_CLOCK_SKEW_MS + 5_000L
     const val MAX_VOICE_PAYLOAD_BYTES = 700
     const val MAX_CONTROL_PAYLOAD_BYTES = 400
     const val MAX_PAYLOAD_BYTES = 1_200
@@ -39,9 +37,9 @@ object MeshConfig {
     const val FRAME_MS = 20
     const val SAMPLES_PER_FRAME = SAMPLE_RATE * FRAME_MS / 1000      // 320
     const val BYTES_PER_FRAME = SAMPLES_PER_FRAME * 2                // 640
-    const val GCM_TAG_BYTES = 16
-    const val ENCRYPTED_VOICE_PAYLOAD_BYTES = BYTES_PER_FRAME + GCM_TAG_BYTES // 656
-    const val MAX_VOICE_DATAGRAM_BYTES = 200
+    const val GCM_TAG_BYTES = 12
+    const val ENCRYPTED_VOICE_PAYLOAD_BYTES = BYTES_PER_FRAME + GCM_TAG_BYTES // 652
+    const val MAX_VOICE_DATAGRAM_BYTES = 100
 
     const val OPUS_BITRATE_BPS = 16_000
     const val OPUS_COMPLEXITY = 5
@@ -54,5 +52,4 @@ object MeshConfig {
     const val USE_PLATFORM_EFFECTS_ON_VOICE_COMM_SOURCE = true
 
     const val SESSION_LIFETIME_MS = 8L * 60 * 60 * 1000
-
 }

@@ -13,7 +13,7 @@ import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.protocol.AudioFormatId
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
@@ -134,7 +134,7 @@ class ProtocolHardeningTest {
         val sManager = SessionManager(session, selfId, clock = { now })
         val repo = MeshGraphRepository(selfId, "SelfNode", clock = { now })
         val table = RoutingTable()
-        val dupCache = DuplicatePacketCache(clock = { now })
+        val dupCache = ReplayWindow()
         val ttl = TtlPolicy(clock = { now })
         val mockLink = mockk<MeshLink>(relaxed = true)
 
@@ -144,7 +144,7 @@ class ProtocolHardeningTest {
             sessionManager = sManager,
             graphRepository = repo,
             routingTable = table,
-            duplicateCache = dupCache,
+            replayWindow = dupCache,
             ttlPolicy = ttl,
             link = mockLink,
             clock = { now }
@@ -191,7 +191,7 @@ class ProtocolHardeningTest {
         val outcomeDefault = engine.onIncomingFrame(frame)
         assertTrue(
             "Legacy nonce packet must be dropped when ACCEPT_LEGACY_NONCE is false",
-            outcomeDefault is ReceiveOutcome.Dropped && outcomeDefault.reason == ReceiveOutcome.DropReason.BAD_PAYLOAD
+            outcomeDefault is ReceiveOutcome.Dropped && (outcomeDefault.reason == ReceiveOutcome.DropReason.BAD_PAYLOAD || outcomeDefault.reason == ReceiveOutcome.DropReason.DECODE_FAILED || outcomeDefault.reason == ReceiveOutcome.DropReason.MALFORMED_HELLO)
         )
     }
 

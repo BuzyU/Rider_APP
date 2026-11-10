@@ -374,15 +374,6 @@ fun OfflineMeshLobbyScreen(
                             color = AlertRed
                         )
                     }
-                    if (diagSnapshot.suspectedClockSkewMs > 0L && diagSnapshot.suspectedClockSkewPeerName != null) {
-                        val skewSec = (diagSnapshot.suspectedClockSkewMs / 1000L).coerceAtLeast(1L)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = stringResource(R.string.mesh_clock_skew_warning, diagSnapshot.suspectedClockSkewPeerName ?: "peer", skewSec),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = AlertRed
-                        )
-                    }
                 }
             }
 

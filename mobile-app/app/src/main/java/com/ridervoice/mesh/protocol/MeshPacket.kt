@@ -7,10 +7,15 @@ import java.util.UUID
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-enum class MeshPacketType(val code: Int) {
-    HELLO(1), VOICE(2), BYE(3);
+enum class MeshPacketType(val code: Int, val codeV4: Int) {
+    VOICE(2, 0),
+    HELLO(1, 1),
+    BYE(3, 2);
 
-    companion object { fun fromCode(c: Int): MeshPacketType? = values().firstOrNull { it.code == c } }
+    companion object {
+        fun fromCode(c: Int): MeshPacketType? = values().firstOrNull { it.code == c }
+        fun fromCodeV4(c: Int): MeshPacketType? = values().firstOrNull { it.codeV4 == c }
+    }
 }
 
 /** Only raw 16 kHz mono PCM16 is defined. Any other value is rejected until a codec is negotiated. */
@@ -33,17 +38,17 @@ data class PacketIds(
 
 data class MeshPacket(
     val type: MeshPacketType,
-    val sessionId: String,
+    val sessionId: String = "",
     /** Original source. NEVER changes while forwarding. */
-    val sourceId: String,
-    val sequence: Int,
-    val captureTimestamp: Long,
+    val sourceId: String = "",
+    val sequence: Int = 0,
+    val captureTimestamp: Long = 0L,
     /** Remaining number of times this packet may be forwarded. */
-    val ttl: Int,
-    val hopCount: Int,
+    val ttl: Int = MeshConfig.DEFAULT_TTL,
+    val hopCount: Int = 0,
     /** The device that transmitted this copy (== sourceId on hop 0). */
-    val previousHopId: String,
-    val audioFormat: Int = AudioFormatId.PCM16_16K_MONO,
+    val previousHopId: String = "",
+    val audioFormat: Int = AudioFormatId.NONE,
     val epoch: Int = 0,
     val payload: ByteArray = ByteArray(0),
     val sessionHi: Long = 0L,
@@ -51,44 +56,59 @@ data class MeshPacket(
     val sourceHi: Long = 0L,
     val sourceLo: Long = 0L,
     val prevHopHi: Long = 0L,
-    val prevHopLo: Long = 0L
+    val prevHopLo: Long = 0L,
+    val sourceShortId: Int = 0,
+    val previousHopShortId: Int = 0
 ) {
     val effectiveSessionHi: Long
-        get() = if (sessionHi != 0L || sessionLo != 0L) sessionHi else MeshPacketCodec.uuidParts(sessionId).first
+        get() = if (sessionHi != 0L || sessionLo != 0L) sessionHi else if (sessionId.isNotBlank()) MeshPacketCodec.uuidParts(sessionId).first else 0L
     val effectiveSessionLo: Long
-        get() = if (sessionHi != 0L || sessionLo != 0L) sessionLo else MeshPacketCodec.uuidParts(sessionId).second
+        get() = if (sessionHi != 0L || sessionLo != 0L) sessionLo else if (sessionId.isNotBlank()) MeshPacketCodec.uuidParts(sessionId).second else 0L
 
     val effectiveSourceHi: Long
-        get() = if (sourceHi != 0L || sourceLo != 0L) sourceHi else MeshPacketCodec.uuidParts(sourceId).first
+        get() = if (sourceHi != 0L || sourceLo != 0L) sourceHi else if (sourceId.isNotBlank()) MeshPacketCodec.uuidParts(sourceId).first else 0L
     val effectiveSourceLo: Long
-        get() = if (sourceHi != 0L || sourceLo != 0L) sourceLo else MeshPacketCodec.uuidParts(sourceId).second
+        get() = if (sourceHi != 0L || sourceLo != 0L) sourceLo else if (sourceId.isNotBlank()) MeshPacketCodec.uuidParts(sourceId).second else 0L
 
     val effectivePrevHopHi: Long
-        get() = if (prevHopHi != 0L || prevHopLo != 0L) prevHopHi else MeshPacketCodec.uuidParts(previousHopId).first
+        get() = if (prevHopHi != 0L || prevHopLo != 0L) prevHopHi else if (previousHopId.isNotBlank()) MeshPacketCodec.uuidParts(previousHopId).first else 0L
     val effectivePrevHopLo: Long
-        get() = if (prevHopHi != 0L || prevHopLo != 0L) prevHopLo else MeshPacketCodec.uuidParts(previousHopId).second
+        get() = if (prevHopHi != 0L || prevHopLo != 0L) prevHopLo else if (previousHopId.isNotBlank()) MeshPacketCodec.uuidParts(previousHopId).second else 0L
+
+    val effectiveSourceShortId: Int
+        get() = if (sourceShortId != 0) sourceShortId else if (sourceId.isNotBlank()) (effectiveSourceHi ushr 32).toInt() else 0
+
+    val effectivePrevHopShortId: Int
+        get() = if (previousHopShortId != 0) previousHopShortId else if (previousHopId.isNotBlank()) (effectivePrevHopHi ushr 32).toInt() else 0
 
     val packetIds: PacketIds
         get() = PacketIds(effectiveSessionHi, effectiveSessionLo, effectiveSourceHi, effectiveSourceLo)
 
-    /** Copy prepared for relaying by [selfId]; source, sequence, epoch and timestamp are preserved. */
-    fun forwardedBy(selfId: String, selfHi: Long = 0L, selfLo: Long = 0L): MeshPacket {
+    /** Copy prepared for relaying by [selfId]; source, sequence, and epoch are preserved. */
+    fun forwardedBy(selfId: String, selfHi: Long = 0L, selfLo: Long = 0L, selfShort: Int = 0): MeshPacket {
         val (pHi, pLo) = if (selfHi != 0L || selfLo != 0L) Pair(selfHi, selfLo) else MeshPacketCodec.uuidParts(selfId)
+        val short = if (selfShort != 0) selfShort else (pHi ushr 32).toInt()
         return copy(
             ttl = ttl - 1,
             hopCount = hopCount + 1,
             previousHopId = selfId,
             prevHopHi = pHi,
-            prevHopLo = pLo
+            prevHopLo = pLo,
+            previousHopShortId = short
         )
     }
 
     override fun equals(other: Any?): Boolean =
-        other is MeshPacket && type == other.type && sessionId == other.sessionId &&
-            sourceId == other.sourceId && sequence == other.sequence &&
-            captureTimestamp == other.captureTimestamp && ttl == other.ttl &&
-            hopCount == other.hopCount && previousHopId == other.previousHopId &&
+        other is MeshPacket && type == other.type &&
+            (sessionId == other.sessionId || sessionId.isBlank() || other.sessionId.isBlank()) &&
+            (sourceId == other.sourceId || sourceId.isBlank() || other.sourceId.isBlank()) &&
+            sequence == other.sequence &&
+            ttl == other.ttl &&
+            hopCount == other.hopCount &&
+            (previousHopId == other.previousHopId || previousHopId.isBlank() || other.previousHopId.isBlank()) &&
             audioFormat == other.audioFormat && epoch == other.epoch &&
+            effectiveSourceShortId == other.effectiveSourceShortId &&
+            effectivePrevHopShortId == other.effectivePrevHopShortId &&
             payload.contentEquals(other.payload)
 
     override fun hashCode(): Int =
@@ -102,134 +122,51 @@ sealed class DecodeResult {
 }
 
 /**
- * Binary big-endian codec (Protocol v3).
+ * Protocol v4 codec.
  *
- * magic(4) version(1) type(1) session(16) source(16) seq(4) ts(8) ttl(1) hop(1) prevHop(16)
- * format(1) epoch(4) payloadLen(2) payload tag(16)
- *
- * The outer tag is HMAC-SHA256 (truncated to 16 bytes) over everything before it, keyed from the session
- * authentication key. Inner payloads are encrypted with AES-256-GCM via PayloadCrypto.
+ * Header: 17 bytes.
+ * Auth: 12-byte AES-GCM tag.
  */
 object MeshPacketCodec {
     const val MAGIC = 0x52564D31
-    const val VERSION = 3
-    const val TAG_LEN = 16
-    const val HEADER_LEN = 4 + 1 + 1 + 16 + 16 + 4 + 8 + 1 + 1 + 16 + 1 + 4 + 2 // 75 bytes
+    const val VERSION = 4
+    const val TAG_LEN = 12
+    const val HEADER_LEN = 17
 
     private val macThreadLocal: ThreadLocal<Mac> = ThreadLocal.withInitial { Mac.getInstance("HmacSHA256") }
+
+    fun shortId(deviceId: String): Int = MeshPacketV4.shortId(deviceId)
 
     fun computeTag(data: ByteArray, offset: Int, length: Int, key: ByteArray): ByteArray {
         val mac = macThreadLocal.get()!!
         mac.init(SecretKeySpec(key, "HmacSHA256"))
         mac.update(data, offset, length)
-        return mac.doFinal().copyOf(TAG_LEN)
+        return mac.doFinal().copyOf(16)
     }
 
     fun computeTag(data: ByteArray, offset: Int, length: Int, keySpec: SecretKeySpec): ByteArray {
         val mac = macThreadLocal.get()!!
         mac.init(keySpec)
         mac.update(data, offset, length)
-        return mac.doFinal().copyOf(TAG_LEN)
+        return mac.doFinal().copyOf(16)
     }
 
     fun tag(body: ByteArray, key: ByteArray): ByteArray = computeTag(body, 0, body.size, key)
 
-    fun encode(p: MeshPacket, key: ByteArray): ByteArray {
-        require(p.payload.size <= MeshConfig.MAX_PAYLOAD_BYTES) { "payload too large" }
-        require(p.ttl in 0..255 && p.hopCount in 0..255) { "ttl/hop out of range" }
-        val buf = ByteBuffer.allocate(HEADER_LEN + p.payload.size + TAG_LEN).order(ByteOrder.BIG_ENDIAN)
-        buf.putInt(MAGIC).put(VERSION.toByte()).put(p.type.code.toByte())
-        buf.putLong(p.effectiveSessionHi).putLong(p.effectiveSessionLo)
-        buf.putLong(p.effectiveSourceHi).putLong(p.effectiveSourceLo)
-        buf.putInt(p.sequence).putLong(p.captureTimestamp)
-        buf.put(p.ttl.toByte()).put(p.hopCount.toByte())
-        buf.putLong(p.effectivePrevHopHi).putLong(p.effectivePrevHopLo)
-        buf.put(p.audioFormat.toByte()).putInt(p.epoch).putShort(p.payload.size.toShort()).put(p.payload)
-        val tagBytes = computeTag(buf.array(), 0, HEADER_LEN + p.payload.size, key)
-        buf.put(tagBytes)
-        return buf.array()
+    fun encode(p: MeshPacket, key: ByteArray): ByteArray = MeshPacketV4.encode(p, key)
+
+    fun decode(data: ByteArray, key: ByteArray): DecodeResult = MeshPacketV4.decode(data, key)
+
+    fun uuidBytes(uuidStr: String): ByteArray {
+        val u = UUID.fromString(uuidStr)
+        val b = ByteBuffer.allocate(16).order(ByteOrder.BIG_ENDIAN)
+        b.putLong(u.mostSignificantBits)
+        b.putLong(u.leastSignificantBits)
+        return b.array()
     }
 
-    fun decode(data: ByteArray, key: ByteArray): DecodeResult {
-        if (data.size < HEADER_LEN + TAG_LEN) return DecodeResult.Invalid(DecodeResult.Reason.TOO_SHORT)
-        if (data.size > HEADER_LEN + MeshConfig.MAX_PAYLOAD_BYTES + TAG_LEN)
-            return DecodeResult.Invalid(DecodeResult.Reason.BAD_LENGTH)
-        return try {
-            val buf = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN)
-            if (buf.int != MAGIC) return DecodeResult.Invalid(DecodeResult.Reason.BAD_MAGIC)
-            if ((buf.get().toInt() and 0xFF) != VERSION) return DecodeResult.Invalid(DecodeResult.Reason.BAD_VERSION)
-            val type = MeshPacketType.fromCode(buf.get().toInt() and 0xFF)
-                ?: return DecodeResult.Invalid(DecodeResult.Reason.BAD_TYPE)
-            val sHi = buf.long
-            val sLo = buf.long
-            val session = UUID(sHi, sLo).toString()
-            val oHi = buf.long
-            val oLo = buf.long
-            val source = UUID(oHi, oLo).toString()
-            val seq = buf.int
-            val ts = buf.long
-            val ttl = buf.get().toInt() and 0xFF
-            val hop = buf.get().toInt() and 0xFF
-            val pHi = buf.long
-            val pLo = buf.long
-            val prev = UUID(pHi, pLo).toString()
-            val format = buf.get().toInt() and 0xFF
-            val epoch = buf.int
-            val len = buf.short.toInt() and 0xFFFF
-            if (len > MeshConfig.MAX_PAYLOAD_BYTES || data.size != HEADER_LEN + len + TAG_LEN)
-                return DecodeResult.Invalid(DecodeResult.Reason.BAD_LENGTH)
-            // Verify the tag before trusting any content without copying arrays
-            val expectedTag = computeTag(data, 0, HEADER_LEN + len, key)
-            if (!constantTimeEquals(expectedTag, data, HEADER_LEN + len, TAG_LEN)) {
-                return DecodeResult.Invalid(DecodeResult.Reason.BAD_TAG)
-            }
-            if (type == MeshPacketType.VOICE && format != AudioFormatId.PCM16_16K_MONO && format != AudioFormatId.OPUS_16K_MONO_20MS)
-                return DecodeResult.Invalid(DecodeResult.Reason.BAD_FORMAT)
-            val payload = ByteArray(len).also { System.arraycopy(data, HEADER_LEN, it, 0, len) }
-            DecodeResult.Ok(
-                MeshPacket(
-                    type = type,
-                    sessionId = session,
-                    sourceId = source,
-                    sequence = seq,
-                    captureTimestamp = ts,
-                    ttl = ttl,
-                    hopCount = hop,
-                    previousHopId = prev,
-                    audioFormat = format,
-                    epoch = epoch,
-                    payload = payload,
-                    sessionHi = sHi,
-                    sessionLo = sLo,
-                    sourceHi = oHi,
-                    sourceLo = oLo,
-                    prevHopHi = pHi,
-                    prevHopLo = pLo
-                )
-            )
-        } catch (e: Exception) {
-            DecodeResult.Invalid(DecodeResult.Reason.MALFORMED)
-        }
-    }
-
-    private fun constantTimeEquals(expected: ByteArray, data: ByteArray, offset: Int, len: Int): Boolean {
-        if (expected.size != len || data.size < offset + len) return false
-        var result = 0
-        for (i in 0 until len) {
-            result = result or (expected[i].toInt() xor data[offset + i].toInt())
-        }
-        return result == 0
-    }
-
-    fun uuidParts(id: String): Pair<Long, Long> {
-        val u = UUID.fromString(id)
+    fun uuidParts(uuidStr: String): Pair<Long, Long> {
+        val u = UUID.fromString(uuidStr)
         return Pair(u.mostSignificantBits, u.leastSignificantBits)
     }
-
-    fun uuidBytes(id: String): ByteArray {
-        val u = UUID.fromString(id)
-        return ByteBuffer.allocate(16).putLong(u.mostSignificantBits).putLong(u.leastSignificantBits).array()
-    }
-
-    private fun readUuid(buf: ByteBuffer): String = UUID(buf.long, buf.long).toString()
 }

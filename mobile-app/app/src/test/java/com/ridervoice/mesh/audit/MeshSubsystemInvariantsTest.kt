@@ -16,7 +16,7 @@ import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.BackupSessionStore
 import com.ridervoice.mesh.session.OfflineSession
@@ -379,7 +379,7 @@ class MeshSubsystemInvariantsTest {
             sessionManager = sManager,
             graphRepository = repo,
             routingTable = rTable,
-            duplicateCache = DuplicatePacketCache(clock = { now }),
+            replayWindow = ReplayWindow(),
             ttlPolicy = TtlPolicy(),
             link = fakeLink,
             clock = { now }

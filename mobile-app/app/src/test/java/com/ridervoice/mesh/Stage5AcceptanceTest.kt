@@ -9,7 +9,7 @@ import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.protocol.AudioFormatId
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.routing.RoutingTable
@@ -72,7 +72,7 @@ class Stage5AcceptanceTest {
             val sessionManager = SessionManager(session, id) { clockTime }
             val graph = MeshGraphRepository(id, tag) { clockTime }.apply { selfSupportedFormatsProvider = { AudioFormatId.BITMASK_PCM } }
             val routes = RoutingTable()
-            val dupCache = DuplicatePacketCache { clockTime }
+            val dupCache = ReplayWindow()
             val ttl = TtlPolicy { clockTime }
 
             val link: MeshLink = object : MeshLink {
@@ -96,7 +96,7 @@ class Stage5AcceptanceTest {
                 sessionManager = sessionManager,
                 graphRepository = graph,
                 routingTable = routes,
-                duplicateCache = dupCache,
+                replayWindow = dupCache,
                 ttlPolicy = ttl,
                 link = link,
                 clock = { clockTime },

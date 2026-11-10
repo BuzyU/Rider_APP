@@ -2,13 +2,16 @@ package com.ridervoice.mesh.audit
 
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.forwarding.ForwardingEngine
+import com.ridervoice.mesh.forwarding.ReceiveOutcome
 import com.ridervoice.mesh.forwarding.TtlPolicy
 import com.ridervoice.mesh.graph.MeshGraphRepository
 import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.AudioFormatId
+import com.ridervoice.mesh.protocol.ReplayWindow
+import com.ridervoice.mesh.protocol.ShortIdDirectory
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionManager
@@ -41,8 +44,11 @@ class StressSmokeTest {
         val clock: () -> Long,
         val onSendDatagram: (from: String, to: MeshEndpoint, payload: ByteArray) -> Unit
     ) {
-        val graph = MeshGraphRepository(selfId = id, selfName = id, clock = clock)
+        val graph = MeshGraphRepository(selfId = id, selfName = id, clock = clock).apply {
+            selfSupportedFormatsProvider = { AudioFormatId.BITMASK_PCM }
+        }
         val routing = RoutingTable()
+        val shortIdDir = ShortIdDirectory()
         val sessionMgr = SessionManager(session, id, clock)
         val localDeliveryCount = AtomicInteger(0)
         val hasDuplicate = AtomicBoolean(false)
@@ -67,7 +73,8 @@ class StressSmokeTest {
             sessionManager = sessionMgr,
             graphRepository = graph,
             routingTable = routing,
-            duplicateCache = DuplicatePacketCache(clock = clock),
+            replayWindow = ReplayWindow(),
+            shortIdDirectory = shortIdDir,
             ttlPolicy = TtlPolicy(clock = clock),
             link = link,
             clock = clock,
@@ -78,7 +85,9 @@ class StressSmokeTest {
                 }
             },
             suppressRedundantRelays = false
-        )
+        ).apply {
+            selfSupportedFormatsProvider = { AudioFormatId.BITMASK_PCM }
+        }
     }
 
     @Test
@@ -90,7 +99,7 @@ class StressSmokeTest {
         val rng = Random(42L)
         lateinit var nodes: List<TestNode>
         nodes = (0 until 6).map { idx ->
-            val id = java.util.UUID(0L, idx.toLong() + 1L).toString()
+            val id = java.util.UUID((idx.toLong() + 1L) shl 32, 0L).toString()
             val ep = MeshEndpoint("10.0.0.${idx + 1}", MeshConfig.MESH_PORT)
             TestNode(id, ep, session, clock) { from, to, payload ->
                 // 5% random packet drop on the link
@@ -104,17 +113,20 @@ class StressSmokeTest {
             }
         }
 
-        // Admit all nodes in everyone's session manager
+        // Admit all nodes in everyone's session manager and shortIdDir
         nodes.forEach { n ->
-            nodes.forEach { other -> n.sessionMgr.admit(other.id) }
+            nodes.forEach { other ->
+                n.sessionMgr.admit(other.id)
+                n.shortIdDir.register(other.id)
+            }
         }
 
         // Establish linear adjacency: 0 <-> 1 <-> 2 <-> 3 <-> 4 <-> 5
         for (i in 0 until 5) {
             val a = nodes[i]
             val b = nodes[i + 1]
-            a.graph.onHello(b.id, b.id, 0, b.endpoint, emptyList())
-            b.graph.onHello(a.id, a.id, 0, a.endpoint, emptyList())
+            a.graph.onHello(b.id, b.id, 0, b.endpoint, emptyList(), supportedFormats = AudioFormatId.BITMASK_PCM)
+            b.graph.onHello(a.id, a.id, 0, a.endpoint, emptyList(), supportedFormats = AudioFormatId.BITMASK_PCM)
         }
 
         // Populate routing tables
@@ -133,8 +145,8 @@ class StressSmokeTest {
                 for (j in 0 until 5) {
                     val a = nodes[j]
                     val b = nodes[j + 1]
-                    a.graph.onHello(b.id, b.id, 0, b.endpoint, emptyList())
-                    b.graph.onHello(a.id, a.id, 0, a.endpoint, emptyList())
+                    a.graph.onHello(b.id, b.id, 0, b.endpoint, emptyList(), supportedFormats = AudioFormatId.BITMASK_PCM)
+                    b.graph.onHello(a.id, a.id, 0, a.endpoint, emptyList(), supportedFormats = AudioFormatId.BITMASK_PCM)
                 }
                 nodes.forEach { n ->
                     n.routing.recompute(n.graph.currentSnapshot(), currentTime)

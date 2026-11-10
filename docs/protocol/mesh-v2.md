@@ -1,6 +1,6 @@
-# RiderVoice Offline Mesh Intercom Protocol Specification (v3)
+# RiderVoice Offline Mesh Intercom Protocol Specification (v4)
 
-**Version:** 3.0.0  
+**Version:** 4.0.0  
 **Status:** Implemented and Audited  
 **Transport:** UDP Broadcast / Multicast / Unicast on Port 45454 (`MeshConfig.MESH_PORT`)  
 **Target Topology:** Up to 6 motorcycling intercom devices in ad-hoc P2P mesh  
@@ -11,14 +11,23 @@
 
 1. **Zero Centralized Infrastructure:** Operates entirely over local radio links without internet, cellular reception, or cloud relays. (v1 transport = UDP over a Wi-Fi/hotspot network that all riders are already connected to. The app does not create or join that network.)
 2. **Daisy-Hop Routing:** Messages are forwarded over multi-hop paths using BFS shortest-path routing, bounded to at most 6 nodes and 5 hops.
-3. **End-to-End Encryption & Hop Authentication:**
-   - **Hop Authentication:** Every UDP datagram carries a 16-byte outer authentication tag (truncated HMAC-SHA256) calculated over the header and sealed payload using the session `authKey`.
-   - **Payload Confidentiality:** Voice payloads are encrypted end-to-end using AES-256-GCM with a 12-byte deterministic nonce (`epoch(4) + sequence(4) + typeCode(1) + 3 zero bytes`), 16-byte GCM tag, and AAD binding (`sessionId + sourceId + typeCode + epoch + sequence + captureTimestamp + audioFormat`). Each source uses a distinct subkey derived via HKDF-SHA256 (`PayloadCrypto.sourceKey(payloadKey, sourceId)`). Note: HKDF subkeys prevent cross-source IV reuse; they do not authenticate sender identity among convoy members possessing `payloadKey`.
-4. **Relay Suppression & Airtime Hygiene:**
-   - Redundant relay suppression is implemented in `ForwardingEngine` but is **OFF by default** (`MeshConfig.SUPPRESS_REDUNDANT_RELAYS = false`) to guarantee maximum reliability on multi-hop topologies until physical measurements (PHYS-06) prove airtime savings.
-   - Forwarding excludes `previousHopId` (never bounce backward) and `sourceId` (never return to sender).
-   - Duplicate packets are dropped via a bounded FIFO duplicate packet cache (60,000 entries max) with TTL expiration.
-5. **Session Isolation:**
+3. **Single Authenticated Encryption Tag & Zero-AES Mutable Forwarding:**
+   - **Single AEAD Tag:** Double authentication (outer HMAC + inner GCM) has been replaced by a single 96-bit (12-byte) AES-256-GCM authentication tag.
+   - **Subkey Derivation:** Per-source, per-epoch subkeys are derived via HKDF-SHA256 (`salt = "rvmesh/v4/src"`, `info = srcShort(4) || epoch(4)`).
+   - **Deterministic Nonce (12 bytes):** `epoch(4) || srcShort(4) || seq(3) || typeCode(1)`.
+   - **AAD Binding (12 bytes):** `vtf(1) || srcShort(4) || epoch(4) || seq(3)`.
+   - **Zero-AES Forwarding:** Mutable hop fields (`ttlHop` and `prevShort`) are outside AAD, permitting intermediate relays to decrement TTL, increment hop count, and rewrite previous hop in-place without re-encrypting or running AES.
+4. **Airtime Hygiene & Relay Suppression:**
+   - Redundant relay suppression is implemented in `ForwardingEngine` (`MeshConfig.SUPPRESS_REDUNDANT_RELAYS`) to eliminate duplicate multi-path transmissions.
+   - Voice datagram target size is ≤ 100 bytes (Opus 16 kbit/s = 69 bytes total).
+5. **Replay Protection without Wall Clocks:**
+   - Wall clocks are eliminated from wire packets, preventing desync drops due to clock drift.
+   - Replay is defeated by a 128-bit bitmap replay window (`ReplayWindow`) per `(srcShort, epoch, type)` stream, tracking sequence numbers modulo 2^24.
+   - Epoch pinning: on receiving the first valid authenticated packet from `srcShort`, receiver pins the epoch; packets with differing epochs are rejected.
+6. **Short Node Identifiers:**
+   - 4-byte `srcShort` and `prevShort` identifiers replace 16-byte UUIDs on the wire.
+   - `ShortIdDirectory` associates `srcShort` with full 16-byte UUID advertised in `HELLO` messages (whose payload begins with 16-byte full UUID).
+7. **Session Isolation:**
    - Sessions are identified by a 128-bit UUID derived from a 16-symbol pairing code.
    - Keys are derived via Slow KDF (`PBKDF2WithHmacSHA256`, 120,000 iterations, salt `"rvmesh/v2/session"`, 80-byte output).
 
@@ -32,63 +41,39 @@ Every datagram transmitted on the network adheres to the binary big-endian layou
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                       Magic (0x52564D31)                      |
+|      vtf      |     ttlHop    |           srcShort            |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|    Version    |   Packet Type |           Session ID          |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
-|                       Session ID (cont.)                      |
+|   srcShort    |           prevShort           |     epoch     |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|         epoch (cont.)         |             seq               |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|       seq     |       Ciphertext ...                          |
++-+-+-+-+-+-+-+-+                                               +
 |                                                               |
 +                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                               |       Original Source ID      |
+|                               |       GCM Tag (12 bytes)      |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
-|                    Original Source ID (cont.)                 |
-|                                                               |
-+                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                               |        Sequence Number        |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                       Capture Timestamp                       |
-|                                                               |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|      TTL      |   Hop Count   |        Previous Hop ID        |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
-|                     Previous Hop ID (cont.)                   |
-|                                                               |
-+                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                               |  Audio Format |     Epoch     |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+               +
-|         Epoch (cont.)         |         Payload Length        |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|       Payload (AES-256-GCM sealed ciphertext + 16B GCM tag)   |
-|                            ...                                |
-|                (Length = Payload Length bytes)                |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|              Outer HMAC-SHA256 Tag (Truncated to 16B)         |
-|                            (16 bytes)                         |
+|                       GCM Tag (cont.)                         |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
-### 2.1 Header Field Definitions (75 Bytes Total)
+### 2.1 Header Field Definitions (17 Bytes Total)
 
 | Offset | Field | Type | Description |
 |---|---|---|---|
-| 0..3 | `Magic` | uint32 | Magic constant `0x52564D31` (ASCII `"RVM1"`). |
-| 4 | `Version` | uint8 | Protocol version (`0x03`). |
-| 5 | `Packet Type` | uint8 | `1` = HELLO, `2` = VOICE, `3` = BYE. |
-| 6..21 | `Session ID` | 16 bytes | 128-bit UUID identifying the active mesh session. |
-| 22..37 | `Source ID` | 16 bytes | 128-bit UUID of the node originating the packet. Unmodified during relays. |
-| 38..41 | `Sequence` | int32 | Monotonically incrementing sequence number for the `(sourceId, packetType)` stream. |
-| 42..49 | `Capture Timestamp` | int64 | Milliseconds elapsed since Unix epoch on sender. Verified by clock guard. |
-| 50 | `TTL` | uint8 | Time-To-Live hop counter. Decremented at each relay step. Default = 5 (`MeshConfig.DEFAULT_TTL`). |
-| 51 | `Hop Count` | uint8 | Number of hops traversed so far. Incremented at each relay step. Maximum bound = 5 (`MeshConfig.MAX_HOPS`). |
-| 52..67 | `Previous Hop ID` | 16 bytes | 128-bit UUID of the node that transmitted this specific datagram. |
-| 68 | `Audio Format` | uint8 | `0x01` = PCM 16kHz 16-bit Mono (640 bytes / 20ms). |
-| 69..72 | `Epoch` | int32 | Incremented on sender restart to defeat replay across sessions. |
-| 73..74 | `Payload Length` | uint16 | Length of sealed payload in bytes (maximum 1,200 bytes). |
-| 75..N | `Payload` | bytes | Sealed payload: `[AES-256-GCM ciphertext]` (640 bytes PCM) + `[16-byte GCM Tag]` = 656 bytes for VOICE. |
-| N+1..N+16 | `Auth Tag` | 16 bytes | Truncated HMAC-SHA256 over entire body `[0..N]` using session `authKey`. |
+| 0 | `vtf` | uint8 | Version (3 bits) = 4 (`0x04`), Type (2 bits: 0=VOICE, 1=HELLO, 2=BYE), Audio Format (3 bits: 0=NONE, 1=PCM, 2=OPUS16). |
+| 1 | `ttlHop` | uint8 | TTL (high 4 bits) \| Hop Count (low 4 bits). Mutable during forwarding. |
+| 2..5 | `srcShort` | uint32 | First 4 bytes of originator's UUID. |
+| 6..9 | `prevShort` | uint32 | First 4 bytes of transmitting node's UUID. Mutable during forwarding. |
+| 10..13 | `epoch` | uint32 | Transport epoch counter generated at startup. |
+| 14..16 | `seq` | uint24 | Monotonically incrementing 24-bit sequence counter. |
+| 17..N | `Ciphertext` | bytes | Sealed AES-256-GCM ciphertext (`datagram.length - 17 - 12`). |
+| N..N+12 | `GCM Tag` | 12 bytes | 96-bit AES-GCM authentication tag. |
 
-**Total Voice Datagram Size:**  
-`75 (Header) + 640 (PCM) + 16 (GCM Tag) + 16 (Outer Tag) = 747 bytes`.
+**Total Datagram Sizes:**  
+- **Opus 16k Voice:** `17 (Header) + 40 (Opus) + 12 (GCM Tag) = 69 bytes`.
+- **PCM Voice (fallback):** `17 (Header) + 640 (PCM) + 12 (GCM Tag) = 669 bytes`.
+- **BYE:** `17 (Header) + 0 + 12 (GCM Tag) = 29 bytes`.
 
 ---
 
@@ -96,38 +81,33 @@ Every datagram transmitted on the network adheres to the binary big-endian layou
 
 Upon receiving a UDP packet on port 45454, every node executes the following deterministic pipeline:
 
-1. **Datagram Sizing:** Verify `datagram.length >= 75 + 16 = 91 bytes` (header + minimum tag). If smaller, reject (`TOO_SHORT`).
-2. **Magic Validation:** Verify bytes 0..3 match `0x52564D31`. If mismatch, reject (`BAD_MAGIC`).
-3. **Version Validation:** Verify byte 4 equals `0x03`. If mismatch, reject (`BAD_VERSION`).
-4. **Packet Type Validation:** Verify byte 5 matches known type (`HELLO`, `VOICE`, `BYE`). If invalid, reject (`BAD_TYPE`).
-5. **Length Bounds Validation:** Verify `payloadLength <= 1200` and `datagram.length == 75 + payloadLength + 16`. If mismatch, reject (`BAD_LENGTH`).
-6. **Wire HMAC Verification:** Compute HMAC-SHA256 over bytes `0 until (length - 16)` using session `authKey`. Compare the first 16 bytes against the trailing 16 bytes using constant-time `MessageDigest.isEqual`. If mismatch, reject (`BAD_TAG`).
-7. **Session ID Match:** Verify `sessionId` matches the local active `session.sessionId`. If mismatch, reject.
-8. **Self-Origin Suppression:** Verify `sourceId != localDeviceId`. Packets originated locally are dropped.
-9. **Monotonic Clock Guard:** Verify `captureTimestamp` against clock skew guard (`abs(now - ts) <= MAX_CLOCK_SKEW_MS`).
-10. **Deduplication Check:** Query `DuplicatePacketCache` using 5-tuple key: `sessionId | sourceId | epoch | packetType | sequence`. If already present, reject duplicate.
-11. **Record in Duplicate Cache:** Record key in `DuplicatePacketCache` with expiration.
-12. **Dispatch by Packet Type:**
-    - If `HELLO`: Ingest topology discovery into `MeshGraphRepository`.
-    - If `BYE`: Immediately evict sender from neighbor list and routing table.
-    - If `VOICE`: Proceed to audio decryption and local playout.
-13. **Voice Playout Decryption (VOICE only):** Decrypt sealed payload using AES-256-GCM with per-source subkey (`PayloadCrypto.sourceKey(payloadKey, sourceId)`) and 12-byte zero-padded deterministic nonce. Unsealed PCM bytes are submitted to `MultiSourceJitterBufferManager` under `sourceId`.
-14. **TTL & Hop Count Policy Enforcement:** 
-    - Invariant: Drop and reject packet immediately if `ttl <= 0`, `hopCount > MAX_HOPS` (5), or `ttl + hopCount > DEFAULT_TTL` (5).
-    - Forwarding Stop Condition: If `ttl <= 1` or `hopCount >= MAX_HOPS` (5), do not relay further.
-15. **Candidate Neighbor Selection:** Retrieve direct radio neighbors from `MeshGraphRepository`. Exclude:
-    - `previousHopId` (never bounce backward to the immediate transmitter).
-    - `sourceId` (never send back to the original originator).
-    - Expired neighbors.
-16. **Redundant Relay Suppression:** When `SUPPRESS_REDUNDANT_RELAYS = true` (disabled by default), nodes determine candidates already covered by checking bidirectional edges from `sourceId` and `previousHopId` before forwarding.
-17. **Header Re-Encoding & HMAC Recalculation:** Prepare forwarded packet:
-    - `ttl = packet.ttl - 1`
-    - `hopCount = packet.hopCount + 1`
-    - `previousHopId = localDeviceId`
-    - Retain original `sourceId`, `sequence`, `captureTimestamp`, `epoch`, and sealed `payload`.
-    - Recompute outer truncated HMAC-SHA256 with `authKey` over modified header and payload, and transmit datagram to candidate neighbor endpoints via UDP unified port 45454 (`MeshConfig.MESH_PORT`).
-18. **Endpoint Learning Invariant (D22):** Inbound unauthenticated packets are NEVER learned into the active endpoint table. Endpoints are registered strictly upon successful wire HMAC-SHA256 verification or explicit verified registration.
-19. **Thread-Safe Routing Table:** `RoutingTable` employs `@Synchronized recompute` and `MutableStateFlow<RoutingSnapshot>` so concurrent lookups and background graph updates never race or corrupt route states.
+1. **Datagram Sizing:** Verify `datagram.length >= 17 + 12 = 29 bytes` (header + tag). If smaller, reject (`TOO_SHORT`).
+2. **Version Validation:** Extract `version` from high 3 bits of byte 0 (`vtf ushr 5`). Must equal `0x04`. If mismatch, reject (`BAD_VERSION`).
+3. **Packet Type Validation:** Extract `type` from middle 2 bits of byte 0. Must be 0 (VOICE), 1 (HELLO), or 2 (BYE).
+4. **Length & Budget Bounds:** For voice packets with Opus format, verify size <= 100 bytes (`MeshConfig.MAX_VOICE_DATAGRAM_BYTES`). Oversized packets are dropped.
+5. **Self-Origin Suppression:** Verify `srcShort != localShortId`. Packets originated locally are dropped.
+6. **Short ID & Epoch Pinning:**
+   - If packet is not `HELLO`, verify `srcShort` is known in `ShortIdDirectory`. Unknown sources are dropped.
+   - Verify `epoch` matches pinned epoch for `srcShort`. Mismatched epochs are dropped.
+7. **Replay Window Check:** Query bitmap replay window (`ReplayWindow`) for `(srcShort, epoch, type)`. If duplicate or out of window, reject (`DUPLICATE`).
+8. **AEAD Decryption & Verification:**
+   - Derive source subkey `K_src = HKDF-SHA256(payloadKey, salt="rvmesh/v4/src", info=srcShort||epoch)`.
+   - Reconstruct 12-byte Nonce: `epoch(4) || srcShort(4) || seq(3) || typeCode(1)`.
+   - Reconstruct 12-byte AAD: `vtf(1) || srcShort(4) || epoch(4) || seq(3)`.
+   - Decrypt and verify 96-bit AES-GCM tag. If tag verification fails, reject (`BAD_TAG`).
+9. **Commit Replay Sequence:** On successful AEAD verification, commit sequence into `ReplayWindow`.
+10. **Dispatch by Packet Type:**
+    - If `HELLO`: Payload begins with 16-byte full `deviceId`. Register `srcShort -> fullDeviceId` in `ShortIdDirectory`. Decode remaining topology discovery into `MeshGraphRepository`.
+    - If `BYE`: Evict sender from active routing table.
+    - If `VOICE`: Submit decrypted audio frame to jitter buffer.
+11. **TTL & Hop Count Policy Enforcement:**
+    - Reject if `ttl <= 0`, `hopCount > MAX_HOPS` (5), or `ttl + hopCount > DEFAULT_TTL` (5).
+    - If `ttl <= 1` or `hopCount >= MAX_HOPS` (5), do not forward.
+12. **Zero-AES Mutable Forwarding:**
+    - Candidate neighbor selection: Direct radio neighbors excluding `prevShort` and `srcShort`.
+    - Mutate byte 1: `newTtl = ttl - 1`, `newHop = hopCount + 1`, `ttlHop = (newTtl shl 4) or newHop`.
+    - Mutate bytes 6..9: `prevShort = localShortId`.
+    - Forward exact byte buffer directly to candidates with zero AES encryption.
 
 ---
 
@@ -150,3 +130,31 @@ Sessions are established using a 16-character alphanumeric code formatted as `XX
    `authKey = derivedBytes[16..47]` (32 bytes).
 5. **Payload Encryption Key:**
    `payloadKey = derivedBytes[48..79]` (32 bytes).
+6. **Per-Source Subkey (Wire v4):**
+   `sourceKey = HKDF-SHA256(payloadKey, salt = "rvmesh/v4/src", info = srcShort || epoch)` (32 bytes).
+
+---
+
+## 5. Specification Test Vectors
+
+Inputs:
+- Master `payloadKey`: `0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20`
+- Device ID: `11111111-1111-4111-8111-111111111111` (`srcShort = 0x11111111`)
+- Epoch: `1`
+- Sequence: `1`
+- TTL: `5`, Hop Count: `0` (`ttlHop = 0x50`)
+
+### 5.1 Voice Packet (Opus 16k, 40-byte audio payload, 69 bytes total)
+```
+8250111111111111111100000001000001fd1eab64dcd0c2490875ea8fb3ffc59284c325110d750f0cb032114907e9d5ad0328ac0db646c6937501d53308b213b05cdd5298
+```
+
+### 5.2 Hello Packet (57 bytes total)
+```
+8850111111111111111100000001000001e35d3186fa192364b2f517c95ac4a6c9d2056296e12a707d1e9dc2dc588febe4aba0dfa967f9eb734974323657
+```
+
+### 5.3 Bye Packet (29 bytes total)
+```
+90501111111111111111000000010000017f49d34882e571ae898a49d6
+```

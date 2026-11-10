@@ -9,7 +9,7 @@ import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.protocol.DecodeResult
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
@@ -35,7 +35,7 @@ class CryptoHardeningTest {
 
     @Test
     fun meshPacketCodec_versionMustBe3() {
-        assertEquals("Wire protocol version must be bumped to 3", 3, MeshPacketCodec.VERSION)
+        assertEquals("Wire protocol version must be bumped to 4", 4, MeshPacketCodec.VERSION)
     }
 
     @Test
@@ -52,11 +52,11 @@ class CryptoHardeningTest {
             previousHopId = uuid("src"),
             payload = ByteArray(10)
         )
-        val encoded = MeshPacketCodec.encode(pkt, session.authKey())
-        // Overwrite version byte at offset 4 to 2 (old v2)
-        encoded[4] = 2.toByte()
+        val encoded = MeshPacketCodec.encode(pkt, session.payloadKey())
+        // Overwrite version bits (high 3 bits of byte 0) to 2
+        encoded[0] = ((2 shl 5) or (encoded[0].toInt() and 0x1F)).toByte()
 
-        val decoded = MeshPacketCodec.decode(encoded, session.authKey())
+        val decoded = MeshPacketCodec.decode(encoded, session.payloadKey())
         assertTrue("v2 packet must be rejected as BAD_VERSION", decoded is DecodeResult.Invalid)
         assertEquals(DecodeResult.Reason.BAD_VERSION, (decoded as DecodeResult.Invalid).reason)
     }
@@ -129,7 +129,7 @@ class CryptoHardeningTest {
         val selfId = uuid("self")
         val graph = MeshGraphRepository(selfId, "Self") { now }
         val routing = RoutingTable()
-        val dup = DuplicatePacketCache(clock = { now })
+        val dup = ReplayWindow()
         val ttl = TtlPolicy(clock = { now })
         val sm = SessionManager(session, selfId) { now }
         val link = object : MeshLink {
@@ -147,7 +147,7 @@ class CryptoHardeningTest {
             sessionManager = sm,
             graphRepository = graph,
             routingTable = routing,
-            duplicateCache = dup,
+            replayWindow = dup,
             ttlPolicy = ttl,
             link = link,
             clock = { now }
@@ -170,7 +170,7 @@ class CryptoHardeningTest {
 
         val graph = MeshGraphRepository(selfId, "Self") { now }
         val routing = RoutingTable()
-        val dup = DuplicatePacketCache(clock = { now })
+        val dup = ReplayWindow()
         val ttl = TtlPolicy(clock = { now })
         val sm = SessionManager(session, selfId) { now }
 
@@ -190,7 +190,7 @@ class CryptoHardeningTest {
             sessionManager = sm,
             graphRepository = graph,
             routingTable = routing,
-            duplicateCache = dup,
+            replayWindow = dup,
             ttlPolicy = ttl,
             link = link,
             clock = { now },
@@ -199,7 +199,7 @@ class CryptoHardeningTest {
 
         // 1. Establish direct neighbor relationship via hopCount=0 HELLO from neighborId
         val helloPayload = com.ridervoice.mesh.discovery.HelloCodec.encode(
-            com.ridervoice.mesh.discovery.HelloPayload(name = "Neighbor", graphVersion = 1, neighborIds = listOf(selfId))
+            com.ridervoice.mesh.discovery.HelloPayload(deviceId = neighborId, name = "Neighbor", graphVersion = 1, neighborIds = listOf(selfId))
         )
         val helloPkt = MeshPacket(
             type = MeshPacketType.HELLO,
@@ -212,12 +212,7 @@ class CryptoHardeningTest {
             previousHopId = neighborId,
             payload = helloPayload
         )
-        val sourceKey = PayloadCrypto.sourceKey(session.payloadKey(), neighborId)
-        val nonce = PayloadCrypto.nonce(0, 1, MeshPacketType.HELLO.code)
-        val aad = PayloadCrypto.aad(session.sessionId, neighborId, MeshPacketType.HELLO.code, 0, 1, now, helloPkt.audioFormat)
-        val sealedHello = PayloadCrypto.seal(sourceKey, nonce, aad, helloPayload)
-        val helloWithSealed = helloPkt.copy(payload = sealedHello)
-        val helloRaw = MeshPacketCodec.encode(helloWithSealed, session.authKey())
+        val helloRaw = MeshPacketCodec.encode(helloPkt, session.payloadKey())
 
         engine.onIncomingFrame(MeshFrame(from = MeshEndpoint("192.168.49.20", 45454), data = helloRaw))
 
@@ -235,10 +230,7 @@ class CryptoHardeningTest {
             previousHopId = relayId,
             payload = ByteArray(0)
         )
-        val byeNonce = PayloadCrypto.nonce(0, 2, MeshPacketType.BYE.code)
-        val byeAad = PayloadCrypto.aad(session.sessionId, neighborId, MeshPacketType.BYE.code, 0, 2, now + 10, byePktRelayed.audioFormat)
-        val sealedBye = PayloadCrypto.seal(sourceKey, byeNonce, byeAad, ByteArray(0))
-        val byeRaw = MeshPacketCodec.encode(byePktRelayed.copy(payload = sealedBye), session.authKey())
+        val byeRaw = MeshPacketCodec.encode(byePktRelayed, session.payloadKey())
 
         engine.onIncomingFrame(MeshFrame(from = MeshEndpoint("192.168.49.25", 45454), data = byeRaw))
 
@@ -247,10 +239,7 @@ class CryptoHardeningTest {
 
         // 3. Receive direct BYE (hopCount = 0) from neighborId
         val byePktDirect = byePktRelayed.copy(sequence = 3, captureTimestamp = now + 20, hopCount = 0, previousHopId = neighborId)
-        val directNonce = PayloadCrypto.nonce(0, 3, MeshPacketType.BYE.code)
-        val directAad = PayloadCrypto.aad(session.sessionId, neighborId, MeshPacketType.BYE.code, 0, 3, now + 20, byePktDirect.audioFormat)
-        val directSealed = PayloadCrypto.seal(sourceKey, directNonce, directAad, ByteArray(0))
-        val directRaw = MeshPacketCodec.encode(byePktDirect.copy(payload = directSealed), session.authKey())
+        val directRaw = MeshPacketCodec.encode(byePktDirect, session.payloadKey())
 
         engine.onIncomingFrame(MeshFrame(from = MeshEndpoint("192.168.49.20", 45454), data = directRaw))
 

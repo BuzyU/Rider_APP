@@ -11,7 +11,7 @@ import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.protocol.AudioFormatId
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.routing.RouteCalculator
 import com.ridervoice.mesh.routing.RoutingTable
@@ -41,11 +41,12 @@ class ScheduledDeliveryScenarioTest {
         val net: ScheduledNet
     ) {
         val receivedPackets = ArrayList<MeshPacket>()
+        val receivedTimes = ArrayList<Long>()
         val receivedSeqPairs = ArrayList<Pair<String, Int>>()
         val sessionManager = SessionManager(session, id) { net.now }
         val graph = MeshGraphRepository(id, tag) { net.now }.apply { selfSupportedFormatsProvider = { AudioFormatId.BITMASK_PCM } }
         val routingTable = RoutingTable()
-        val dupCache = DuplicatePacketCache(clock = { net.now })
+        val dupCache = ReplayWindow()
         val ttlPolicy = TtlPolicy(clock = { net.now })
         val jitterBuffer = MultiSourceJitterBufferManager(clock = { net.now })
 
@@ -66,12 +67,13 @@ class ScheduledDeliveryScenarioTest {
             sessionManager = sessionManager,
             graphRepository = graph,
             routingTable = routingTable,
-            duplicateCache = dupCache,
+            replayWindow = dupCache,
             ttlPolicy = ttlPolicy,
             link = link,
             clock = { net.now },
             onLocalVoicePacket = { pkt ->
                 receivedPackets.add(pkt)
+                receivedTimes.add(net.now)
                 receivedSeqPairs.add(pkt.sourceId to pkt.sequence)
                 jitterBuffer.onVoicePacket(pkt.sourceId, pkt.sequence, ByteArray(MeshConfig.BYTES_PER_FRAME))
             }
@@ -150,7 +152,7 @@ class ScheduledDeliveryScenarioTest {
             assertNull("Seed $seed: A must have no route to C", a.routingTable.routeTo(c.id))
             assertNull("Seed $seed: A must have no route to D", a.routingTable.routeTo(d.id))
 
-            val framesAtDAfterTimeout = d.receivedPackets.count { it.captureTimestamp > isolateTime + MeshConfig.REMOTE_REPORT_TIMEOUT_MS }
+            val framesAtDAfterTimeout = d.receivedTimes.count { it > isolateTime + MeshConfig.REMOTE_REPORT_TIMEOUT_MS }
             assertEquals("Seed $seed: D must receive no frames from A after route timeout", 0, framesAtDAfterTimeout)
 
             // Advance further to trigger jitter buffer source timeout (5s)
@@ -331,7 +333,8 @@ class ScheduledDeliveryScenarioTest {
                 net.advance(20L)
             }
 
-            val lastHeardBeforeRewire = d.receivedPackets.lastOrNull()?.captureTimestamp ?: 0L
+            val lastHeardSeqBeforeRewire = d.receivedPackets.lastOrNull()?.sequence ?: 0
+            val lastHeardBeforeRewireTime = net.now
 
             // Rewire to A-C-B-D
             net.disconnect("A", "B")
@@ -346,14 +349,14 @@ class ScheduledDeliveryScenarioTest {
                 if (i % 75 == 0) nodes.forEach { it.tickHello() }
                 net.advance(20L)
 
-                val latest = d.receivedPackets.lastOrNull()?.captureTimestamp
-                if (latest != null && latest > lastHeardBeforeRewire && firstHeardAfterRewire == null) {
-                    firstHeardAfterRewire = latest
+                val latestSeq = d.receivedPackets.lastOrNull()?.sequence
+                if (latestSeq != null && latestSeq > lastHeardSeqBeforeRewire && firstHeardAfterRewire == null) {
+                    firstHeardAfterRewire = net.now
                 }
             }
 
             assertNotNull("Seed $seed: D must receive frames after rewire", firstHeardAfterRewire)
-            val gap = firstHeardAfterRewire!! - lastHeardBeforeRewire
+            val gap = firstHeardAfterRewire!! - lastHeardBeforeRewireTime
             assertTrue("Seed $seed: Gap ($gap ms) between routes must be <= 5000ms", gap <= 5000L)
 
             // No duplicates

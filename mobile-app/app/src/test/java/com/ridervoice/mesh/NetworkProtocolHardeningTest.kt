@@ -10,8 +10,10 @@ import com.ridervoice.mesh.session.SessionManager
 import com.ridervoice.mesh.graph.MeshGraphRepository
 import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.UdpMeshLink
+import com.ridervoice.mesh.protocol.AudioFormatId
 import com.ridervoice.mesh.protocol.DecodeResult
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
+import com.ridervoice.mesh.protocol.ShortIdDirectory
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
@@ -182,19 +184,18 @@ class NetworkProtocolHardeningTest {
             previousHopId = UUID.randomUUID().toString()
         )
         val encoded = MeshPacketCodec.encode(packet, dummyKey)
-        // Corrupt magic
-        encoded[0] = 0x00
-        encoded[1] = 0x00
+        // Corrupt version bits to 0
+        encoded[0] = (encoded[0].toInt() and 0x1F).toByte()
 
         val decoded = MeshPacketCodec.decode(encoded, dummyKey)
         assertTrue("Must be invalid", decoded is DecodeResult.Invalid)
-        assertEquals(DecodeResult.Reason.BAD_MAGIC, (decoded as DecodeResult.Invalid).reason)
+        assertEquals(DecodeResult.Reason.BAD_VERSION, (decoded as DecodeResult.Invalid).reason)
     }
 
     @Test
     fun codec_rejectsTruncated() {
         val dummyKey = ByteArray(32) { 0x42 }
-        val truncated = ByteArray(30) { 0x11 }
+        val truncated = ByteArray(15) { 0x11 }
 
         val decoded = MeshPacketCodec.decode(truncated, dummyKey)
         assertTrue("Must be invalid", decoded is DecodeResult.Invalid)
@@ -213,7 +214,8 @@ class NetworkProtocolHardeningTest {
             ttl = 7,
             hopCount = 0,
             previousHopId = UUID.randomUUID().toString(),
-            payload = ByteArray(100) { 0x05 }
+            audioFormat = AudioFormatId.OPUS_16K_MONO_20MS,
+            payload = ByteArray(40) { 0x05 }
         )
         val encoded = MeshPacketCodec.encode(packet, dummyKey)
         // Append extra trailing bytes to create length mismatch
@@ -221,7 +223,7 @@ class NetworkProtocolHardeningTest {
 
         val decoded = MeshPacketCodec.decode(corrupted, dummyKey)
         assertTrue("Must be invalid", decoded is DecodeResult.Invalid)
-        assertEquals(DecodeResult.Reason.BAD_LENGTH, (decoded as DecodeResult.Invalid).reason)
+        assertEquals(DecodeResult.Reason.BAD_TAG, (decoded as DecodeResult.Invalid).reason)
     }
 
     @Test
@@ -248,24 +250,21 @@ class NetworkProtocolHardeningTest {
 
     @Test
     fun dupCache_evictsOldestAtCapacity() {
-        val cache = DuplicatePacketCache(maxEntries = 5, ttlMs = 100_000L, clock = { 1000L })
-        val session = UUID.randomUUID().toString()
-        val source = UUID.randomUUID().toString()
-        val ids = TestIds.packetIds(session, source)
+        val cache = ReplayWindow(maxEntries = 5)
 
-        for (seq in 1..5) {
-            assertTrue("Seq $seq should be new", cache.markIfNew(ids, seq = seq))
+        for (src in 1..5) {
+            assertEquals("Src $src should be new", com.ridervoice.mesh.protocol.ReplayResult.NEW, cache.accept(srcShort = src, epoch = 1, type = 0, seq = 1))
         }
         assertEquals(5, cache.size())
 
-        // Insert 6th packet -> should evict seq 1 (oldest)
-        assertTrue("Seq 6 should be new", cache.markIfNew(ids, seq = 6))
+        // Insert 6th source -> should evict src 1 (oldest)
+        assertEquals("Src 6 should be new", com.ridervoice.mesh.protocol.ReplayResult.NEW, cache.accept(srcShort = 6, epoch = 1, type = 0, seq = 1))
         assertEquals(5, cache.size())
 
-        // Seq 1 was evicted, so it is treated as new again if received
-        assertTrue("Seq 1 was evicted and can be accepted again", cache.markIfNew(ids, seq = 1))
-        // Seq 6 should still be duplicate
-        assertFalse("Seq 6 is already in cache", cache.markIfNew(ids, seq = 6))
+        // Src 1 was evicted, so it is treated as new again if received
+        assertEquals("Src 1 was evicted and can be accepted again", com.ridervoice.mesh.protocol.ReplayResult.NEW, cache.accept(srcShort = 1, epoch = 1, type = 0, seq = 1))
+        // Src 6 should still be duplicate
+        assertEquals("Src 6 is already in cache", com.ridervoice.mesh.protocol.ReplayResult.DUPLICATE, cache.accept(srcShort = 6, epoch = 1, type = 0, seq = 1))
     }
 
     @Test
@@ -288,15 +287,17 @@ class NetworkProtocolHardeningTest {
             val sManager = SessionManager(session, selfId, clock = { now })
             val repo = MeshGraphRepository(selfId, "Self", clock = { now })
             val table = RoutingTable()
-            val dup = DuplicatePacketCache(clock = { now })
+            val dup = ReplayWindow()
             val ttl = TtlPolicy(clock = { now })
+            val sDir = ShortIdDirectory().apply { register(peerId) }
             return ForwardingEngine(
                 selfId = selfId,
                 selfName = "Self",
                 sessionManager = sManager,
                 graphRepository = repo,
                 routingTable = table,
-                duplicateCache = dup,
+                replayWindow = dup,
+                shortIdDirectory = sDir,
                 ttlPolicy = ttl,
                 link = mockLink,
                 clock = { now },
@@ -316,9 +317,10 @@ class NetworkProtocolHardeningTest {
                     ttl = 5,
                     hopCount = 0,
                     previousHopId = peerId,
-                    payload = ByteArray(656)
+                    audioFormat = AudioFormatId.PCM16_16K_MONO,
+                    payload = ByteArray(MeshConfig.BYTES_PER_FRAME)
                 ),
-                session.authKey()
+                session.payloadKey()
             )
         )
 

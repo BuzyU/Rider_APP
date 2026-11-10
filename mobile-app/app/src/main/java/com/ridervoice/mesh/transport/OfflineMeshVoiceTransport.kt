@@ -32,7 +32,8 @@ import com.ridervoice.mesh.link.WifiNetworkWatcher
 import com.ridervoice.mesh.link.NetworkLocks
 import com.ridervoice.mesh.link.NoNetworkLocks
 import com.ridervoice.mesh.link.UdpMeshLink
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
+import com.ridervoice.mesh.protocol.ShortIdDirectory
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionManager
@@ -258,7 +259,8 @@ class OfflineMeshVoiceTransport(
             val rTable = RoutingTable()
             routingTable = rTable
 
-            val dupCache = DuplicatePacketCache(clock = clock)
+            val replayWindow = ReplayWindow()
+            val shortIdDir = ShortIdDirectory()
             val ttlPolicy = TtlPolicy(clock = clock, monotonicClock = monotonicClock)
 
             val jManager = MultiSourceJitterBufferManager(clock = monotonicClock)
@@ -273,7 +275,8 @@ class OfflineMeshVoiceTransport(
                 sessionManager = sManager,
                 graphRepository = gRepo,
                 routingTable = rTable,
-                duplicateCache = dupCache,
+                replayWindow = replayWindow,
+                shortIdDirectory = shortIdDir,
                 ttlPolicy = ttlPolicy,
                 link = uLink,
                 clock = clock,

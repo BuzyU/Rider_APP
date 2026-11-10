@@ -12,7 +12,7 @@ import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.protocol.AudioFormatId
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionManager
@@ -37,7 +37,7 @@ class CodecNegotiationTest {
         val graph = MeshGraphRepository(id, name, clockProvider)
         val sessionManager = SessionManager(session, id, clockProvider)
         val routingTable = RoutingTable()
-        val dupCache = DuplicatePacketCache(clock = clockProvider)
+        val dupCache = ReplayWindow()
         val ttlPolicy = TtlPolicy(clock = clockProvider)
         val jitterBuffer = MultiSourceJitterBufferManager(clock = clockProvider)
 
@@ -57,7 +57,7 @@ class CodecNegotiationTest {
             sessionManager = sessionManager,
             graphRepository = graph,
             routingTable = routingTable,
-            duplicateCache = dupCache,
+            replayWindow = dupCache,
             ttlPolicy = ttlPolicy,
             link = link,
             clock = clockProvider,

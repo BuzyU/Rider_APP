@@ -10,7 +10,7 @@ import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
@@ -39,7 +39,7 @@ class HelloReachTest {
         val sessionManager = SessionManager(session, id) { net.now }
         val graph = MeshGraphRepository(id, "Rider-$tag") { net.now }
         val routingTable = RoutingTable()
-        val dupCache = DuplicatePacketCache(clock = { net.now })
+        val dupCache = ReplayWindow()
         val ttlPolicy = TtlPolicy(clock = { net.now })
         val jitterBuffer = MultiSourceJitterBufferManager(clock = { net.now })
 
@@ -60,7 +60,7 @@ class HelloReachTest {
             sessionManager = sessionManager,
             graphRepository = graph,
             routingTable = routingTable,
-            duplicateCache = dupCache,
+            replayWindow = dupCache,
             ttlPolicy = ttlPolicy,
             link = link,
             clock = { net.now },

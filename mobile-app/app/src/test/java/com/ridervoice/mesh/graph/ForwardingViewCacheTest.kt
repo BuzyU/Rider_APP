@@ -7,7 +7,7 @@ import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionManager
@@ -56,7 +56,7 @@ class ForwardingViewCacheTest {
             sessionManager = sManager,
             graphRepository = repo,
             routingTable = RoutingTable(),
-            duplicateCache = DuplicatePacketCache(clock = clock),
+            replayWindow = ReplayWindow(),
             ttlPolicy = TtlPolicy(clock = clock, monotonicClock = clock),
             link = dummyLink,
             clock = clock,

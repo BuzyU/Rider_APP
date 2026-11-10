@@ -74,10 +74,6 @@ class MeshPeerProjector(
         )
 
         val cnt = fEngine.counters()
-        val skewPeerId = cnt.suspectedClockSkewPeerId
-        val skewPeerName = if (skewPeerId != null) {
-            snapshot.nodes[skewPeerId]?.displayName ?: skewPeerId.take(8)
-        } else null
 
         diagnosticsRepo.update(
             selfDeviceId = selfId,
@@ -92,8 +88,10 @@ class MeshPeerProjector(
             droppedTtl = cnt.ttl,
             droppedStaleTimestamp = cnt.staleTimestamp,
             droppedBadVersion = cnt.droppedBadVersion,
-            suspectedClockSkewMs = cnt.suspectedClockSkewMs,
-            suspectedClockSkewPeerName = skewPeerName,
+            droppedUnknownSource = cnt.droppedUnknownSource,
+            droppedOversize = cnt.droppedOversize,
+            droppedStaleEpoch = cnt.droppedStaleEpoch,
+            idCollision = cnt.idCollision,
             linkState = selfTestState.linkStateText,
             localIp = localIp,
             broadcastAddress = broadcastAddress,

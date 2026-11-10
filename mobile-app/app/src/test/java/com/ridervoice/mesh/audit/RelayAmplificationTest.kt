@@ -9,7 +9,8 @@ import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
+import com.ridervoice.mesh.protocol.ShortIdDirectory
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketType
 import com.ridervoice.mesh.routing.RoutingTable
@@ -54,6 +55,7 @@ class RelayAmplificationTest {
                     if (other.id == id) continue
                     val hop = if (links.contains(id to other.id)) 0 else 1
                     other.graph.onHello(id, id, hop, dev.ep, neighbors)
+                    other.shortIdDir.register(id)
                 }
             }
             for (dev in nodes.values) {
@@ -74,6 +76,7 @@ class RelayAmplificationTest {
         val clock = { 1_000L }
         val graph = MeshGraphRepository(selfId = id, selfName = id, clock = clock)
         val routing = RoutingTable()
+        val shortIdDir = ShortIdDirectory()
         val sessionMgr = SessionManager(session, id, clock)
 
         val link = object : MeshLink {
@@ -98,7 +101,8 @@ class RelayAmplificationTest {
             sessionManager = sessionMgr,
             graphRepository = graph,
             routingTable = routing,
-            duplicateCache = DuplicatePacketCache(clock = clock),
+            replayWindow = ReplayWindow(),
+            shortIdDirectory = shortIdDir,
             ttlPolicy = TtlPolicy(clock = clock),
             link = link,
             clock = clock,

@@ -124,15 +124,6 @@ fun MeshDiagnosticsDialog(
                     DiagRow(stringResource(R.string.mesh_diag_link_state), snapshot.linkState)
                     DiagRow(stringResource(R.string.mesh_diag_local_ip), if (snapshot.localIp.isNotBlank()) snapshot.localIp else stringResource(R.string.mesh_value_none))
                     DiagRow(stringResource(R.string.mesh_diag_broadcast), if (snapshot.broadcastAddress.isNotBlank()) snapshot.broadcastAddress else stringResource(R.string.mesh_value_none))
-                    if (snapshot.suspectedClockSkewMs > 0L && snapshot.suspectedClockSkewPeerName != null) {
-                        val skewSec = (snapshot.suspectedClockSkewMs / 1000L).coerceAtLeast(1L)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(R.string.mesh_clock_skew_warning, snapshot.suspectedClockSkewPeerName, skewSec),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MeshColors.AlertRed
-                        )
-                    }
                     if (snapshot.memberCount == 0 && snapshot.droppedBadVersion > 0) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(

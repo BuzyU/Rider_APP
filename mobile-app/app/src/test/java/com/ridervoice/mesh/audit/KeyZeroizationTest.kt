@@ -11,7 +11,7 @@ import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.link.NetworkLocks
 import com.ridervoice.mesh.link.NoOpWifiNetworkWatcher
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionManager
@@ -53,7 +53,7 @@ class KeyZeroizationTest {
         val sManager = SessionManager(session, selfId, clock = { now })
         val repo = MeshGraphRepository(selfId, "TestNode", clock = { now })
         val table = RoutingTable()
-        val dupCache = DuplicatePacketCache(clock = { now })
+        val dupCache = ReplayWindow()
         val ttl = TtlPolicy(clock = { now })
         val link = FakeLink()
 
@@ -63,7 +63,7 @@ class KeyZeroizationTest {
             sessionManager = sManager,
             graphRepository = repo,
             routingTable = table,
-            duplicateCache = dupCache,
+            replayWindow = dupCache,
             ttlPolicy = ttl,
             link = link,
             clock = { now }

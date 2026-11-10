@@ -9,7 +9,7 @@ import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.protocol.AudioFormatId
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.routing.RoutingTable
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.SessionManager
@@ -30,7 +30,7 @@ class TalkspurtSequenceGatingTest {
         val graph = MeshGraphRepository(id, "Rider-$id", clock)
         val sessionManager = SessionManager(session, id, clock)
         val routingTable = RoutingTable()
-        val dupCache = DuplicatePacketCache(clock = clock)
+        val dupCache = ReplayWindow()
         val ttlPolicy = TtlPolicy(clock = clock)
 
         val link = object : MeshLink {
@@ -49,7 +49,7 @@ class TalkspurtSequenceGatingTest {
             sessionManager = sessionManager,
             graphRepository = graph,
             routingTable = routingTable,
-            duplicateCache = dupCache,
+            replayWindow = dupCache,
             ttlPolicy = ttlPolicy,
             link = link,
             clock = clock,
@@ -83,7 +83,7 @@ class TalkspurtSequenceGatingTest {
         assertNotNull("Gate close must emit end-of-talkspurt marker", p4Marker)
         assertEquals(4, p4Marker?.sequence)
         // Decrypted payload of marker is 1 byte, so encrypted payload is 1 + 16 = 17 bytes
-        assertEquals(1 + MeshConfig.GCM_TAG_BYTES, p4Marker?.payload?.size)
+        assertEquals(1, p4Marker?.payload?.size)
 
         // Gate remains closed for frames 5 and 6 -> suppressed, but seq must advance!
         val p5Gated = engine.originateVoice(voicePcm, isGated = true)
@@ -113,7 +113,7 @@ class TalkspurtSequenceGatingTest {
         // First gated frame -> 1-byte marker packet emitted
         val marker = engine.originateVoice(voicePcm, isGated = true)
         assertNotNull("First gated frame must emit marker", marker)
-        assertEquals("Marker packet payload must be 17 bytes (1B marker + 16B tag)", 17, marker?.payload?.size)
+        assertEquals("Marker packet payload must be 1 byte", 1, marker?.payload?.size)
 
         // Second and third gated frames -> no more markers emitted
         val secondGated = engine.originateVoice(voicePcm, isGated = true)

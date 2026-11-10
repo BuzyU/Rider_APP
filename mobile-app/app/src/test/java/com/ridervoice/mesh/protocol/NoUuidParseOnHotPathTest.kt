@@ -42,12 +42,8 @@ class NoUuidParseOnHotPathTest {
         val decoded = MeshPacketCodec.decode(wire, authKey)
         assertTrue("Decode must succeed", decoded is DecodeResult.Ok)
         val decP = (decoded as DecodeResult.Ok).packet
-        assertEquals(0x0123456789abcdefL, decP.sessionHi)
-        assertEquals(0x0fedcba987654321L, decP.sessionLo)
-        assertEquals(0x1122334455667788L, decP.sourceHi)
-        assertEquals(0x1234567890abcdefL, decP.sourceLo)
-        assertEquals(0x1122334455667788L, decP.prevHopHi)
-        assertEquals(0x1234567890abcdefL, decP.prevHopLo)
+        assertEquals((0x1122334455667788L ushr 32).toInt(), decP.sourceShortId)
+        assertEquals((0x1122334455667788L ushr 32).toInt(), decP.previousHopShortId)
 
         // 3. aad with Longs must succeed without throwing
         val aad = PayloadCrypto.aad(

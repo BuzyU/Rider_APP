@@ -9,7 +9,7 @@ import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.protocol.AudioFormatId
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
@@ -40,7 +40,7 @@ class UnadvertisedFormatRejectedTest {
         val graphA = MeshGraphRepository(idA, "Rider-A") { now }
         val sessionManagerA = SessionManager(session, idA) { now }
         val routingTableA = RoutingTable()
-        val dupCacheA = DuplicatePacketCache(clock = { now })
+        val dupCacheA = ReplayWindow()
         val ttlPolicyA = TtlPolicy(clock = { now })
 
         val linkA = object : MeshLink {
@@ -59,7 +59,7 @@ class UnadvertisedFormatRejectedTest {
             sessionManager = sessionManagerA,
             graphRepository = graphA,
             routingTable = routingTableA,
-            duplicateCache = dupCacheA,
+            replayWindow = dupCacheA,
             ttlPolicy = ttlPolicyA,
             link = linkA,
             clock = { now },

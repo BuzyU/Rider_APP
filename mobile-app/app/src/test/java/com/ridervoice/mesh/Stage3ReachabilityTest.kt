@@ -17,7 +17,7 @@ import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.link.NoNetworkLocks
 import com.ridervoice.mesh.link.UdpMeshLink
 import com.ridervoice.mesh.protocol.AudioFormatId
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
@@ -159,7 +159,7 @@ class Stage3ReachabilityTest {
         val sManager = SessionManager(session, selfId, { 1000L })
         val gRepo = MeshGraphRepository(selfId, "Me", { 1000L })
         val rTable = RoutingTable()
-        val dupCache = DuplicatePacketCache(clock = { 1000L })
+        val dupCache = ReplayWindow()
         val ttlPolicy = TtlPolicy(clock = { 1000L })
 
         val engine = ForwardingEngine(
@@ -168,18 +168,14 @@ class Stage3ReachabilityTest {
             sessionManager = sManager,
             graphRepository = gRepo,
             routingTable = rTable,
-            duplicateCache = dupCache,
+            replayWindow = dupCache,
             ttlPolicy = ttlPolicy,
             link = link,
             clock = { 1000L }
         )
 
         val senderEndpoint = MeshEndpoint("192.168.1.50", 45454)
-        val helloPayload = HelloCodec.encode(HelloPayload(name = "Peer1", graphVersion = 1, neighborIds = emptyList()))
-        val aad = PayloadCrypto.aad(session.sessionId, peer1Id, MeshPacketType.HELLO.code, 1, 1, 1000L, AudioFormatId.PCM16_16K_MONO)
-        val nonce = PayloadCrypto.nonce(1, 1, MeshPacketType.HELLO.code)
-        val sourceKey = PayloadCrypto.sourceKey(session.payloadKey(), peer1Id)
-        val sealed = PayloadCrypto.seal(sourceKey, nonce, aad, helloPayload)
+        val helloPayload = HelloCodec.encode(HelloPayload(deviceId = peer1Id, name = "Peer1", graphVersion = 1, neighborIds = emptyList()))
 
         val directPacket = MeshPacket(
             type = MeshPacketType.HELLO,
@@ -190,11 +186,11 @@ class Stage3ReachabilityTest {
             ttl = 3,
             hopCount = 0, // Direct!
             previousHopId = peer1Id,
-            audioFormat = AudioFormatId.PCM16_16K_MONO,
+            audioFormat = AudioFormatId.NONE,
             epoch = 1,
-            payload = sealed
+            payload = helloPayload
         )
-        val wire = MeshPacketCodec.encode(directPacket, session.authKey())
+        val wire = MeshPacketCodec.encode(directPacket, session.payloadKey())
 
         val outcome = engine.onIncomingFrame(MeshFrame(senderEndpoint, wire))
         assertTrue("Direct authenticated packet must be accepted: $outcome", outcome is ReceiveOutcome.Accepted)
@@ -211,7 +207,7 @@ class Stage3ReachabilityTest {
         val sManager = SessionManager(session, selfId, { 1000L })
         val gRepo = MeshGraphRepository(selfId, "Me", { 1000L })
         val rTable = RoutingTable()
-        val dupCache = DuplicatePacketCache(clock = { 1000L })
+        val dupCache = ReplayWindow()
         val ttlPolicy = TtlPolicy(clock = { 1000L })
 
         val engine = ForwardingEngine(
@@ -220,18 +216,14 @@ class Stage3ReachabilityTest {
             sessionManager = sManager,
             graphRepository = gRepo,
             routingTable = rTable,
-            duplicateCache = dupCache,
+            replayWindow = dupCache,
             ttlPolicy = ttlPolicy,
             link = link,
             clock = { 1000L }
         )
 
         val relayEndpoint = MeshEndpoint("192.168.1.99", 45454)
-        val helloPayload = HelloCodec.encode(HelloPayload(name = "Peer1", graphVersion = 1, neighborIds = emptyList()))
-        val aad = PayloadCrypto.aad(session.sessionId, peer1Id, MeshPacketType.HELLO.code, 1, 1, 1000L, AudioFormatId.PCM16_16K_MONO)
-        val nonce = PayloadCrypto.nonce(1, 1, MeshPacketType.HELLO.code)
-        val sourceKey = PayloadCrypto.sourceKey(session.payloadKey(), peer1Id)
-        val sealed = PayloadCrypto.seal(sourceKey, nonce, aad, helloPayload)
+        val helloPayload = HelloCodec.encode(HelloPayload(deviceId = peer1Id, name = "Peer1", graphVersion = 1, neighborIds = emptyList()))
 
         val relayedPacket = MeshPacket(
             type = MeshPacketType.HELLO,
@@ -242,11 +234,11 @@ class Stage3ReachabilityTest {
             ttl = 2,
             hopCount = 1, // Relayed!
             previousHopId = relay1Id,
-            audioFormat = AudioFormatId.PCM16_16K_MONO,
+            audioFormat = AudioFormatId.NONE,
             epoch = 1,
-            payload = sealed
+            payload = helloPayload
         )
-        val wire = MeshPacketCodec.encode(relayedPacket, session.authKey())
+        val wire = MeshPacketCodec.encode(relayedPacket, session.payloadKey())
 
         val outcome = engine.onIncomingFrame(MeshFrame(relayEndpoint, wire))
         assertTrue("Relayed authenticated packet is accepted for routing", outcome is ReceiveOutcome.Accepted)
@@ -262,7 +254,7 @@ class Stage3ReachabilityTest {
         val sManager = SessionManager(session, selfId, { 1000L })
         val gRepo = MeshGraphRepository(selfId, "Me", { 1000L })
         val rTable = RoutingTable()
-        val dupCache = DuplicatePacketCache(clock = { 1000L })
+        val dupCache = ReplayWindow()
         val ttlPolicy = TtlPolicy(clock = { 1000L })
 
         val engine = ForwardingEngine(
@@ -271,7 +263,7 @@ class Stage3ReachabilityTest {
             sessionManager = sManager,
             graphRepository = gRepo,
             routingTable = rTable,
-            duplicateCache = dupCache,
+            replayWindow = dupCache,
             ttlPolicy = ttlPolicy,
             link = link,
             clock = { 1000L }

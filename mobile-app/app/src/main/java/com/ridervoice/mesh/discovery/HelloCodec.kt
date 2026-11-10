@@ -10,18 +10,35 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 /**
- * HELLO payload: the sender's display name, its graph version and its direct neighbor ids.
+ * HELLO payload: the sender's full 16-byte UUID device ID, display name, graph version,
+ * and direct neighbor IDs.
  * Optionally carries an 8-byte online identity tag [0xA1][0x08][tag] (represented as 16 hex chars)
  * when the sender is in an online ride, and a 4-byte supported audio formats bitmask [0x02][0x04][mask].
  * HELLOs are flooded with a small TTL, so every device learns each other device's adjacency and capabilities.
  */
 data class HelloPayload(
+    val deviceId: String = UUID.randomUUID().toString(),
     val name: String,
     val graphVersion: Int,
     val neighborIds: List<String>,
     val onlineIdTag: String? = null,
     val supportedFormats: Int? = AudioFormatId.BITMASK_ALL
-)
+) {
+    constructor(
+        name: String,
+        graphVersion: Int,
+        neighborIds: List<String>,
+        onlineIdTag: String? = null,
+        supportedFormats: Int? = AudioFormatId.BITMASK_ALL
+    ) : this(
+        deviceId = UUID.randomUUID().toString(),
+        name = name,
+        graphVersion = graphVersion,
+        neighborIds = neighborIds,
+        onlineIdTag = onlineIdTag,
+        supportedFormats = supportedFormats
+    )
+}
 
 object HelloCodec {
     const val TAG_TYPE: Byte = 0xA1.toByte()
@@ -41,7 +58,8 @@ object HelloCodec {
         if (tagBytes != null) extraLen += 2 + 8
         if (formats != null) extraLen += 2 + 4
 
-        val buf = ByteBuffer.allocate(1 + nameBytes.size + 4 + 1 + ids.size * 16 + extraLen).order(ByteOrder.BIG_ENDIAN)
+        val buf = ByteBuffer.allocate(16 + 1 + nameBytes.size + 4 + 1 + ids.size * 16 + extraLen).order(ByteOrder.BIG_ENDIAN)
+        buf.put(MeshPacketCodec.uuidBytes(p.deviceId))
         buf.put(nameBytes.size.toByte()).put(nameBytes).putInt(p.graphVersion).put(ids.size.toByte())
         ids.forEach { buf.put(MeshPacketCodec.uuidBytes(it)) }
         if (tagBytes != null) {
@@ -55,7 +73,9 @@ object HelloCodec {
 
     /** Returns null for any malformed payload or unexpected trailing garbage. */
     fun decode(data: ByteArray): HelloPayload? = runCatching {
+        if (data.size < 16 + 1 + 4 + 1) return null
         val buf = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN)
+        val deviceId = UUID(buf.long, buf.long).toString()
         val nlen = buf.get().toInt() and 0xFF
         if (nlen > 96 || buf.remaining() < nlen + 5) return null
         val nb = ByteArray(nlen); buf.get(nb)
@@ -87,6 +107,6 @@ object HelloCodec {
             }
         }
 
-        HelloPayload(String(nb, StandardCharsets.UTF_8), version, ids, onlineTag, formats)
+        HelloPayload(deviceId, String(nb, StandardCharsets.UTF_8), version, ids, onlineTag, formats)
     }.getOrNull()
 }

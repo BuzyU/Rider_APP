@@ -33,7 +33,7 @@ check "main AndroidManifest contains no MeshDebugReceiver" grep -n "MeshDebugRec
 check "PeerFilterHolder.port assignment only in debug" bash -c "grep -rn 'PeerFilterHolder\.port\s*=' mobile-app/app/src/main || true"
 check "mesh code never references DEFAULT_MASTER_KEY_ALIAS" bash -c "grep -rn 'DEFAULT_MASTER_KEY_ALIAS' $M/mesh || true"
 check "no MD5 under mesh"                   grep -rn 'MessageDigest.getInstance("MD5")' $M/mesh
-check "no id hashing fallback under mesh/protocol" grep -rnE 'MessageDigest|SHA-256' $M/mesh/protocol/MeshPacket.kt $M/mesh/protocol/DuplicatePacketCache.kt
+check "no id hashing fallback under mesh/protocol" grep -rnE 'MessageDigest|SHA-256' $M/mesh/protocol/MeshPacket.kt $M/mesh/protocol/MeshPacketV4.kt $M/mesh/protocol/ReplayWindow.kt $M/mesh/protocol/ShortIdDirectory.kt
 check "no runCatching around uuidBytes or uuidParts in mesh/protocol" grep -rnE 'runCatching.*uuid(Bytes|Parts)|uuid(Bytes|Parts).*\.getOrElse' $M/mesh/protocol
 
 if [ -f "mobile-app/app/build/intermediates/merged_manifests/release/AndroidManifest.xml" ]; then

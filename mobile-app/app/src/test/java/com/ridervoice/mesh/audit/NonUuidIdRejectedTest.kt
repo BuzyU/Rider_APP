@@ -5,6 +5,7 @@ import com.ridervoice.mesh.protocol.DecodeResult
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
+import com.ridervoice.mesh.protocol.MeshPacketV4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -59,8 +60,7 @@ class NonUuidIdRejectedTest {
         val encoded = MeshPacketCodec.encode(packet, key)
         val decoded = (MeshPacketCodec.decode(encoded, key) as DecodeResult.Ok).packet
 
-        assertEquals(validSession, decoded.sessionId)
-        assertEquals(validSource, decoded.sourceId)
+        assertEquals(MeshPacketV4.shortId(validSource), decoded.sourceShortId)
         assertEquals(42, decoded.sequence)
         assertEquals(1, decoded.epoch)
         assertTrue(packet.payload.contentEquals(decoded.payload))

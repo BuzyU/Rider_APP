@@ -7,7 +7,8 @@ import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.protocol.AudioFormatId
-import com.ridervoice.mesh.protocol.DuplicatePacketCache
+import com.ridervoice.mesh.protocol.ReplayWindow
+import com.ridervoice.mesh.protocol.ShortIdDirectory
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.MeshPacketType
@@ -62,13 +63,20 @@ class RelayForwardsBeforeDeliveryTest {
         val routingTable = RoutingTable()
         routingTable.recompute(graphRepo.currentSnapshot(), 10_000L)
 
+        val shortIdDir = ShortIdDirectory().apply {
+            register(selfId)
+            register(senderId)
+            register(neighborId)
+        }
+
         val engine = ForwardingEngine(
             selfId = selfId,
             selfName = selfId,
             sessionManager = sessionManager,
             graphRepository = graphRepo,
             routingTable = routingTable,
-            duplicateCache = DuplicatePacketCache(clock = clock),
+            replayWindow = ReplayWindow(),
+            shortIdDirectory = shortIdDir,
             ttlPolicy = TtlPolicy(clock = clock),
             link = testLink,
             clock = clock,
@@ -80,43 +88,19 @@ class RelayForwardsBeforeDeliveryTest {
 
         // Construct incoming VOICE packet from senderId
         val pcm = ByteArray(MeshConfig.BYTES_PER_FRAME) { 0x33 }
-        val senderParts = MeshPacketCodec.uuidParts(senderId)
-        val sessParts = MeshPacketCodec.uuidParts(sessId)
-        val aad = PayloadCrypto.aad(
-            sessionHi = sessParts.first,
-            sessionLo = sessParts.second,
-            sourceHi = senderParts.first,
-            sourceLo = senderParts.second,
-            typeCode = MeshPacketType.VOICE.code,
-            epoch = 1,
-            sequence = 10,
-            captureTimestamp = 10_000L,
-            audioFormat = AudioFormatId.PCM16_16K_MONO
-        )
-        val nonce = PayloadCrypto.nonce(1, 10, MeshPacketType.VOICE.code)
-        val srcKey = PayloadCrypto.sourceKey(session.payloadKey(), senderId)
-        val sealed = PayloadCrypto.seal(srcKey, nonce, aad, pcm)
-
         val packet = MeshPacket(
             type = MeshPacketType.VOICE,
             sessionId = sessId,
             sourceId = senderId,
             sequence = 10,
-            captureTimestamp = 10_000L,
             ttl = 5,
             hopCount = 0,
             previousHopId = senderId,
             audioFormat = AudioFormatId.PCM16_16K_MONO,
             epoch = 1,
-            payload = sealed,
-            sessionHi = sessParts.first,
-            sessionLo = sessParts.second,
-            sourceHi = senderParts.first,
-            sourceLo = senderParts.second,
-            prevHopHi = senderParts.first,
-            prevHopLo = senderParts.second
+            payload = pcm
         )
-        val wire = MeshPacketCodec.encode(packet, session.authKey())
+        val wire = MeshPacketCodec.encode(packet, session.payloadKey())
 
         val outcome = engine.onIncomingFrame(MeshFrame(MeshEndpoint("192.168.1.50", MeshConfig.MESH_PORT), wire))
         assertTrue("Outcome must be accepted: $outcome", outcome is ReceiveOutcome.Accepted)

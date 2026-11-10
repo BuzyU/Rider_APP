@@ -18,7 +18,7 @@ object MeshConfig {
      * Without this, 6 fully connected devices produced 25 datagrams per voice frame instead of 5.
      * Trade-off: removes accidental redundancy, so measure packet loss on real hardware (device scenario 13/35).
      */
-    const val SUPPRESS_REDUNDANT_RELAYS = false
+    const val SUPPRESS_REDUNDANT_RELAYS = true
     /** Number of times a packet may still be forwarded. 5 reaches 6 hops, the max chain for 6 devices. */
     const val DEFAULT_TTL = 5
     /** HELLO discovery floods match default TTL to reach all 6 nodes across 5 hops. */

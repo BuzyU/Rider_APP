@@ -72,7 +72,7 @@ class ForwardingHonestyTest {
                 ttlPolicy = ttl,
                 link = link,
                 clock = { now },
-                suppressRedundantRelays = false
+                suppressRedundantRelays = true
             )
         }
 
@@ -106,9 +106,9 @@ class ForwardingHonestyTest {
         assertTrue("Voice packet must originate successfully", voicePkt != null)
 
         val totalDatagrams = datagramCounter.get()
-        // In a 6-clique with controlled flooding:
-        // Measured datagram count is exactly 18 across all 6 nodes due to immediate duplicate suppression.
-        assertEquals("Measured datagrams for 6-clique single voice frame must be exactly 18", 18, totalDatagrams)
-        assertTrue("Datagram count must not exceed measured bound 18", totalDatagrams <= 18)
+        // In a 6-clique with redundant-relay suppression enabled:
+        // Measured datagram count is exactly 5 across all 6 nodes (5 instead of 18).
+        assertEquals("Measured datagrams for 6-clique single voice frame must be exactly 5", 5, totalDatagrams)
+        assertTrue("Datagram count must not exceed measured bound 5", totalDatagrams <= 5)
     }
 }

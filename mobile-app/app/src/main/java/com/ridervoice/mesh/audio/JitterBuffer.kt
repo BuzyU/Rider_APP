@@ -62,10 +62,16 @@ class SourceJitterBuffer(
     private var overTicks: Int = 0
     private var lastTrimMs: Long = 0L
 
+    private var currentTargetFrames: Int = targetDelayFrames
+    private var jitterEmaMs: Double = 0.0
+    private var prevEnqueueTimeMs: Long = 0L
+    private var stableArrivalsStartMs: Long = 0L
+    private var lastTargetAdjustmentTimeMs: Long = 0L
+
     val depthFrames: Int
         @Synchronized get() = queue.size
     val targetFrames: Int
-        get() = targetDelayFrames
+        get() = currentTargetFrames
     @Volatile
     var lastPlayoutDelayMs: Long = 0L
         private set
@@ -83,10 +89,39 @@ class SourceJitterBuffer(
 
     @Synchronized
     fun enqueue(sequence: Int, pcmBytes: ByteArray) {
-        lastEnqueueTimeMs = clock()
+        val nowMs = clock()
+        lastEnqueueTimeMs = nowMs
+        if (primed && prevEnqueueTimeMs > 0L) {
+            val interArrival = nowMs - prevEnqueueTimeMs
+            if (interArrival >= 0L) {
+                val deviation = Math.abs(interArrival.toDouble() - 20.0)
+                jitterEmaMs = if (jitterEmaMs == 0.0) deviation else ((15.0 * jitterEmaMs + deviation) / 16.0)
+                val calculated = (Math.ceil((2.0 * jitterEmaMs) / 20.0).toInt() + 1).coerceIn(2, 6)
+                if (currentTargetFrames > calculated) {
+                    if (stableArrivalsStartMs == 0L) {
+                        stableArrivalsStartMs = nowMs
+                    } else if (nowMs - stableArrivalsStartMs >= 2000L) {
+                        currentTargetFrames--
+                        stableArrivalsStartMs = nowMs
+                    }
+                } else if (calculated > currentTargetFrames) {
+                    currentTargetFrames = calculated
+                    stableArrivalsStartMs = nowMs
+                } else {
+                    if (stableArrivalsStartMs == 0L) {
+                        stableArrivalsStartMs = nowMs
+                    }
+                }
+            }
+        }
+        prevEnqueueTimeMs = nowMs
+
         val diff = seqDiff(sequence, nextExpectedSeq, seqBits)
         if (primed && diff < 0) {
             lateDroppedCount++
+            val calculated = (Math.ceil((2.0 * jitterEmaMs) / 20.0).toInt() + 1).coerceIn(2, 6)
+            currentTargetFrames = maxOf(currentTargetFrames + 1, calculated).coerceIn(2, 6)
+            stableArrivalsStartMs = nowMs
             return
         }
         if (queue.containsKey(sequence)) {
@@ -110,24 +145,27 @@ class SourceJitterBuffer(
             }
         }
 
-        if (!primed && queue.size >= targetDelayFrames) {
+        if (!primed && queue.size >= currentTargetFrames) {
             primed = true
             nextExpectedSeq = queue.firstKey()
         }
     }
 
     private fun trimToTarget() {
-        while (queue.size > targetDelayFrames) {
+        while (queue.size > currentTargetFrames) {
             val oldest = queue.firstKey()
             queue.remove(oldest)
             enqueueTimes.remove(oldest)
             overflowDroppedCount++
+            if (primed && seqDiff(nextExpectedSeq, oldest, seqBits) <= 0) {
+                nextExpectedSeq = if (queue.isNotEmpty()) queue.firstKey() else oldest + 1
+            }
         }
     }
 
     private fun maybeCatchUp() {
-        // standing-delay catch-up: if queue.size > target + 2 for >= 25 consecutive ticks (500 ms): drop ONE oldest frame, at most 1 per 1000 ms
-        if (queue.size > targetDelayFrames + 2) {
+        // standing-delay catch-up: if queue.size > target + 1 for >= 25 consecutive ticks (500 ms): drop ONE oldest frame, at most 1 per 1000 ms
+        if (queue.size > currentTargetFrames + 1) {
             overTicks++
             val nowMs = clock()
             if (overTicks >= 25 && nowMs - lastTrimMs >= 1000L) {
@@ -136,11 +174,14 @@ class SourceJitterBuffer(
                     queue.remove(oldest)
                     enqueueTimes.remove(oldest)
                     overflowDroppedCount++
+                    if (primed && seqDiff(nextExpectedSeq, oldest, seqBits) <= 0) {
+                        nextExpectedSeq = if (queue.isNotEmpty()) queue.firstKey() else oldest + 1
+                    }
                 }
                 lastTrimMs = nowMs
                 overTicks = 0
             }
-        } else {
+        } else if (queue.size <= currentTargetFrames) {
             overTicks = 0
         }
     }
@@ -157,13 +198,16 @@ class SourceJitterBuffer(
         val head = if (queue.isEmpty()) null else queue.firstKey()
         if (head != null && head != nextExpectedSeq) {
             val gap = seqDiff(head, nextExpectedSeq, seqBits)
-            if (gap >= maxOf(3, targetDelayFrames)) {
+            if (gap >= maxOf(3, currentTargetFrames)) {
                 // long hole: do not conceal tick by tick!
                 trimToTarget()
                 val newHead = if (queue.isEmpty()) head else queue.firstKey()
                 nextExpectedSeq = newHead
                 consecutiveMissing++
                 concealedCount++
+                val calculated = (Math.ceil((2.0 * jitterEmaMs) / 20.0).toInt() + 1).coerceIn(2, 6)
+                currentTargetFrames = maxOf(currentTargetFrames + 1, calculated).coerceIn(2, 6)
+                stableArrivalsStartMs = clock()
                 val concealed = synthesizePlcFrame(consecutiveMissing)
                 return PlayoutFrame.Concealed(newHead - 1, concealed, isMidTalkspurt = true)
             }
@@ -185,7 +229,7 @@ class SourceJitterBuffer(
             return PlayoutFrame.Audio(seq, exact)
         }
 
-        if (queue.isEmpty() && consecutiveMissing >= targetDelayFrames) {
+        if (queue.isEmpty() && consecutiveMissing >= currentTargetFrames) {
             // Stream went idle; re-prime on next burst
             primed = false
             consecutiveMissing = 0
@@ -198,6 +242,18 @@ class SourceJitterBuffer(
         nextExpectedSeq = seq + 1
         consecutiveMissing++
         concealedCount++
+        if (isMidTalkspurt) {
+            val calculated = (Math.ceil((2.0 * jitterEmaMs) / 20.0).toInt() + 1).coerceIn(2, 6)
+            currentTargetFrames = maxOf(currentTargetFrames + 1, calculated).coerceIn(2, 6)
+            stableArrivalsStartMs = clock()
+        }
+        if (isMidTalkspurt) {
+            val calculated = (Math.ceil((2.0 * jitterEmaMs) / 20.0).toInt() + 1).coerceIn(2, 6)
+            currentTargetFrames = maxOf(currentTargetFrames + 1, calculated).coerceIn(2, 6)
+            val nowMs = clock()
+            stableArrivalsStartMs = nowMs
+            lastTargetAdjustmentTimeMs = nowMs
+        }
         val concealed = synthesizePlcFrame(consecutiveMissing)
         return PlayoutFrame.Concealed(seq, concealed, isMidTalkspurt = isMidTalkspurt)
     }

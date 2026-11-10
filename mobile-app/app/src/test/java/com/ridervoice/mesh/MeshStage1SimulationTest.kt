@@ -292,7 +292,7 @@ class MeshStage1SimulationTest {
     ) {
         val receivedVoice = ArrayList<MeshPacket>()
         val sessionManager = SessionManager(session, id) { net.now }
-        val graph = MeshGraphRepository(id, tag) { net.now }
+        val graph = MeshGraphRepository(id, tag) { net.now }.apply { selfSupportedFormatsProvider = { AudioFormatId.BITMASK_PCM } }
         val routingTable = RoutingTable()
         val dupCache = DuplicatePacketCache(clock = { net.now })
         val ttlPolicy = TtlPolicy(clock = { net.now })
@@ -332,7 +332,7 @@ class MeshStage1SimulationTest {
             link = link,
             clock = { net.now },
             onLocalVoicePacket = { pkt -> receivedVoice.add(pkt) }
-        )
+        ).apply { selfSupportedFormatsProvider = { AudioFormatId.BITMASK_PCM } }
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.ridervoice.mesh.graph
 
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.link.MeshEndpoint
+import com.ridervoice.mesh.protocol.AudioFormatId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +21,9 @@ data class MeshEdge(
 data class MeshNodeInfo(
     val deviceId: String,
     val displayName: String,
-    val onlineIdTag: String? = null
+    val onlineIdTag: String? = null,
+    val supportedFormats: Int? = null,
+    val firstSeenAt: Long = 0L
 )
 
 /** Immutable view of the graph as known by one device. */
@@ -69,9 +72,26 @@ class MeshGraphRepository(
     constructor(selfId: String, selfName: String, clock: () -> Long) :
         this(selfId, selfName, clock, clock)
     var selfOnlineTagProvider: () -> String? = { null }
+    var selfSupportedFormatsProvider: () -> Int = { AudioFormatId.BITMASK_ALL }
 
-    private class Neighbor(var name: String, var endpoint: MeshEndpoint, var lastSeen: Long, var onlineIdTag: String? = null)
-    private class Report(var name: String, var neighbors: Set<String>, var lastSeen: Long, var sequence: Int = 0, var epoch: Int = 0, var onlineIdTag: String? = null)
+    private class Neighbor(
+        var name: String,
+        var endpoint: MeshEndpoint,
+        var lastSeen: Long,
+        var onlineIdTag: String? = null,
+        var supportedFormats: Int? = null,
+        val firstSeen: Long = lastSeen
+    )
+    private class Report(
+        var name: String,
+        var neighbors: Set<String>,
+        var lastSeen: Long,
+        var sequence: Int = 0,
+        var epoch: Int = 0,
+        var onlineIdTag: String? = null,
+        var supportedFormats: Int? = null,
+        val firstSeen: Long = lastSeen
+    )
 
     private val neighbors = LinkedHashMap<String, Neighbor>()
     private val reports = HashMap<String, Report>()
@@ -99,7 +119,8 @@ class MeshGraphRepository(
         neighborIds: Collection<String>,
         sequence: Int = 0,
         epoch: Int = 0,
-        onlineIdTag: String? = null
+        onlineIdTag: String? = null,
+        supportedFormats: Int? = AudioFormatId.BITMASK_PCM
     ): Boolean {
         if (sourceId == selfId) return false
         val now = monotonicClock()
@@ -107,27 +128,29 @@ class MeshGraphRepository(
         if (hopCount == 0) {
             val n = neighbors[sourceId]
             if (n == null) {
-                neighbors[sourceId] = Neighbor(name, endpoint, now, onlineIdTag); changed = true
+                neighbors[sourceId] = Neighbor(name, endpoint, now, onlineIdTag, supportedFormats, now); changed = true
             } else {
-                if (n.endpoint != endpoint || n.name != name || n.onlineIdTag != onlineIdTag) changed = true
+                if (n.endpoint != endpoint || n.name != name || n.onlineIdTag != onlineIdTag || (supportedFormats != null && n.supportedFormats != supportedFormats)) changed = true
                 n.endpoint = endpoint; n.name = name; n.lastSeen = now; n.onlineIdTag = onlineIdTag
+                if (supportedFormats != null) n.supportedFormats = supportedFormats
             }
         }
         val set = neighborIds.filter { it != sourceId }.toSet()
         val r = reports[sourceId]
         if (r == null) {
-            reports[sourceId] = Report(name, set, now, sequence, epoch, onlineIdTag)
+            reports[sourceId] = Report(name, set, now, sequence, epoch, onlineIdTag, supportedFormats, now)
             changed = true
         } else {
             val isStale = isStaleReport(r.epoch, r.sequence, epoch, sequence)
             if (!isStale) {
-                if (r.neighbors != set || r.name != name || r.epoch != epoch || r.onlineIdTag != onlineIdTag) changed = true
+                if (r.neighbors != set || r.name != name || r.epoch != epoch || r.onlineIdTag != onlineIdTag || (supportedFormats != null && r.supportedFormats != supportedFormats)) changed = true
                 r.neighbors = set
                 r.name = name
                 r.lastSeen = now
                 r.epoch = epoch
                 r.onlineIdTag = onlineIdTag
                 if (sequence != 0) r.sequence = sequence
+                if (supportedFormats != null) r.supportedFormats = supportedFormats
             }
         }
         if (changed) {
@@ -185,8 +208,6 @@ class MeshGraphRepository(
         val dead = neighbors.filter { now - it.value.lastSeen > MeshConfig.NEIGHBOR_TIMEOUT_MS }.keys.toList()
         for (id in dead) {
             neighbors.remove(id)
-            // Its last report is no longer trustworthy; if it is still alive via another path, the next
-            // flooded HELLO restores it within one interval.
             reports.remove(id)
             changed = true
         }
@@ -236,13 +257,19 @@ class MeshGraphRepository(
     private fun buildSnapshot(): MeshGraphSnapshot {
         graphRebuildCount.incrementAndGet()
         val nodes = LinkedHashMap<String, MeshNodeInfo>()
-        nodes[selfId] = MeshNodeInfo(selfId, selfName, selfOnlineTagProvider())
-        neighbors.forEach { (id, n) -> nodes[id] = MeshNodeInfo(id, n.name, n.onlineIdTag) }
+        nodes[selfId] = MeshNodeInfo(selfId, selfName, selfOnlineTagProvider(), selfSupportedFormatsProvider(), 0L)
+        neighbors.forEach { (id, n) -> nodes[id] = MeshNodeInfo(id, n.name, n.onlineIdTag, n.supportedFormats, n.firstSeen) }
         reports.forEach { (id, r) ->
             val existing = nodes[id]
             val tag = r.onlineIdTag ?: existing?.onlineIdTag
-            nodes[id] = MeshNodeInfo(id, r.name, tag)
-            r.neighbors.forEach { nid -> if (nid != selfId && !nodes.containsKey(nid)) nodes[nid] = MeshNodeInfo(nid, nid.take(8)) }
+            val fmts = r.supportedFormats ?: existing?.supportedFormats
+            val fs = existing?.firstSeenAt ?: r.firstSeen
+            nodes[id] = MeshNodeInfo(id, r.name, tag, fmts, fs)
+            r.neighbors.forEach { nid ->
+                if (nid != selfId && !nodes.containsKey(nid)) {
+                    nodes[nid] = MeshNodeInfo(nid, nid.take(8), null, null, r.lastSeen)
+                }
+            }
         }
 
         // reporter -> reported neighbor, with freshness
@@ -276,4 +303,3 @@ class MeshGraphRepository(
         return MeshGraphSnapshot(selfId, nodes, edges, version)
     }
 }
-

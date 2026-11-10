@@ -14,7 +14,15 @@ enum class MeshPacketType(val code: Int) {
 }
 
 /** Only raw 16 kHz mono PCM16 is defined. Any other value is rejected until a codec is negotiated. */
-object AudioFormatId { const val PCM16_16K_MONO = 1 }
+object AudioFormatId {
+    const val NONE = 0
+    const val PCM16_16K_MONO = 1
+    const val OPUS_16K_MONO_20MS = 2
+
+    const val BITMASK_PCM = 1 shl 0
+    const val BITMASK_OPUS = 1 shl 1
+    const val BITMASK_ALL = BITMASK_PCM or BITMASK_OPUS
+}
 
 data class PacketIds(
     val sessionHi: Long,
@@ -175,7 +183,7 @@ object MeshPacketCodec {
             if (!constantTimeEquals(expectedTag, data, HEADER_LEN + len, TAG_LEN)) {
                 return DecodeResult.Invalid(DecodeResult.Reason.BAD_TAG)
             }
-            if (type == MeshPacketType.VOICE && format != AudioFormatId.PCM16_16K_MONO)
+            if (type == MeshPacketType.VOICE && format != AudioFormatId.PCM16_16K_MONO && format != AudioFormatId.OPUS_16K_MONO_20MS)
                 return DecodeResult.Invalid(DecodeResult.Reason.BAD_FORMAT)
             val payload = ByteArray(len).also { System.arraycopy(data, HEADER_LEN, it, 0, len) }
             DecodeResult.Ok(

@@ -1,6 +1,7 @@
 package com.ridervoice.mesh.discovery
 
 import com.ridervoice.mesh.MeshConfig
+import com.ridervoice.mesh.protocol.AudioFormatId
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import com.ridervoice.mesh.protocol.PayloadCrypto
 import java.nio.ByteBuffer
@@ -11,19 +12,22 @@ import java.util.UUID
 /**
  * HELLO payload: the sender's display name, its graph version and its direct neighbor ids.
  * Optionally carries an 8-byte online identity tag [0xA1][0x08][tag] (represented as 16 hex chars)
- * when the sender is in an online ride.
- * HELLOs are flooded with a small TTL, so every device learns each other device's adjacency.
+ * when the sender is in an online ride, and a 4-byte supported audio formats bitmask [0x02][0x04][mask].
+ * HELLOs are flooded with a small TTL, so every device learns each other device's adjacency and capabilities.
  */
 data class HelloPayload(
     val name: String,
     val graphVersion: Int,
     val neighborIds: List<String>,
-    val onlineIdTag: String? = null
+    val onlineIdTag: String? = null,
+    val supportedFormats: Int? = AudioFormatId.BITMASK_ALL
 )
 
 object HelloCodec {
     const val TAG_TYPE: Byte = 0xA1.toByte()
     const val TAG_LEN: Byte = 0x08.toByte()
+    const val TAG_SUPPORTED_FORMATS: Byte = 0x02.toByte()
+    const val TAG_SUPPORTED_FORMATS_LEN: Byte = 0x04.toByte()
 
     fun encode(p: HelloPayload): ByteArray {
         val nameBytes = p.name.toByteArray(StandardCharsets.UTF_8).let { if (it.size > 96) it.copyOf(96) else it }
@@ -32,17 +36,24 @@ object HelloCodec {
         val tagBytes = tagHex?.let {
             PayloadCrypto.hexToBytes(it)
         }
-        val extraLen = if (tagBytes != null) 10 else 0
+        val formats = p.supportedFormats
+        var extraLen = 0
+        if (tagBytes != null) extraLen += 2 + 8
+        if (formats != null) extraLen += 2 + 4
+
         val buf = ByteBuffer.allocate(1 + nameBytes.size + 4 + 1 + ids.size * 16 + extraLen).order(ByteOrder.BIG_ENDIAN)
         buf.put(nameBytes.size.toByte()).put(nameBytes).putInt(p.graphVersion).put(ids.size.toByte())
         ids.forEach { buf.put(MeshPacketCodec.uuidBytes(it)) }
         if (tagBytes != null) {
             buf.put(TAG_TYPE).put(TAG_LEN).put(tagBytes)
         }
+        if (formats != null) {
+            buf.put(TAG_SUPPORTED_FORMATS).put(TAG_SUPPORTED_FORMATS_LEN).putInt(formats)
+        }
         return buf.array()
     }
 
-    /** Returns null for any malformed payload. */
+    /** Returns null for any malformed payload or unexpected trailing garbage. */
     fun decode(data: ByteArray): HelloPayload? = runCatching {
         val buf = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN)
         val nlen = buf.get().toInt() and 0xFF
@@ -53,20 +64,29 @@ object HelloCodec {
         if (count > MeshConfig.MAX_NEIGHBORS_IN_HELLO || buf.remaining() < count * 16) return null
         val ids = List(count) { UUID(buf.long, buf.long).toString() }
 
-        val onlineTag = when (buf.remaining()) {
-            0 -> null
-            10 -> {
-                val t = buf.get()
-                val l = buf.get()
-                if (t != TAG_TYPE || l != TAG_LEN) return null
-                val tag = ByteArray(8)
-                buf.get(tag)
-                PayloadCrypto.bytesToHex(tag)
+        var onlineTag: String? = null
+        var formats: Int? = null
+
+        while (buf.hasRemaining()) {
+            if (buf.remaining() < 2) return null
+            val t = buf.get()
+            val l = buf.get().toInt() and 0xFF
+            if (buf.remaining() < l) return null
+            when {
+                t == TAG_TYPE && l == (TAG_LEN.toInt() and 0xFF) -> {
+                    if (onlineTag != null) return null
+                    val tag = ByteArray(8)
+                    buf.get(tag)
+                    onlineTag = PayloadCrypto.bytesToHex(tag)
+                }
+                t == TAG_SUPPORTED_FORMATS && l == (TAG_SUPPORTED_FORMATS_LEN.toInt() and 0xFF) -> {
+                    if (formats != null) return null
+                    formats = buf.int
+                }
+                else -> return null
             }
-            else -> return null // any other trailing bytes -> reject
         }
 
-        HelloPayload(String(nb, StandardCharsets.UTF_8), version, ids, onlineTag)
+        HelloPayload(String(nb, StandardCharsets.UTF_8), version, ids, onlineTag, formats)
     }.getOrNull()
 }
-

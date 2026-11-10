@@ -3,6 +3,7 @@ package com.ridervoice.mesh.audit
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.protocol.MeshPacketCodec
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PacketSizeBudgetTest {
@@ -14,11 +15,14 @@ class PacketSizeBudgetTest {
         assertEquals("PCM frame size must be 640 bytes", 640, MeshConfig.BYTES_PER_FRAME)
         assertEquals("Encrypted voice payload must be 656 bytes", 656, MeshConfig.ENCRYPTED_VOICE_PAYLOAD_BYTES)
 
-        val totalVoiceDatagramBytes = MeshPacketCodec.HEADER_LEN + MeshConfig.ENCRYPTED_VOICE_PAYLOAD_BYTES + MeshPacketCodec.TAG_LEN
-        assertEquals("Total voice datagram must be exactly 747 bytes", 747, totalVoiceDatagramBytes)
-        assertEquals("Max voice datagram budget must be 800 bytes", 800, MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
+        // Opus frame budget
+        val opusFrameBytes = 40
+        val encryptedOpusVoicePayloadBytes = opusFrameBytes + MeshConfig.GCM_TAG_BYTES
+        val totalOpusVoiceDatagramBytes = MeshPacketCodec.HEADER_LEN + encryptedOpusVoicePayloadBytes + MeshPacketCodec.TAG_LEN
+        assertEquals("Total Opus voice datagram on v3 must be exactly 147 bytes", 147, totalOpusVoiceDatagramBytes)
+        assertEquals("Max voice datagram budget must be 200 bytes", 200, MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
+        assertTrue("Opus datagram must fit within max voice datagram budget", totalOpusVoiceDatagramBytes <= MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
 
-        println("Voice packet size budget: $totalVoiceDatagramBytes bytes (max budget ${MeshConfig.MAX_VOICE_DATAGRAM_BYTES})")
+        println("Opus voice packet size budget on v3: $totalOpusVoiceDatagramBytes bytes (max budget ${MeshConfig.MAX_VOICE_DATAGRAM_BYTES})")
     }
 }
-

@@ -29,6 +29,8 @@ object MeshConfig {
     const val MAX_CLOCK_SKEW_MS = 60_000L
     const val DUP_CACHE_MAX_ENTRIES = 60_000
     const val DUP_CACHE_TTL_MS = 2 * MAX_CLOCK_SKEW_MS + 5_000L
+    const val MAX_VOICE_PAYLOAD_BYTES = 700
+    const val MAX_CONTROL_PAYLOAD_BYTES = 400
     const val MAX_PAYLOAD_BYTES = 1_200
     /** Per-source forwarding budget (packets per 1s window). 20 ms frames = 50/s, plus headroom. */
     const val FORWARD_BUDGET_PER_SEC = 120
@@ -39,7 +41,11 @@ object MeshConfig {
     const val BYTES_PER_FRAME = SAMPLES_PER_FRAME * 2                // 640
     const val GCM_TAG_BYTES = 16
     const val ENCRYPTED_VOICE_PAYLOAD_BYTES = BYTES_PER_FRAME + GCM_TAG_BYTES // 656
-    const val MAX_VOICE_DATAGRAM_BYTES = 800
+    const val MAX_VOICE_DATAGRAM_BYTES = 200
+
+    const val OPUS_BITRATE_BPS = 16_000
+    const val OPUS_COMPLEXITY = 5
+    const val MAX_OPUS_PAYLOAD_BYTES = 120
 
     /**
      * Whether to attach platform AcousticEchoCanceler, NoiseSuppressor, and AutomaticGainControl

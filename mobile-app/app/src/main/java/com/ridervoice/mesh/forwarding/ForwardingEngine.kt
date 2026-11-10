@@ -2,6 +2,9 @@ package com.ridervoice.mesh.forwarding
 
 import androidx.annotation.VisibleForTesting
 import com.ridervoice.mesh.MeshConfig
+import com.ridervoice.mesh.audio.codec.OpusVoiceEncoder
+import com.ridervoice.mesh.audio.codec.PcmVoiceEncoder
+import com.ridervoice.mesh.audio.codec.VoiceEncoder
 import com.ridervoice.mesh.discovery.HelloCodec
 import com.ridervoice.mesh.discovery.HelloPayload
 import com.ridervoice.mesh.graph.MeshGraphRepository
@@ -44,7 +47,8 @@ sealed class ReceiveOutcome {
         TTL_EXHAUSTED,
         DUPLICATE,
         MALFORMED_HELLO,
-        BAD_PAYLOAD
+        BAD_PAYLOAD,
+        BAD_FORMAT
     }
 }
 
@@ -112,6 +116,111 @@ class ForwardingEngine(
     @Volatile var originateVoiceUsEma: Double = 0.0
     @Volatile var captureToSendMs: Double = 0.0
 
+    var selfSupportedFormatsProvider: () -> Int = { AudioFormatId.BITMASK_ALL }
+    var onFormatChangedListener: ((Int) -> Unit)? = null
+
+    private var voiceEncoder: VoiceEncoder? = null
+    private var inTalkspurt: Boolean = false
+    private var lastNegotiatedFormat: Int? = null
+    private var lastMembershipChangeTimeMs: Long = 0L
+    private var previousKnownMemberIds: Set<String> = emptySet()
+
+    private fun getOrCreateVoiceEncoder(fmt: Int): VoiceEncoder {
+        val existing = voiceEncoder
+        if (existing != null && existing.formatId == fmt) {
+            return existing
+        }
+        val created: VoiceEncoder = if (fmt == AudioFormatId.OPUS_16K_MONO_20MS) {
+            OpusVoiceEncoder()
+        } else {
+            PcmVoiceEncoder()
+        }
+        voiceEncoder = created
+        return created
+    }
+
+    fun currentNegotiatedFormat(): Int? {
+        val snapshot = graphRepository.snapshots.value
+        val otherMembers = snapshot.nodes.filter { it.key != selfId }
+        val now = monotonicClock()
+
+        val currentMemberIds = otherMembers.keys.toSet()
+        if (currentMemberIds != previousKnownMemberIds) {
+            lastMembershipChangeTimeMs = now
+            previousKnownMemberIds = currentMemberIds
+        }
+
+        val ownMask = selfSupportedFormatsProvider()
+        if (otherMembers.isEmpty()) {
+            val soloFmt = if ((ownMask and AudioFormatId.BITMASK_OPUS) != 0) {
+                AudioFormatId.OPUS_16K_MONO_20MS
+            } else if ((ownMask and AudioFormatId.BITMASK_PCM) != 0) {
+                AudioFormatId.PCM16_16K_MONO
+            } else null
+            return soloFmt
+        }
+
+        val unknownMembers = otherMembers.values.filter { it.supportedFormats == null }
+        val candidateFormat = if (unknownMembers.isNotEmpty()) {
+            val anyRecent = unknownMembers.any { (now - it.firstSeenAt) < 3 * MeshConfig.HELLO_INTERVAL_MS }
+            if (anyRecent) {
+                null
+            } else {
+                AudioFormatId.PCM16_16K_MONO
+            }
+        } else {
+            var intersection = ownMask
+            for (m in otherMembers.values) {
+                intersection = intersection and (m.supportedFormats ?: 0)
+            }
+            if ((intersection and AudioFormatId.BITMASK_OPUS) != 0) {
+                AudioFormatId.OPUS_16K_MONO_20MS
+            } else if ((intersection and AudioFormatId.BITMASK_PCM) != 0) {
+                AudioFormatId.PCM16_16K_MONO
+            } else {
+                null
+            }
+        }
+
+        if (candidateFormat == null) return null
+
+        val effectiveFormat = if (candidateFormat == AudioFormatId.OPUS_16K_MONO_20MS) {
+            if (lastNegotiatedFormat == AudioFormatId.PCM16_16K_MONO && (now - lastMembershipChangeTimeMs) < 2000L) {
+                AudioFormatId.PCM16_16K_MONO
+            } else {
+                AudioFormatId.OPUS_16K_MONO_20MS
+            }
+        } else {
+            candidateFormat
+        }
+
+        if (lastNegotiatedFormat != null && lastNegotiatedFormat != effectiveFormat) {
+            lastNegotiatedFormat = effectiveFormat
+            voiceEncoder = null
+            onFormatChangedListener?.invoke(effectiveFormat)
+        } else {
+            lastNegotiatedFormat = effectiveFormat
+        }
+
+        return effectiveFormat
+    }
+
+    fun payloadSizeValid(audioFormat: Int, payloadSize: Int): Boolean {
+        return when (audioFormat) {
+            AudioFormatId.PCM16_16K_MONO -> payloadSize == MeshConfig.ENCRYPTED_VOICE_PAYLOAD_BYTES || payloadSize == 1 + PayloadCrypto.TAG_LEN
+            AudioFormatId.OPUS_16K_MONO_20MS -> payloadSize in (1 + PayloadCrypto.TAG_LEN)..(MeshConfig.MAX_OPUS_PAYLOAD_BYTES + PayloadCrypto.TAG_LEN)
+            else -> false
+        }
+    }
+
+    fun plainSizeValid(audioFormat: Int, plainSize: Int): Boolean {
+        return when (audioFormat) {
+            AudioFormatId.PCM16_16K_MONO -> plainSize == MeshConfig.BYTES_PER_FRAME || plainSize == 1
+            AudioFormatId.OPUS_16K_MONO_20MS -> plainSize in 1..MeshConfig.MAX_OPUS_PAYLOAD_BYTES
+            else -> false
+        }
+    }
+
     data class Counters(
         val received: Long,
         val forwarded: Long,
@@ -152,11 +261,51 @@ class ForwardingEngine(
     /**
      * Originates a new local voice frame from this device and sends it to all direct neighbors.
      */
-    fun originateVoice(pcmPayload: ByteArray, captureElapsedRealtimeNanos: Long = 0L): MeshPacket? {
+    fun originateVoice(pcmPayload: ByteArray, captureElapsedRealtimeNanos: Long = 0L, isGated: Boolean = false): MeshPacket? {
         val t0 = System.nanoTime()
         val now = clock()
         if (sessionManager.session.isExpired(now)) return null
+        val fmt = currentNegotiatedFormat() ?: return null
         val seq = voiceSeqGen.incrementAndGet()
+
+        if (isGated) {
+            if (inTalkspurt) {
+                inTalkspurt = false
+                val marker = ByteArray(1)
+                return transmitVoicePacket(marker, fmt, seq, now, captureElapsedRealtimeNanos, t0)
+            } else {
+                return null
+            }
+        }
+
+        val enc = getOrCreateVoiceEncoder(fmt)
+        val encoded = enc.encode(pcmPayload)
+
+        val isSilence = encoded.size <= 2
+        if (isSilence) {
+            if (inTalkspurt) {
+                inTalkspurt = false
+                val marker = ByteArray(1)
+                return transmitVoicePacket(marker, fmt, seq, now, captureElapsedRealtimeNanos, t0)
+            } else {
+                val elapsedUs = (System.nanoTime() - t0) / 1000.0
+                originateVoiceUsEma = if (originateVoiceUsEma == 0.0) elapsedUs else (0.9 * originateVoiceUsEma + 0.1 * elapsedUs)
+                return null
+            }
+        } else {
+            inTalkspurt = true
+            return transmitVoicePacket(encoded, fmt, seq, now, captureElapsedRealtimeNanos, t0)
+        }
+    }
+
+    private fun transmitVoicePacket(
+        payload: ByteArray,
+        fmt: Int,
+        seq: Int,
+        now: Long,
+        captureElapsedRealtimeNanos: Long,
+        t0: Long
+    ): MeshPacket {
         val aad = PayloadCrypto.aad(
             sessionHi = sParts.first,
             sessionLo = sParts.second,
@@ -166,11 +315,11 @@ class ForwardingEngine(
             epoch = localEpoch,
             sequence = seq,
             captureTimestamp = now,
-            audioFormat = AudioFormatId.PCM16_16K_MONO
+            audioFormat = fmt
         )
         val nonce = PayloadCrypto.nonce(localEpoch, seq, MeshPacketType.VOICE.code)
         val sourceKey = getSourcePayloadKey(selfId)
-        val sealed = PayloadCrypto.seal(sourceKey, nonce, aad, pcmPayload)
+        val sealed = PayloadCrypto.seal(sourceKey, nonce, aad, payload)
         val packet = MeshPacket(
             type = MeshPacketType.VOICE,
             sessionId = sessionId,
@@ -180,7 +329,7 @@ class ForwardingEngine(
             ttl = ttlPolicy.defaultTtl,
             hopCount = 0,
             previousHopId = selfId,
-            audioFormat = AudioFormatId.PCM16_16K_MONO,
+            audioFormat = fmt,
             epoch = localEpoch,
             payload = sealed,
             sessionHi = sParts.first,
@@ -237,7 +386,8 @@ class ForwardingEngine(
             name = selfName,
             graphVersion = snapshot.version.toInt(),
             neighborIds = graphRepository.directNeighborIds(),
-            onlineIdTag = onlineTag
+            onlineIdTag = onlineTag,
+            supportedFormats = selfSupportedFormatsProvider()
         )
         val plainHello = HelloCodec.encode(hello)
         val aad = PayloadCrypto.aad(
@@ -401,13 +551,26 @@ class ForwardingEngine(
 
         // 5 (strict). Payload size must match the packet type exactly, taking into account the 16-byte GCM tag.
         val payloadOk = when (decoded.type) {
-            MeshPacketType.VOICE -> decoded.payload.size == MeshConfig.ENCRYPTED_VOICE_PAYLOAD_BYTES
+            MeshPacketType.VOICE -> payloadSizeValid(decoded.audioFormat, decoded.payload.size)
             MeshPacketType.BYE -> decoded.payload.size == PayloadCrypto.TAG_LEN
             MeshPacketType.HELLO -> decoded.payload.size >= PayloadCrypto.TAG_LEN
         }
         if (!payloadOk) {
             droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
+        }
+
+        if (decoded.type == MeshPacketType.VOICE) {
+            val selfMask = selfSupportedFormatsProvider()
+            val bit = when (decoded.audioFormat) {
+                AudioFormatId.PCM16_16K_MONO -> AudioFormatId.BITMASK_PCM
+                AudioFormatId.OPUS_16K_MONO_20MS -> AudioFormatId.BITMASK_OPUS
+                else -> 0
+            }
+            if ((selfMask and bit) == 0) {
+                droppedInvalid.incrementAndGet()
+                return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_FORMAT)
+            }
         }
 
         // 8. Check TTL > 0 and hop count bounds
@@ -476,7 +639,7 @@ class ForwardingEngine(
             h
         } else null
 
-        if (decoded.type == MeshPacketType.VOICE && plain.size != MeshConfig.BYTES_PER_FRAME) {
+        if (decoded.type == MeshPacketType.VOICE && !plainSizeValid(decoded.audioFormat, plain.size)) {
             droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
         }
@@ -537,7 +700,8 @@ class ForwardingEngine(
                     neighborIds = hello.neighborIds,
                     sequence = decoded.sequence,
                     epoch = decoded.epoch,
-                    onlineIdTag = hello.onlineIdTag
+                    onlineIdTag = hello.onlineIdTag,
+                    supportedFormats = hello.supportedFormats
                 )
                 if (changed) {
                     routingTable.recompute(graphRepository.currentSnapshot(), now)

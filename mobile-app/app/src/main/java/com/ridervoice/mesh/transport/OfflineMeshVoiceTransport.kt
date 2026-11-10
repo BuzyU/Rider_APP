@@ -197,7 +197,7 @@ class OfflineMeshVoiceTransport(
     private var expireJob: Job? = null
     private var playbackSpeakersJob: Job? = null
     private var voiceTxJob: Job? = null
-    internal data class CapturedAudioFrame(val pcm: ByteArray, val captureNanos: Long = 0L)
+    internal data class CapturedAudioFrame(val pcm: ByteArray, val captureNanos: Long = 0L, val isGated: Boolean = false)
     private var voiceTxChannel: Channel<CapturedAudioFrame>? = null
 
     @Volatile private var cachedLocalIp: String = ""
@@ -279,11 +279,14 @@ class OfflineMeshVoiceTransport(
                 clock = clock,
                 monotonicClock = monotonicClock,
                 onLocalVoicePacket = { pkt ->
-                    jManager.onVoicePacket(pkt.sourceId, pkt.sequence, pkt.payload, pkt.epoch)
+                    jManager.onVoicePacket(pkt.sourceId, pkt.sequence, pkt.payload, pkt.epoch, pkt.audioFormat)
                 },
                 peerFilterPort = peerFilterPort,
                 onlineIdentitySupplier = { onlineIdentitySupplier() }
             )
+            fEngine.onFormatChangedListener = {
+                jManager.resetAll()
+            }
             forwardingEngine = fEngine
             lastForwardingEngineForTest = fEngine
 
@@ -560,7 +563,7 @@ class OfflineMeshVoiceTransport(
         voiceTxJob?.cancel()
         voiceTxJob = transportScope?.launch {
             for (frame in txChannel) {
-                fEngine.originateVoice(frame.pcm, frame.captureNanos)
+                fEngine.originateVoice(frame.pcm, frame.captureNanos, frame.isGated)
             }
         }
 
@@ -591,6 +594,14 @@ class OfflineMeshVoiceTransport(
                 ch.trySend(CapturedAudioFrame(pcm, nanos))
             } else {
                 fEngine.originateVoice(pcm, nanos)
+            }
+        }
+        aCapture.onGatedFrame = { pcm, nanos ->
+            val ch = voiceTxChannel
+            if (ch != null) {
+                ch.trySend(CapturedAudioFrame(pcm, nanos, isGated = true))
+            } else {
+                fEngine.originateVoice(pcm, nanos, isGated = true)
             }
         }
         aCapture.frameGate = { pcm: ByteArray -> micController.shouldTransmitPcmFrame(pcm) }

@@ -1,13 +1,14 @@
 package com.ridervoice.mesh.audio
 
 import com.ridervoice.mesh.MeshConfig
+import com.ridervoice.mesh.audio.codec.OpusVoiceDecoder
+import com.ridervoice.mesh.audio.codec.PcmVoiceDecoder
+import com.ridervoice.mesh.audio.codec.VoiceDecoder
+import com.ridervoice.mesh.protocol.AudioFormatId
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.TreeMap
 
-/**
- * Result of pulling one 20ms audio frame from a [SourceJitterBuffer].
- */
 sealed class PlayoutFrame {
     /** Buffering initial playout delay or buffer currently idle. */
     data object Buffering : PlayoutFrame()
@@ -22,9 +23,7 @@ sealed class PlayoutFrame {
 }
 
 /**
- * Single-source jitter buffer with fixed 3-frame target playout delay (60 ms),
- * sequence reordering with 32-bit wrap-around support, late packet dropping,
- * missing-packet detection, and packet-loss concealment (PLC).
+ * Per-source jitter buffer and sequence reordering for 20 ms audio frames.
  */
 class SourceJitterBuffer(
     val sourceId: String,
@@ -68,23 +67,31 @@ class SourceJitterBuffer(
     private var stableArrivalsStartMs: Long = 0L
     private var lastTargetAdjustmentTimeMs: Long = 0L
 
+    private var lastWasSilence: Boolean = false
+    private var shortenedPrimeTarget: Int = 0
+
     val depthFrames: Int
         @Synchronized get() = queue.size
+
+    @Synchronized
+    fun isPrimed(): Boolean = primed
+
     val targetFrames: Int
-        get() = currentTargetFrames
-    @Volatile
-    var lastPlayoutDelayMs: Long = 0L
+        @Synchronized get() = currentTargetFrames
+
+    var lateDroppedCount = 0L
+        private set
+    var overflowDroppedCount = 0L
+        private set
+    var concealedCount = 0L
+        private set
+    var deliveredCount = 0L
         private set
 
-    var lastEnqueueTimeMs: Long = clock()
+    var lastPlayoutDelayMs = 0L
         private set
-    var lateDroppedCount: Long = 0L
-        private set
-    var overflowDroppedCount: Long = 0L
-        private set
-    var concealedCount: Long = 0L
-        private set
-    var deliveredCount: Long = 0L
+
+    var lastEnqueueTimeMs = 0L
         private set
 
     @Synchronized
@@ -116,6 +123,13 @@ class SourceJitterBuffer(
         }
         prevEnqueueTimeMs = nowMs
 
+        val isSilenceMarker = pcmBytes.size <= 2
+        if (!isSilenceMarker && lastWasSilence) {
+            primed = false
+            lastWasSilence = false
+            shortenedPrimeTarget = 2
+        }
+
         val diff = seqDiff(sequence, nextExpectedSeq, seqBits)
         if (primed && diff < 0) {
             lateDroppedCount++
@@ -145,22 +159,87 @@ class SourceJitterBuffer(
             }
         }
 
-        if (!primed && queue.size >= currentTargetFrames) {
+        val primeThreshold = if (shortenedPrimeTarget > 0) shortenedPrimeTarget else currentTargetFrames
+        if (!primed && queue.size >= primeThreshold) {
             primed = true
             nextExpectedSeq = queue.firstKey()
+            shortenedPrimeTarget = 0
         }
     }
 
-    private fun trimToTarget() {
-        while (queue.size > currentTargetFrames) {
-            val oldest = queue.firstKey()
-            queue.remove(oldest)
-            enqueueTimes.remove(oldest)
-            overflowDroppedCount++
-            if (primed && seqDiff(nextExpectedSeq, oldest, seqBits) <= 0) {
-                nextExpectedSeq = if (queue.isNotEmpty()) queue.firstKey() else oldest + 1
+    @Synchronized
+    fun pollFrame(): PlayoutFrame {
+        if (!primed) {
+            return PlayoutFrame.Buffering
+        }
+
+        val head = if (queue.isEmpty()) null else queue.firstKey()
+        if (head != null && head != nextExpectedSeq) {
+            val gap = seqDiff(head, nextExpectedSeq, seqBits)
+            if (gap >= maxOf(3, currentTargetFrames)) {
+                trimToTarget()
+                val newHead = if (queue.isEmpty()) head else queue.firstKey()
+                nextExpectedSeq = newHead
+                consecutiveMissing++
+                concealedCount++
+                val calculated = (Math.ceil((2.0 * jitterEmaMs) / 20.0).toInt() + 1).coerceIn(2, 6)
+                currentTargetFrames = maxOf(currentTargetFrames + 1, calculated).coerceIn(2, 6)
+                stableArrivalsStartMs = clock()
+                val concealed = synthesizePlcFrame(consecutiveMissing)
+                return PlayoutFrame.Concealed(newHead - 1, concealed, isMidTalkspurt = true)
             }
         }
+
+        val seq = nextExpectedSeq
+        val exact = queue.remove(seq)
+        if (exact != null) {
+            val enq = enqueueTimes.remove(seq)
+            if (enq != null) {
+                val d = (clock() - enq).coerceAtLeast(0L)
+                lastPlayoutDelayMs = if (lastPlayoutDelayMs == 0L) d else (0.9 * lastPlayoutDelayMs + 0.1 * d).toLong()
+            }
+            nextExpectedSeq = seq + 1
+            consecutiveMissing = 0
+            deliveredCount++
+            if (exact.size <= 2) {
+                lastWasSilence = true
+                return PlayoutFrame.Audio(seq, exact)
+            } else {
+                lastWasSilence = false
+                lastPlayedPcm = exact
+                maybeCatchUp()
+                return PlayoutFrame.Audio(seq, exact)
+            }
+        }
+
+        if (lastWasSilence) {
+            nextExpectedSeq = seq + 1
+            if (queue.isEmpty() && consecutiveMissing >= currentTargetFrames) {
+                primed = false
+            }
+            return PlayoutFrame.Buffering
+        }
+
+        if (queue.isEmpty() && consecutiveMissing >= currentTargetFrames) {
+            // Stream went idle; re-prime on next burst
+            primed = false
+            consecutiveMissing = 0
+            overTicks = 0
+            return PlayoutFrame.Buffering
+        }
+
+        // Missing packet inside active talkspurt:
+        val isMidTalkspurt = queue.isNotEmpty()
+        nextExpectedSeq = seq + 1
+        consecutiveMissing++
+        concealedCount++
+        if (isMidTalkspurt) {
+            val calculated = (Math.ceil((2.0 * jitterEmaMs) / 20.0).toInt() + 1).coerceIn(2, 6)
+            currentTargetFrames = maxOf(currentTargetFrames + 1, calculated).coerceIn(2, 6)
+            stableArrivalsStartMs = clock()
+        }
+        val concealed = synthesizePlcFrame(consecutiveMissing)
+        return PlayoutFrame.Concealed(seq, concealed, isMidTalkspurt = isMidTalkspurt)
     }
 
     private fun maybeCatchUp() {
@@ -186,105 +265,43 @@ class SourceJitterBuffer(
         }
     }
 
-    /**
-     * Pulls the next 20ms frame in sequence order.
-     */
-    @Synchronized
-    fun pollFrame(): PlayoutFrame {
-        if (!primed) {
-            return PlayoutFrame.Buffering
-        }
-
-        val head = if (queue.isEmpty()) null else queue.firstKey()
-        if (head != null && head != nextExpectedSeq) {
-            val gap = seqDiff(head, nextExpectedSeq, seqBits)
-            if (gap >= maxOf(3, currentTargetFrames)) {
-                // long hole: do not conceal tick by tick!
-                trimToTarget()
-                val newHead = if (queue.isEmpty()) head else queue.firstKey()
-                nextExpectedSeq = newHead
-                consecutiveMissing++
-                concealedCount++
-                val calculated = (Math.ceil((2.0 * jitterEmaMs) / 20.0).toInt() + 1).coerceIn(2, 6)
-                currentTargetFrames = maxOf(currentTargetFrames + 1, calculated).coerceIn(2, 6)
-                stableArrivalsStartMs = clock()
-                val concealed = synthesizePlcFrame(consecutiveMissing)
-                return PlayoutFrame.Concealed(newHead - 1, concealed, isMidTalkspurt = true)
+    private fun trimToTarget() {
+        while (queue.size > currentTargetFrames) {
+            val oldest = queue.firstKey()
+            queue.remove(oldest)
+            enqueueTimes.remove(oldest)
+            overflowDroppedCount++
+            if (primed && seqDiff(nextExpectedSeq, oldest, seqBits) <= 0) {
+                nextExpectedSeq = if (queue.isNotEmpty()) queue.firstKey() else oldest + 1
             }
         }
-
-        val seq = nextExpectedSeq
-        val exact = queue.remove(seq)
-        if (exact != null) {
-            val enq = enqueueTimes.remove(seq)
-            if (enq != null) {
-                val d = (clock() - enq).coerceAtLeast(0L)
-                lastPlayoutDelayMs = if (lastPlayoutDelayMs == 0L) d else (0.9 * lastPlayoutDelayMs + 0.1 * d).toLong()
-            }
-            nextExpectedSeq = seq + 1
-            consecutiveMissing = 0
-            lastPlayedPcm = exact
-            deliveredCount++
-            maybeCatchUp()
-            return PlayoutFrame.Audio(seq, exact)
-        }
-
-        if (queue.isEmpty() && consecutiveMissing >= currentTargetFrames) {
-            // Stream went idle; re-prime on next burst
-            primed = false
-            consecutiveMissing = 0
-            overTicks = 0
-            return PlayoutFrame.Buffering
-        }
-
-        // Missing packet detected
-        val isMidTalkspurt = queue.isNotEmpty()
-        nextExpectedSeq = seq + 1
-        consecutiveMissing++
-        concealedCount++
-        if (isMidTalkspurt) {
-            val calculated = (Math.ceil((2.0 * jitterEmaMs) / 20.0).toInt() + 1).coerceIn(2, 6)
-            currentTargetFrames = maxOf(currentTargetFrames + 1, calculated).coerceIn(2, 6)
-            stableArrivalsStartMs = clock()
-        }
-        if (isMidTalkspurt) {
-            val calculated = (Math.ceil((2.0 * jitterEmaMs) / 20.0).toInt() + 1).coerceIn(2, 6)
-            currentTargetFrames = maxOf(currentTargetFrames + 1, calculated).coerceIn(2, 6)
-            val nowMs = clock()
-            stableArrivalsStartMs = nowMs
-            lastTargetAdjustmentTimeMs = nowMs
-        }
-        val concealed = synthesizePlcFrame(consecutiveMissing)
-        return PlayoutFrame.Concealed(seq, concealed, isMidTalkspurt = isMidTalkspurt)
     }
 
     @Synchronized
-    fun isPrimed(): Boolean = primed
+    fun isExpired(nowMs: Long, timeoutMs: Long): Boolean =
+        lastEnqueueTimeMs > 0L && (nowMs - lastEnqueueTimeMs) > timeoutMs
 
-    private fun synthesizePlcFrame(missingStreak: Int): ByteArray {
+    fun synthesizePlcFrame(missingStreak: Int): ByteArray {
         val prev = lastPlayedPcm
-        // For the first 2 missing frames (40ms), attenuate the last good frame; beyond that, insert silence.
-        if (prev == null || missingStreak > 2) {
+        if (prev == null || prev.size < frameBytes || missingStreak > 2) {
             return ByteArray(frameBytes)
         }
         val factor = if (missingStreak == 1) 0.6f else 0.25f
         val out = ByteArray(frameBytes)
-        val inBuf = ByteBuffer.wrap(prev).order(ByteOrder.LITTLE_ENDIAN)
-        val outBuf = ByteBuffer.wrap(out).order(ByteOrder.LITTLE_ENDIAN)
         val samples = frameBytes / 2
         for (i in 0 until samples) {
-            val s = (inBuf.short * factor).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-            outBuf.putShort(s)
+            val low = prev[i * 2].toInt() and 0xFF
+            val high = prev[i * 2 + 1].toInt()
+            val sample = ((high shl 8) or low).toShort()
+            val attenuated = (sample * factor).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            out[i * 2] = (attenuated.toInt() and 0xFF).toByte()
+            out[i * 2 + 1] = ((attenuated.toInt() shr 8) and 0xFF).toByte()
         }
         return out
     }
 
-    private fun normalizeFrameSize(pcm: ByteArray): ByteArray {
-        return when {
-            pcm.size == frameBytes -> pcm.copyOf()
-            pcm.size > frameBytes -> pcm.copyOf(frameBytes)
-            else -> ByteArray(frameBytes).also { System.arraycopy(pcm, 0, it, 0, pcm.size) }
-        }
+    fun normalizeFrameSize(pcm: ByteArray): ByteArray {
+        return pcm.copyOf()
     }
 }
 
@@ -307,6 +324,9 @@ class MultiSourceJitterBufferManager(
     private val clock: () -> Long
 ) {
     private val buffers = LinkedHashMap<String, SourceJitterBuffer>()
+    private val decoders = HashMap<String, VoiceDecoder>()
+    private val sourceFormats = HashMap<String, Int>()
+
     private var cumulativeLateDropped = 0L
     private var cumulativeOverflowDropped = 0L
     private var cumulativeConcealed = 0L
@@ -348,9 +368,25 @@ class MultiSourceJitterBufferManager(
     }
 
     @Synchronized
-    fun onVoicePacket(sourceId: String, sequence: Int, pcmBytes: ByteArray, epoch: Int = 0) {
+    fun onVoicePacket(
+        sourceId: String,
+        sequence: Int,
+        pcmBytes: ByteArray,
+        epoch: Int = 0,
+        audioFormat: Int = AudioFormatId.PCM16_16K_MONO
+    ) {
         val existing = buffers[sourceId]
-        val buf = if (existing == null || existing.epoch != epoch) {
+        val currentFormat = sourceFormats[sourceId]
+        val buf = if (existing == null || existing.epoch != epoch || currentFormat != audioFormat) {
+            decoders.remove(sourceId)?.release()
+            val newDecoder = if (audioFormat == AudioFormatId.OPUS_16K_MONO_20MS) {
+                OpusVoiceDecoder()
+            } else {
+                PcmVoiceDecoder()
+            }
+            decoders[sourceId] = newDecoder
+            sourceFormats[sourceId] = audioFormat
+
             val fresh = SourceJitterBuffer(
                 sourceId = sourceId,
                 targetDelayFrames = targetDelayFrames,
@@ -366,11 +402,40 @@ class MultiSourceJitterBufferManager(
         buf.enqueue(sequence, pcmBytes)
     }
 
-    /**
-     * Pulls one frame from each active source, mixes them into a single 20ms PCM16 frame,
-     * and returns the mixed audio plus the set of sources that contributed audio in this tick.
-     * Also evicts timed-out source buffers.
-     */
+    @Synchronized
+    fun resetSource(sourceId: String) {
+        val buf = buffers.remove(sourceId)
+        if (buf != null) {
+            cumulativeLateDropped += buf.lateDroppedCount
+            cumulativeOverflowDropped += buf.overflowDroppedCount
+            cumulativeConcealed += buf.concealedCount
+        }
+        decoders.remove(sourceId)?.release()
+        sourceFormats.remove(sourceId)
+    }
+
+    @Synchronized
+    fun resetAll() = clear()
+
+    @Synchronized
+    fun clear() {
+        for (buf in buffers.values) {
+            cumulativeLateDropped += buf.lateDroppedCount
+            cumulativeOverflowDropped += buf.overflowDroppedCount
+            cumulativeConcealed += buf.concealedCount
+        }
+        buffers.clear()
+        decoders.values.forEach { it.release() }
+        decoders.clear()
+        sourceFormats.clear()
+    }
+
+    @Synchronized
+    fun activeSourceIds(): Set<String> {
+        evictExpiredSources()
+        return buffers.keys.toSet()
+    }
+
     @Synchronized
     fun pollMixedFrame(): Pair<ByteArray?, Set<String>> {
         evictExpiredSources()
@@ -386,17 +451,28 @@ class MultiSourceJitterBufferManager(
         for ((sourceId, buffer) in buffers) {
             when (val frame = buffer.pollFrame()) {
                 is PlayoutFrame.Audio -> {
-                    framesWithWeight.add(Pair(frame.pcmBytes, 1.0f))
-                    activeContributingSpeakers.add(sourceId)
-                    hasRealAudio = true
+                    if (frame.pcmBytes.size <= 2) {
+                        // Silence marker, does not contribute to audio or active speakers
+                    } else {
+                        val decoder = decoders.getOrPut(sourceId) {
+                            if (sourceFormats[sourceId] == AudioFormatId.OPUS_16K_MONO_20MS) OpusVoiceDecoder() else PcmVoiceDecoder()
+                        }
+                        val decoded = decoder.decode(frame.pcmBytes)
+                        framesWithWeight.add(Pair(decoded, 1.0f))
+                        activeContributingSpeakers.add(sourceId)
+                        hasRealAudio = true
+                    }
                 }
                 is PlayoutFrame.Concealed -> {
                     if (frame.isMidTalkspurt) {
                         anyMidTalkspurt = true
                     }
-                    // Concealed frames are de-weighted if another stream has real audio
+                    val decoder = decoders.getOrPut(sourceId) {
+                        if (sourceFormats[sourceId] == AudioFormatId.OPUS_16K_MONO_20MS) OpusVoiceDecoder() else PcmVoiceDecoder()
+                    }
+                    val decoded = decoder.decode(null)
                     val weight = if (hasRealAudio) 0.25f else 1.0f
-                    framesWithWeight.add(Pair(frame.pcmBytes, weight))
+                    framesWithWeight.add(Pair(decoded, weight))
                 }
                 is PlayoutFrame.Buffering -> {
                     // Still buffering initial delay or idle
@@ -405,7 +481,6 @@ class MultiSourceJitterBufferManager(
         }
         lastHadMidTalkspurtConcealment = anyMidTalkspurt
 
-        // If real audio was found, adjust any earlier concealed frames to 0.25f
         if (hasRealAudio) {
             for (i in framesWithWeight.indices) {
                 if (framesWithWeight[i].second == 1.0f && !activeContributingSpeakers.contains(buffers.keys.elementAtOrNull(i))) {
@@ -421,22 +496,6 @@ class MultiSourceJitterBufferManager(
         }
     }
 
-    @Synchronized
-    fun activeSourceIds(): Set<String> {
-        evictExpiredSources()
-        return buffers.keys.toSet()
-    }
-
-    @Synchronized
-    fun clear() {
-        for (buf in buffers.values) {
-            cumulativeLateDropped += buf.lateDroppedCount
-            cumulativeOverflowDropped += buf.overflowDroppedCount
-            cumulativeConcealed += buf.concealedCount
-        }
-        buffers.clear()
-    }
-
     private fun evictExpiredSources() {
         val now = clock()
         val it = buffers.entries.iterator()
@@ -446,6 +505,8 @@ class MultiSourceJitterBufferManager(
                 cumulativeLateDropped += entry.value.lateDroppedCount
                 cumulativeOverflowDropped += entry.value.overflowDroppedCount
                 cumulativeConcealed += entry.value.concealedCount
+                decoders.remove(entry.key)?.release()
+                sourceFormats.remove(entry.key)
                 it.remove()
             }
         }

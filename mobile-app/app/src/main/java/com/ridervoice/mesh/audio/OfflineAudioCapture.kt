@@ -84,6 +84,7 @@ class OfflineAudioCapture(
     private var audioRecordSource: AudioRecordSource? = null
     var frameGate: ((ByteArray) -> Boolean)? = null
     var onFrameWithTimestamp: ((ByteArray, Long) -> Unit)? = null
+    var onGatedFrame: ((ByteArray, Long) -> Unit)? = null
 
     // Audio effects handles
     private var aec: AcousticEchoCanceler? = null
@@ -209,13 +210,18 @@ class OfflineAudioCapture(
                         onHardwareBusy()
                         break
                     }
-                    if (offset == frameBuf.size && micEnabled && (frameGate?.invoke(frameBuf) ?: true)) {
+                    if (offset == frameBuf.size && micEnabled) {
+                        val allowed = frameGate?.invoke(frameBuf) ?: true
                         val nanos = runCatching { android.os.SystemClock.elapsedRealtimeNanos() }.getOrNull()?.takeIf { it != 0L } ?: System.nanoTime()
-                        val cb = onFrameWithTimestamp
-                        if (cb != null) {
-                            cb(frameBuf.copyOf(), nanos)
+                        if (allowed) {
+                            val cb = onFrameWithTimestamp
+                            if (cb != null) {
+                                cb(frameBuf.copyOf(), nanos)
+                            } else {
+                                onPcmFrame(frameBuf.copyOf())
+                            }
                         } else {
-                            onPcmFrame(frameBuf.copyOf())
+                            onGatedFrame?.invoke(frameBuf.copyOf(), nanos)
                         }
                     }
                 }

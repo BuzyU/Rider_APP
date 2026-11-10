@@ -10,6 +10,7 @@ import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshFrame
 import com.ridervoice.mesh.link.MeshLink
 import com.ridervoice.mesh.link.MeshLinkState
+import com.ridervoice.mesh.protocol.AudioFormatId
 import com.ridervoice.mesh.protocol.DuplicatePacketCache
 import com.ridervoice.mesh.protocol.MeshPacket
 import com.ridervoice.mesh.routing.RouteCalculator
@@ -42,7 +43,7 @@ class ScheduledDeliveryScenarioTest {
         val receivedPackets = ArrayList<MeshPacket>()
         val receivedSeqPairs = ArrayList<Pair<String, Int>>()
         val sessionManager = SessionManager(session, id) { net.now }
-        val graph = MeshGraphRepository(id, tag) { net.now }
+        val graph = MeshGraphRepository(id, tag) { net.now }.apply { selfSupportedFormatsProvider = { AudioFormatId.BITMASK_PCM } }
         val routingTable = RoutingTable()
         val dupCache = DuplicatePacketCache(clock = { net.now })
         val ttlPolicy = TtlPolicy(clock = { net.now })
@@ -74,7 +75,7 @@ class ScheduledDeliveryScenarioTest {
                 receivedSeqPairs.add(pkt.sourceId to pkt.sequence)
                 jitterBuffer.onVoicePacket(pkt.sourceId, pkt.sequence, ByteArray(MeshConfig.BYTES_PER_FRAME))
             }
-        )
+        ).apply { selfSupportedFormatsProvider = { AudioFormatId.BITMASK_PCM } }
 
         init {
             net.engines[tag] = engine

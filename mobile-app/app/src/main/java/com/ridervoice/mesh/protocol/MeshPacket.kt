@@ -41,20 +41,39 @@ data class MeshPacket(
     val sessionHi: Long = 0L,
     val sessionLo: Long = 0L,
     val sourceHi: Long = 0L,
-    val sourceLo: Long = 0L
+    val sourceLo: Long = 0L,
+    val prevHopHi: Long = 0L,
+    val prevHopLo: Long = 0L
 ) {
+    val effectiveSessionHi: Long
+        get() = if (sessionHi != 0L || sessionLo != 0L) sessionHi else MeshPacketCodec.uuidParts(sessionId).first
+    val effectiveSessionLo: Long
+        get() = if (sessionHi != 0L || sessionLo != 0L) sessionLo else MeshPacketCodec.uuidParts(sessionId).second
+
+    val effectiveSourceHi: Long
+        get() = if (sourceHi != 0L || sourceLo != 0L) sourceHi else MeshPacketCodec.uuidParts(sourceId).first
+    val effectiveSourceLo: Long
+        get() = if (sourceHi != 0L || sourceLo != 0L) sourceLo else MeshPacketCodec.uuidParts(sourceId).second
+
+    val effectivePrevHopHi: Long
+        get() = if (prevHopHi != 0L || prevHopLo != 0L) prevHopHi else MeshPacketCodec.uuidParts(previousHopId).first
+    val effectivePrevHopLo: Long
+        get() = if (prevHopHi != 0L || prevHopLo != 0L) prevHopLo else MeshPacketCodec.uuidParts(previousHopId).second
+
     val packetIds: PacketIds
-        get() = if (sessionHi != 0L || sessionLo != 0L || sourceHi != 0L || sourceLo != 0L) {
-            PacketIds(sessionHi, sessionLo, sourceHi, sourceLo)
-        } else {
-            val (sHi, sLo) = MeshPacketCodec.uuidParts(sessionId)
-            val (oHi, oLo) = MeshPacketCodec.uuidParts(sourceId)
-            PacketIds(sHi, sLo, oHi, oLo)
-        }
+        get() = PacketIds(effectiveSessionHi, effectiveSessionLo, effectiveSourceHi, effectiveSourceLo)
 
     /** Copy prepared for relaying by [selfId]; source, sequence, epoch and timestamp are preserved. */
-    fun forwardedBy(selfId: String): MeshPacket =
-        copy(ttl = ttl - 1, hopCount = hopCount + 1, previousHopId = selfId)
+    fun forwardedBy(selfId: String, selfHi: Long = 0L, selfLo: Long = 0L): MeshPacket {
+        val (pHi, pLo) = if (selfHi != 0L || selfLo != 0L) Pair(selfHi, selfLo) else MeshPacketCodec.uuidParts(selfId)
+        return copy(
+            ttl = ttl - 1,
+            hopCount = hopCount + 1,
+            previousHopId = selfId,
+            prevHopHi = pHi,
+            prevHopLo = pLo
+        )
+    }
 
     override fun equals(other: Any?): Boolean =
         other is MeshPacket && type == other.type && sessionId == other.sessionId &&
@@ -89,17 +108,37 @@ object MeshPacketCodec {
     const val TAG_LEN = 16
     const val HEADER_LEN = 4 + 1 + 1 + 16 + 16 + 4 + 8 + 1 + 1 + 16 + 1 + 4 + 2 // 75 bytes
 
+    private val macThreadLocal: ThreadLocal<Mac> = ThreadLocal.withInitial { Mac.getInstance("HmacSHA256") }
+
+    fun computeTag(data: ByteArray, offset: Int, length: Int, key: ByteArray): ByteArray {
+        val mac = macThreadLocal.get()!!
+        mac.init(SecretKeySpec(key, "HmacSHA256"))
+        mac.update(data, offset, length)
+        return mac.doFinal().copyOf(TAG_LEN)
+    }
+
+    fun computeTag(data: ByteArray, offset: Int, length: Int, keySpec: SecretKeySpec): ByteArray {
+        val mac = macThreadLocal.get()!!
+        mac.init(keySpec)
+        mac.update(data, offset, length)
+        return mac.doFinal().copyOf(TAG_LEN)
+    }
+
+    fun tag(body: ByteArray, key: ByteArray): ByteArray = computeTag(body, 0, body.size, key)
+
     fun encode(p: MeshPacket, key: ByteArray): ByteArray {
         require(p.payload.size <= MeshConfig.MAX_PAYLOAD_BYTES) { "payload too large" }
         require(p.ttl in 0..255 && p.hopCount in 0..255) { "ttl/hop out of range" }
         val buf = ByteBuffer.allocate(HEADER_LEN + p.payload.size + TAG_LEN).order(ByteOrder.BIG_ENDIAN)
         buf.putInt(MAGIC).put(VERSION.toByte()).put(p.type.code.toByte())
-        buf.put(uuidBytes(p.sessionId)).put(uuidBytes(p.sourceId))
+        buf.putLong(p.effectiveSessionHi).putLong(p.effectiveSessionLo)
+        buf.putLong(p.effectiveSourceHi).putLong(p.effectiveSourceLo)
         buf.putInt(p.sequence).putLong(p.captureTimestamp)
-        buf.put(p.ttl.toByte()).put(p.hopCount.toByte()).put(uuidBytes(p.previousHopId))
+        buf.put(p.ttl.toByte()).put(p.hopCount.toByte())
+        buf.putLong(p.effectivePrevHopHi).putLong(p.effectivePrevHopLo)
         buf.put(p.audioFormat.toByte()).putInt(p.epoch).putShort(p.payload.size.toShort()).put(p.payload)
-        val body = buf.array().copyOf(HEADER_LEN + p.payload.size)
-        buf.put(tag(body, key))
+        val tagBytes = computeTag(buf.array(), 0, HEADER_LEN + p.payload.size, key)
+        buf.put(tagBytes)
         return buf.array()
     }
 
@@ -109,33 +148,36 @@ object MeshPacketCodec {
             return DecodeResult.Invalid(DecodeResult.Reason.BAD_LENGTH)
         return try {
             val buf = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN)
-        if (buf.int != MAGIC) return DecodeResult.Invalid(DecodeResult.Reason.BAD_MAGIC)
-        if ((buf.get().toInt() and 0xFF) != VERSION) return DecodeResult.Invalid(DecodeResult.Reason.BAD_VERSION)
-        val type = MeshPacketType.fromCode(buf.get().toInt() and 0xFF)
-            ?: return DecodeResult.Invalid(DecodeResult.Reason.BAD_TYPE)
-        val sHi = buf.long
-        val sLo = buf.long
-        val session = UUID(sHi, sLo).toString()
-        val oHi = buf.long
-        val oLo = buf.long
-        val source = UUID(oHi, oLo).toString()
-        val seq = buf.int
-        val ts = buf.long
-        val ttl = buf.get().toInt() and 0xFF
-        val hop = buf.get().toInt() and 0xFF
-        val prev = readUuid(buf)
-        val format = buf.get().toInt() and 0xFF
-        val epoch = buf.int
-        val len = buf.short.toInt() and 0xFFFF
-        if (len > MeshConfig.MAX_PAYLOAD_BYTES || data.size != HEADER_LEN + len + TAG_LEN)
-            return DecodeResult.Invalid(DecodeResult.Reason.BAD_LENGTH)
-        // Verify the tag before trusting any content.
-        val body = data.copyOf(HEADER_LEN + len)
-        val got = data.copyOfRange(HEADER_LEN + len, data.size)
-        if (!constantTimeEquals(tag(body, key), got)) return DecodeResult.Invalid(DecodeResult.Reason.BAD_TAG)
-        if (type == MeshPacketType.VOICE && format != AudioFormatId.PCM16_16K_MONO)
-            return DecodeResult.Invalid(DecodeResult.Reason.BAD_FORMAT)
-        val payload = ByteArray(len).also { System.arraycopy(data, HEADER_LEN, it, 0, len) }
+            if (buf.int != MAGIC) return DecodeResult.Invalid(DecodeResult.Reason.BAD_MAGIC)
+            if ((buf.get().toInt() and 0xFF) != VERSION) return DecodeResult.Invalid(DecodeResult.Reason.BAD_VERSION)
+            val type = MeshPacketType.fromCode(buf.get().toInt() and 0xFF)
+                ?: return DecodeResult.Invalid(DecodeResult.Reason.BAD_TYPE)
+            val sHi = buf.long
+            val sLo = buf.long
+            val session = UUID(sHi, sLo).toString()
+            val oHi = buf.long
+            val oLo = buf.long
+            val source = UUID(oHi, oLo).toString()
+            val seq = buf.int
+            val ts = buf.long
+            val ttl = buf.get().toInt() and 0xFF
+            val hop = buf.get().toInt() and 0xFF
+            val pHi = buf.long
+            val pLo = buf.long
+            val prev = UUID(pHi, pLo).toString()
+            val format = buf.get().toInt() and 0xFF
+            val epoch = buf.int
+            val len = buf.short.toInt() and 0xFFFF
+            if (len > MeshConfig.MAX_PAYLOAD_BYTES || data.size != HEADER_LEN + len + TAG_LEN)
+                return DecodeResult.Invalid(DecodeResult.Reason.BAD_LENGTH)
+            // Verify the tag before trusting any content without copying arrays
+            val expectedTag = computeTag(data, 0, HEADER_LEN + len, key)
+            if (!constantTimeEquals(expectedTag, data, HEADER_LEN + len, TAG_LEN)) {
+                return DecodeResult.Invalid(DecodeResult.Reason.BAD_TAG)
+            }
+            if (type == MeshPacketType.VOICE && format != AudioFormatId.PCM16_16K_MONO)
+                return DecodeResult.Invalid(DecodeResult.Reason.BAD_FORMAT)
+            val payload = ByteArray(len).also { System.arraycopy(data, HEADER_LEN, it, 0, len) }
             DecodeResult.Ok(
                 MeshPacket(
                     type = type,
@@ -152,7 +194,9 @@ object MeshPacketCodec {
                     sessionHi = sHi,
                     sessionLo = sLo,
                     sourceHi = oHi,
-                    sourceLo = oLo
+                    sourceLo = oLo,
+                    prevHopHi = pHi,
+                    prevHopLo = pLo
                 )
             )
         } catch (e: Exception) {
@@ -160,19 +204,13 @@ object MeshPacketCodec {
         }
     }
 
-    private fun constantTimeEquals(a: ByteArray, b: ByteArray): Boolean {
-        if (a.size != b.size) return false
+    private fun constantTimeEquals(expected: ByteArray, data: ByteArray, offset: Int, len: Int): Boolean {
+        if (expected.size != len || data.size < offset + len) return false
         var result = 0
-        for (i in a.indices) {
-            result = result or (a[i].toInt() xor b[i].toInt())
+        for (i in 0 until len) {
+            result = result or (expected[i].toInt() xor data[offset + i].toInt())
         }
         return result == 0
-    }
-
-    private fun tag(body: ByteArray, key: ByteArray): ByteArray {
-        val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(key, "HmacSHA256"))
-        return mac.doFinal(body).copyOf(TAG_LEN)
     }
 
     fun uuidParts(id: String): Pair<Long, Long> {

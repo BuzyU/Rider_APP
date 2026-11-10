@@ -17,8 +17,14 @@ object PayloadCrypto {
     const val TAG_LEN = 16
     const val NONCE_LEN = 12
 
-    private fun hmac(salt: ByteArray, data: ByteArray): ByteArray =
-        javax.crypto.Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(salt, "HmacSHA256")) }.doFinal(data)
+    private val cipherThreadLocal: ThreadLocal<Cipher> = ThreadLocal.withInitial { Cipher.getInstance("AES/GCM/NoPadding") }
+    private val hmacThreadLocal: ThreadLocal<javax.crypto.Mac> = ThreadLocal.withInitial { javax.crypto.Mac.getInstance("HmacSHA256") }
+
+    private fun hmac(salt: ByteArray, data: ByteArray): ByteArray {
+        val mac = hmacThreadLocal.get()!!
+        mac.init(SecretKeySpec(salt, "HmacSHA256"))
+        return mac.doFinal(data)
+    }
 
     /**
      * Derives a dedicated 32-byte AES payload subkey for a specific audio/control source using HKDF (RFC 5869).
@@ -87,9 +93,33 @@ object PayloadCrypto {
         sequence: Int,
         captureTimestamp: Long,
         audioFormat: Int
+    ): ByteArray = aad(
+        sessionHi = MeshPacketCodec.uuidParts(sessionId).first,
+        sessionLo = MeshPacketCodec.uuidParts(sessionId).second,
+        sourceHi = MeshPacketCodec.uuidParts(sourceId).first,
+        sourceLo = MeshPacketCodec.uuidParts(sourceId).second,
+        typeCode = typeCode,
+        epoch = epoch,
+        sequence = sequence,
+        captureTimestamp = captureTimestamp,
+        audioFormat = audioFormat
+    )
+
+    fun aad(
+        sessionHi: Long,
+        sessionLo: Long,
+        sourceHi: Long,
+        sourceLo: Long,
+        typeCode: Int,
+        epoch: Int,
+        sequence: Int,
+        captureTimestamp: Long,
+        audioFormat: Int
     ): ByteArray = ByteBuffer.allocate(16 + 16 + 1 + 4 + 4 + 8 + 1).order(ByteOrder.BIG_ENDIAN)
-        .put(MeshPacketCodec.uuidBytes(sessionId))
-        .put(MeshPacketCodec.uuidBytes(sourceId))
+        .putLong(sessionHi)
+        .putLong(sessionLo)
+        .putLong(sourceHi)
+        .putLong(sourceLo)
         .put(typeCode.toByte())
         .putInt(epoch)
         .putInt(sequence)
@@ -97,11 +127,11 @@ object PayloadCrypto {
         .put(audioFormat.toByte())
         .array()
 
-    fun seal(key: ByteArray, nonce: ByteArray, aad: ByteArray, plain: ByteArray): ByteArray {
-        val c = Cipher.getInstance("AES/GCM/NoPadding")
+    fun seal(keySpec: SecretKeySpec, nonce: ByteArray, aad: ByteArray, plain: ByteArray): ByteArray {
+        val c = cipherThreadLocal.get()!!
         c.init(
             Cipher.ENCRYPT_MODE,
-            SecretKeySpec(key, "AES"),
+            keySpec,
             GCMParameterSpec(128, nonce)
         )
         if (aad.isNotEmpty()) {
@@ -110,11 +140,14 @@ object PayloadCrypto {
         return c.doFinal(plain)
     }
 
-    fun open(key: ByteArray, nonce: ByteArray, aad: ByteArray, sealed: ByteArray): ByteArray? = try {
-        val c = Cipher.getInstance("AES/GCM/NoPadding")
+    fun seal(key: ByteArray, nonce: ByteArray, aad: ByteArray, plain: ByteArray): ByteArray =
+        seal(SecretKeySpec(key, "AES"), nonce, aad, plain)
+
+    fun open(keySpec: SecretKeySpec, nonce: ByteArray, aad: ByteArray, sealed: ByteArray): ByteArray? = try {
+        val c = cipherThreadLocal.get()!!
         c.init(
             Cipher.DECRYPT_MODE,
-            SecretKeySpec(key, "AES"),
+            keySpec,
             GCMParameterSpec(128, nonce)
         )
         if (aad.isNotEmpty()) {
@@ -124,4 +157,7 @@ object PayloadCrypto {
     } catch (e: GeneralSecurityException) {
         null
     }
+
+    fun open(key: ByteArray, nonce: ByteArray, aad: ByteArray, sealed: ByteArray): ByteArray? =
+        open(SecretKeySpec(key, "AES"), nonce, aad, sealed)
 }

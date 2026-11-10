@@ -82,10 +82,10 @@ class ForwardingEngine(
     private val sParts = MeshPacketCodec.uuidParts(sessionId)
     private val selfParts = MeshPacketCodec.uuidParts(selfId)
     private val localPacketIds = PacketIds(sParts.first, sParts.second, selfParts.first, selfParts.second)
-    private val sourceKeyCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
+    private val sourceKeyCache = java.util.concurrent.ConcurrentHashMap<String, javax.crypto.spec.SecretKeySpec>()
 
-    private fun getSourcePayloadKey(srcId: String): ByteArray =
-        sourceKeyCache.computeIfAbsent(srcId) { PayloadCrypto.sourceKey(payloadKey, it) }
+    private fun getSourcePayloadKey(srcId: String): javax.crypto.spec.SecretKeySpec =
+        sourceKeyCache.computeIfAbsent(srcId) { javax.crypto.spec.SecretKeySpec(PayloadCrypto.sourceKey(payloadKey, it), "AES") }
 
     companion object {
         const val DIRECT_HELLO_KIND = 100
@@ -157,8 +157,10 @@ class ForwardingEngine(
         if (sessionManager.session.isExpired(now)) return null
         val seq = voiceSeqGen.incrementAndGet()
         val aad = PayloadCrypto.aad(
-            sessionId = sessionId,
-            sourceId = selfId,
+            sessionHi = sParts.first,
+            sessionLo = sParts.second,
+            sourceHi = selfParts.first,
+            sourceLo = selfParts.second,
             typeCode = MeshPacketType.VOICE.code,
             epoch = localEpoch,
             sequence = seq,
@@ -183,7 +185,9 @@ class ForwardingEngine(
             sessionHi = sParts.first,
             sessionLo = sParts.second,
             sourceHi = selfParts.first,
-            sourceLo = selfParts.second
+            sourceLo = selfParts.second,
+            prevHopHi = selfParts.first,
+            prevHopLo = selfParts.second
         )
         duplicateCache.markIfNew(localPacketIds, epoch = localEpoch, kind = dedupKind(packet), seq = seq)
         val wire = MeshPacketCodec.encode(packet, authKey)
@@ -236,8 +240,10 @@ class ForwardingEngine(
         )
         val plainHello = HelloCodec.encode(hello)
         val aad = PayloadCrypto.aad(
-            sessionId = sessionId,
-            sourceId = selfId,
+            sessionHi = sParts.first,
+            sessionLo = sParts.second,
+            sourceHi = selfParts.first,
+            sourceLo = selfParts.second,
             typeCode = MeshPacketType.HELLO.code,
             epoch = localEpoch,
             sequence = seq,
@@ -262,7 +268,9 @@ class ForwardingEngine(
             sessionHi = sParts.first,
             sessionLo = sParts.second,
             sourceHi = selfParts.first,
-            sourceLo = selfParts.second
+            sourceLo = selfParts.second,
+            prevHopHi = selfParts.first,
+            prevHopLo = selfParts.second
         )
         duplicateCache.markIfNew(localPacketIds, epoch = localEpoch, kind = dedupKind(packet), seq = seq)
         val wire = MeshPacketCodec.encode(packet, authKey)
@@ -283,8 +291,10 @@ class ForwardingEngine(
         val now = clock()
         val seq = controlSeqGen.incrementAndGet()
         val aad = PayloadCrypto.aad(
-            sessionId = sessionId,
-            sourceId = selfId,
+            sessionHi = sParts.first,
+            sessionLo = sParts.second,
+            sourceHi = selfParts.first,
+            sourceLo = selfParts.second,
             typeCode = MeshPacketType.BYE.code,
             epoch = localEpoch,
             sequence = seq,
@@ -309,7 +319,9 @@ class ForwardingEngine(
             sessionHi = sParts.first,
             sessionLo = sParts.second,
             sourceHi = selfParts.first,
-            sourceLo = selfParts.second
+            sourceLo = selfParts.second,
+            prevHopHi = selfParts.first,
+            prevHopLo = selfParts.second
         )
         duplicateCache.markIfNew(localPacketIds, epoch = localEpoch, kind = dedupKind(packet), seq = seq)
         val wire = MeshPacketCodec.encode(packet, authKey)
@@ -435,8 +447,10 @@ class ForwardingEngine(
 
         // 12. Local delivery: Decrypt payload and dispatch locally
         val aad = PayloadCrypto.aad(
-            sessionId = decoded.sessionId,
-            sourceId = decoded.sourceId,
+            sessionHi = decoded.effectiveSessionHi,
+            sessionLo = decoded.effectiveSessionLo,
+            sourceHi = decoded.effectiveSourceHi,
+            sourceLo = decoded.effectiveSourceLo,
             typeCode = decoded.type.code,
             epoch = decoded.epoch,
             sequence = decoded.sequence,
@@ -525,7 +539,7 @@ class ForwardingEngine(
         if (ttlPolicy.canForwardAfterReceive(decoded.ttl) &&
             ttlPolicy.tryConsumeForwardBudget(decoded.sourceId)
         ) {
-            val forwardedPacket = decoded.forwardedBy(selfId) // preserves originalSourceDeviceId and epoch
+            val forwardedPacket = decoded.forwardedBy(selfId, selfParts.first, selfParts.second) // preserves originalSourceDeviceId and epoch
             val wire = MeshPacketCodec.encode(forwardedPacket, authKey)
 
             val candidateNeighbors = selectForwardNeighbors(
@@ -588,7 +602,7 @@ class ForwardingEngine(
         authKey.fill(0)
         payloadKey.fill(0)
         for (k in sourceKeyCache.values) {
-            k.fill(0)
+            try { k.encoded.fill(0) } catch (_: Exception) {}
         }
         sourceKeyCache.clear()
     }

@@ -20,6 +20,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 
+fun calculateAudioTrackBufferSize(minBuf: Int): Int =
+    maxOf(minBuf, MeshConfig.BYTES_PER_FRAME * 2)
+
 interface AudioTrackSink {
     val state: Int
     val underrunCount: Int get() = 0
@@ -100,7 +103,7 @@ class OfflineAudioPlayback(
             if (minBuf <= 0) return false
 
             val track = try {
-                AudioTrack.Builder()
+                val builder = AudioTrack.Builder()
                     .setAudioAttributes(
                         AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
@@ -114,9 +117,13 @@ class OfflineAudioPlayback(
                             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                             .build()
                     )
-                    .setBufferSizeInBytes((minBuf * 2).coerceAtLeast(MeshConfig.BYTES_PER_FRAME * 4))
+                    .setBufferSizeInBytes(calculateAudioTrackBufferSize(minBuf))
                     .setTransferMode(AudioTrack.MODE_STREAM)
-                    .build()
+
+                if (android.os.Build.VERSION.SDK_INT >= 26) {
+                    builder.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+                }
+                builder.build()
             } catch (e: Exception) {
                 com.ridervoice.mesh.MeshLog.w("OfflineAudioPlayback", "AudioTrack creation failed: ${e.javaClass.simpleName}")
                 return false
@@ -144,6 +151,7 @@ class OfflineAudioPlayback(
             var nextTickNs = nanoClock()
             var lastTrackUnderrunCheckNs = 0L
             try {
+                sink.write(silenceBuf, 0, silenceBuf.size)
                 sink.play()
                 while (isActive && gateAllowed()) {
                     val isDeaf = deafened
@@ -174,8 +182,8 @@ class OfflineAudioPlayback(
                         trackUnderrunCount = sink.underrunCount.toLong()
                     }
                     val remainingNs = nextTickNs - nowNs
-                    if (remainingNs > 0L) {
-                        val delayMs = (remainingNs / 1_000_000L).coerceAtLeast(1L)
+                    if (remainingNs >= 1_000_000L) {
+                        val delayMs = remainingNs / 1_000_000L
                         delay(delayMs)
                     } else {
                         if (nowNs - nextTickNs > maxDriftNs) {

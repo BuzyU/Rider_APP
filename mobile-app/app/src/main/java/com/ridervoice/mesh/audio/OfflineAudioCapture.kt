@@ -23,6 +23,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+fun calculateAudioRecordBufferSize(minBuf: Int): Int =
+    maxOf(minBuf, MeshConfig.BYTES_PER_FRAME * 4)
+
 interface AudioRecordSource {
     val state: Int
     val audioSessionId: Int
@@ -114,13 +117,27 @@ class OfflineAudioCapture(
             if (minBuf <= 0) return CaptureStart.HardwareFailed
 
             val rec = try {
-                AudioRecord(
-                    MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-                    MeshConfig.SAMPLE_RATE,
-                    AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT,
-                    (minBuf * 2).coerceAtLeast(MeshConfig.BYTES_PER_FRAME * 4)
-                )
+                if (android.os.Build.VERSION.SDK_INT >= 23) {
+                    AudioRecord.Builder()
+                        .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+                        .setAudioFormat(
+                            AudioFormat.Builder()
+                                .setSampleRate(MeshConfig.SAMPLE_RATE)
+                                .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                                .build()
+                        )
+                        .setBufferSizeInBytes(calculateAudioRecordBufferSize(minBuf))
+                        .build()
+                } else {
+                    AudioRecord(
+                        MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                        MeshConfig.SAMPLE_RATE,
+                        AudioFormat.CHANNEL_IN_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT,
+                        calculateAudioRecordBufferSize(minBuf)
+                    )
+                }
             } catch (e: Exception) {
                 com.ridervoice.mesh.MeshLog.w("OfflineAudioCapture", "AudioRecord creation failed: ${e.javaClass.simpleName}")
                 onCaptureError("AudioRecord creation failed: ${e.message}")
@@ -133,15 +150,17 @@ class OfflineAudioCapture(
                 return CaptureStart.HardwareFailed
             }
 
-            runCatching {
-                if (AcousticEchoCanceler.isAvailable()) {
-                    aec = AcousticEchoCanceler.create(rec.audioSessionId)?.apply { enabled = true }
-                }
-                if (NoiseSuppressor.isAvailable()) {
-                    ns = NoiseSuppressor.create(rec.audioSessionId)?.apply { enabled = true }
-                }
-                if (AutomaticGainControl.isAvailable()) {
-                    agc = AutomaticGainControl.create(rec.audioSessionId)?.apply { enabled = true }
+            if (MeshConfig.USE_PLATFORM_EFFECTS_ON_VOICE_COMM_SOURCE) {
+                runCatching {
+                    if (AcousticEchoCanceler.isAvailable()) {
+                        aec = AcousticEchoCanceler.create(rec.audioSessionId)?.apply { enabled = true }
+                    }
+                    if (NoiseSuppressor.isAvailable()) {
+                        ns = NoiseSuppressor.create(rec.audioSessionId)?.apply { enabled = true }
+                    }
+                    if (AutomaticGainControl.isAvailable()) {
+                        agc = AutomaticGainControl.create(rec.audioSessionId)?.apply { enabled = true }
+                    }
                 }
             }
             AndroidAudioRecordSource(rec)

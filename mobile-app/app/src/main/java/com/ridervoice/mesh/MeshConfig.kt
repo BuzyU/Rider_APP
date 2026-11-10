@@ -41,6 +41,12 @@ object MeshConfig {
     const val ENCRYPTED_VOICE_PAYLOAD_BYTES = BYTES_PER_FRAME + GCM_TAG_BYTES // 656
     const val MAX_VOICE_DATAGRAM_BYTES = 800
 
+    /**
+     * Whether to attach platform AcousticEchoCanceler, NoiseSuppressor, and AutomaticGainControl
+     * when using MediaRecorder.AudioSource.VOICE_COMMUNICATION. Default true until hardware A/B test.
+     */
+    const val USE_PLATFORM_EFFECTS_ON_VOICE_COMM_SOURCE = true
+
     const val SESSION_LIFETIME_MS = 8L * 60 * 60 * 1000
 
 }

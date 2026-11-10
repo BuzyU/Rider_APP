@@ -55,6 +55,7 @@ class MeshGraphRepository(
     private val reports = HashMap<String, Report>()
     private var version = 0L
 
+    val graphRebuildCount = java.util.concurrent.atomic.AtomicLong(0L)
     private val _snapshots = MutableStateFlow(buildSnapshot())
     val snapshots: StateFlow<MeshGraphSnapshot> = _snapshots.asStateFlow()
 
@@ -162,6 +163,7 @@ class MeshGraphRepository(
     private fun publish() { version++; _snapshots.value = buildSnapshot() }
 
     private fun buildSnapshot(): MeshGraphSnapshot {
+        graphRebuildCount.incrementAndGet()
         val nodes = LinkedHashMap<String, MeshNodeInfo>()
         nodes[selfId] = MeshNodeInfo(selfId, selfName, selfOnlineTagProvider())
         neighbors.forEach { (id, n) -> nodes[id] = MeshNodeInfo(id, n.name, n.onlineIdTag) }

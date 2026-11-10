@@ -37,7 +37,17 @@ data class MeshDiagnosticsSnapshot(
     val jitterOverflowDropped: Long = 0L,
     val jitterConcealed: Long = 0L,
     val playoutUnderruns: Long = 0L,
-    val activeSourceCount: Int = 0
+    val activeSourceCount: Int = 0,
+    val txBytesPerSec: Int = 0,
+    val rxBytesPerSec: Int = 0,
+    val lastVoiceDatagramBytes: Long = 0L,
+    val avgVoiceDatagramBytes: Long = 0L,
+    val jitterDepthFrames: Int = 0,
+    val jitterTargetFrames: Int = 0,
+    val trackUnderrunCount: Long = 0L,
+    val concealedMidTalkspurt: Long = 0L,
+    val captureToSendMs: Double = 0.0,
+    val rxToPlayoutMs: Double = 0.0
 )
 
 class MeshDiagnosticsRepository {
@@ -77,7 +87,17 @@ class MeshDiagnosticsRepository {
         jitterOverflowDropped: Long = 0L,
         jitterConcealed: Long = 0L,
         playoutUnderruns: Long = 0L,
-        activeSourceCount: Int = 0
+        activeSourceCount: Int = 0,
+        txBytesPerSec: Int = 0,
+        rxBytesPerSec: Int = 0,
+        lastVoiceDatagramBytes: Long = 0L,
+        avgVoiceDatagramBytes: Long = 0L,
+        jitterDepthFrames: Int = 0,
+        jitterTargetFrames: Int = 0,
+        trackUnderrunCount: Long = 0L,
+        concealedMidTalkspurt: Long = 0L,
+        captureToSendMs: Double = 0.0,
+        rxToPlayoutMs: Double = 0.0
     ) {
         val neighborsCount = if (authenticatedNeighborsLast10s > 0) authenticatedNeighborsLast10s
         else graph.edges.count { (it.from == selfDeviceId || it.to == selfDeviceId) && it.endpoint != null }
@@ -111,7 +131,17 @@ class MeshDiagnosticsRepository {
             jitterOverflowDropped = jitterOverflowDropped,
             jitterConcealed = jitterConcealed,
             playoutUnderruns = playoutUnderruns,
-            activeSourceCount = activeSourceCount
+            activeSourceCount = activeSourceCount,
+            txBytesPerSec = txBytesPerSec,
+            rxBytesPerSec = rxBytesPerSec,
+            lastVoiceDatagramBytes = lastVoiceDatagramBytes,
+            avgVoiceDatagramBytes = avgVoiceDatagramBytes,
+            jitterDepthFrames = jitterDepthFrames,
+            jitterTargetFrames = jitterTargetFrames,
+            trackUnderrunCount = trackUnderrunCount,
+            concealedMidTalkspurt = concealedMidTalkspurt,
+            captureToSendMs = captureToSendMs,
+            rxToPlayoutMs = rxToPlayoutMs
         )
     }
 

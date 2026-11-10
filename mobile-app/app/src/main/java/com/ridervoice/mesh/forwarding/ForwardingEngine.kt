@@ -103,7 +103,13 @@ class ForwardingEngine(
     private val droppedStaleTimestamp = AtomicLong(0L)
     private val suspectedClockSkewMs = AtomicLong(0L)
     @Volatile private var suspectedClockSkewPeerId: String? = null
-
+    val lastVoiceDatagramBytes = AtomicLong(0L)
+    val avgVoiceDatagramBytes = AtomicLong(0L)
+    val droppedUnknownSource = AtomicLong(0L)
+    val droppedOversize = AtomicLong(0L)
+    @Volatile var onIncomingFrameUsEma: Double = 0.0
+    @Volatile var originateVoiceUsEma: Double = 0.0
+    @Volatile var captureToSendMs: Double = 0.0
 
     data class Counters(
         val received: Long,
@@ -114,7 +120,14 @@ class ForwardingEngine(
         val staleTimestamp: Long = 0L,
         val suspectedClockSkewMs: Long = 0L,
         val suspectedClockSkewPeerId: String? = null,
-        val droppedBadVersion: Long = 0L
+        val droppedBadVersion: Long = 0L,
+        val lastVoiceDatagramBytes: Long = 0L,
+        val avgVoiceDatagramBytes: Long = 0L,
+        val droppedUnknownSource: Long = 0L,
+        val droppedOversize: Long = 0L,
+        val captureToSendMs: Double = 0.0,
+        val onIncomingFrameUsEma: Double = 0.0,
+        val originateVoiceUsEma: Double = 0.0
     )
     fun counters() = Counters(
         received = receivedVoice.get(),
@@ -125,13 +138,21 @@ class ForwardingEngine(
         staleTimestamp = droppedStaleTimestamp.get(),
         suspectedClockSkewMs = suspectedClockSkewMs.get(),
         suspectedClockSkewPeerId = suspectedClockSkewPeerId,
-        droppedBadVersion = droppedBadVersion.get()
+        droppedBadVersion = droppedBadVersion.get(),
+        lastVoiceDatagramBytes = lastVoiceDatagramBytes.get(),
+        avgVoiceDatagramBytes = avgVoiceDatagramBytes.get(),
+        droppedUnknownSource = droppedUnknownSource.get(),
+        droppedOversize = droppedOversize.get(),
+        captureToSendMs = captureToSendMs,
+        onIncomingFrameUsEma = onIncomingFrameUsEma,
+        originateVoiceUsEma = originateVoiceUsEma
     )
 
     /**
      * Originates a new local voice frame from this device and sends it to all direct neighbors.
      */
-    fun originateVoice(pcmPayload: ByteArray): MeshPacket? {
+    fun originateVoice(pcmPayload: ByteArray, captureElapsedRealtimeNanos: Long = 0L): MeshPacket? {
+        val t0 = System.nanoTime()
         val now = clock()
         if (sessionManager.session.isExpired(now)) return null
         val seq = voiceSeqGen.incrementAndGet()
@@ -166,11 +187,29 @@ class ForwardingEngine(
         )
         duplicateCache.markIfNew(localPacketIds, epoch = localEpoch, kind = dedupKind(packet), seq = seq)
         val wire = MeshPacketCodec.encode(packet, authKey)
+        val wireLen = wire.size.toLong()
+        lastVoiceDatagramBytes.set(wireLen)
+        val curAvg = avgVoiceDatagramBytes.get()
+        avgVoiceDatagramBytes.set(if (curAvg == 0L) wireLen else (0.9 * curAvg + 0.1 * wireLen).toLong())
+
         graphRepository.expire()
         val targets = graphRepository.directNeighbors()
+        var sentFirst = false
         for (neighbor in targets) {
-            link.send(neighbor.endpoint, wire)
+            val sent = link.send(neighbor.endpoint, wire)
+            if (sent && !sentFirst) {
+                sentFirst = true
+                if (captureElapsedRealtimeNanos > 0L) {
+                    val sendNanos = runCatching { android.os.SystemClock.elapsedRealtimeNanos() }.getOrNull()?.takeIf { it != 0L } ?: System.nanoTime()
+                    val diffMs = (sendNanos - captureElapsedRealtimeNanos) / 1_000_000.0
+                    if (diffMs >= 0.0) {
+                        captureToSendMs = if (captureToSendMs == 0.0) diffMs else (0.9 * captureToSendMs + 0.1 * diffMs)
+                    }
+                }
+            }
         }
+        val elapsedUs = (System.nanoTime() - t0) / 1000.0
+        originateVoiceUsEma = if (originateVoiceUsEma == 0.0) elapsedUs else (0.9 * originateVoiceUsEma + 0.1 * elapsedUs)
         return packet
     }
 
@@ -285,6 +324,16 @@ class ForwardingEngine(
      * Processes an incoming raw [MeshFrame] through all 18 validation and forwarding steps.
      */
     fun onIncomingFrame(frame: MeshFrame): ReceiveOutcome {
+        val t0 = System.nanoTime()
+        try {
+            return processIncomingFrame(frame)
+        } finally {
+            val elapsedUs = (System.nanoTime() - t0) / 1000.0
+            onIncomingFrameUsEma = if (onIncomingFrameUsEma == 0.0) elapsedUs else (0.9 * onIncomingFrameUsEma + 0.1 * elapsedUs)
+        }
+    }
+
+    private fun processIncomingFrame(frame: MeshFrame): ReceiveOutcome {
         // 1-2 & 5 & 7. Validate magic, version, payload bounds, and HMAC authentication tag
         val decoded = when (val res = MeshPacketCodec.decode(frame.data, authKey)) {
             is DecodeResult.Ok -> res.packet

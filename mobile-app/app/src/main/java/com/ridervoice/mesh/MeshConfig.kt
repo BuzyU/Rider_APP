@@ -39,6 +39,7 @@ object MeshConfig {
     const val BYTES_PER_FRAME = SAMPLES_PER_FRAME * 2                // 640
     const val GCM_TAG_BYTES = 16
     const val ENCRYPTED_VOICE_PAYLOAD_BYTES = BYTES_PER_FRAME + GCM_TAG_BYTES // 656
+    const val MAX_VOICE_DATAGRAM_BYTES = 800
 
     const val SESSION_LIFETIME_MS = 8L * 60 * 60 * 1000
 

@@ -38,8 +38,13 @@ class MeshPeerProjector(
         selfIdOverride: String? = null,
         txDatagramsPerSec: Int = 0,
         rxDatagramsPerSec: Int = 0,
+        txBytesPerSec: Int = 0,
+        rxBytesPerSec: Int = 0,
         jitterStats: com.ridervoice.mesh.audio.JitterBufferStats? = null,
-        playoutUnderruns: Long = 0L
+        playoutUnderruns: Long = 0L,
+        trackUnderrunCount: Long = 0L,
+        concealedMidTalkspurt: Long = 0L,
+        rxToPlayoutMs: Double = 0.0
     ): ProjectionResult? {
         val sManager = sessionManager ?: return null
         val rTable = routingTable ?: return null
@@ -100,7 +105,17 @@ class MeshPeerProjector(
             jitterOverflowDropped = jitterStats?.overflowDropped ?: 0L,
             jitterConcealed = jitterStats?.concealedFrames ?: 0L,
             playoutUnderruns = playoutUnderruns,
-            activeSourceCount = jitterStats?.activeSources ?: 0
+            activeSourceCount = jitterStats?.activeSources ?: 0,
+            txBytesPerSec = txBytesPerSec,
+            rxBytesPerSec = rxBytesPerSec,
+            lastVoiceDatagramBytes = cnt.lastVoiceDatagramBytes,
+            avgVoiceDatagramBytes = cnt.avgVoiceDatagramBytes,
+            jitterDepthFrames = jitterStats?.maxDepthFrames ?: 0,
+            jitterTargetFrames = jitterStats?.targetFrames ?: 0,
+            trackUnderrunCount = trackUnderrunCount,
+            concealedMidTalkspurt = concealedMidTalkspurt,
+            captureToSendMs = cnt.captureToSendMs,
+            rxToPlayoutMs = rxToPlayoutMs
         )
 
         return ProjectionResult(

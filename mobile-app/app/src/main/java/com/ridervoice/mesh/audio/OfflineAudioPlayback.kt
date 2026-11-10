@@ -22,6 +22,7 @@ import kotlinx.coroutines.yield
 
 interface AudioTrackSink {
     val state: Int
+    val underrunCount: Int get() = 0
     fun play()
     fun write(audioData: ByteArray, offsetInBytes: Int, sizeInBytes: Int): Int
     fun stop()
@@ -30,6 +31,12 @@ interface AudioTrackSink {
 
 class AndroidAudioTrackSink(private val track: AudioTrack) : AudioTrackSink {
     override val state: Int get() = track.state
+    override val underrunCount: Int
+        get() = if (android.os.Build.VERSION.SDK_INT >= 24) {
+            runCatching { track.underrunCount }.getOrDefault(0)
+        } else {
+            0
+        }
     override fun play() = track.play()
     override fun write(audioData: ByteArray, offsetInBytes: Int, sizeInBytes: Int): Int =
         track.write(audioData, offsetInBytes, sizeInBytes)
@@ -63,8 +70,11 @@ class OfflineAudioPlayback(
     private var playbackScope: CoroutineScope? = null
     private var playJob: Job? = null
     private var audioTrackSink: AudioTrackSink? = null
-    var underrunCount: Long = 0L
+    var concealedMidTalkspurt: Long = 0L
         private set
+    var trackUnderrunCount: Long = 0L
+        private set
+    val underrunCount: Long get() = concealedMidTalkspurt
 
     fun setDeafened(deafened: Boolean) {
         this.deafened = deafened
@@ -132,6 +142,7 @@ class OfflineAudioPlayback(
             } catch (_: Exception) {}
             val silenceBuf = ByteArray(MeshConfig.BYTES_PER_FRAME)
             var nextTickNs = nanoClock()
+            var lastTrackUnderrunCheckNs = 0L
             try {
                 sink.play()
                 while (isActive && gateAllowed()) {
@@ -144,19 +155,24 @@ class OfflineAudioPlayback(
                     }
                     _activeSpeakers.value = speakers
 
+                    val hadMidTalkspurt = jitterManager.hadMidTalkspurtConcealment()
                     val toWrite = if (mixed != null && !isDeaf) mixed else silenceBuf
                     val written = sink.write(toWrite, 0, toWrite.size)
                     if (written < 0) {
-                        underrunCount++
-                        onUnderrun(underrunCount)
-                    } else if (!isDeaf && mixed != null && speakers.isEmpty()) {
+                        concealedMidTalkspurt++
+                        onUnderrun(concealedMidTalkspurt)
+                    } else if (!isDeaf && mixed != null && speakers.isEmpty() && hadMidTalkspurt) {
                         // A primed talker stream had to synthesize a concealed PLC frame mid-talkspurt
-                        underrunCount++
-                        onUnderrun(underrunCount)
+                        concealedMidTalkspurt++
+                        onUnderrun(concealedMidTalkspurt)
                     }
 
                     nextTickNs += frameNs
                     val nowNs = nanoClock()
+                    if (nowNs - lastTrackUnderrunCheckNs >= 1_000_000_000L) {
+                        lastTrackUnderrunCheckNs = nowNs
+                        trackUnderrunCount = sink.underrunCount.toLong()
+                    }
                     val remainingNs = nextTickNs - nowNs
                     if (remainingNs > 0L) {
                         val delayMs = (remainingNs / 1_000_000L).coerceAtLeast(1L)

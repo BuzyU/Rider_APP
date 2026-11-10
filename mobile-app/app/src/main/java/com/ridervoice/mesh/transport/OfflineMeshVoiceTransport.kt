@@ -191,7 +191,8 @@ class OfflineMeshVoiceTransport(
     private var expireJob: Job? = null
     private var playbackSpeakersJob: Job? = null
     private var voiceTxJob: Job? = null
-    private var voiceTxChannel: Channel<ByteArray>? = null
+    internal data class CapturedAudioFrame(val pcm: ByteArray, val captureNanos: Long = 0L)
+    private var voiceTxChannel: Channel<CapturedAudioFrame>? = null
 
     @Volatile private var cachedLocalIp: String = ""
     @Volatile private var cachedBroadcastAddr: String = "255.255.255.255"
@@ -425,8 +426,12 @@ class OfflineMeshVoiceTransport(
         val zeroSecs = if (authNeighbors10s > 0) 0L else ((now - zeroNeighborsSinceMs) / 1000L).coerceAtLeast(0L)
 
         val rates = link?.datagramRates() ?: Pair(0, 0)
+        val byteRates = link?.byteRates() ?: Pair(0, 0)
         val jStats = jitterManager?.stats()
         val underruns = audioPlayback?.underrunCount ?: 0L
+        val trackUnderruns = audioPlayback?.trackUnderrunCount ?: 0L
+        val concealedMid = audioPlayback?.concealedMidTalkspurt ?: 0L
+        val rxToPlayout = jitterManager?.averagePlayoutDelayMs() ?: 0.0
 
         val result = peerProjector.project(
             snapshot = snapshot,
@@ -442,8 +447,13 @@ class OfflineMeshVoiceTransport(
             selfIdOverride = currentIdentity.deviceId,
             txDatagramsPerSec = rates.first,
             rxDatagramsPerSec = rates.second,
+            txBytesPerSec = byteRates.first,
+            rxBytesPerSec = byteRates.second,
             jitterStats = jStats,
-            playoutUnderruns = underruns
+            playoutUnderruns = underruns,
+            trackUnderrunCount = trackUnderruns,
+            concealedMidTalkspurt = concealedMid,
+            rxToPlayoutMs = rxToPlayout
         ) ?: return
 
         _hasValidRoute.value = result.hasValidRoute
@@ -537,12 +547,12 @@ class OfflineMeshVoiceTransport(
         routeController?.acquireCommunicationMode()
         routeController?.activeRoute?.value?.let { _audioRoute.value = it }
 
-        val txChannel = Channel<ByteArray>(capacity = 8, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        val txChannel = Channel<CapturedAudioFrame>(capacity = 8, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         voiceTxChannel = txChannel
         voiceTxJob?.cancel()
         voiceTxJob = transportScope?.launch {
-            for (pcm in txChannel) {
-                fEngine.originateVoice(pcm)
+            for (frame in txChannel) {
+                fEngine.originateVoice(frame.pcm, frame.captureNanos)
             }
         }
 
@@ -561,12 +571,20 @@ class OfflineMeshVoiceTransport(
             onPcmFrame = { pcm ->
                 val ch = voiceTxChannel
                 if (ch != null) {
-                    ch.trySend(pcm)
+                    ch.trySend(CapturedAudioFrame(pcm, 0L))
                 } else {
-                    fEngine.originateVoice(pcm)
+                    fEngine.originateVoice(pcm, 0L)
                 }
             }
         )
+        aCapture.onFrameWithTimestamp = { pcm, nanos ->
+            val ch = voiceTxChannel
+            if (ch != null) {
+                ch.trySend(CapturedAudioFrame(pcm, nanos))
+            } else {
+                fEngine.originateVoice(pcm, nanos)
+            }
+        }
         aCapture.frameGate = { pcm: ByteArray -> micController.shouldTransmitPcmFrame(pcm) }
         audioCapture = aCapture
         aCapture.setMicEnabled(micWanted)

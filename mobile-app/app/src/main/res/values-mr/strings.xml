@@ -314,6 +314,16 @@
     <string name="mesh_diag_jitter_concealed">भरपाई केलेले फ्रेम्स (PLC)</string>
     <string name="mesh_diag_playout_underruns">प्लेआउट अंडररन</string>
     <string name="mesh_diag_active_sources">सक्रिय ऑडिओ स्रोत</string>
+    <string name="mesh_diag_tx_bytes_rate">पाठवलेला थ्रूपुट (TX)</string>
+    <string name="mesh_diag_rx_bytes_rate">मिळालेला थ्रूपुट (RX)</string>
+    <string name="mesh_diag_last_voice_datagram">शेवटचा व्हॉइस डेटाग्राम</string>
+    <string name="mesh_diag_avg_voice_datagram">सरासरी व्हॉइस डेटाग्राम</string>
+    <string name="mesh_diag_jitter_depth">जिटर डेप्थ (फ्रेम)</string>
+    <string name="mesh_diag_jitter_target">जिटर टार्गेट (फ्रेम)</string>
+    <string name="mesh_diag_track_underruns">ऑडिओट्रॅक अंडररन</string>
+    <string name="mesh_diag_concealed_mid_talkspurt">संभाषणादरम्यान लपवलेले फ्रेम</string>
+    <string name="mesh_diag_capture_to_send">कॅप्चर ते पाठवण्यामधील विलंब</string>
+    <string name="mesh_diag_rx_to_playout">स्वीकृती ते प्लेआउट विलंब</string>
 
     <!-- Settings Mesh Section -->
     <string name="mesh_settings_title">ऑफलाइन मेश इंटरकॉम</string>

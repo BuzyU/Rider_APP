@@ -29,14 +29,25 @@ sealed class PlayoutFrame {
 class SourceJitterBuffer(
     val sourceId: String,
     private val targetDelayFrames: Int = 3, // Fixed 3-frame target (3 * 20ms = 60ms)
-    private val maxQueueFrames: Int = 16,   // 320ms max queue bound
+    private val maxQueueFrames: Int = 8,    // 160ms max queue bound
     private val frameBytes: Int = MeshConfig.BYTES_PER_FRAME,
     val epoch: Int = 0,
+    val seqBits: Int = 32,
     private val clock: () -> Long
 ) {
-    // 32-bit circular sequence comparison for wrap-around handling
+    companion object {
+        fun seqDiff(a: Int, b: Int, bits: Int = 32): Int {
+            if (bits == 32) return a - b
+            val mask = (1 shl bits) - 1
+            val half = 1 shl (bits - 1)
+            val d = (a - b) and mask
+            return if (d >= half) d - (1 shl bits) else d
+        }
+    }
+
+    // Circular sequence comparison for wrap-around handling
     private val queue = TreeMap<Int, ByteArray> { a, b ->
-        val diff = a - b
+        val diff = seqDiff(a, b, seqBits)
         when {
             diff < 0 -> -1
             diff > 0 -> 1
@@ -48,6 +59,8 @@ class SourceJitterBuffer(
     private var consecutiveMissing: Int = 0
     private var lastPlayedPcm: ByteArray? = null
     private val enqueueTimes = HashMap<Int, Long>()
+    private var overTicks: Int = 0
+    private var lastTrimMs: Long = 0L
 
     val depthFrames: Int
         @Synchronized get() = queue.size
@@ -71,7 +84,7 @@ class SourceJitterBuffer(
     @Synchronized
     fun enqueue(sequence: Int, pcmBytes: ByteArray) {
         lastEnqueueTimeMs = clock()
-        val diff = sequence - nextExpectedSeq
+        val diff = seqDiff(sequence, nextExpectedSeq, seqBits)
         if (primed && diff < 0) {
             lateDroppedCount++
             return
@@ -88,14 +101,47 @@ class SourceJitterBuffer(
             queue.remove(droppedKey)
             enqueueTimes.remove(droppedKey)
             overflowDroppedCount++
-            if (primed && (nextExpectedSeq - droppedKey) <= 0) {
-                nextExpectedSeq = (queue.firstKey() ?: (droppedKey + 1))
+            if (primed && seqDiff(nextExpectedSeq, droppedKey, seqBits) <= 0) {
+                if (queue.isNotEmpty()) {
+                    nextExpectedSeq = queue.firstKey()
+                } else {
+                    nextExpectedSeq = droppedKey + 1
+                }
             }
         }
 
         if (!primed && queue.size >= targetDelayFrames) {
             primed = true
             nextExpectedSeq = queue.firstKey()
+        }
+    }
+
+    private fun trimToTarget() {
+        while (queue.size > targetDelayFrames) {
+            val oldest = queue.firstKey()
+            queue.remove(oldest)
+            enqueueTimes.remove(oldest)
+            overflowDroppedCount++
+        }
+    }
+
+    private fun maybeCatchUp() {
+        // standing-delay catch-up: if queue.size > target + 2 for >= 25 consecutive ticks (500 ms): drop ONE oldest frame, at most 1 per 1000 ms
+        if (queue.size > targetDelayFrames + 2) {
+            overTicks++
+            val nowMs = clock()
+            if (overTicks >= 25 && nowMs - lastTrimMs >= 1000L) {
+                if (queue.isNotEmpty()) {
+                    val oldest = queue.firstKey()
+                    queue.remove(oldest)
+                    enqueueTimes.remove(oldest)
+                    overflowDroppedCount++
+                }
+                lastTrimMs = nowMs
+                overTicks = 0
+            }
+        } else {
+            overTicks = 0
         }
     }
 
@@ -107,11 +153,20 @@ class SourceJitterBuffer(
         if (!primed) {
             return PlayoutFrame.Buffering
         }
-        if (queue.isEmpty() && consecutiveMissing >= targetDelayFrames) {
-            // Stream went idle; re-prime on next burst
-            primed = false
-            consecutiveMissing = 0
-            return PlayoutFrame.Buffering
+
+        val head = if (queue.isEmpty()) null else queue.firstKey()
+        if (head != null && head != nextExpectedSeq) {
+            val gap = seqDiff(head, nextExpectedSeq, seqBits)
+            if (gap >= maxOf(3, targetDelayFrames)) {
+                // long hole: do not conceal tick by tick!
+                trimToTarget()
+                val newHead = if (queue.isEmpty()) head else queue.firstKey()
+                nextExpectedSeq = newHead
+                consecutiveMissing++
+                concealedCount++
+                val concealed = synthesizePlcFrame(consecutiveMissing)
+                return PlayoutFrame.Concealed(newHead - 1, concealed, isMidTalkspurt = true)
+            }
         }
 
         val seq = nextExpectedSeq
@@ -126,7 +181,16 @@ class SourceJitterBuffer(
             consecutiveMissing = 0
             lastPlayedPcm = exact
             deliveredCount++
+            maybeCatchUp()
             return PlayoutFrame.Audio(seq, exact)
+        }
+
+        if (queue.isEmpty() && consecutiveMissing >= targetDelayFrames) {
+            // Stream went idle; re-prime on next burst
+            primed = false
+            consecutiveMissing = 0
+            overTicks = 0
+            return PlayoutFrame.Buffering
         }
 
         // Missing packet detected
@@ -182,7 +246,7 @@ data class JitterBufferStats(
  */
 class MultiSourceJitterBufferManager(
     private val targetDelayFrames: Int = 3,
-    private val maxQueueFrames: Int = 16,
+    private val maxQueueFrames: Int = 8,
     private val sourceTimeoutMs: Long = MeshConfig.NEIGHBOR_TIMEOUT_MS,
     private val clock: () -> Long
 ) {

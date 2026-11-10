@@ -139,3 +139,19 @@ data class LocalHealthSignals(
 ### 3.7 Receive-Only Fallback & Audio Ownership Semantics
 - **Receive-Only Operation:** When mic capture cannot start due to missing `RECORD_AUDIO` permission (`NoPermission`) or non-fatal hardware busy, `OfflineMeshVoiceTransport` operates in receive-only mode (`micState == PERMISSION_DENIED`). As long as playback started successfully, fallback to mesh succeeds, allowing the rider to hear incoming mesh communications while displaying a `mesh_banner_mic_denied` banner.
 - **Fail-Closed Conditions:** If audio ownership is denied (`CaptureStart.NotOwner`) or the gate is closed (`CaptureStart.GateClosed`), audio enable fails closed (`OwnershipDenied`/`GateClosed`), triggering a full rollback to retain online connectivity.
+
+### 3.8 Audio Format Negotiation Lifecycle (Round 9 Light Packet)
+- **Supported Codecs:** `AudioFormatId.OPUS_16K_MONO_20MS` (format id `2`, bitmask `0x02`), `AudioFormatId.PCM16_16K_MONO` (format id `1`, bitmask `0x01`).
+- **Discovery Advertising:** Every device includes its supported audio format bitmask in periodic HELLO discovery beacons (`HelloCodec.encodeV4`).
+- **Strict Group Intersection:** 
+  - If all active authenticated group members support Opus (`intersection & BITMASK_OPUS != 0`), `OPUS_16K_MONO_20MS` is selected.
+  - If any member advertises PCM only or lacks Opus capability, the group automatically negotiates down to `PCM16_16K_MONO`.
+- **Grace Period & Flapping Hysteresis:**
+  - Newly joined peers whose format support is temporarily unknown are granted a grace period of 3 HELLO intervals (6.0 s) before forcing fallback to PCM.
+  - When returning from PCM to Opus following a membership transition, a 2.0 s hysteresis dwell timer is enforced to prevent rapid codec oscillation on network edge flutters.
+- **Dynamic Re-configuration:** `ForwardingEngine.onFormatChangedListener` dynamically updates the active `VoiceEncoder` when the negotiated format changes without tearing down the audio transport.
+
+### 3.9 Talkspurt Lifecycle and End-of-Talkspurt Marker
+- **Active Transmission:** When speech is active (PTT pressed or VOX gate open), the sender transmits voice datagrams every 20 ms.
+- **End-of-Talkspurt Marker:** When the mic gate closes or PTT is released, the sender transmits a 1-byte DTX / end-of-talkspurt marker payload (`MeshPacketV4.FLAG_MARKER`).
+- **Playout Flush:** Upon receiving the end-of-talkspurt marker, the receiver's `JitterBuffer` flushes remaining queued frames and terminates playout immediately without emitting synthetic concealment frames, eliminating post-talkspurt tail underruns and artificial latency accumulation.

@@ -36,6 +36,7 @@ Per the verification contract and rule R4, tests that have not been run on real 
 | **PHYS-20** | Bytes/s Per Speaker On Air Benchmark | 2 physical phones on shared Wi-Fi hotspot, 1 active speaker | UDP payload bytes/s measured via txBytesPerSec; expected <= 3.5 kB/s per receiver link on compact voice | **NOT EXECUTED** |
 | **PHYS-21** | Mouth-To-Ear 1-Hop Acoustic Loopback Latency | 2 physical phones 1m apart; acoustic chirp/clap into mic, recorded on playout | End-to-end 1-hop acoustic latency <= 100 ms | **NOT EXECUTED** |
 | **PHYS-22** | Online WebRTC Stats With VOX Gate Closed | 2 physical phones in online ride room | WebRTC outbound-rtp audio bitrate 0 bps when gate closed (DTX active); RTT < 100 ms; selected candidate pair UDP | **NOT EXECUTED** |
+| **PHYS-23** | Codec CPU & Battery Consumption Benchmark | 2 physical mid-range Android phones running continuous mesh voice loop | Opus encoder CPU < 5.0% on mid-range SoC (e.g. Snapdragon 695 / Dimensity 700); battery drain delta < 1.0%/hour compared to PCM; heap allocation < 2 MB | **NOT EXECUTED** |
 
 ---
 

@@ -126,6 +126,9 @@ class UdpMeshLink(
             val sock = DatagramSocket(null).apply {
                 reuseAddress = true
                 broadcast = true
+                runCatching { trafficClass = 0xB8 }
+                runCatching { receiveBufferSize = 256 * 1024 }
+                runCatching { sendBufferSize = 128 * 1024 }
                 networkBinder(this)
                 bind(InetSocketAddress(bindPort))
             }

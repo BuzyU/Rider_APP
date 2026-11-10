@@ -10,8 +10,8 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * Inner AEAD payload encryption (AES-256-GCM) protecting voice and control payloads end-to-end.
  *
- * Senders seal their payloads once before transmission. Relays never decrypt or re-encrypt;
- * they only update mutable hop fields in the outer header and re-compute the hop HMAC.
+ * Senders seal their payloads once before transmission. Every session member decrypts;
+ * relays only rewrite hop fields and re-authenticate.
  */
 object PayloadCrypto {
     const val TAG_LEN = 16
@@ -32,7 +32,7 @@ object PayloadCrypto {
      */
     fun sourceKey(payloadKey: ByteArray, sourceId: String): ByteArray {
         val prk = hmac(salt = "rvmesh/v3/src".toByteArray(Charsets.UTF_8), data = payloadKey) // HKDF-Extract
-        val srcBytes = runCatching { MeshPacketCodec.uuidBytes(sourceId) }.getOrElse { sourceId.toByteArray(Charsets.UTF_8) }
+        val srcBytes = MeshPacketCodec.uuidBytes(sourceId)
         return hmac(salt = prk, data = srcBytes + byteArrayOf(1)).copyOf(32) // HKDF-Expand, one block
     }
 

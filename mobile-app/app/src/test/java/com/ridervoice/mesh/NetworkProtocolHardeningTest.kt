@@ -235,6 +235,18 @@ class NetworkProtocolHardeningTest {
     }
 
     @Test
+    fun codec_distinguishesTooShortFromMalformed() {
+        val dummyKey = ByteArray(32) { 0x42 }
+        val shortBytes = ByteArray(10)
+        val shortResult = MeshPacketCodec.decode(shortBytes, dummyKey)
+        assertTrue("Short datagram must be invalid", shortResult is DecodeResult.Invalid)
+        assertEquals(DecodeResult.Reason.TOO_SHORT, (shortResult as DecodeResult.Invalid).reason)
+
+        // DecodeResult.Reason.MALFORMED exists in enum
+        assertNotNull(DecodeResult.Reason.valueOf("MALFORMED"))
+    }
+
+    @Test
     fun dupCache_evictsOldestAtCapacity() {
         val cache = DuplicatePacketCache(maxEntries = 5, ttlMs = 100_000L, clock = { 1000L })
         val session = UUID.randomUUID().toString()

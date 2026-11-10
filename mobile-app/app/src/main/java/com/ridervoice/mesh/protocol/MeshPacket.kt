@@ -90,11 +90,11 @@ data class MeshPacket(
 sealed class DecodeResult {
     data class Ok(val packet: MeshPacket) : DecodeResult()
     data class Invalid(val reason: Reason) : DecodeResult()
-    enum class Reason { TOO_SHORT, BAD_MAGIC, BAD_VERSION, BAD_TYPE, BAD_LENGTH, BAD_FORMAT, BAD_ID, BAD_TAG }
+    enum class Reason { TOO_SHORT, BAD_MAGIC, BAD_VERSION, BAD_TYPE, BAD_LENGTH, BAD_FORMAT, BAD_ID, BAD_TAG, MALFORMED }
 }
 
 /**
- * Binary big-endian codec (Protocol v2).
+ * Binary big-endian codec (Protocol v3).
  *
  * magic(4) version(1) type(1) session(16) source(16) seq(4) ts(8) ttl(1) hop(1) prevHop(16)
  * format(1) epoch(4) payloadLen(2) payload tag(16)
@@ -200,7 +200,7 @@ object MeshPacketCodec {
                 )
             )
         } catch (e: Exception) {
-            DecodeResult.Invalid(DecodeResult.Reason.TOO_SHORT)
+            DecodeResult.Invalid(DecodeResult.Reason.MALFORMED)
         }
     }
 

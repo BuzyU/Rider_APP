@@ -49,6 +49,14 @@ class MeshForegroundService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var observerJob: Job? = null
     private var stateJob: Job? = null
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let { if (it.isHeld) it.release() }
+        } catch (_: Exception) {}
+        wakeLock = null
+    }
 
     sealed interface FgsDecision {
         data class Start(val withType: Boolean) : FgsDecision
@@ -127,6 +135,7 @@ class MeshForegroundService : Service() {
                     }
                 }
             }
+            releaseWakeLock()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
@@ -135,6 +144,7 @@ class MeshForegroundService : Service() {
         val hasMic = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         if (!hasMic) {
             MeshLog.w(TAG, "RECORD_AUDIO missing; refusing startForeground")
+            releaseWakeLock()
             stopSelf()
             return START_NOT_STICKY
         }
@@ -143,23 +153,45 @@ class MeshForegroundService : Service() {
         val sessionDisplay = session?.let { "ID: ${it.sessionId.take(8)}" } ?: "Active"
         val notification = buildNotification(sessionDisplay, currentPeerCount)
 
+        val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        } else {
+            0
+        }
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+                ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, fgsType)
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
         } catch (e: SecurityException) {
             MeshLog.w(TAG, "startForeground denied: ${e.javaClass.simpleName}")
+            releaseWakeLock()
             stopSelf()
             return START_NOT_STICKY
         } catch (e: IllegalStateException) {
             MeshLog.w(TAG, "startForeground not allowed: ${e.javaClass.simpleName}")
+            releaseWakeLock()
             stopSelf()
             return START_NOT_STICKY
         }
 
+        if (wakeLock == null) {
+            val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            wakeLock = pm?.newWakeLock(
+                android.os.PowerManager.PARTIAL_WAKE_LOCK,
+                "RiderVoice:MeshWakeLock"
+            )?.apply {
+                setReferenceCounted(false)
+                acquire(4 * 60 * 60 * 1000L) // 4 hours max (WP-120)
+            }
+        }
+
         if (!OfflineMeshGate.isOfflineAllowed() || meshTransport.state.value != VoiceTransportState.CONNECTED) {
+            releaseWakeLock()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
@@ -182,6 +214,7 @@ class MeshForegroundService : Service() {
         stateJob = serviceScope.launch {
             meshTransport.state.collectLatest { state ->
                 if (state == VoiceTransportState.FAILED || state == VoiceTransportState.STOPPED) {
+                    releaseWakeLock()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }
@@ -193,6 +226,7 @@ class MeshForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        releaseWakeLock()
         observerJob?.cancel()
         stateJob?.cancel()
         serviceScope.cancel()

@@ -257,3 +257,4 @@ adb logcat -v time -s LiveKit:D WebRTC:D AudioDeviceRouter:D VoxEngine:D
 > 1. Geographical co-location of the SFU in the region of the riders (e.g., Mumbai SFU for Maharashtra riders reducing base RTT from ~200 ms to < 25 ms).
 > 2. Eliminating TCP fallback through proper TURN UDP configuration.
 > 3. Eliminating SCTP head-of-line blocking by switching heartbeat telemetry to lossy data channels.
+

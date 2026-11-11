@@ -102,7 +102,7 @@ class VoiceBudgetSimulationTest {
             appendLine("- **Standing Latency Elimination:** The 16-frame burst jump fix eliminates the standing ~320 ms queue after Wi-Fi stalls.")
         }
 
-        val reportFile = File("../../docs/reports/round9-voice-budget.md")
+        val reportFile = File("../docs/reports/round9-voice-budget.md")
         reportFile.parentFile?.mkdirs()
         reportFile.writeText(md)
     }
@@ -199,4 +199,3 @@ class VoiceBudgetSimulationTest {
         )
     }
 }
-

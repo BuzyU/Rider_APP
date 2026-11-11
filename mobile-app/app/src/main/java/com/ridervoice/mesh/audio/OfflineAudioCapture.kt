@@ -181,6 +181,7 @@ class OfflineAudioCapture(
             val previousPriority = runCatching { android.os.Process.getThreadPriority(0) }.getOrNull()
             runCatching { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO) }
             val frameBuf = ByteArray(MeshConfig.BYTES_PER_FRAME)
+            val handoffBuf = ByteArray(MeshConfig.BYTES_PER_FRAME)
             var emptyReadCount = 0
             try {
                 recSource.startRecording()
@@ -213,15 +214,16 @@ class OfflineAudioCapture(
                     if (offset == frameBuf.size && micEnabled) {
                         val allowed = frameGate?.invoke(frameBuf) ?: true
                         val nanos = runCatching { android.os.SystemClock.elapsedRealtimeNanos() }.getOrNull()?.takeIf { it != 0L } ?: System.nanoTime()
+                        frameBuf.copyInto(handoffBuf)
                         if (allowed) {
                             val cb = onFrameWithTimestamp
                             if (cb != null) {
-                                cb(frameBuf.copyOf(), nanos)
+                                cb(handoffBuf, nanos)
                             } else {
-                                onPcmFrame(frameBuf.copyOf())
+                                onPcmFrame(handoffBuf)
                             }
                         } else {
-                            onGatedFrame?.invoke(frameBuf.copyOf(), nanos)
+                            onGatedFrame?.invoke(handoffBuf, nanos)
                         }
                     }
                 }

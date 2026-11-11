@@ -95,9 +95,9 @@ class OpusVoiceEncoder(
         enc.bitrate = bitrate
         enc.complexity = comp
         enc.useDTX = true
-        enc.useInbandFEC = false
-        enc.packetLossPercent = 0
-        enc.useVBR = false
+        enc.useInbandFEC = true
+        enc.packetLossPercent = 10
+        enc.useVBR = true
         return enc
     }
 
@@ -145,7 +145,7 @@ class OpusVoiceDecoder : VoiceDecoder {
                 if (consecutiveConcealed > 2) {
                     return ByteArray(MeshConfig.BYTES_PER_FRAME)
                 }
-                val decodedSamples = decoder.decode(null, 0, 0, outShorts, 0, MeshConfig.SAMPLES_PER_FRAME, false)
+                val decodedSamples = decoder.decode(null, 0, 0, outShorts, 0, MeshConfig.SAMPLES_PER_FRAME, true)
                 return shortsToBytes(outShorts, decodedSamples)
             }
             consecutiveConcealed = 0

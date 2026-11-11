@@ -27,15 +27,15 @@ class OpusCodecTest {
         val voicePcm = ByteArray(MeshConfig.BYTES_PER_FRAME) { 0x42 }
         val encoded = encoder.encode(voicePcm)
 
-        assertEquals("At 16 kbit/s every full voice frame must be exactly 40 bytes", 40, encoded.size)
+        assertTrue("At 16 kbit/s with VBR full voice frame must not exceed 40 bytes (was ${encoded.size})", encoded.size <= 40)
 
-        // Sealed ciphertext is 40 bytes + 12-byte GCM tag
+        // Sealed ciphertext is encoded payload + 12-byte GCM tag
         val encryptedPayloadSize = encoded.size + MeshConfig.GCM_TAG_BYTES
-        assertEquals("Encrypted payload must be 52 bytes", 52, encryptedPayloadSize)
+        assertTrue("Encrypted payload must not exceed 52 bytes (was $encryptedPayloadSize)", encryptedPayloadSize <= 52)
 
-        // Total UDP datagram on v4: header (17) + encrypted payload (52) = 69 bytes
+        // Total UDP datagram on v4: header (17) + encrypted payload (<=52) <= 69 bytes
         val totalDatagramBytes = MeshPacketCodec.HEADER_LEN + encryptedPayloadSize
-        assertEquals("Total voice datagram on protocol v4 must be exactly 69 bytes", 69, totalDatagramBytes)
+        assertTrue("Total voice datagram on protocol v4 must not exceed 69 bytes (was $totalDatagramBytes)", totalDatagramBytes <= 69)
         assertEquals("MeshConfig.MAX_VOICE_DATAGRAM_BYTES must be 100", 100, MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
         assertTrue(totalDatagramBytes <= MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
     }

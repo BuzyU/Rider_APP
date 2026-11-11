@@ -182,6 +182,10 @@ open class VoxEngine @Inject constructor(
 
     private fun startOwnAudioRecord() {
         if (audioRecord != null || pollJob?.isActive == true) return
+        if (evaluator.isAdmAlive()) {
+            Log.d(TAG, "startOwnAudioRecord skipped: ADM is still alive")
+            return
+        }
         try {
             val audioSource = MediaRecorder.AudioSource.VOICE_RECOGNITION
             var rec = AudioRecord(audioSource, SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT, bufferSize)
@@ -284,7 +288,12 @@ open class VoxEngine @Inject constructor(
                 if (newPath == "adm") {
                     stopOwnAudioRecord()
                 } else if (isRunning) {
-                    startOwnAudioRecord()
+                    scope.launch {
+                        delay(500)
+                        if (evaluator.activePath == "own" && isRunning && audioRecord == null) {
+                            startOwnAudioRecord()
+                        }
+                    }
                 }
             }
         }

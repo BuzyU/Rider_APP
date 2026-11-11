@@ -1147,7 +1147,11 @@ class LiveKitManager @Inject constructor(
                         put("to", peerId)
                     }.toString().toByteArray(Charsets.UTF_8)
                     try {
-                        room?.localParticipant?.publishData(pingPayload)
+                        room?.localParticipant?.publishData(
+                            data = pingPayload,
+                            reliability = DataPublishReliability.LOSSY,
+                            topic = "rv-ping"
+                        )
                     } catch (e: Exception) {
                         Log.w(TAG, "Ping publish error: ${e.message}")
                     }
@@ -1180,7 +1184,11 @@ class LiveKitManager @Inject constructor(
                 }.toString().toByteArray(Charsets.UTF_8)
                 scope.launch {
                     try {
-                        room?.localParticipant?.publishData(pongPayload)
+                        room?.localParticipant?.publishData(
+                            data = pongPayload,
+                            reliability = DataPublishReliability.LOSSY,
+                            topic = "rv-ping"
+                        )
                     } catch (e: Exception) {
                         Log.w(TAG, "Pong publish error: ${e.message}")
                     }

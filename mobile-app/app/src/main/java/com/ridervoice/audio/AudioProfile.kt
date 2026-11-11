@@ -27,7 +27,7 @@ data class AudioProfile(
                     echoCancellation = false,
                     autoGain = true,
                     highPassHz = 130f,
-                    bitrate = 28000,
+                    bitrate = 24000,
                     dtx = false,
                     voxOpenRatio = (3.2f + ratioDelta).coerceIn(2.0f, 5.0f)
                 )
@@ -47,8 +47,8 @@ data class AudioProfile(
                     echoCancellation = true,
                     autoGain = false,
                     highPassHz = 100f,
-                    bitrate = 32000,
-                    dtx = false,
+                    bitrate = 24000,
+                    dtx = true,
                     voxOpenRatio = (2.8f + ratioDelta).coerceIn(2.0f, 5.0f)
                 )
                 RouteType.PHONE -> AudioProfile(
@@ -57,8 +57,8 @@ data class AudioProfile(
                     echoCancellation = true,
                     autoGain = true,
                     highPassHz = 100f,
-                    bitrate = 32000,
-                    dtx = false,
+                    bitrate = 24000,
+                    dtx = true,
                     voxOpenRatio = (3.0f + ratioDelta).coerceIn(2.0f, 5.0f)
                 )
             }

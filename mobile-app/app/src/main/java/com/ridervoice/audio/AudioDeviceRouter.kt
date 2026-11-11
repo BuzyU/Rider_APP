@@ -113,21 +113,30 @@ class AudioDeviceRouter(
     private var verificationLoggingJob: Job? = null
     private var manualOverrideRoute: String? = null
 
+    private fun isBluetoothDeviceType(type: Int): Boolean {
+        return type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+            type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && (type == AudioDeviceInfo.TYPE_BLE_HEADSET || type == AudioDeviceInfo.TYPE_BLE_SPEAKER)) ||
+            type == AudioDeviceInfo.TYPE_HEARING_AID
+    }
+
     private val deviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
             Log.d(TAG, "Audio devices added: ${addedDevices.map { it.type }}")
-            scheduleReEvaluate()
+            val hasBt = addedDevices.any { isBluetoothDeviceType(it.type) }
+            scheduleReEvaluate(isBluetooth = hasBt)
         }
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
             Log.d(TAG, "Audio devices removed: ${removedDevices.map { it.type }}")
-            scheduleReEvaluate()
+            val hasBt = removedDevices.any { isBluetoothDeviceType(it.type) }
+            scheduleReEvaluate(isBluetooth = hasBt)
         }
     }
 
-    private fun scheduleReEvaluate() {
+    private fun scheduleReEvaluate(isBluetooth: Boolean = false) {
         deviceChangeJob?.cancel()
         deviceChangeJob = scope.launch {
-            delay(400)
+            delay(if (isBluetooth) 800 else 400)
             if (isStarted) reEvaluatePriority()
         }
     }
@@ -147,6 +156,13 @@ class AudioDeviceRouter(
                 "android.hardware.usb.action.USB_DEVICE_ATTACHED" -> {
                     Log.d(TAG, "USB audio device event")
                     scheduleReEvaluate()
+                }
+                BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED,
+                BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED,
+                @Suppress("DEPRECATION")
+                BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED -> {
+                    Log.d(TAG, "Bluetooth state broadcast: ${intent.action}")
+                    scheduleReEvaluate(isBluetooth = true)
                 }
             }
         }
@@ -178,7 +194,7 @@ class AudioDeviceRouter(
                         isScoStartRequested = false
                         gateway.stopBluetoothSco()
                         gateway.isBluetoothScoOn = false
-                        reEvaluatePriority(skipBluetooth = true)
+                        scheduleReEvaluate(isBluetooth = true)
                     }
                 }
                 AudioManager.SCO_AUDIO_STATE_ERROR -> {
@@ -186,7 +202,7 @@ class AudioDeviceRouter(
                     isScoStartRequested = false
                     gateway.stopBluetoothSco()
                     gateway.isBluetoothScoOn = false
-                    reEvaluatePriority(skipBluetooth = true)
+                    scheduleReEvaluate(isBluetooth = true)
                 }
             }
         }
@@ -197,7 +213,7 @@ class AudioDeviceRouter(
             if (profile == BluetoothProfile.HEADSET) {
                 bluetoothHeadset = proxy as BluetoothHeadset
                 Log.d(TAG, "BluetoothHeadset proxy acquired")
-                if (isStarted) reEvaluatePriority()
+                if (isStarted) scheduleReEvaluate(isBluetooth = true)
             }
         }
         override fun onServiceDisconnected(profile: Int) {

@@ -281,6 +281,15 @@ class OfflineSessionHolder(
         }
     }
 
+    fun saveBackup(session: OfflineSession?) = setBackup(session)
+
+    fun provisionFromBackupCode(code: String): Boolean {
+        val session = OfflineSession.fromCode(code, clock())
+            ?: return false
+        setBackup(session)
+        return true
+    }
+
     fun get(): OfflineSession? = _current.value
     fun set(s: OfflineSession?) = setCurrent(s)
     val isBackupPersisted: Boolean get() = backupStore.isPersisted

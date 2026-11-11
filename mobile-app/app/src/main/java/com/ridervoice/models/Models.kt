@@ -36,6 +36,7 @@ data class LobbyStatus(
     val diagnosticsEnabled: Boolean = false,
     val host: LobbyHost? = null,
     val joinCode: String? = null,
+    val offlineBackupCode: String? = null,
     val origin: String? = null,
     val destination: String? = null,
     val meetupPoint: String? = null,
@@ -71,6 +72,7 @@ data class StartRideResponse(
     val roomId: String? = null,
     val lkRoomName: String? = null,
     val livekitUrl: String,
+    val offlineBackupCode: String? = null,
     val diagnosticsEnabled: Boolean = false,
     val testNumber: Int? = null,
     val expiresAt: String? = null
@@ -161,6 +163,7 @@ data class TokenPayload(
     val roomId: String? = null,
     val roomName: String? = null,
     val lkRoomName: String? = null,
+    val offlineBackupCode: String? = null,
     val expiresAtEpochSec: Long? = null,
     val diagnosticsEnabled: Boolean = false,
     val testNumber: Int? = null

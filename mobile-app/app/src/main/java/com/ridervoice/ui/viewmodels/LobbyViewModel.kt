@@ -32,7 +32,8 @@ sealed class LobbyLoadState {
 @HiltViewModel
 class LobbyViewModel @Inject constructor(
     private val apiService: ApiService,
-    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository
+    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository,
+    private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder
 ) : ViewModel() {
 
     private val _loadState = MutableStateFlow<LobbyLoadState>(LobbyLoadState.Loading)
@@ -87,6 +88,11 @@ class LobbyViewModel @Inject constructor(
                         _loadState.value = LobbyLoadState.Ready(body)
                         _error.value = null
 
+                        val statusBackupCode = body.offlineBackupCode
+                        if (!statusBackupCode.isNullOrBlank() && statusBackupCode.length == 16) {
+                            sessionHolder.provisionFromBackupCode(statusBackupCode)
+                        }
+
                         activeRideRepository.enterLobby(
                             roomId = body.roomId ?: roomName,
                             name = body.convoyName ?: roomName,
@@ -106,12 +112,18 @@ class LobbyViewModel @Inject constructor(
                                     )
                                     val tb = tokenRes.body()
                                     if (tokenRes.isSuccessful && tb != null) {
+                                        val backupCode = tb.offlineBackupCode ?: body.offlineBackupCode
+                                        if (!backupCode.isNullOrBlank() && backupCode.length == 16) {
+                                            sessionHolder.provisionFromBackupCode(backupCode)
+                                        }
                                         activeRideRepository.applyTokenPayload(
                                             com.ridervoice.models.TokenPayload(
                                                 token = tb.token,
                                                 livekitUrl = tb.livekitUrl,
                                                 roomId = tb.roomId ?: body.roomId,
                                                 roomName = tb.roomName ?: body.convoyName,
+                                                lkRoomName = tb.lkRoomName ?: body.lkRoomName,
+                                                offlineBackupCode = backupCode,
                                                 diagnosticsEnabled = tb.diagnosticsEnabled,
                                                 testNumber = tb.testNumber
                                             )
@@ -326,12 +338,18 @@ class LobbyViewModel @Inject constructor(
                 val res = apiService.startRide(roomName)
                 val body = res.body()
                 if (res.isSuccessful && body != null) {
+                    val backupCode = body.offlineBackupCode
+                    if (!backupCode.isNullOrBlank() && backupCode.length == 16) {
+                        sessionHolder.provisionFromBackupCode(backupCode)
+                    }
                     activeRideRepository.applyTokenPayload(
                         com.ridervoice.models.TokenPayload(
                             token = body.token,
                             livekitUrl = body.livekitUrl,
                             roomId = body.roomId,
                             roomName = body.roomName,
+                            lkRoomName = body.lkRoomName,
+                            offlineBackupCode = body.offlineBackupCode,
                             diagnosticsEnabled = body.diagnosticsEnabled,
                             testNumber = body.testNumber
                         )
@@ -350,6 +368,7 @@ class LobbyViewModel @Inject constructor(
     fun leaveRoom(roomRef: String, onLeaveSuccess: () -> Unit) {
         viewModelScope.launch {
             try {
+                sessionHolder.clearBackup()
                 apiService.leaveLobby(roomRef)
             } catch (_: Exception) {}
             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.LEFT)

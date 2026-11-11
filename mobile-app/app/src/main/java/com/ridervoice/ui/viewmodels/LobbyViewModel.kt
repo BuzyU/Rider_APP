@@ -33,7 +33,7 @@ sealed class LobbyLoadState {
 class LobbyViewModel @Inject constructor(
     private val apiService: ApiService,
     private val activeRideRepository: com.ridervoice.state.ActiveRideRepository,
-    private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder
+    private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder = com.ridervoice.mesh.session.OfflineSessionHolder()
 ) : ViewModel() {
 
     private val _loadState = MutableStateFlow<LobbyLoadState>(LobbyLoadState.Loading)

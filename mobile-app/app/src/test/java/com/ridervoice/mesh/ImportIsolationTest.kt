@@ -31,7 +31,10 @@ class ImportIsolationTest {
         "NavGraph.kt",
         "Routes.kt",
         "SettingsScreen.kt",
-        "MeshForegroundService.kt"
+        "MeshForegroundService.kt",
+        "LobbyScreen.kt",
+        "LobbyViewModel.kt",
+        "ActiveRideRepository.kt"
     )
 
     @Test

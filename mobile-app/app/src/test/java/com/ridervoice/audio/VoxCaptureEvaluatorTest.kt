@@ -100,4 +100,17 @@ class VoxCaptureEvaluatorTest {
         assertEquals("adm", evaluator.activePath)
         assertEquals(1, evaluator.pathSwitchCount)
     }
+
+    @Test
+    fun admAliveGuard_preventsOwnRecordStartWhenAdmActive() {
+        val evaluator = VoxCaptureEvaluator(VoxCaptureMode.AUTO, initialPath = "adm")
+        val now = 10000L
+        evaluator.onAdmFrameReceived(now)
+
+        // Within 1000ms: ADM is alive, so VoxEngine won't fall back to own-record
+        org.junit.Assert.assertTrue("ADM must report alive within timeout", evaluator.isAdmAlive(now + 500L, timeoutMs = 1000L))
+
+        // Beyond timeout (1000ms): ADM is no longer alive
+        org.junit.Assert.assertFalse("ADM must report dead after timeout", evaluator.isAdmAlive(now + 1500L, timeoutMs = 1000L))
+    }
 }

@@ -928,6 +928,10 @@ class LiveKitManager @Inject constructor(
                     lastToken = freshToken
                     connectInternal(lastUrl, freshToken, sessionId)
                 } else if (freshToken == null && sessionId == currentSessionId) {
+                    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                        _connectionState.value = ConnectionState.FAILED
+                        return@launch
+                    }
                     // Do not fallback to stale lastToken on token failure; schedule next attempt with backoff
                     scheduleReconnect()
                 }

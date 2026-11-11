@@ -61,6 +61,7 @@ function clearPendingCleanups() {
 
 let hasLkRoomNameColumn = true
 let hasLastEmptyAtColumn = true
+let hasOfflineBackupCodeColumn = true
 
 async function countActiveClaimants(lkName) {
     if (typeof prisma.room?.count !== 'function') return 0
@@ -97,12 +98,14 @@ async function countActiveClaimants(lkName) {
 }
 
 async function safeFindRooms(whereClause, extraSelect = {}) {
-    const query = async (withLk, withLastEmpty) => {
+    const query = async (withLk, withLastEmpty, withOffline) => {
         const sel = { id: true, name: true, ...extraSelect }
         if (withLk && hasLkRoomNameColumn) sel.lkRoomName = true
         else delete sel.lkRoomName
         if (withLastEmpty && hasLastEmptyAtColumn && extraSelect.lastEmptyAt) sel.lastEmptyAt = true
         else delete sel.lastEmptyAt
+        if (withOffline && hasOfflineBackupCodeColumn && extraSelect.offlineBackupCode) sel.offlineBackupCode = true
+        else delete sel.offlineBackupCode
         return await prisma.room.findMany({
             where: whereClause,
             select: sel
@@ -110,11 +113,11 @@ async function safeFindRooms(whereClause, extraSelect = {}) {
     }
 
     try {
-        return await query(hasLkRoomNameColumn, hasLastEmptyAtColumn)
+        return await query(hasLkRoomNameColumn, hasLastEmptyAtColumn, hasOfflineBackupCodeColumn)
     } catch (err) {
         const isP2022 = err.code === 'P2022'
         const msg = err.message || ''
-        if (isP2022 || msg.includes('lkRoomName') || msg.includes('lastEmptyAt')) {
+        if (isP2022 || msg.includes('lkRoomName') || msg.includes('lastEmptyAt') || msg.includes('offlineBackupCode')) {
             if (hasLkRoomNameColumn && (isP2022 || msg.includes('lkRoomName'))) {
                 hasLkRoomNameColumn = false
                 console.warn('[roomSweeper] lkRoomName column missing in DB; querying without lkRoomName')
@@ -123,10 +126,15 @@ async function safeFindRooms(whereClause, extraSelect = {}) {
                 hasLastEmptyAtColumn = false
                 console.warn('[roomSweeper] lastEmptyAt column missing in DB; querying without lastEmptyAt')
             }
-            return await query(hasLkRoomNameColumn, hasLastEmptyAtColumn).catch(async () => {
+            if (hasOfflineBackupCodeColumn && (isP2022 || msg.includes('offlineBackupCode'))) {
+                hasOfflineBackupCodeColumn = false
+                console.warn('[roomSweeper] offlineBackupCode column missing in DB; querying without offlineBackupCode')
+            }
+            return await query(hasLkRoomNameColumn, hasLastEmptyAtColumn, hasOfflineBackupCodeColumn).catch(async () => {
                 hasLkRoomNameColumn = false
                 hasLastEmptyAtColumn = false
-                return await query(false, false)
+                hasOfflineBackupCodeColumn = false
+                return await query(false, false, false)
             })
         }
         throw err
@@ -305,10 +313,10 @@ async function sweepStaleRooms(deps = {}) {
                 }
             }
 
-            // 3. ACTIVE with listParticipants empty or lastEmptyAt older than 15 min (R1 + R15)
+            // 3. ACTIVE with listParticipants empty or lastEmptyAt older than 15 min (or 30 min if offlineBackupCode) (R1 + R15 + WP-117)
             const activeRooms = await safeFindRooms(
                 { status: 'ACTIVE' },
-                { lastEmptyAt: true }
+                { lastEmptyAt: true, offlineBackupCode: true }
             )
 
             for (const room of activeRooms) {
@@ -341,7 +349,8 @@ async function sweepStaleRooms(deps = {}) {
                             })
                         }
 
-                        if (Date.now() - emptySince >= fifteenMinMs) {
+                        const emptyTimeoutThreshold = room.offlineBackupCode ? 30 * 60 * 1000 : fifteenMinMs
+                        if (Date.now() - emptySince >= emptyTimeoutThreshold) {
                             const updated = await prisma.room.updateMany({
                                 where: { id: room.id, status: 'ACTIVE' },
                                 data: { status: 'ENDED', endedAt: now, joinCode: null }

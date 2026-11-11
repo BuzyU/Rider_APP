@@ -93,14 +93,15 @@ async function resolveDisplayName(uid, fallback = 'Rider', roomId = null) {
  * @param {string} lkRoomName – LiveKit room name (room.id in ROOM_ID_MODE, room.name otherwise)
  * @param {string} roomId – DB room UUID (stored in LK room metadata)
  */
-async function ensureLiveKitRoom(lkRoomName, roomId) {
+async function ensureLiveKitRoom(lkRoomName, roomId, opts = {}) {
     const svc = getRoomServiceClient()
     if (!svc) return
 
+    const hasOfflineBackup = !!opts.hasOfflineBackup
     try {
         await svc.createRoom({
             name: lkRoomName,
-            emptyTimeout: 600,       // 10 min: re-creates on first connect if empty
+            emptyTimeout: hasOfflineBackup ? 1800 : 600,       // 30 min if offline backup, 10 min otherwise (WP-118)
             departureTimeout: 120,   // 2 min: allow brief disconnects
             maxParticipants: 50,
             metadata: JSON.stringify({ roomId })
@@ -169,7 +170,7 @@ async function issueRoomToken(user, room) {
     const roomName = lkRoomName(room)
 
     // 5. Ensure the LiveKit room exists (idempotent; creates if empty-timeout dropped it)
-    await ensureLiveKitRoom(roomName, room.id)
+    await ensureLiveKitRoom(roomName, room.id, { hasOfflineBackup: !!room.offlineBackupCode })
 
     // 5b. RM-4: Re-query database to verify room did not transition to ENDED while external ensureLiveKitRoom was in flight
     let freshRoom = null

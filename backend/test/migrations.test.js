@@ -79,6 +79,7 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             const postPhase1MigrationPath = path.join(__dirname, '../prisma/migrations/20261024_post_phase1_fixups/migration.sql')
             const rideCreateRequestMigrationPath = path.join(__dirname, '../prisma/migrations/20261025_add_ride_create_request/migration.sql')
             const lkRoomNameMigrationPath = path.join(__dirname, '../prisma/migrations/20261025_add_lk_room_name/migration.sql')
+            const offlineBackupCodeMigrationPath = path.join(__dirname, '../prisma/migrations/20261111_add_offline_backup_code/migration.sql')
 
             async function setupDb(dbName) {
                 await runSqlFile(dbName, baseSchemaPath)
@@ -123,6 +124,7 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             await runSqlFile('ridervoice_prev', postPhase1MigrationPath)
             await runSqlFile('ridervoice_prev', rideCreateRequestMigrationPath)
             await runSqlFile('ridervoice_prev', lkRoomNameMigrationPath)
+            await runSqlFile('ridervoice_prev', offlineBackupCodeMigrationPath)
 
             // Verify columns now exist in ridervoice_prev
             const upgradedClient = new Client({ host: 'localhost', port: testPort, user: 'postgres', password: 'password', database: 'ridervoice_prev' })
@@ -142,6 +144,7 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             await runSqlFile('ridervoice_fresh', postPhase1MigrationPath)
             await runSqlFile('ridervoice_fresh', rideCreateRequestMigrationPath)
             await runSqlFile('ridervoice_fresh', lkRoomNameMigrationPath)
+            await runSqlFile('ridervoice_fresh', offlineBackupCodeMigrationPath)
 
             // 3. Diff fresh DB against schema.prisma and assert no drift
             const dbUrl = `postgresql://postgres:password@localhost:${testPort}/ridervoice_fresh`

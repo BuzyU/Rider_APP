@@ -28,6 +28,7 @@
 'use strict'
 
 const express = require('express')
+const crypto = require('crypto')
 const router = express.Router()
 const prisma = require('../db')
 const { RoomServiceClient } = require('livekit-server-sdk')
@@ -45,6 +46,16 @@ const { setSchemaHealth } = require('./healthRoute')
 const { riderCallsign } = require('../services/identity')
 
 // --- Helpers -----------------------------------------------------------------
+
+const CROCKFORD_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+function generateOfflineBackupCode() {
+    const bytes = crypto.randomBytes(16)
+    let code = ''
+    for (let i = 0; i < 16; i++) {
+        code += CROCKFORD_ALPHABET[bytes[i] % 32]
+    }
+    return code
+}
 
 function getLiveKitHttpUrl() {
     const raw = process.env.LIVEKIT_URL || ''
@@ -74,7 +85,6 @@ async function removeLiveKitParticipant(lkRoomName, userId) {
     }
 }
 
-const crypto = require('crypto')
 
 function computeCreatePayloadHash(payload) {
     const normalized = {
@@ -538,6 +548,7 @@ router.get('/:roomRef/status', async (req, res, next) => {
             pendingCount,
             declinedCount,
             canStart,
+            offlineBackupCode: room.offlineBackupCode || null,
             joinCode: isOwner ? room.joinCode : undefined
         }
 
@@ -584,22 +595,23 @@ router.post('/:roomRef/start', async (req, res, next) => {
         }
 
         // Transition room to ACTIVE conditionally
+        const offlineBackupCode = room.offlineBackupCode || generateOfflineBackupCode()
         if (typeof prisma.room.updateMany === 'function') {
             await prisma.room.updateMany({
                 where: { id: room.id, status: 'LOBBY' },
-                data: { startedAt: new Date(), status: 'ACTIVE' }
+                data: { startedAt: new Date(), status: 'ACTIVE', offlineBackupCode }
             }).catch(() => null)
         } else if (typeof prisma.room.update === 'function') {
             await prisma.room.update({
                 where: { id: room.id },
-                data: { startedAt: new Date(), status: 'ACTIVE' }
+                data: { startedAt: new Date(), status: 'ACTIVE', offlineBackupCode }
             }).catch(() => null)
         }
 
         invalidateRoom(room.id)
 
         // Issue token via tokenService (A1 + A2 + F3)
-        const tokenResult = await issueRoomToken(user, { ...room, status: 'ACTIVE' })
+        const tokenResult = await issueRoomToken(user, { ...room, status: 'ACTIVE', offlineBackupCode })
 
         res.json(tokenResult)
     } catch (error) {
@@ -672,8 +684,7 @@ router.post('/:roomRef/share-link', async (req, res, next) => {
             }
         }
 
-        const crypto = require('crypto')
-        const tokenValue = crypto.randomBytes(8).toString('hex')
+                const tokenValue = crypto.randomBytes(8).toString('hex')
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
         // R4: create join token without swallowing database error

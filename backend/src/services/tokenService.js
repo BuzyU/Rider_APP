@@ -229,6 +229,7 @@ async function issueRoomToken(user, room) {
         roomId: room.id,
         roomName: room.name,        // always the display name, not the LK room name
         lkRoomName: roomName,       // Canonical LiveKit room identity for client verification
+        offlineBackupCode: room.offlineBackupCode || null,
         diagnosticsEnabled: room.diagnosticsEnabled ?? activeRun != null,
         testNumber: activeRun?.testNumber || null,
         expiresAt,

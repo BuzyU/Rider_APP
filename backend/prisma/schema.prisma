@@ -80,6 +80,7 @@ model Room {
   startedAt          DateTime?
   endedAt            DateTime?
   joinCode           String?
+  offlineBackupCode  String?
   // Phase 1.5: optional ride metadata
   origin             String?
   destination        String?

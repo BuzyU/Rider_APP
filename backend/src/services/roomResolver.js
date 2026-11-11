@@ -86,14 +86,16 @@ function resolverError(status, message, code) {
  */
 let hasLkRoomNameColumn = true
 let hasLastEmptyAtColumn = true
+let hasOfflineBackupCodeColumn = true
 
 function setAvailableColumns(cols = {}) {
     if (typeof cols.hasLkRoomName === 'boolean') hasLkRoomNameColumn = cols.hasLkRoomName
     if (typeof cols.hasLastEmptyAt === 'boolean') hasLastEmptyAtColumn = cols.hasLastEmptyAt
+    if (typeof cols.hasOfflineBackupCode === 'boolean') hasOfflineBackupCodeColumn = cols.hasOfflineBackupCode
 }
 
 function getAvailableColumns() {
-    return { hasLkRoomName: hasLkRoomNameColumn, hasLastEmptyAt: hasLastEmptyAtColumn }
+    return { hasLkRoomName: hasLkRoomNameColumn, hasLastEmptyAt: hasLastEmptyAtColumn, hasOfflineBackupCode: hasOfflineBackupCodeColumn }
 }
 
 async function probeColumns(client = prisma) {
@@ -107,6 +109,7 @@ async function probeColumns(client = prisma) {
             const cols = new Set(rows.map(r => r.column_name))
             hasLkRoomNameColumn = cols.has('lkRoomName')
             hasLastEmptyAtColumn = cols.has('lastEmptyAt')
+            hasOfflineBackupCodeColumn = cols.has('offlineBackupCode')
             if (!hasLastEmptyAtColumn) {
                 console.warn('[roomResolver] Notice: "lastEmptyAt" column missing in Room table; lastEmptyAt queries disabled until migration.')
             }
@@ -145,6 +148,11 @@ function buildBaseSelect(optsSelect = {}) {
         base.lkRoomName = true
     } else {
         delete base.lkRoomName
+    }
+    if (hasOfflineBackupCodeColumn && optsSelect.offlineBackupCode !== false) {
+        base.offlineBackupCode = true
+    } else {
+        delete base.offlineBackupCode
     }
     return base
 }

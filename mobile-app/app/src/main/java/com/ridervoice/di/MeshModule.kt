@@ -251,7 +251,8 @@ object MeshModule {
         meshTransport: OfflineMeshVoiceTransport,
         healthSignalsProvider: LocalHealthSignalsProvider,
         secretProvider: OfflineSecretProvider,
-        sessionHolder: OfflineSessionHolder
+        sessionHolder: OfflineSessionHolder,
+        runtimeSettings: com.ridervoice.mesh.MeshRuntimeSettings
     ): MeshAutoSwitchManager = MeshAutoSwitchManager(
         activeRideRepository = activeRideRepository,
         liveKitManager = liveKitManager,
@@ -260,7 +261,8 @@ object MeshModule {
         healthSignalsProvider = healthSignalsProvider,
         secretProvider = secretProvider,
         isStandaloneSessionActive = { sessionHolder.current.value != null },
-        sessionHolder = sessionHolder
+        sessionHolder = sessionHolder,
+        meshRuntimeSettings = runtimeSettings
     )
 
     @Provides

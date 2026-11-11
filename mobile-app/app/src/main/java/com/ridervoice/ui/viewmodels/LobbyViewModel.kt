@@ -91,6 +91,16 @@ class LobbyViewModel @Inject constructor(
                         val statusBackupCode = body.offlineBackupCode
                         if (!statusBackupCode.isNullOrBlank() && statusBackupCode.length == 16) {
                             sessionHolder.provisionFromBackupCode(statusBackupCode)
+                            if (activeRideRepository.state.value?.meshConfig == null) {
+                                activeRideRepository.setMeshConfig(
+                                    com.ridervoice.mesh.RoomMeshConfig(
+                                        offlineMeshEnabled = true,
+                                        automaticFallbackEnabled = true,
+                                        warmStandbyEnabled = true,
+                                        configCompleted = true
+                                    )
+                                )
+                            }
                         }
 
                         activeRideRepository.enterLobby(
@@ -332,6 +342,38 @@ class LobbyViewModel @Inject constructor(
         _error.value = null
     }
 
+    fun toggleOfflineMesh(enabled: Boolean) {
+        if (enabled) {
+            activeRideRepository.setMeshConfig(
+                com.ridervoice.mesh.RoomMeshConfig(
+                    offlineMeshEnabled = true,
+                    automaticFallbackEnabled = true,
+                    warmStandbyEnabled = true,
+                    configCompleted = false
+                )
+            )
+            viewModelScope.launch {
+                delay(1000L)
+                val current = activeRideRepository.state.value?.meshConfig
+                if (current != null && current.offlineMeshEnabled) {
+                    activeRideRepository.setMeshConfig(current.copy(configCompleted = true))
+                }
+            }
+        } else {
+            activeRideRepository.setMeshConfig(com.ridervoice.mesh.RoomMeshConfig.DISABLED)
+        }
+    }
+
+    fun toggleAutomaticFallback(enabled: Boolean) {
+        val current = activeRideRepository.state.value?.meshConfig ?: return
+        activeRideRepository.setMeshConfig(current.copy(automaticFallbackEnabled = enabled))
+    }
+
+    fun toggleWarmStandby(enabled: Boolean) {
+        val current = activeRideRepository.state.value?.meshConfig ?: return
+        activeRideRepository.setMeshConfig(current.copy(warmStandbyEnabled = enabled))
+    }
+
     fun startRide(roomName: String, onStartSuccess: () -> Unit) {
         viewModelScope.launch {
             try {
@@ -341,6 +383,10 @@ class LobbyViewModel @Inject constructor(
                     val backupCode = body.offlineBackupCode
                     if (!backupCode.isNullOrBlank() && backupCode.length == 16) {
                         sessionHolder.provisionFromBackupCode(backupCode)
+                    }
+                    val currentMeshConfig = activeRideRepository.state.value?.meshConfig
+                    if (currentMeshConfig?.offlineMeshEnabled == true) {
+                        activeRideRepository.setMeshConfig(currentMeshConfig.copy(configCompleted = true))
                     }
                     activeRideRepository.applyTokenPayload(
                         com.ridervoice.models.TokenPayload(

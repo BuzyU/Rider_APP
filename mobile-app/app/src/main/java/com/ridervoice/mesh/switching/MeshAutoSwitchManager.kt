@@ -40,7 +40,8 @@ class MeshAutoSwitchManager(
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val isStandaloneSessionActive: () -> Boolean = { false },
     private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder? = null,
-    private val localOnlineIdentity: () -> String? = { runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid }.getOrNull() }
+    private val localOnlineIdentity: () -> String? = { runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid }.getOrNull() },
+    private val meshRuntimeSettings: com.ridervoice.mesh.MeshRuntimeSettings? = null
 ) {
 
     private var scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -94,6 +95,9 @@ class MeshAutoSwitchManager(
                     if (wasRideLive) {
                         stateMachine.endSession()
                         currentLiveRideId = null
+                        meshRuntimeSettings?.setOfflineMeshEnabled(false)
+                        meshRuntimeSettings?.setAutomaticFallbackEnabled(false)
+                        meshRuntimeSettings?.setWarmStandbyEnabled(false)
                     }
                     coordinator.setOnlineSession(null)
                     _groupStatus.value = GroupConnectivityStatus.ONLINE_ALL
@@ -111,6 +115,12 @@ class MeshAutoSwitchManager(
                 // Phase.LIVE (new rideId) -> beginSession, start evaluation ticks
                 if (currentLiveRideId != ride.roomId) {
                     currentLiveRideId = ride.roomId
+                    val roomConfig = ride.meshConfig
+                    if (roomConfig != null) {
+                        meshRuntimeSettings?.setOfflineMeshEnabled(roomConfig.offlineMeshEnabled)
+                        meshRuntimeSettings?.setAutomaticFallbackEnabled(roomConfig.automaticFallbackEnabled)
+                        meshRuntimeSettings?.setWarmStandbyEnabled(roomConfig.warmStandbyEnabled)
+                    }
                     stateMachine.beginSession(ride.roomId, clock.nowMs())
                 }
                 // Phase.LIVE (same rideId) -> continue

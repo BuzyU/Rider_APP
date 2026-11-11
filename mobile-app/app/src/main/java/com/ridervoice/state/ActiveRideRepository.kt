@@ -16,6 +16,8 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
+typealias ActiveRideState = ActiveRideRepository.ActiveRide
+
 @Singleton
 class ActiveRideRepository @Inject constructor(
     private val prefs: SecurePreferences?,
@@ -36,8 +38,15 @@ class ActiveRideRepository @Inject constructor(
         val tokenExpEpochSec: Long? = null,
         val diagnosticsEnabled: Boolean = false,
         val testNumber: Int? = null,
-        val joinCode: String? = null
+        val joinCode: String? = null,
+        val meshConfig: com.ridervoice.mesh.RoomMeshConfig? = null
     )
+
+    fun setMeshConfig(config: com.ridervoice.mesh.RoomMeshConfig) {
+        _state.update { current ->
+            current?.copy(meshConfig = config)
+        }
+    }
 
     private val _state = MutableStateFlow<ActiveRide?>(null)
     val state: StateFlow<ActiveRide?> = _state.asStateFlow()

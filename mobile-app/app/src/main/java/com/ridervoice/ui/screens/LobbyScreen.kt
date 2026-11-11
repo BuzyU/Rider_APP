@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.R
+import com.ridervoice.mesh.RoomMeshConfig
 import com.ridervoice.ui.components.*
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.LobbyLoadState
@@ -246,9 +247,14 @@ fun LobbyScreen(
                         verticalArrangement = Arrangement.spacedBy(RvSpacing.xs)
                     ) {
                         if (isHost) {
+                            val meshConfig = activeRide?.meshConfig
+                            val isConfiguring = meshConfig?.offlineMeshEnabled == true && !meshConfig.configCompleted
+                            val canStart = status != null && !isConfiguring
+
                             PrimaryButton(
-                                text = if (accepted.isNotEmpty()) "Start ride (${accepted.size + 1} riders)" else "Start ride",
-                                enabled = status != null,
+                                text = if (isConfiguring) "Configuring..." else if (accepted.isNotEmpty()) "Start ride (${accepted.size + 1} riders)" else "Start ride",
+                                enabled = canStart,
+                                loading = isConfiguring,
                                 onClick = {
                                     if (accepted.isEmpty()) {
                                         showStartAloneDialog = true
@@ -566,6 +572,20 @@ fun LobbyScreen(
                     }
                 }
 
+                item {
+                    val currentMeshConfig = activeRide?.meshConfig
+                    val isConfiguring = currentMeshConfig?.offlineMeshEnabled == true && !currentMeshConfig.configCompleted
+                    OfflineConfigCard(
+                        isHost = isHost,
+                        meshConfig = currentMeshConfig,
+                        offlineBackupCode = status?.offlineBackupCode,
+                        onToggleOffline = { viewModel.toggleOfflineMesh(it) },
+                        onToggleAutoFallback = { viewModel.toggleAutomaticFallback(it) },
+                        onToggleWarmStandby = { viewModel.toggleWarmStandby(it) },
+                        isConfiguring = isConfiguring
+                    )
+                }
+
                 // Section 1: Joined (n)
                 item {
                     Text(
@@ -672,6 +692,102 @@ fun LobbyScreen(
                 item {
                     Spacer(modifier = Modifier.height(RvSpacing.xl))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun OfflineConfigCard(
+    isHost: Boolean,
+    meshConfig: RoomMeshConfig?,
+    offlineBackupCode: String?,
+    onToggleOffline: (Boolean) -> Unit,
+    onToggleAutoFallback: (Boolean) -> Unit,
+    onToggleWarmStandby: (Boolean) -> Unit,
+    isConfiguring: Boolean
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Offline Backup",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Enable offline mesh intercom as backup for this ride",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Only host can toggle
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Enable for this ride", modifier = Modifier.weight(1f))
+                Switch(
+                    checked = meshConfig?.offlineMeshEnabled == true,
+                    onCheckedChange = { onToggleOffline(it) },
+                    enabled = isHost
+                )
+            }
+
+            if (meshConfig?.offlineMeshEnabled == true) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Auto-fallback on network loss", modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = meshConfig.automaticFallbackEnabled,
+                        onCheckedChange = { onToggleAutoFallback(it) },
+                        enabled = isHost
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Warm standby (background discovery)", modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = meshConfig.warmStandbyEnabled,
+                        onCheckedChange = { onToggleWarmStandby(it) },
+                        enabled = isHost
+                    )
+                }
+            }
+
+            if (isConfiguring) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Configuring offline backup...",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            if ((offlineBackupCode != null || meshConfig?.configCompleted == true) && meshConfig?.offlineMeshEnabled == true && !isConfiguring) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "✅ Offline backup ready",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

@@ -47,17 +47,6 @@
 
     <issue
         id="InlinedApi"
-        message="Field requires API level 29 (current min is 26): `android.Manifest.permission#ACCESS_BACKGROUND_LOCATION`"
-        errorLine1="    val backgroundLocationPermission: String = Manifest.permission.ACCESS_BACKGROUND_LOCATION"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/ridervoice/permissions/PermissionManager.kt"
-            line="35"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="InlinedApi"
         message="Field requires API level 30 (current min is 26): `android.content.pm.ServiceInfo#FOREGROUND_SERVICE_TYPE_MICROPHONE`"
         errorLine1="            mask = mask or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE"
         errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">

@@ -30,6 +30,7 @@ check "TTL 7 claims"                      bash -c "grep -rnE 'DEFAULT_TTL = 7|TT
 check "no MeshConfig.* = assignments"     grep -rnE "\bMeshConfig\.[a-zA-Z0-9_]+\s*=" mobile-app/app/src
 check "runCatching around suspend in mesh" bash -c "grep -rnE '\brunCatching\b.*(enableAudio|disableAudio|resume|pause|start\(|stop\(|setMicrophoneEnabled)' $M/mesh/transport; grep -rnE '\brunCatching\b.*(enableAudio|disableAudio|resume|pause|setMicrophoneEnabled)' $M/mesh/audio"
 check "main AndroidManifest contains no MeshDebugReceiver" grep -n "MeshDebugReceiver" mobile-app/app/src/main/AndroidManifest.xml
+check "main AndroidManifest contains no background location" grep -n "ACCESS_BACKGROUND" mobile-app/app/src/main/AndroidManifest.xml
 check "PeerFilterHolder.port assignment only in debug" bash -c "grep -rn 'PeerFilterHolder\.port\s*=' mobile-app/app/src/main || true"
 check "mesh code never references DEFAULT_MASTER_KEY_ALIAS" bash -c "grep -rn 'DEFAULT_MASTER_KEY_ALIAS' $M/mesh || true"
 check "no MD5 under mesh"                   grep -rn 'MessageDigest.getInstance("MD5")' $M/mesh

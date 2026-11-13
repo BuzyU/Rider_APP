@@ -104,10 +104,6 @@ fun RoomScreen(
         showLeaveConfirmDialog = true
     }
 
-    val bgLocationLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { _ -> }
-
     fun startVoiceServiceIfPermitted() {
         VoiceForegroundService.start(context)
     }
@@ -115,10 +111,6 @@ fun RoomScreen(
     val ridePermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val fineLocationGranted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] == true
-        if (fineLocationGranted && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            bgLocationLauncher.launch(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
         if (permissions[android.Manifest.permission.RECORD_AUDIO] == true) {
             startVoiceServiceIfPermitted()
         }

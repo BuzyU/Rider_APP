@@ -111,4 +111,25 @@ class ArchitectureRulesTest {
             debugManifest.contains("android:permission=\"android.permission.DUMP\"")
         )
     }
+
+    @Test
+    fun rule6_manifestNeverDeclaresBackgroundLocationPermission() {
+        // Explanatory comment: ACCESS_BACKGROUND_LOCATION is banned and removed in FX-01
+        val forbidden = "android.permission." + "ACCESS_" + "BACKGROUND_LOCATION"
+        val candidateFiles = listOf(
+            File("src/main/AndroidManifest.xml"),
+            File("app/src/main/AndroidManifest.xml"),
+            File("mobile-app/app/src/main/AndroidManifest.xml"),
+            File("build/intermediates/merged_manifests/debug/processDebugMainManifest/AndroidManifest.xml"),
+            File("app/build/intermediates/merged_manifests/debug/processDebugMainManifest/AndroidManifest.xml")
+        ).filter { it.exists() }
+        assertTrue("At least one manifest file must exist", candidateFiles.isNotEmpty())
+        for (manifestFile in candidateFiles) {
+            val content = manifestFile.readText()
+            assertFalse(
+                "Background location permission must not appear in \${manifestFile.path}",
+                content.contains(forbidden)
+            )
+        }
+    }
 }

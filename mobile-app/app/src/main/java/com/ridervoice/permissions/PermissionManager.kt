@@ -31,6 +31,4 @@ object PermissionManager {
             }
             return list.toTypedArray()
         }
-
-    val backgroundLocationPermission: String = Manifest.permission.ACCESS_BACKGROUND_LOCATION
 }

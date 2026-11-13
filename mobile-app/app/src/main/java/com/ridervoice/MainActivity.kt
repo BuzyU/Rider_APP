@@ -58,6 +58,11 @@ class MainActivity : ComponentActivity() {
         super.attachBaseContext(localized)
     }
 
+    override fun onResume() {
+        super.onResume()
+        com.ridervoice.services.VoiceForegroundService.refreshTypes(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)

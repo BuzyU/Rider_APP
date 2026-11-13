@@ -39,7 +39,8 @@ class ActiveRideRepository @Inject constructor(
         val diagnosticsEnabled: Boolean = false,
         val testNumber: Int? = null,
         val joinCode: String? = null,
-        val meshConfig: com.ridervoice.mesh.RoomMeshConfig? = null
+        val meshConfig: com.ridervoice.mesh.RoomMeshConfig? = null,
+        val voiceServiceError: String? = null
     )
 
     fun setMeshConfig(config: com.ridervoice.mesh.RoomMeshConfig) {
@@ -52,6 +53,15 @@ class ActiveRideRepository @Inject constructor(
     val state: StateFlow<ActiveRide?> = _state.asStateFlow()
     private val _lastEnded = MutableStateFlow<PostRideSnapshot?>(null)
     val lastEnded: StateFlow<PostRideSnapshot?> = _lastEnded.asStateFlow()
+    private val _voiceServiceError = MutableStateFlow<String?>(null)
+    val voiceServiceError: StateFlow<String?> = _voiceServiceError.asStateFlow()
+
+    fun setVoiceServiceError(error: String?) {
+        _voiceServiceError.value = error
+        _state.update { current ->
+            current?.copy(voiceServiceError = error)
+        }
+    }
 
     fun enterLobby(roomId: String, name: String, isHost: Boolean, joinCode: String? = null, lkRoomName: String? = null) {
         val ride = ActiveRide(
@@ -197,6 +207,7 @@ class ActiveRideRepository @Inject constructor(
             )
         }
         _state.update { null }
+        _voiceServiceError.value = null
         prefs?.clearActiveRide()
     }
 

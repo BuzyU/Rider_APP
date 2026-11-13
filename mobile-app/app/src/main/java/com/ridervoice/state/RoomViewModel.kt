@@ -131,6 +131,14 @@ class RoomViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
+        activeRideRepository.voiceServiceError
+            .onEach { err ->
+                if (err != null) {
+                    _error.value = err
+                }
+            }
+            .launchIn(viewModelScope)
+
         locationService.currentLocation
             .filterNotNull()
             .onEach { loc ->

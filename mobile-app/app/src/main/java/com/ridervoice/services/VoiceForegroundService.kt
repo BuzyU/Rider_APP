@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class VoiceForegroundService : Service() {
+open class VoiceForegroundService : Service() {
 
     @Inject
     lateinit var liveKitManager: LiveKitManager
@@ -70,13 +70,32 @@ class VoiceForegroundService : Service() {
 
     private var updateJob: Job? = null
 
+    internal var sdkIntProvider: () -> Int = { Build.VERSION.SDK_INT }
+    internal var appVisibilityProvider: () -> Boolean = { isAppVisible() }
+    internal var permissionChecker: (String) -> Int = { perm ->
+        androidx.core.content.ContextCompat.checkSelfPermission(this, perm)
+    }
+    internal var stopSelfAction: () -> Unit = { stopSelf() }
+
+    private fun isAppVisible(): Boolean {
+        return try {
+            val appProcessInfo = android.app.ActivityManager.RunningAppProcessInfo()
+            android.app.ActivityManager.getMyMemoryState(appProcessInfo)
+            appProcessInfo.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND ||
+                appProcessInfo.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
 
-        val hasMic = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        val hasMic = permissionChecker(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         if (!hasMic) {
             android.util.Log.w("VoiceForegroundService", "RECORD_AUDIO missing on onCreate; terminating")
-            stopSelf()
+            stopSelfAction()
             return
         }
 
@@ -88,13 +107,22 @@ class VoiceForegroundService : Service() {
             } else {
                 startForeground(notificationId, buildTacticalNotification())
             }
+            if (::activeRideRepository.isInitialized) {
+                activeRideRepository.setVoiceServiceError(null)
+            }
         } catch (se: SecurityException) {
             android.util.Log.e("VoiceForegroundService", "startForeground SecurityException: ${se.message}")
-            stopSelf()
+            if (::activeRideRepository.isInitialized) {
+                activeRideRepository.setVoiceServiceError("voice stopped, reopen the app")
+            }
+            stopSelfAction()
             return
         } catch (e: Exception) {
             android.util.Log.e("VoiceForegroundService", "startForeground failed", e)
-            stopSelf()
+            if (::activeRideRepository.isInitialized) {
+                activeRideRepository.setVoiceServiceError("voice stopped, reopen the app")
+            }
+            stopSelfAction()
             return
         }
 
@@ -184,6 +212,9 @@ class VoiceForegroundService : Service() {
                 liveKitManager.setUserMuted(isMuted)
                 updateNotificationImmediate()
             }
+            "ACTION_REFRESH_TYPES" -> {
+                updateForegroundServiceTypeIfRunning()
+            }
         }
 
         // Process death recovery: check if a LIVE ride exists
@@ -199,9 +230,37 @@ class VoiceForegroundService : Service() {
                     activeRideRepository.ensureFreshToken()
                 }
             }
+        } else if (intent.action != "ACTION_STOP_SERVICE") {
+            updateForegroundServiceTypeIfRunning()
         }
 
         return START_REDELIVER_INTENT
+    }
+
+    open fun updateForegroundServiceTypeIfRunning() {
+        try {
+            val mask = getForegroundServiceTypeMask()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && mask != 0) {
+                startForeground(notificationId, buildTacticalNotification(), mask)
+            } else {
+                startForeground(notificationId, buildTacticalNotification())
+            }
+            if (::activeRideRepository.isInitialized) {
+                activeRideRepository.setVoiceServiceError(null)
+            }
+        } catch (se: SecurityException) {
+            android.util.Log.e("VoiceForegroundService", "updateForegroundServiceType failed SecurityException: ${se.message}")
+            if (::activeRideRepository.isInitialized) {
+                activeRideRepository.setVoiceServiceError("voice stopped, reopen the app")
+            }
+            stopSelfAction()
+        } catch (e: Exception) {
+            android.util.Log.e("VoiceForegroundService", "updateForegroundServiceType failed", e)
+            if (::activeRideRepository.isInitialized) {
+                activeRideRepository.setVoiceServiceError("voice stopped, reopen the app")
+            }
+            stopSelfAction()
+        }
     }
 
     private fun updateWakeLock(state: ConnectionState) {
@@ -235,19 +294,26 @@ class VoiceForegroundService : Service() {
         }
     }
 
-    private fun getForegroundServiceTypeMask(): Int {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return 0
+    internal fun getForegroundServiceTypeMask(): Int {
+        val sdk = sdkIntProvider()
+        if (sdk < Build.VERSION_CODES.Q) return 0
         var mask = 0
-        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+        if (permissionChecker(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             mask = mask or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-            (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-             checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)) {
+        val hasFine = permissionChecker(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = permissionChecker(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasLocationPerm = hasFine || hasCoarse
+        val locationStartAllowed = if (sdk >= Build.VERSION_CODES.S) {
+            appVisibilityProvider()
+        } else {
+            true
+        }
+        if (sdk >= Build.VERSION_CODES.R && hasLocationPerm && locationStartAllowed) {
             mask = mask or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            if (checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+        if (sdk >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (permissionChecker(android.Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                 mask = mask or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
             }
         }
@@ -334,6 +400,7 @@ class VoiceForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        isRunning = false
         serviceScope.cancel()
         locationService.stopTracking()
         rideRecorder.stopRecording()
@@ -351,6 +418,26 @@ class VoiceForegroundService : Service() {
     }
 
     companion object {
+        @Volatile
+        var isRunning: Boolean = false
+            internal set
+
+        fun refreshTypes(context: Context) {
+            if (!isRunning) return
+            try {
+                val intent = Intent(context, VoiceForegroundService::class.java).apply {
+                    action = "ACTION_REFRESH_TYPES"
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("VoiceForegroundService", "refreshTypes failed: ${e.message}")
+            }
+        }
+
         fun start(context: Context) {
             val hasMic = androidx.core.content.ContextCompat.checkSelfPermission(
                 context,

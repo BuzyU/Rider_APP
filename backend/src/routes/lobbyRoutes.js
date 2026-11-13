@@ -699,29 +699,40 @@ router.post('/:roomRef/start', async (req, res, next) => {
             }
         }
 
-        // Transition room to ACTIVE atomically
+        // Transition room to ACTIVE atomically (FX-02)
         const offlineBackupCode = room.offlineBackupCode || generateOfflineBackupCode()
-        let transitioned = false
-        if (typeof prisma.room.updateMany === 'function') {
-            const updateRes = await prisma.room.updateMany({
-                where: { id: room.id, status: 'LOBBY' },
-                data: { startedAt: new Date(), status: 'ACTIVE', offlineBackupCode }
-            }).catch(() => null)
-            transitioned = (updateRes?.count || 0) > 0
-        } else if (typeof prisma.room.update === 'function') {
-            await prisma.room.update({
-                where: { id: room.id },
-                data: { startedAt: new Date(), status: 'ACTIVE', offlineBackupCode }
-            }).catch(() => null)
-            transitioned = true
+        const startedAt = new Date()
+
+        const updateRes = await prisma.room.updateMany({
+            where: { id: room.id, status: 'LOBBY' },
+            data: { startedAt, status: 'ACTIVE', offlineBackupCode }
+        })
+
+        let activeRoom
+        if ((updateRes?.count || 0) > 0) {
+            activeRoom = { ...room, status: 'ACTIVE', startedAt, offlineBackupCode }
+        } else {
+            // Count 0: Re-read room to check status for idempotent or conflict paths
+            const currentRoom = await prisma.room.findUnique({ where: { id: room.id } })
+            if (!currentRoom) {
+                return res.status(404).json({ error: 'Room not found', code: 'ROOM_NOT_FOUND' })
+            }
+            if (currentRoom.status === 'ACTIVE') {
+                // Idempotent path: room transitioned concurrently
+                activeRoom = currentRoom
+            } else if (currentRoom.status === 'ENDED') {
+                return res.status(409).json({ error: 'Ride has already ended', code: 'ROOM_ENDED' })
+            } else {
+                return res.status(409).json({
+                    error: `Cannot start ride: room is currently ${currentRoom.status}`,
+                    code: 'ROOM_STATUS_CONFLICT'
+                })
+            }
         }
 
         invalidateRoom(room.id)
 
         // Issue token via tokenService (A1 + A2 + F3)
-        const activeRoom = (transitioned || !prisma.room?.findUnique)
-            ? { ...room, status: 'ACTIVE', offlineBackupCode }
-            : (await prisma.room.findUnique({ where: { id: room.id } }) || { ...room, status: 'ACTIVE', offlineBackupCode })
         const tokenResult = await issueRoomToken(user, activeRoom)
 
         res.json(tokenResult)

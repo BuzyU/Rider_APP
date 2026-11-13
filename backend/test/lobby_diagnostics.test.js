@@ -20,6 +20,7 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
         originals.roomFindUnique = prisma.room.findUnique
         originals.roomCreate = prisma.room.create
         originals.roomUpdate = prisma.room.update
+        originals.roomUpdateMany = prisma.room.updateMany
         originals.roomFindFirst = prisma.room.findFirst
         originals.diagnosticRunFindFirst = prisma.diagnosticRun.findFirst
         originals.diagnosticRunCreate = prisma.diagnosticRun.create
@@ -55,6 +56,7 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
         prisma.room.findUnique = originals.roomFindUnique
         prisma.room.create = originals.roomCreate
         prisma.room.update = originals.roomUpdate
+        prisma.room.updateMany = originals.roomUpdateMany
         prisma.room.findFirst = originals.roomFindFirst
         prisma.diagnosticRun.findFirst = originals.diagnosticRunFindFirst
         prisma.diagnosticRun.create = originals.diagnosticRunCreate
@@ -178,7 +180,7 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
             startedAt: null
         })
         prisma.rideInvite.count = async () => 0
-        prisma.room.update = async () => ({})
+        prisma.room.updateMany = async () => ({ count: 1 })
 
         const res = await fetch(`${baseUrl}/api/lobby/Start-Test-Room/start`, {
             method: 'POST',
@@ -318,6 +320,7 @@ describe('Gate 2: Lobby Diagnostics Flag', () => {
         prisma.room.findUnique = originals.roomFindUnique
         prisma.room.create = originals.roomCreate
         prisma.room.update = originals.roomUpdate
+        prisma.room.updateMany = originals.roomUpdateMany
         prisma.room.findFirst = originals.roomFindFirst
         prisma.diagnosticRun.findFirst = originals.diagnosticRunFindFirst
         prisma.diagnosticRun.create = originals.diagnosticRunCreate

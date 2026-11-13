@@ -390,4 +390,25 @@ class LobbyViewModelTest {
         assertTrue("Must report OPTED_OUT when offline mesh is disabled", api.reportedConfigs.any { it.second.status == "OPTED_OUT" })
         vm.stopPolling()
     }
+
+    @Test
+    fun whenSwitchingRooms_purgesPreviousRoomOfflineSession() = runTest(testDispatcher) {
+        val api = FakeApiService()
+        val repo = ActiveRideRepository(prefs = null, api = api)
+        val sessionHolder = com.ridervoice.mesh.session.OfflineSessionHolder(kdfIterations = 1)
+        val vm = LobbyViewModel(api, repo, sessionHolder)
+
+        // Given Room A with provisioned backup
+        repo.enterLobby(roomId = "room-A", name = "Room A", isHost = false)
+        sessionHolder.provisionFromBackupCode("ABCD1234EFGH5678")
+        assertNotNull(sessionHolder.getBackup())
+
+        // When switching to Room B
+        vm.startPolling("room-B")
+        advanceTimeBy(100)
+
+        // Then prior room's session must be purged
+        assertNull("Prior room session must be purged on room switch WP-129", sessionHolder.getBackup())
+        vm.stopPolling()
+    }
 }

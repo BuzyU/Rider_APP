@@ -19,6 +19,7 @@ class AuthViewModel @Inject constructor(
     private val securePrefs: com.ridervoice.security.SecurePreferences,
     private val activeRideRepository: com.ridervoice.state.ActiveRideRepository,
     private val liveKitManager: com.ridervoice.network.LiveKitManager,
+    private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
@@ -95,18 +96,65 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signOut() {
-        authRepository.signOut()
-        com.ridervoice.models.RideSession.clear()
-        securePrefs.clearActiveRide()
-        activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.SIGNED_OUT)
-        liveKitManager.disconnect()
-        com.ridervoice.services.VoiceForegroundService.stop(context)
-        _loginSuccess.value = false
-        _otpSent.value = false
-        _verificationId = null
-        _wrongPasswordCount.value = 0
-        _resetEmailSent.value = false
+    fun signOut(
+        forceHostEnd: Boolean = false,
+        onHostConfirmationRequired: (() -> Unit)? = null,
+        onSignOutComplete: (() -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val activeRide = activeRideRepository.state.value
+
+            // 1. Host confirmation (D13)
+            if (activeRide != null && activeRide.isHost && !forceHostEnd && onHostConfirmationRequired != null) {
+                _isLoading.value = false
+                onHostConfirmationRequired()
+                return@launch
+            }
+
+            // 2. Leave / end active room via backend API before credential invalidation
+            if (activeRide != null) {
+                runCatching {
+                    if (activeRide.isHost) {
+                        apiService.endRideForEveryone(activeRide.roomId)
+                    } else {
+                        apiService.leaveLobby(activeRide.roomId)
+                    }
+                }
+            }
+
+            // 3. Stop VoiceForegroundService
+            runCatching {
+                com.ridervoice.services.VoiceForegroundService.stop(context)
+            }
+
+            // 4. Disconnect LiveKit
+            runCatching {
+                liveKitManager.disconnect()
+            }
+
+            // 5. Clear ActiveRideRepository (SIGNED_OUT)
+            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.SIGNED_OUT)
+
+            // 6. Destroy per-room offline session & backup
+            sessionHolder.clearAll()
+
+            // 7. Clear tokens and ride sessions
+            com.ridervoice.models.RideSession.clear()
+            securePrefs.clearActiveRide()
+
+            // 8. authRepository.signOut() LAST
+            authRepository.signOut()
+
+            // UI state reset
+            _loginSuccess.value = false
+            _otpSent.value = false
+            _verificationId = null
+            _wrongPasswordCount.value = 0
+            _resetEmailSent.value = false
+            _isLoading.value = false
+            onSignOutComplete?.invoke()
+        }
     }
 
     fun handleGoogleIdToken(idToken: String) {

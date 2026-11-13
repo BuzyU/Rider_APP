@@ -248,31 +248,69 @@ fun LobbyScreen(
                     ) {
                         if (isHost) {
                             val meshConfig = activeRide?.meshConfig
-                            val isConfiguring = meshConfig?.offlineMeshEnabled == true && !meshConfig.configCompleted
-                            val blockingCount = status?.blockingRidersCount ?: 0
-                            val canStart = status != null && (status.canStart || accepted.isEmpty()) && !isConfiguring
+                            val isOfflineEnabled = meshConfig?.offlineMeshEnabled ?: (status?.offlineMeshEnabled ?: true)
+                            val riderStatuses = accepted.map { inv ->
+                                com.ridervoice.mesh.offline.LobbyRiderStatus(
+                                    riderId = inv.invitee.id,
+                                    status = inv.offlineConfigStatus ?: "CONFIGURING",
+                                    isPresent = inv.isPresent
+                                )
+                            }
+                            val gateResult = com.ridervoice.mesh.offline.StartRideGate.evaluate(
+                                hostState = com.ridervoice.mesh.offline.OfflineConfigState(
+                                    status = meshConfig?.status ?: com.ridervoice.mesh.offline.OfflineConfigStatus.NOT_STARTED,
+                                    optOut = meshConfig?.optOut ?: false
+                                ),
+                                roomOfflineMeshEnabled = isOfflineEnabled,
+                                acceptedRiders = riderStatuses,
+                                allowSolo = accepted.isEmpty()
+                            )
 
-                            val buttonText = when {
-                                isConfiguring -> "Configuring..."
-                                blockingCount > 0 -> "Waiting for riders ($blockingCount configuring...)"
-                                accepted.isNotEmpty() -> "Start ride (${accepted.size + 1} riders)"
-                                else -> "Start ride"
+                            if (!gateResult.isOpen) {
+                                // FX-03 / V5: Start button is NEVER composed until gate opens
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = RvSpacing.md),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.width(RvSpacing.sm))
+                                    Text(
+                                        text = stringResource(
+                                            R.string.lobby_configuring_offline_progress,
+                                            gateResult.readyRidersCount,
+                                            gateResult.totalRidersCount
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            } else {
+                                PrimaryButton(
+                                    text = if (accepted.isNotEmpty()) {
+                                        stringResource(R.string.lobby_start_ride_with_count, accepted.size + 1)
+                                    } else {
+                                        stringResource(R.string.lobby_start_ride)
+                                    },
+                                    enabled = true,
+                                    onClick = {
+                                        if (accepted.isEmpty()) {
+                                            showStartAloneDialog = true
+                                        } else {
+                                            viewModel.startRide(convoyName, allowSolo = false, onStartSuccess = {
+                                                onStartRide(true)
+                                            })
+                                        }
+                                    }
+                                )
                             }
 
-                            PrimaryButton(
-                                text = buttonText,
-                                enabled = canStart,
-                                loading = isConfiguring,
-                                onClick = {
-                                    if (accepted.isEmpty()) {
-                                        showStartAloneDialog = true
-                                    } else {
-                                        viewModel.startRide(convoyName, allowSolo = false, onStartSuccess = {
-                                            onStartRide(true)
-                                        })
-                                    }
-                                }
-                            )
                             SecondaryButton(
                                 text = stringResource(R.string.action_invite_friends),
                                 onClick = {
@@ -590,7 +628,10 @@ fun LobbyScreen(
                         onToggleOffline = { viewModel.toggleOfflineMesh(it) },
                         onToggleAutoFallback = { viewModel.toggleAutomaticFallback(it) },
                         onToggleWarmStandby = { viewModel.toggleWarmStandby(it) },
-                        isConfiguring = isConfiguring
+                        isConfiguring = isConfiguring,
+                        onOptOut = { viewModel.optOutOfOfflineMesh() },
+                        onOptIn = { viewModel.optInToOfflineMesh() },
+                        onRetryStep = { viewModel.retryOfflineStep(it) }
                     )
                 }
 
@@ -726,7 +767,10 @@ fun OfflineConfigCard(
     onToggleOffline: (Boolean) -> Unit,
     onToggleAutoFallback: (Boolean) -> Unit,
     onToggleWarmStandby: (Boolean) -> Unit,
-    isConfiguring: Boolean
+    isConfiguring: Boolean,
+    onOptOut: () -> Unit = {},
+    onOptIn: () -> Unit = {},
+    onRetryStep: (com.ridervoice.mesh.offline.OfflineConfigStep) -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -736,23 +780,18 @@ fun OfflineConfigCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Offline Backup",
+                text = stringResource(R.string.mesh_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            Text(
-                text = "Enable offline mesh intercom as backup for this ride",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-            // Only host can toggle
+            // Only host can toggle room-level offline switch
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Enable for this ride", modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.lobby_offline_host_switch_label), modifier = Modifier.weight(1f))
                 Switch(
                     checked = meshConfig?.offlineMeshEnabled == true,
                     onCheckedChange = { onToggleOffline(it) },
@@ -761,51 +800,85 @@ fun OfflineConfigCard(
             }
 
             if (meshConfig?.offlineMeshEnabled == true) {
+                Spacer(modifier = Modifier.height(8.dp))
+                // Per-step progress rows and status
+                val steps = listOf(
+                    com.ridervoice.mesh.offline.OfflineConfigStep.DEVICE_CAPABILITY to R.string.lobby_offline_step_device_capability,
+                    com.ridervoice.mesh.offline.OfflineConfigStep.PERMISSIONS to R.string.lobby_offline_step_permissions,
+                    com.ridervoice.mesh.offline.OfflineConfigStep.BATTERY_OPTIMIZATION to R.string.lobby_offline_step_battery,
+                    com.ridervoice.mesh.offline.OfflineConfigStep.CREDENTIALS to R.string.lobby_offline_step_credentials,
+                    com.ridervoice.mesh.offline.OfflineConfigStep.TRANSPORT_READY to R.string.lobby_offline_step_transport
+                )
+
+                for ((step, labelRes) in steps) {
+                    val stepRes = meshConfig.stepResults[step]
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(labelRes),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                        when (stepRes?.state) {
+                            com.ridervoice.mesh.offline.StepState.PASSED -> {
+                                Text("✓", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+                            }
+                            com.ridervoice.mesh.offline.StepState.WARNING -> {
+                                Text("⚠", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodySmall)
+                            }
+                            com.ridervoice.mesh.offline.StepState.FAILED -> {
+                                TextButton(
+                                    onClick = { onRetryStep(step) },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(stringResource(R.string.lobby_offline_retry_step), style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                            com.ridervoice.mesh.offline.StepState.CHECKING -> {
+                                CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp)
+                            }
+                            else -> {
+                                Text("—", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+
+                // Hotspot hint notice (Q4 / D2 / A4)
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Auto-fallback on network loss", modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = meshConfig.automaticFallbackEnabled,
-                        onCheckedChange = { onToggleAutoFallback(it) },
-                        enabled = isHost
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Warm standby (background discovery)", modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = meshConfig.warmStandbyEnabled,
-                        onCheckedChange = { onToggleWarmStandby(it) },
-                        enabled = isHost
-                    )
+                Text(
+                    text = stringResource(R.string.lobby_offline_hotspot_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Rider opt out / in control
+                Spacer(modifier = Modifier.height(8.dp))
+                if (meshConfig.optOut) {
+                    OutlinedButton(
+                        onClick = onOptIn,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.lobby_offline_opt_in_button))
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onOptOut,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.lobby_offline_opt_out_button))
+                    }
                 }
             }
 
-            if (isConfiguring) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Configuring offline backup...",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-
-            if ((offlineBackupCode != null || meshConfig?.configCompleted == true) && meshConfig?.offlineMeshEnabled == true && !isConfiguring) {
+            if (meshConfig?.configCompleted == true && meshConfig.offlineMeshEnabled && !meshConfig.optOut) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "✅ Offline backup ready",
+                    text = stringResource(R.string.lobby_offline_status_ready),
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )

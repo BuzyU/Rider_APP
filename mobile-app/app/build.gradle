@@ -116,6 +116,8 @@ android {
         versionName appVersionName
 
         buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "false"
+        def enablePerRoomConfig = !project.hasProperty('perRoomOfflineConfigEnabled') || Boolean.parseBoolean(project.property('perRoomOfflineConfigEnabled').toString())
+        buildConfigField "boolean", "PER_ROOM_OFFLINE_CONFIG_ENABLED", enablePerRoomConfig ? "true" : "false"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {

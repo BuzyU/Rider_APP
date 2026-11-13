@@ -388,4 +388,25 @@
     <string name="diag_consent_body">The host has enabled diagnostics for this ride. Only network link metrics and device performance data are collected (zero audio content, zero GPS location). Data is automatically compiled and emailed to the project team upon ride conclusion to troubleshoot call drops.</string>
     <string name="diag_consent_accept">OK</string>
     <string name="diag_consent_decline">Don\'t share my data</string>
+
+    <!-- Offline Lobby Configuration & Gate Strings (FX-03) -->
+    <string name="lobby_configuring_offline_progress">Configuring offline backup, %1$d of %2$d riders ready</string>
+    <string name="lobby_offline_gate_waiting_riders">Waiting for riders to configure offline backup…</string>
+    <string name="lobby_offline_host_switch_label">Offline Mesh Backup</string>
+    <string name="lobby_offline_opt_out_button">Ride without offline backup</string>
+    <string name="lobby_offline_opt_in_button">Enable offline backup</string>
+    <string name="lobby_offline_step_device_capability">Device Capability</string>
+    <string name="lobby_offline_step_permissions">Audio Permissions</string>
+    <string name="lobby_offline_step_battery">Battery Optimization</string>
+    <string name="lobby_offline_step_credentials">Offline Credentials</string>
+    <string name="lobby_offline_step_transport">Mesh Transport</string>
+    <string name="lobby_offline_retry_step">Retry</string>
+    <string name="lobby_offline_hotspot_hint">Connect all phones to the same Wi-Fi or mobile hotspot for offline voice mesh</string>
+    <string name="lobby_offline_status_ready">Offline Ready</string>
+    <string name="lobby_offline_status_opted_out">Opted Out</string>
+    <string name="lobby_offline_status_unavailable">Unavailable</string>
+    <string name="lobby_offline_status_failed">Failed</string>
+    <string name="lobby_offline_status_timed_out">Timed Out</string>
+    <string name="lobby_start_ride_with_count">Start ride (%1$d riders)</string>
+    <string name="lobby_start_ride">Start ride</string>
 </resources>

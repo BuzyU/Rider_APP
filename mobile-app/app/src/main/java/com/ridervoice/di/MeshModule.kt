@@ -276,4 +276,26 @@ object MeshModule {
     fun provideWifiCapabilityChecker(
         @ApplicationContext context: Context
     ): com.ridervoice.mesh.ui.WifiCapabilityChecker = com.ridervoice.mesh.ui.SystemWifiCapabilityChecker(context)
+
+    @Provides
+    @Singleton
+    fun provideOfflineConfigCoordinator(
+        sessionHolder: OfflineSessionHolder,
+        @ApplicationContext context: Context
+    ): com.ridervoice.mesh.offline.OfflineConfigCoordinator = com.ridervoice.mesh.offline.OfflineConfigCoordinator(
+        sessionHolder = sessionHolder,
+        deviceCapabilityChecker = com.ridervoice.mesh.offline.DefaultDeviceCapabilityChecker(),
+        permissionChecker = com.ridervoice.mesh.offline.DefaultPermissionChecker {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        },
+        batteryOptimizationChecker = com.ridervoice.mesh.offline.DefaultBatteryOptimizationChecker {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            pm?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+        },
+        transportReadinessChecker = com.ridervoice.mesh.offline.DefaultTransportReadinessChecker(),
+        dispatcher = Dispatchers.Default
+    )
 }

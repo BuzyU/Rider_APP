@@ -663,7 +663,7 @@ router.post('/:roomRef/start', async (req, res, next) => {
         // A2: StartRideGate check if not allowSolo and mesh is enabled
         if (!allowSolo && room.offlineMeshEnabled !== false) {
             const serverNowMs = Date.now()
-            const TERMINAL = new Set(['READY', 'OPTED_OUT', 'UNAVAILABLE', 'TIMED_OUT'])
+            const TERMINAL = new Set(['READY', 'OPTED_OUT', 'UNAVAILABLE', 'UNAVAILABLE_DEVICE', 'FAILED', 'TIMED_OUT'])
             const allInvites = typeof prisma.rideInvite?.findMany === 'function' ? await prisma.rideInvite.findMany({
                 where: { roomId: room.id, status: 'ACCEPTED' },
                 select: { id: true, inviteeId: true, createdAt: true, offlineConfigStatus: true, offlineConfigUpdatedAt: true }
@@ -1220,9 +1220,15 @@ router.post('/:roomRef/offline-config', async (req, res, next) => {
     const user = req.user
     const { status } = req.body || {}
 
-    const validStatuses = ['CONFIGURING', 'READY', 'OPTED_OUT', 'UNAVAILABLE']
+    const validStatuses = [
+        'CONFIGURING', 'CHECKING', 'NEEDS_PERMISSION', 'PROVISIONING', 'NOT_STARTED',
+        'READY', 'OPTED_OUT', 'UNAVAILABLE', 'UNAVAILABLE_DEVICE', 'FAILED', 'TIMED_OUT'
+    ]
     if (!status || !validStatuses.includes(status)) {
-        return res.status(400).json({ error: 'status must be one of: CONFIGURING, READY, OPTED_OUT, UNAVAILABLE', code: 'INVALID_STATUS' })
+        return res.status(400).json({
+            error: `status must be one of: ${validStatuses.join(', ')}`,
+            code: 'INVALID_STATUS'
+        })
     }
 
     try {

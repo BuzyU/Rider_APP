@@ -33,8 +33,12 @@ sealed class LobbyLoadState {
 class LobbyViewModel @Inject constructor(
     private val apiService: ApiService,
     private val activeRideRepository: com.ridervoice.state.ActiveRideRepository,
-    private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder = com.ridervoice.mesh.session.OfflineSessionHolder()
+    private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder = com.ridervoice.mesh.session.OfflineSessionHolder(),
+    private val configCoordinator: com.ridervoice.mesh.offline.OfflineConfigCoordinator = com.ridervoice.mesh.offline.OfflineConfigCoordinator(sessionHolder = sessionHolder)
 ) : ViewModel() {
+
+    val offlineConfigState = configCoordinator.state
+    private var lastKnownBackupCode: String? = null
 
     private val _loadState = MutableStateFlow<LobbyLoadState>(LobbyLoadState.Loading)
     val loadState: StateFlow<LobbyLoadState> = _loadState.asStateFlow()
@@ -57,6 +61,7 @@ class LobbyViewModel @Inject constructor(
     val terminal: StateFlow<Terminal?> = _terminal.asStateFlow()
 
     private var pollingJob: Job? = null
+    private var configObserverJob: Job? = null
 
     private fun computeBackoff(attempt: Int): Long {
         return when (attempt) {
@@ -69,6 +74,39 @@ class LobbyViewModel @Inject constructor(
 
     fun startPolling(roomName: String) {
         pollingJob?.cancel()
+        configObserverJob?.cancel()
+        configObserverJob = viewModelScope.launch {
+            var lastReportedStatus: String? = null
+            configCoordinator.state.collect { cfgState ->
+                val current = activeRideRepository.state.value?.meshConfig ?: com.ridervoice.mesh.RoomMeshConfig.DEFAULT
+                activeRideRepository.setMeshConfig(
+                    current.copy(
+                        configCompleted = cfgState.isReady,
+                        status = cfgState.status,
+                        stepResults = cfgState.stepResults,
+                        optOut = cfgState.optOut
+                    )
+                )
+
+                val wireStatus = cfgState.status.wireName
+                if (wireStatus != lastReportedStatus) {
+                    lastReportedStatus = wireStatus
+                    val currentRoom = _lobbyStatus.value?.convoyName ?: activeRideRepository.state.value?.roomId
+                    if (!currentRoom.isNullOrBlank()) {
+                        launch {
+                            try {
+                                apiService.reportOfflineConfig(
+                                    currentRoom,
+                                    com.ridervoice.models.OfflineConfigRequest(wireStatus)
+                                )
+                            } catch (_: Exception) {
+                                // D15: Graceful fallback if backend does not support endpoint (404/405)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         pollingJob = viewModelScope.launch {
             val startTime = System.currentTimeMillis()
             var consecutiveErrors = 0
@@ -91,33 +129,25 @@ class LobbyViewModel @Inject constructor(
                         _error.value = null
 
                         val statusBackupCode = body.offlineBackupCode
-                        if (!statusBackupCode.isNullOrBlank() && statusBackupCode.length == 16) {
-                            sessionHolder.provisionFromBackupCode(statusBackupCode)
-                            if (activeRideRepository.state.value?.meshConfig == null) {
-                                activeRideRepository.setMeshConfig(
-                                    com.ridervoice.mesh.RoomMeshConfig(
-                                        offlineMeshEnabled = body.offlineMeshEnabled,
-                                        automaticFallbackEnabled = true,
-                                        warmStandbyEnabled = true,
-                                        configCompleted = true
-                                    )
+                        lastKnownBackupCode = statusBackupCode
+                        val hostMeshEnabled = body.offlineMeshEnabled
+
+                        if (activeRideRepository.state.value?.meshConfig == null) {
+                            activeRideRepository.setMeshConfig(
+                                com.ridervoice.mesh.RoomMeshConfig.DEFAULT.copy(
+                                    offlineMeshEnabled = hostMeshEnabled
                                 )
-                            }
-                            if (body.offlineMeshEnabled && reportedConfigStatus != "READY") {
-                                reportedConfigStatus = "READY"
-                                launch {
-                                    try {
-                                        apiService.reportOfflineConfig(roomName, com.ridervoice.models.OfflineConfigRequest("READY"))
-                                    } catch (_: Exception) {}
-                                }
-                            }
-                        } else if (!body.offlineMeshEnabled && reportedConfigStatus != "OPTED_OUT") {
-                            reportedConfigStatus = "OPTED_OUT"
-                            launch {
-                                try {
-                                    apiService.reportOfflineConfig(roomName, com.ridervoice.models.OfflineConfigRequest("OPTED_OUT"))
-                                } catch (_: Exception) {}
-                            }
+                            )
+                        }
+
+                        // Automatically execute real per-room offline configuration (D10 / FX-03)
+                        val currentConfigStatus = configCoordinator.state.value.status
+                        if (hostMeshEnabled && currentConfigStatus == com.ridervoice.mesh.offline.OfflineConfigStatus.NOT_STARTED) {
+                            configCoordinator.startConfig(this, statusBackupCode, isHostMeshEnabled = true)
+                        } else if (!hostMeshEnabled && currentConfigStatus != com.ridervoice.mesh.offline.OfflineConfigStatus.OPTED_OUT) {
+                            configCoordinator.optOut()
+                        } else if (hostMeshEnabled && !statusBackupCode.isNullOrBlank() && currentConfigStatus == com.ridervoice.mesh.offline.OfflineConfigStatus.PROVISIONING) {
+                            configCoordinator.startConfig(this, statusBackupCode, isHostMeshEnabled = true)
                         }
 
                         activeRideRepository.enterLobby(
@@ -279,6 +309,9 @@ class LobbyViewModel @Inject constructor(
     fun stopPolling() {
         pollingJob?.cancel()
         pollingJob = null
+        configObserverJob?.cancel()
+        configObserverJob = null
+        configCoordinator.cancel()
     }
 
     private val _shareLink = MutableStateFlow<String?>(null)
@@ -362,23 +395,42 @@ class LobbyViewModel @Inject constructor(
     fun toggleOfflineMesh(enabled: Boolean) {
         if (enabled) {
             activeRideRepository.setMeshConfig(
-                com.ridervoice.mesh.RoomMeshConfig(
+                com.ridervoice.mesh.RoomMeshConfig.DEFAULT.copy(
                     offlineMeshEnabled = true,
-                    automaticFallbackEnabled = true,
-                    warmStandbyEnabled = true,
                     configCompleted = false
                 )
             )
-            viewModelScope.launch {
-                delay(1000L)
-                val current = activeRideRepository.state.value?.meshConfig
-                if (current != null && current.offlineMeshEnabled) {
-                    activeRideRepository.setMeshConfig(current.copy(configCompleted = true))
-                }
-            }
+            configCoordinator.optIn(viewModelScope, lastKnownBackupCode)
         } else {
             activeRideRepository.setMeshConfig(com.ridervoice.mesh.RoomMeshConfig.DISABLED)
+            configCoordinator.optOut()
         }
+    }
+
+    fun optOutOfOfflineMesh() {
+        val current = activeRideRepository.state.value?.meshConfig ?: com.ridervoice.mesh.RoomMeshConfig.DEFAULT
+        activeRideRepository.setMeshConfig(
+            current.copy(
+                optOut = true,
+                status = com.ridervoice.mesh.offline.OfflineConfigStatus.OPTED_OUT
+            )
+        )
+        configCoordinator.optOut()
+    }
+
+    fun optInToOfflineMesh() {
+        val current = activeRideRepository.state.value?.meshConfig ?: com.ridervoice.mesh.RoomMeshConfig.DEFAULT
+        activeRideRepository.setMeshConfig(
+            current.copy(
+                optOut = false,
+                status = com.ridervoice.mesh.offline.OfflineConfigStatus.CHECKING
+            )
+        )
+        configCoordinator.optIn(viewModelScope, lastKnownBackupCode)
+    }
+
+    fun retryOfflineStep(step: com.ridervoice.mesh.offline.OfflineConfigStep) {
+        configCoordinator.retryStep(viewModelScope, step, lastKnownBackupCode)
     }
 
     fun toggleAutomaticFallback(enabled: Boolean) {
@@ -414,10 +466,6 @@ class LobbyViewModel @Inject constructor(
                     val backupCode = body.offlineBackupCode
                     if (!backupCode.isNullOrBlank() && backupCode.length == 16) {
                         sessionHolder.provisionFromBackupCode(backupCode)
-                    }
-                    val currentMeshConfig = activeRideRepository.state.value?.meshConfig
-                    if (currentMeshConfig?.offlineMeshEnabled == true) {
-                        activeRideRepository.setMeshConfig(currentMeshConfig.copy(configCompleted = true))
                     }
                     activeRideRepository.applyTokenPayload(
                         com.ridervoice.models.TokenPayload(

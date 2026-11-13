@@ -388,4 +388,25 @@
     <string name="diag_consent_body">होस्टने या राइडसाठी डायग्नोस्टिक्स सक्षम केले आहेत. केवळ नेटवर्क लिंक मेट्रिक्स आणि डिव्हाइस कार्यप्रदर्शन डेटा संकलित केला जातो (ऑडिओ नाही, अचूक जीपीएस नाही).</string>
     <string name="diag_consent_accept">ठीक आहे</string>
     <string name="diag_consent_decline">डेटा शेअर करू नका</string>
+
+    <!-- Offline Lobby Configuration & Gate Strings (FX-03) -->
+    <string name="lobby_configuring_offline_progress">ऑफलाइन बॅकअप कॉन्फिगर होत आहे, %1$d पैकी %2$d रायडर्स तयार</string>
+    <string name="lobby_offline_gate_waiting_riders">रायडर्स ऑफलाइन बॅकअप कॉन्फिगर करण्याची वाट पाहत आहे…</string>
+    <string name="lobby_offline_host_switch_label">ऑफलाइन मेश बॅकअप</string>
+    <string name="lobby_offline_opt_out_button">ऑफलाइन बॅकअपशिवाय राइड करा</string>
+    <string name="lobby_offline_opt_in_button">ऑफलाइन बॅकअप सक्षम करा</string>
+    <string name="lobby_offline_step_device_capability">डिव्हाइस क्षमता</string>
+    <string name="lobby_offline_step_permissions">ऑडिओ परवानग्या</string>
+    <string name="lobby_offline_step_battery">बॅटरी ऑप्टिमायझेशन</string>
+    <string name="lobby_offline_step_credentials">ऑफलाइन क्रेडेंशियल्स</string>
+    <string name="lobby_offline_step_transport">मेश ट्रान्सपोर्ट</string>
+    <string name="lobby_offline_retry_step">पुन्हा प्रयत्न करा</string>
+    <string name="lobby_offline_hotspot_hint">ऑफलाइन व्हॉइस मेशसाठी सर्व फोन एकाच वाय-फाय किंवा मोबाइल हॉटस्पॉटशी कनेक्ट करा</string>
+    <string name="lobby_offline_status_ready">ऑफलाइन तयार</string>
+    <string name="lobby_offline_status_opted_out">ऑप्ट आउट केले</string>
+    <string name="lobby_offline_status_unavailable">अनुपलब्ध</string>
+    <string name="lobby_offline_status_failed">अयशस्वी</string>
+    <string name="lobby_offline_status_timed_out">वेळ संपली</string>
+    <string name="lobby_start_ride_with_count">राइड सुरू करा (%1$d रायडर्स)</string>
+    <string name="lobby_start_ride">राइड सुरू करा</string>
 </resources>

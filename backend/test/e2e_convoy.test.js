@@ -2,6 +2,7 @@ const { describe, it } = require('node:test')
 const assert = require('node:assert/strict')
 const crypto = require('crypto')
 const fs = require('fs')
+const os = require('os')
 const path = require('path')
 const ExcelJS = require('exceljs')
 const EmbeddedPostgresPkg = require('embedded-postgres')
@@ -77,6 +78,9 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
             await runSqlFile(path.join(__dirname, '../prisma/migrations/20261025_add_ride_create_request/migration.sql'))
             await runSqlFile(path.join(__dirname, '../prisma/migrations/20261025_add_lk_room_name/migration.sql'))
             await runSqlFile(path.join(__dirname, '../prisma/migrations/20261111_add_offline_backup_code/migration.sql'))
+            await runSqlFile(path.join(__dirname, '../prisma/migrations/20261113_add_offline_mesh_gate/migration.sql'))
+            await runSqlFile(path.join(__dirname, '../prisma/migrations/20261113_add_sos_client_alert_id/migration.sql'))
+            await runSqlFile(path.join(__dirname, '../prisma/migrations/20261113_add_last_lobby_poll_at/migration.sql'))
 
             // Instantiate prisma connection to the e2e test database (process.env.DATABASE_URL set above)
             const prisma = require('../src/db')
@@ -320,22 +324,12 @@ describe('End-to-End Convoy Diagnostics Integration Test', () => {
             const statusCell = optedOutSheet.getRow(2).getCell(1).value
             assert.ok(String(statusCell).includes('OPTED_OUT'), 'Opted out sheet must indicate OPTED_OUT')
 
-            // 8. Save evidence file locally and to brain directory
-            const exportDir = path.join(__dirname, '../exports')
+            // 8. Save evidence file to os.tmpdir()
+            const exportDir = path.join(os.tmpdir(), 'ridervoice-test-exports')
             if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true })
             const evidencePath = path.join(exportDir, 'e2e_convoy_evidence.xlsx')
             fs.writeFileSync(evidencePath, attachment.content)
             console.log(`[E2E] Saved generated evidence workbook to: ${evidencePath} (${attachment.content.length} bytes)`)
-
-            const brainEvidencePath = 'C:\\Users\\umerz\\.gemini\\antigravity-ide\\brain\\cd220b9f-ef25-4a78-9ed4-d5c4c159a6be\\e2e_convoy_evidence.xlsx'
-            try {
-                if (fs.existsSync(path.dirname(brainEvidencePath))) {
-                    fs.writeFileSync(brainEvidencePath, attachment.content)
-                    console.log(`[E2E] Saved artifact evidence workbook to: ${brainEvidencePath}`)
-                }
-            } catch (e) {
-                // Ignore in non-local environments
-            }
 
         } finally {
             const prisma = require('../src/db')

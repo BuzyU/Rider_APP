@@ -101,8 +101,8 @@ class HostSetupViewModel @Inject constructor(
                     clientRequestId = activeRequestId
                 )
                 val response = apiService.createConvoy(req)
-                if (response.isSuccessful && response.body() != null) {
-                    val body = response.body()!!
+                val body = response.body()
+                if (response.isSuccessful && body != null) {
                     activeRideRepository.enterLobby(
                         roomId = body.roomId,
                         name = body.convoyName,

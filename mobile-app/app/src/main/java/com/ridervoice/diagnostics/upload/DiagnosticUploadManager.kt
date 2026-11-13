@@ -196,8 +196,9 @@ class DiagnosticUploadManager @Inject constructor(
     private suspend fun ensureRunId(session: DiagSessionEntity): Boolean {
         try {
             val response = apiService.joinDiagnosticRun(DiagnosticJoinRequest(convoyId = session.convoyId))
-            if (response.isSuccessful && response.body() != null) {
-                val runId = response.body()!!.runId
+            val body = response.body()
+            if (response.isSuccessful && body != null) {
+                val runId = body.runId
                 database.sessionDao().updateRunId(session.localSessionId, runId)
                 Log.i(TAG, "Obtained runId $runId for session ${session.localSessionId}")
                 return true

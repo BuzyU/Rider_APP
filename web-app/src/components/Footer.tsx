@@ -16,7 +16,7 @@ export default function Footer() {
               <a href="https://github.com/BuzyU/Rider_APP" target="_blank" rel="noopener noreferrer" className={styles.socialLink} title="GitHub Repository">
                 <ExternalLink size={20} />
               </a>
-              <a href="mailto:a07631356@gmail.com" className={styles.socialLink} title="Contact Team">
+              <a href="mailto:code4changeteam@gmail.com" className={styles.socialLink} title="Contact Team">
                 <Mail size={20} />
               </a>
             </div>

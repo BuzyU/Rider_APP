@@ -59,8 +59,8 @@ class JoinRoomViewModel @Inject constructor(
             _uiMessage.value = null
             try {
                 val res = apiService.joinLobbyUnified(LobbyJoinRequest(kind = kind, value = clean))
-                if (res.isSuccessful && res.body() != null) {
-                    val body = res.body()!!
+                val body = res.body()
+                if (res.isSuccessful && body != null) {
                     activeRideRepository.enterLobby(
                         roomId = body.roomId ?: body.roomName,
                         name = body.roomName,

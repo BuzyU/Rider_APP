@@ -56,6 +56,7 @@ class LobbyViewModelTest {
         }
 
         var startRideCalls = 0
+        var lastStartRideRequest: StartRideRequest? = null
         override suspend fun startRide(roomName: String): Response<StartRideResponse> {
             startRideCalls++
             return Response.success(
@@ -67,6 +68,32 @@ class LobbyViewModelTest {
                     livekitUrl = "wss://livekit.test"
                 )
             )
+        }
+
+        override suspend fun startRide(roomName: String, body: StartRideRequest): Response<StartRideResponse> {
+            startRideCalls++
+            lastStartRideRequest = body
+            return Response.success(
+                StartRideResponse(
+                    token = "token-123",
+                    roomName = roomName,
+                    roomId = roomName,
+                    lkRoomName = "lk-$roomName",
+                    livekitUrl = "wss://livekit.test"
+                )
+            )
+        }
+
+        var reportedConfigs = mutableListOf<Pair<String, OfflineConfigRequest>>()
+        override suspend fun reportOfflineConfig(roomName: String, body: OfflineConfigRequest): Response<Map<String, Any>> {
+            reportedConfigs.add(roomName to body)
+            return Response.success(mapOf("ok" to true))
+        }
+
+        var toggledOfflineMesh = mutableListOf<Pair<String, ToggleOfflineMeshRequest>>()
+        override suspend fun toggleOfflineMesh(roomName: String, body: ToggleOfflineMeshRequest): Response<Map<String, Any>> {
+            toggledOfflineMesh.add(roomName to body)
+            return Response.success(mapOf("ok" to true))
         }
 
         var removeRiderCalls = 0
@@ -292,6 +319,75 @@ class LobbyViewModelTest {
         assertTrue("Must transition to Ready after retry, was $state", state is LobbyLoadState.Ready)
         assertEquals("room-retry-success", (state as LobbyLoadState.Ready).status.roomId)
         assertEquals(6, api.statusCalls)
+        vm.stopPolling()
+    }
+
+    @Test
+    fun whenOfflineBackupCodeReceived_provisionsHolderAndReportsReady() = runTest(testDispatcher) {
+        val api = FakeApiService()
+        api.defaultStatusResponse = {
+            Response.success(
+                LobbyStatus(
+                    roomId = "room-offline-1",
+                    convoyName = "Ride",
+                    offlineBackupCode = "ABCDEFGH23456789",
+                    offlineMeshEnabled = true
+                )
+            )
+        }
+        val repo = ActiveRideRepository(prefs = null, api = api)
+        val sessionHolder = com.ridervoice.mesh.session.OfflineSessionHolder(kdfIterations = 1)
+        val vm = LobbyViewModel(api, repo, sessionHolder)
+
+        vm.startPolling("room-offline-1")
+        advanceTimeBy(100)
+
+        // Session should be provisioned
+        val session = sessionHolder.getBackup()
+        assertNotNull("Session must be provisioned from backup code", session)
+        assertEquals("ABCDEFGH23456789", session?.pairingCode?.replace("-", "")?.uppercase())
+
+        // Ready status reported
+        assertTrue("Must report READY to backend", api.reportedConfigs.any { it.second.status == "READY" })
+        vm.stopPolling()
+    }
+
+    @Test
+    fun whenStartRideWithAllowSolo_passesRequestToApi() = runTest(testDispatcher) {
+        val api = FakeApiService()
+        val repo = ActiveRideRepository(prefs = null, api = api)
+        val vm = LobbyViewModel(api, repo)
+
+        var started = false
+        vm.startRide("room-solo", allowSolo = true) {
+            started = true
+        }
+        advanceTimeBy(100)
+
+        assertTrue(started)
+        assertEquals(1, api.startRideCalls)
+        assertEquals(true, api.lastStartRideRequest?.allowSolo)
+    }
+
+    @Test
+    fun whenOfflineMeshDisabled_reportsOptedOut() = runTest(testDispatcher) {
+        val api = FakeApiService()
+        api.defaultStatusResponse = {
+            Response.success(
+                LobbyStatus(
+                    roomId = "room-opt-out",
+                    convoyName = "Ride",
+                    offlineMeshEnabled = false
+                )
+            )
+        }
+        val repo = ActiveRideRepository(prefs = null, api = api)
+        val vm = LobbyViewModel(api, repo)
+
+        vm.startPolling("room-opt-out")
+        advanceTimeBy(100)
+
+        assertTrue("Must report OPTED_OUT when offline mesh is disabled", api.reportedConfigs.any { it.second.status == "OPTED_OUT" })
         vm.stopPolling()
     }
 }

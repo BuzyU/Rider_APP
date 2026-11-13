@@ -168,7 +168,8 @@ class MeshAutoSwitchManager(
                     val unifiedPeers = buildUnifiedParticipantList(isLocalOffline)
                     _groupStatus.value = computeGroupConnectivity(isLocalOffline, unifiedPeers)
 
-                    delay(1_000L)
+                    val tickDelayMs = 1_000L
+                    delay(tickDelayMs)
                 }
 
                 if (!OfflineMeshGate.isOfflineAllowed()) {

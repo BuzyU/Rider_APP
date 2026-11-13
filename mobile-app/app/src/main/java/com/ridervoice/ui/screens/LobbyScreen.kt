@@ -129,7 +129,7 @@ fun LobbyScreen(
             dismissLabel = "Wait for riders",
             onConfirm = {
                 showStartAloneDialog = false
-                viewModel.startRide(convoyName, onStartSuccess = {
+                viewModel.startRide(convoyName, allowSolo = true, onStartSuccess = {
                     onStartRide(true)
                 })
             },
@@ -249,17 +249,25 @@ fun LobbyScreen(
                         if (isHost) {
                             val meshConfig = activeRide?.meshConfig
                             val isConfiguring = meshConfig?.offlineMeshEnabled == true && !meshConfig.configCompleted
-                            val canStart = status != null && !isConfiguring
+                            val blockingCount = status?.blockingRidersCount ?: 0
+                            val canStart = status != null && (status.canStart || accepted.isEmpty()) && !isConfiguring
+
+                            val buttonText = when {
+                                isConfiguring -> "Configuring..."
+                                blockingCount > 0 -> "Waiting for riders ($blockingCount configuring...)"
+                                accepted.isNotEmpty() -> "Start ride (${accepted.size + 1} riders)"
+                                else -> "Start ride"
+                            }
 
                             PrimaryButton(
-                                text = if (isConfiguring) "Configuring..." else if (accepted.isNotEmpty()) "Start ride (${accepted.size + 1} riders)" else "Start ride",
+                                text = buttonText,
                                 enabled = canStart,
                                 loading = isConfiguring,
                                 onClick = {
                                     if (accepted.isEmpty()) {
                                         showStartAloneDialog = true
                                     } else {
-                                        viewModel.startRide(convoyName, onStartSuccess = {
+                                        viewModel.startRide(convoyName, allowSolo = false, onStartSuccess = {
                                             onStartRide(true)
                                         })
                                     }
@@ -616,10 +624,23 @@ fun LobbyScreen(
                 } else {
                     items(accepted) { entry ->
                         val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider"
+                        val presenceText = if (entry.isPresent) "Active" else "Away"
+                        val configText = when (entry.offlineConfigStatus) {
+                            "READY" -> "Offline Ready"
+                            "CONFIGURING" -> "Configuring..."
+                            "OPTED_OUT" -> "Offline Off"
+                            "TIMED_OUT" -> "Timed Out"
+                            else -> "Joined"
+                        }
+                        val statusText = if (entry.isPresent && entry.offlineConfigStatus == "READY") {
+                            "Ready"
+                        } else {
+                            "$presenceText • $configText"
+                        }
                         RiderRow(
                             name = riderName,
                             subtitle = entry.invitee.bikeModel,
-                            status = "Joined",
+                            status = statusText,
                             trailing = if (isHost) {
                                 {
                                     IconButton(onClick = { riderToRemove = entry.invitee }) {

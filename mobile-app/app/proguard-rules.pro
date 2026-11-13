@@ -34,6 +34,12 @@
 -keep,allowobfuscation,allowshrinking,allowoptimization class * extends com.google.gson.reflect.TypeToken
 -keep class com.ridervoice.models.** { *; }
 -keepclassmembers class com.ridervoice.models.** { *; }
+-keep class com.ridervoice.diagnostics.models.** { *; }
+-keepclassmembers class com.ridervoice.diagnostics.models.** { *; }
+-keep class com.ridervoice.diagnostics.data.entities.** { *; }
+-keepclassmembers class com.ridervoice.diagnostics.data.entities.** { *; }
+-keep class com.ridervoice.mesh.protocol.** { *; }
+-keepclassmembers class com.ridervoice.mesh.protocol.** { *; }
 -keepclassmembers class * {
     @com.google.gson.annotations.SerializedName <fields>;
 }
@@ -57,3 +63,28 @@
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 -dontwarn kotlinx.coroutines.**
+
+# WorkManager & Hilt Worker
+-keep class androidx.work.** { *; }
+-keep class androidx.hilt.work.** { *; }
+-keep class * extends androidx.work.ListenableWorker {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+}
+-keep class * extends androidx.work.Worker {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+}
+-keep class * extends androidx.work.CoroutineWorker {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+}
+-keepclassmembers class * extends androidx.work.ListenableWorker {
+    public <init>(android.content.Context, androidx.work.WorkerParameters);
+}
+
+# Concentus (Opus Java Codec)
+-keep class io.github.jaredmdobson.concentus.** { *; }
+-dontwarn io.github.jaredmdobson.concentus.**
+
+# Firebase
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+

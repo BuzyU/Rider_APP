@@ -6,10 +6,15 @@ object MeshConfig {
 
     const val MAX_DEVICES = 6
     const val MAX_HOPS = 5
+    const val BOOST_HELLO_INTERVAL_MS = 750L
     const val HELLO_INTERVAL_MS = 1_500L
-    const val NEIGHBOR_TIMEOUT_MS = 5_000L
+    const val STANDBY_HELLO_INTERVAL_MS = 5_000L
+    const val ACTIVE_NEIGHBOR_TIMEOUT_MS = 5_000L
+    const val STANDBY_NEIGHBOR_TIMEOUT_MS = 15_000L
+    /** Neighbor timeout: 3x standby interval (15s) so standby nodes never flap on missed beacons. */
+    const val NEIGHBOR_TIMEOUT_MS = 15_000L
     /** Remote (multi-hop) adjacency reports live slightly longer: they arrive via relays. */
-    const val REMOTE_REPORT_TIMEOUT_MS = 8_000L
+    const val REMOTE_REPORT_TIMEOUT_MS = 20_000L
     const val MEMBER_TIMEOUT_MS = 30_000L
 
     /**
@@ -39,7 +44,8 @@ object MeshConfig {
     const val BYTES_PER_FRAME = SAMPLES_PER_FRAME * 2                // 640
     const val GCM_TAG_BYTES = 12
     const val ENCRYPTED_VOICE_PAYLOAD_BYTES = BYTES_PER_FRAME + GCM_TAG_BYTES // 652
-    const val MAX_VOICE_DATAGRAM_BYTES = 100
+    /** Wire budget for voice datagram: 17B header + max Opus 120B + 12B GCM tag = 149B (cap 150B) */
+    const val MAX_VOICE_DATAGRAM_BYTES = 150
 
     const val OPUS_BITRATE_BPS = 16_000
     const val OPUS_COMPLEXITY = 5

@@ -235,6 +235,7 @@ class OfflineMeshVoiceTransport(
             _state.value = VoiceTransportState.STARTING
             currentSession = session
             zeroNeighborsSinceMs = clock()
+            helloIntervalMs.set(MeshConfig.STANDBY_HELLO_INTERVAL_MS)
 
             val currentIdentity = identityProvider()
             activeIdentity = currentIdentity
@@ -299,6 +300,7 @@ class OfflineMeshVoiceTransport(
             // Start incoming frame listener BEFORE starting link
             frameListenerJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
                 uLink.incomingFrames.collect { frame: MeshFrame ->
+                    com.ridervoice.diagnostics.PowerProbe.recordMeshPacket()
                     fEngine.onIncomingFrame(frame)
                 }
             }
@@ -388,6 +390,7 @@ class OfflineMeshVoiceTransport(
                         cachedLocalIp = UdpMeshLink.getLocalIpAddress() ?: ""
                     }
                     fEngine.originateHello(broadcastEndpoints)
+                    com.ridervoice.diagnostics.PowerProbe.recordMeshPacket()
                     delay(helloIntervalMs.get())
                 }
             }
@@ -692,6 +695,7 @@ class OfflineMeshVoiceTransport(
         _audioFailure.value = null
         try {
             startDiscoveryOnly(offlineSession)
+            helloIntervalMs.set(MeshConfig.HELLO_INTERVAL_MS)
             if (_state.value == VoiceTransportState.CONNECTED) {
                 val audioRes = runCatchingCancellable { enableAudio() }.getOrElse { err ->
                     EnableAudioResult.Failure(EnableAudioResult.Failure.Code.UNEXPECTED, err.javaClass.simpleName)

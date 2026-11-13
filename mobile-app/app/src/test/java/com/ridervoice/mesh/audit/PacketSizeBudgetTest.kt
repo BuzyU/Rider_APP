@@ -20,7 +20,7 @@ class PacketSizeBudgetTest {
         assertEquals("Protocol v4 header length must be 17 bytes", 17, MeshPacketCodec.HEADER_LEN)
         assertEquals("Single AEAD GCM tag must be 12 bytes", 12, MeshPacketCodec.TAG_LEN)
         assertEquals("PCM frame size must be 640 bytes", 640, MeshConfig.BYTES_PER_FRAME)
-        assertEquals("Max voice datagram budget must be 100 bytes", 100, MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
+        assertEquals("Max voice datagram budget must be 150 bytes", 150, MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
 
         // 1. Opus 16 kbit/s: 40 bytes audio -> 17 + 40 + 12 = 69 B
         val wireOpus16 = MeshPacketCodec.encode(
@@ -54,14 +54,32 @@ class PacketSizeBudgetTest {
         assertEquals("marker must be exactly 30 bytes", 30, wireMarker.size)
         assertTrue(wireMarker.size <= MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
 
-        // 5. PCM fallback (640 bytes): 17 + 640 + 12 = 669 B
+        // 5. Boundary tests: 39, 40, 99, 100, 101, 120 bytes audio payload
+        for (payloadSize in listOf(39, 40, 99, 100, 101, 120)) {
+            val wire = MeshPacketCodec.encode(
+                MeshPacket(type = MeshPacketType.VOICE, sourceId = dummyId, previousHopId = dummyId, sequence = 10, audioFormat = AudioFormatId.OPUS_16K_MONO_20MS, epoch = 1, payload = ByteArray(payloadSize)),
+                dummyKey
+            )
+            val expectedWireSize = 17 + payloadSize + 12
+            assertEquals("wire size for payload $payloadSize", expectedWireSize, wire.size)
+            assertTrue("wire size $expectedWireSize must be <= MAX_VOICE_DATAGRAM_BYTES (150)", wire.size <= MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
+            assertTrue("plain size $payloadSize must be valid", com.ridervoice.mesh.forwarding.ForwardingEngine.plainSizeValid(AudioFormatId.OPUS_16K_MONO_20MS, payloadSize))
+        }
+
+        // 6. Boundary test: 121 bytes exceeds MAX_OPUS_PAYLOAD_BYTES (120) and is rejected
+        org.junit.Assert.assertFalse(
+            "121 bytes exceeds MAX_OPUS_PAYLOAD_BYTES and must be invalid",
+            com.ridervoice.mesh.forwarding.ForwardingEngine.plainSizeValid(AudioFormatId.OPUS_16K_MONO_20MS, 121)
+        )
+
+        // 7. PCM fallback (640 bytes): 17 + 640 + 12 = 669 B
         val wirePcm = MeshPacketCodec.encode(
             MeshPacket(type = MeshPacketType.VOICE, sourceId = dummyId, previousHopId = dummyId, sequence = 5, audioFormat = AudioFormatId.PCM16_16K_MONO, epoch = 1, payload = ByteArray(640)),
             dummyKey
         )
         assertEquals("voice(PCM) must be exactly 669 bytes", 669, wirePcm.size)
 
-        // 6. BYE packet (empty plaintext): 17 + 0 + 12 = 29 B
+        // 8. BYE packet (empty plaintext): 17 + 0 + 12 = 29 B
         val wireBye = MeshPacketCodec.encode(
             MeshPacket(type = MeshPacketType.BYE, sourceId = dummyId, previousHopId = dummyId, sequence = 6, audioFormat = AudioFormatId.NONE, epoch = 1, payload = ByteArray(0)),
             dummyKey

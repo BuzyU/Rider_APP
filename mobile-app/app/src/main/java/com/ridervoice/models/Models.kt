@@ -40,7 +40,10 @@ data class LobbyStatus(
     val origin: String? = null,
     val destination: String? = null,
     val meetupPoint: String? = null,
-    val estimatedDurationMin: Int? = null
+    val estimatedDurationMin: Int? = null,
+    val offlineMeshEnabled: Boolean = true,
+    val blockingRidersCount: Int = 0,
+    val serverTime: String? = null
 )
 
 data class LobbyHost(
@@ -55,7 +58,22 @@ data class LobbyInviteEntry(
     val inviteId: String,
     val status: String,
     val invitee: LobbyRiderInfo,
-    val source: String? = null
+    val source: String? = null,
+    val offlineConfigStatus: String? = null,
+    val offlineConfigUpdatedAt: String? = null,
+    val isPresent: Boolean = false
+)
+
+data class StartRideRequest(
+    val allowSolo: Boolean = false
+)
+
+data class OfflineConfigRequest(
+    val status: String
+)
+
+data class ToggleOfflineMeshRequest(
+    val enabled: Boolean
 )
 
 data class LobbyRiderInfo(
@@ -86,7 +104,10 @@ data class JoinTokenRequest(
 data class SosAlertRequest(
     val roomName: String,
     val lat: Double?,
-    val lng: Double?
+    val lng: Double?,
+    /** Idempotency key: retries of the same SOS reuse it, so the server never creates duplicates. */
+    val clientAlertId: String = java.util.UUID.randomUUID().toString(),
+    val createdAtMs: Long = System.currentTimeMillis()
 )
 
 data class CancelAlertRequest(

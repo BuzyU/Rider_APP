@@ -73,6 +73,7 @@ class LobbyViewModel @Inject constructor(
             val startTime = System.currentTimeMillis()
             var consecutiveErrors = 0
             var authRefreshedOnce = false
+            var reportedConfigStatus: String? = null
             if (_lobbyStatus.value == null) {
                 _loadState.value = LobbyLoadState.Loading
             }
@@ -80,6 +81,7 @@ class LobbyViewModel @Inject constructor(
             while (isActive) {
                 var delayMs = 3000L
                 try {
+                    com.ridervoice.diagnostics.PowerProbe.recordPoll()
                     val response = apiService.getLobbyStatus(roomName)
                     val body = response.body()
                     if (response.isSuccessful && body != null) {
@@ -94,12 +96,27 @@ class LobbyViewModel @Inject constructor(
                             if (activeRideRepository.state.value?.meshConfig == null) {
                                 activeRideRepository.setMeshConfig(
                                     com.ridervoice.mesh.RoomMeshConfig(
-                                        offlineMeshEnabled = true,
+                                        offlineMeshEnabled = body.offlineMeshEnabled,
                                         automaticFallbackEnabled = true,
                                         warmStandbyEnabled = true,
                                         configCompleted = true
                                     )
                                 )
+                            }
+                            if (body.offlineMeshEnabled && reportedConfigStatus != "READY") {
+                                reportedConfigStatus = "READY"
+                                launch {
+                                    try {
+                                        apiService.reportOfflineConfig(roomName, com.ridervoice.models.OfflineConfigRequest("READY"))
+                                    } catch (_: Exception) {}
+                                }
+                            }
+                        } else if (!body.offlineMeshEnabled && reportedConfigStatus != "OPTED_OUT") {
+                            reportedConfigStatus = "OPTED_OUT"
+                            launch {
+                                try {
+                                    apiService.reportOfflineConfig(roomName, com.ridervoice.models.OfflineConfigRequest("OPTED_OUT"))
+                                } catch (_: Exception) {}
                             }
                         }
 
@@ -374,10 +391,24 @@ class LobbyViewModel @Inject constructor(
         activeRideRepository.setMeshConfig(current.copy(warmStandbyEnabled = enabled))
     }
 
-    fun startRide(roomName: String, onStartSuccess: () -> Unit) {
+    fun toggleRoomOfflineMesh(roomName: String, enabled: Boolean) {
         viewModelScope.launch {
             try {
-                val res = apiService.startRide(roomName)
+                apiService.toggleOfflineMesh(roomName, com.ridervoice.models.ToggleOfflineMeshRequest(enabled))
+                val res = apiService.getLobbyStatus(roomName)
+                if (res.isSuccessful && res.body() != null) {
+                    _lobbyStatus.value = res.body()
+                }
+            } catch (e: Exception) {
+                _error.value = e.localizedMessage
+            }
+        }
+    }
+
+    fun startRide(roomName: String, allowSolo: Boolean = false, onStartSuccess: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                val res = apiService.startRide(roomName, com.ridervoice.models.StartRideRequest(allowSolo = allowSolo))
                 val body = res.body()
                 if (res.isSuccessful && body != null) {
                     val backupCode = body.offlineBackupCode
@@ -403,7 +434,11 @@ class LobbyViewModel @Inject constructor(
                     activeRideRepository.goLive()
                     onStartSuccess()
                 } else {
-                    _error.value = "Failed to start ride: ${res.errorBody()?.string() ?: "Unknown error"}"
+                    val raw = try { res.errorBody()?.string() } catch (_: Exception) { null }
+                    val msg = raw?.let {
+                        try { org.json.JSONObject(it).optString("error", null) } catch (_: Exception) { null }
+                    } ?: "Failed to start ride (${res.code()})"
+                    _error.value = msg
                 }
             } catch (e: Exception) {
                 _error.value = e.message
@@ -415,6 +450,7 @@ class LobbyViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 sessionHolder.clearBackup()
+                sessionHolder.clearCurrent()
                 apiService.leaveLobby(roomRef)
             } catch (_: Exception) {}
             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.LEFT)

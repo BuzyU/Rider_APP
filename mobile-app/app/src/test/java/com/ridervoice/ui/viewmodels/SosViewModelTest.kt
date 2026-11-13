@@ -32,7 +32,7 @@ class SosViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private class FakeApiService(
+    private open class FakeApiService(
         var alertResponse: Response<SosAlertResponse>
     ) : ApiService {
         override suspend fun updateFcmToken(body: FcmTokenRequest): Response<Any> = Response.success(Unit)
@@ -129,11 +129,79 @@ class SosViewModelTest {
         )
         val fakeApi = FakeApiService(alertResponse = errorResponse)
 
-        val vm = SosViewModel(fakeApi) { Pair(18.5204, 73.8567) }
+        val outbox = com.ridervoice.services.InMemorySosOutbox()
+        val vm = SosViewModel(fakeApi, { Pair(18.5204, 73.8567) }, outbox)
         vm.sendAlert("Broken-Ride")
         testDispatcher.scheduler.advanceUntilIdle()
 
         val state = vm.state.value
         assertTrue("State must be NotSent on server error, was $state", state is SosState.NotSent)
+        assertEquals("QUEUED_OFFLINE", (state as SosState.NotSent).reason)
+        assertEquals(1, outbox.pending().size)
+    }
+
+    @Test
+    fun `sendAlert drops from outbox on 403 Forbidden`() = runTest(testDispatcher) {
+        val errorResponse = Response.error<SosAlertResponse>(
+            403,
+            "Forbidden".toResponseBody("text/plain".toMediaType())
+        )
+        val fakeApi = FakeApiService(alertResponse = errorResponse)
+
+        val outbox = com.ridervoice.services.InMemorySosOutbox()
+        val vm = SosViewModel(fakeApi, { Pair(18.5204, 73.8567) }, outbox)
+        vm.sendAlert("Forbidden-Ride")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.state.value
+        assertTrue("State must be NotSent on 403, was $state", state is SosState.NotSent)
+        assertEquals("SERVER_ERROR", (state as SosState.NotSent).reason)
+        assertEquals(0, outbox.pending().size)
+    }
+
+    @Test
+    fun `cancelAlert removes pending alert from outbox`() = runTest(testDispatcher) {
+        val errorResponse = Response.error<SosAlertResponse>(
+            500,
+            "Error".toResponseBody("text/plain".toMediaType())
+        )
+        val fakeApi = FakeApiService(alertResponse = errorResponse)
+        val outbox = com.ridervoice.services.InMemorySosOutbox()
+        val vm = SosViewModel(fakeApi, { Pair(18.5204, 73.8567) }, outbox)
+        vm.sendAlert("Pending-Ride")
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, outbox.pending().size)
+
+        vm.cancelAlert("Pending-Ride", "FALSE_ALARM")
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(0, outbox.pending().size)
+        assertTrue(vm.state.value is SosState.Idle)
+    }
+
+    @Test
+    fun `sendAlert queues alert offline and flushes upon reconnect`() = runTest(testDispatcher) {
+        var callCount = 0
+        val fakeApi = object : FakeApiService(Response.success(SosAlertResponse(sent = false))) {
+            override suspend fun sendSosAlert(body: SosAlertRequest): Response<SosAlertResponse> {
+                callCount++
+                if (callCount == 1) {
+                    throw java.io.IOException("No internet connection")
+                }
+                return Response.success(SosAlertResponse(sent = true, alertId = "queued-alert-1", recipientsCount = 2))
+            }
+        }
+
+        val vm = SosViewModel(fakeApi) { Pair(18.5204, 73.8567) }
+        vm.sendAlert("Offline-Ride")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.state.value
+        assertTrue("State must be NotSent (queued offline), was $state", state is SosState.NotSent)
+        assertEquals("QUEUED_OFFLINE", (state as SosState.NotSent).reason)
+
+        // When network returns, flush pending alerts
+        vm.flushPendingAlerts()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(2, callCount)
     }
 }

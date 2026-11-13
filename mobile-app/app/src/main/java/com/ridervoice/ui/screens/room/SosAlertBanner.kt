@@ -20,9 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.network.InRideSosAlert
 import com.ridervoice.ui.theme.AlertRed
 
@@ -68,13 +70,13 @@ fun SosAlertBanner(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(
-                                    text = "EMERGENCY SOS ALERT",
+                                    text = stringResource(R.string.sos_alert_title),
                                     color = AlertRed,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Black
                                 )
                                 Text(
-                                    text = "${alert.callsign} needs help!",
+                                    text = stringResource(R.string.sos_needs_help, alert.callsign),
                                     color = Color.White,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold
@@ -88,7 +90,7 @@ fun SosAlertBanner(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Dismiss SOS Alert",
+                                contentDescription = stringResource(R.string.sos_dismiss_cd),
                                 tint = Color.White
                             )
                         }

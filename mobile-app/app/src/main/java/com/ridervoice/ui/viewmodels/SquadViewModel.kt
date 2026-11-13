@@ -80,8 +80,8 @@ class SquadViewModel @Inject constructor(
             val result = squadRepository.respondToInvite(invite.id, true)
             if (result.isSuccess) {
                 val tokenResult = squadRepository.getJoinToken(invite.room.name)
-                if (tokenResult.isSuccess && tokenResult.getOrNull() != null) {
-                    val tokenData = tokenResult.getOrNull()!!
+                val tokenData = tokenResult.getOrNull()
+                if (tokenResult.isSuccess && tokenData != null) {
                     activeRideRepository.enterLobby(
                         roomId = tokenData.roomId ?: invite.roomId,
                         name = tokenData.roomName ?: invite.room.name,

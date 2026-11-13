@@ -252,6 +252,8 @@ router.post('/create', async (req, res, next) => {
 
         const diagBool = diagnosticsEnabled === true
         const joinCode = await generateUniqueJoinCode()
+        const offlineBackupCode = generateOfflineBackupCode()
+        const offlineMeshEnabled = req.body.offlineMeshEnabled !== false
 
         const newRoomId = crypto.randomUUID()
         // P0-A (F-01): Canonical, unique, immutable LiveKit room identity for all newly created rooms
@@ -264,6 +266,8 @@ router.post('/create', async (req, res, next) => {
             ownerId: hostId,
             diagnosticsEnabled: diagBool,
             joinCode,
+            offlineBackupCode,
+            offlineMeshEnabled,
             origin: origin ? origin.trim() : null,
             destination: destination ? destination.trim() : null,
             meetupPoint: meetupPoint ? meetupPoint.trim() : null,
@@ -275,6 +279,8 @@ router.post('/create', async (req, res, next) => {
             ownerId: true,
             diagnosticsEnabled: true,
             joinCode: true,
+            offlineBackupCode: true,
+            offlineMeshEnabled: true,
             origin: true,
             destination: true,
             meetupPoint: true,
@@ -395,6 +401,8 @@ router.post('/create', async (req, res, next) => {
             hostId,
             diagnosticsEnabled: room.diagnosticsEnabled,
             joinCode: room.joinCode,
+            offlineBackupCode: room.offlineBackupCode || offlineBackupCode,
+            offlineMeshEnabled: room.offlineMeshEnabled !== false,
             origin: room.origin,
             destination: room.destination,
             meetupPoint: room.meetupPoint,
@@ -446,6 +454,30 @@ router.get('/:roomRef/status', async (req, res, next) => {
             return res.json(cached)
         }
 
+        const serverNow = new Date()
+        const serverNowMs = serverNow.getTime()
+
+        // A2: Record lobby presence for requester (heartbeat via poll)
+        cacheService.set(`lobby_presence:${room.id}:${requesterId}`, serverNowMs, 60)
+        if (typeof prisma.rideInvite?.updateMany === 'function') {
+            prisma.rideInvite.updateMany({
+                where: { roomId: room.id, inviteeId: requesterId },
+                data: { lastLobbyPollAt: serverNow }
+            }).catch(() => {})
+        }
+
+        // A1: Lazy backfill offlineBackupCode if room is active/lobby and code is null
+        if (!room.offlineBackupCode && room.status !== 'ENDED') {
+            const backfilledCode = generateOfflineBackupCode()
+            room.offlineBackupCode = backfilledCode
+            if (typeof prisma.room?.updateMany === 'function') {
+                prisma.room.updateMany({
+                    where: { id: room.id, offlineBackupCode: null },
+                    data: { offlineBackupCode: backfilledCode }
+                }).catch(() => {})
+            }
+        }
+
         // Authorization: owner or ACCEPTED member only
         const isOwner = room.ownerId === requesterId
         const allInvites = Array.isArray(room.invites) ? room.invites : []
@@ -482,39 +514,70 @@ router.get('/:roomRef/status', async (req, res, next) => {
         const declinedCount = allInvites.filter(inv => inv.status === 'DECLINED').length
         const leftCount = allInvites.filter(inv => inv.status === 'LEFT').length
 
+        const TERMINAL_CONFIG_STATUSES = new Set(['READY', 'OPTED_OUT', 'UNAVAILABLE', 'TIMED_OUT'])
+
+        const formatInviteRow = (inv) => {
+            const riderId = inv.invitee?.id
+            const configCache = riderId ? cacheService.get(`offline_config:${room.id}:${riderId}`) : null
+            const rawStatus = configCache?.status || inv.offlineConfigStatus || 'CONFIGURING'
+            const updatedAtMs = configCache?.updatedAtMs || (inv.offlineConfigUpdatedAt ? new Date(inv.offlineConfigUpdatedAt).getTime() : null)
+            const joinedAtMs = inv.createdAt ? new Date(inv.createdAt).getTime() : serverNowMs
+            const lastActivityMs = Math.max(joinedAtMs, updatedAtMs || 0)
+
+            const lastPresence = riderId ? cacheService.get(`lobby_presence:${room.id}:${riderId}`) : null
+            const isPresent = lastPresence != null && (serverNowMs - lastPresence) <= 30000
+
+            let effectiveConfigStatus = rawStatus
+            // A3: If room-level offline backup is OFF, every rider's status is terminal OPTED_OUT
+            if (room.offlineMeshEnabled === false) {
+                effectiveConfigStatus = 'OPTED_OUT'
+            } else if (!TERMINAL_CONFIG_STATUSES.has(rawStatus)) {
+                // A2: Server now minus max(joinedAt, offlineConfigUpdatedAt) > 90s => TIMED_OUT (terminal)
+                if (serverNowMs - lastActivityMs > 90000) {
+                    effectiveConfigStatus = 'TIMED_OUT'
+                }
+            }
+
+            return {
+                inviteId: inv.id,
+                status: inv.status,
+                source: inv.source,
+                offlineConfigStatus: effectiveConfigStatus,
+                offlineConfigUpdatedAt: updatedAtMs ? new Date(updatedAtMs).toISOString() : (inv.createdAt ? new Date(inv.createdAt).toISOString() : serverNow.toISOString()),
+                isPresent,
+                invitee: {
+                    id: inv.invitee?.id,
+                    handle: inv.invitee?.handle || null,
+                    displayName: inv.invitee?.displayName || null,
+                    callsign: riderCallsign(inv.invitee),
+                    bikeModel: inv.invitee?.bikeModel || null
+                }
+            }
+        }
+
         // R16: Separate left riders from active formatted invites
         const leftRiders = visibleInvites
             .filter(inv => inv.status === 'LEFT')
-            .map(inv => ({
-                inviteId: inv.id,
-                status: inv.status,
-                source: inv.source,
-                invitee: {
-                    id: inv.invitee?.id,
-                    handle: inv.invitee?.handle || null,
-                    displayName: inv.invitee?.displayName || null,
-                    callsign: riderCallsign(inv.invitee),
-                    bikeModel: inv.invitee?.bikeModel || null
-                }
-            }))
+            .map(formatInviteRow)
 
         const formattedInvites = visibleInvites
             .filter(inv => inv.status !== 'LEFT')
-            .map(inv => ({
-                inviteId: inv.id,
-                status: inv.status,
-                source: inv.source,
-                invitee: {
-                    id: inv.invitee?.id,
-                    handle: inv.invitee?.handle || null,
-                    displayName: inv.invitee?.displayName || null,
-                    callsign: riderCallsign(inv.invitee),
-                    bikeModel: inv.invitee?.bikeModel || null
-                }
-            }))
+            .map(formatInviteRow)
 
-        const allowSolo = req.query.allowSolo === 'true' || req.query.allowSolo === true
-        const canStart = isOwner && (acceptedCount >= 1 || allowSolo)
+        const allowSolo = req.query.allowSolo === 'true' || req.query.allowSolo === true || req.body?.allowSolo === true
+
+        // A2 StartRideGate:
+        // 1. Must be owner
+        // 2. acceptedCount >= 1 || allowSolo
+        // 3. For every ACCEPTED rider who has live lobby presence (isPresent === true):
+        //    they must have reached a terminal state (effectiveStatus in READY, OPTED_OUT, UNAVAILABLE, TIMED_OUT).
+        //    Absent riders (isPresent === false) do NOT block Start.
+        const acceptedInvites = formattedInvites.filter(inv => inv.status === 'ACCEPTED' && inv.invitee?.id !== room.ownerId)
+        const blockingRiders = room.offlineMeshEnabled === false ? [] : acceptedInvites.filter(inv => {
+            return inv.isPresent && !TERMINAL_CONFIG_STATUSES.has(inv.offlineConfigStatus)
+        })
+
+        const canStart = isOwner && (acceptedCount >= 1 || allowSolo) && blockingRiders.length === 0
         const isRideStarted = room.status === 'ACTIVE' || Boolean(room.startedAt)
 
         const hostCallsign = room.owner ? riderCallsign(room.owner) : 'Host'
@@ -535,7 +598,9 @@ router.get('/:roomRef/status', async (req, res, next) => {
             isOwner,                                   // new alias
             isRideStarted,                             // legacy name, REQUIRED by current app
             startedAt: room.startedAt ? (room.startedAt instanceof Date ? room.startedAt.toISOString() : new Date(room.startedAt).toISOString()) : null,
+            serverTime: serverNow.toISOString(),       // A2: Server time
             diagnosticsEnabled: Boolean(room.diagnosticsEnabled),
+            offlineMeshEnabled: room.offlineMeshEnabled !== false,
             origin: room.origin || null,
             destination: room.destination || null,
             meetupPoint: room.meetupPoint || null,
@@ -547,6 +612,7 @@ router.get('/:roomRef/status', async (req, res, next) => {
             acceptedCount,
             pendingCount,
             declinedCount,
+            blockingRidersCount: blockingRiders.length,
             canStart,
             offlineBackupCode: room.offlineBackupCode || null,
             joinCode: isOwner ? room.joinCode : undefined
@@ -586,7 +652,7 @@ router.post('/:roomRef/start', async (req, res, next) => {
         const acceptedCount = await prisma.rideInvite.count({
             where: { roomId: room.id, status: 'ACCEPTED' }
         })
-        const allowSolo = req.body.allowSolo === true || req.query.allowSolo === 'true'
+        const allowSolo = req.body?.allowSolo === true || req.query.allowSolo === 'true'
         if (acceptedCount < 1 && !allowSolo) {
             return res.status(400).json({
                 error: 'No riders have accepted yet. Invite at least one rider or pass allowSolo=true.',
@@ -594,24 +660,69 @@ router.post('/:roomRef/start', async (req, res, next) => {
             })
         }
 
-        // Transition room to ACTIVE conditionally
+        // A2: StartRideGate check if not allowSolo and mesh is enabled
+        if (!allowSolo && room.offlineMeshEnabled !== false) {
+            const serverNowMs = Date.now()
+            const TERMINAL = new Set(['READY', 'OPTED_OUT', 'UNAVAILABLE', 'TIMED_OUT'])
+            const allInvites = typeof prisma.rideInvite?.findMany === 'function' ? await prisma.rideInvite.findMany({
+                where: { roomId: room.id, status: 'ACCEPTED' },
+                select: { id: true, inviteeId: true, createdAt: true, offlineConfigStatus: true, offlineConfigUpdatedAt: true }
+            }).catch(() => []) : []
+
+            for (const inv of allInvites) {
+                const riderId = inv.inviteeId || inv.invitee?.id
+                if (!riderId || riderId === user.uid) continue
+
+                const configCache = cacheService.get(`offline_config:${room.id}:${riderId}`)
+                const rawStatus = configCache?.status || inv.offlineConfigStatus || 'CONFIGURING'
+                const updatedAtMs = configCache?.updatedAtMs || (inv.offlineConfigUpdatedAt ? new Date(inv.offlineConfigUpdatedAt).getTime() : null)
+                const joinedAtMs = inv.createdAt ? new Date(inv.createdAt).getTime() : serverNowMs
+                const lastActivityMs = Math.max(joinedAtMs, updatedAtMs || 0)
+
+                const lastPollMs = inv.lastLobbyPollAt ? new Date(inv.lastLobbyPollAt).getTime() : null
+                const lastPresenceCache = cacheService.get(`lobby_presence:${room.id}:${riderId}`)
+                const lastPresence = Math.max(lastPresenceCache || 0, lastPollMs || 0)
+                const isPresent = lastPresence > 0 && (serverNowMs - lastPresence) <= 30000
+
+                let effective = rawStatus
+                if (!TERMINAL.has(rawStatus) && (serverNowMs - lastActivityMs > 90000)) {
+                    effective = 'TIMED_OUT'
+                }
+
+                if (isPresent && !TERMINAL.has(effective)) {
+                    return res.status(400).json({
+                        error: 'Cannot start ride: riders are still configuring offline backup',
+                        code: 'WAITING_ROOM_CONFIGURING',
+                        blockingRiderId: riderId
+                    })
+                }
+            }
+        }
+
+        // Transition room to ACTIVE atomically
         const offlineBackupCode = room.offlineBackupCode || generateOfflineBackupCode()
+        let transitioned = false
         if (typeof prisma.room.updateMany === 'function') {
-            await prisma.room.updateMany({
+            const updateRes = await prisma.room.updateMany({
                 where: { id: room.id, status: 'LOBBY' },
                 data: { startedAt: new Date(), status: 'ACTIVE', offlineBackupCode }
             }).catch(() => null)
+            transitioned = (updateRes?.count || 0) > 0
         } else if (typeof prisma.room.update === 'function') {
             await prisma.room.update({
                 where: { id: room.id },
                 data: { startedAt: new Date(), status: 'ACTIVE', offlineBackupCode }
             }).catch(() => null)
+            transitioned = true
         }
 
         invalidateRoom(room.id)
 
         // Issue token via tokenService (A1 + A2 + F3)
-        const tokenResult = await issueRoomToken(user, { ...room, status: 'ACTIVE', offlineBackupCode })
+        const activeRoom = (transitioned || !prisma.room?.findUnique)
+            ? { ...room, status: 'ACTIVE', offlineBackupCode }
+            : (await prisma.room.findUnique({ where: { id: room.id } }) || { ...room, status: 'ACTIVE', offlineBackupCode })
+        const tokenResult = await issueRoomToken(user, activeRoom)
 
         res.json(tokenResult)
     } catch (error) {
@@ -1017,6 +1128,7 @@ router.post('/:roomRef/transfer-host', async (req, res, next) => {
             data: { ownerId: newHostId },
             select: { id: true }
         })
+        invalidateRoom(room.id)
 
         // H6 - revoke share links created by old host
         await prisma.roomJoinToken.updateMany({
@@ -1089,5 +1201,102 @@ async function updateDiagnosticsHandler(req, res, next) {
 
 router.patch('/:roomRef/diagnostics', updateDiagnosticsHandler)
 router.put('/:roomRef/diagnostics', updateDiagnosticsHandler)
+
+// --- POST /lobby/:roomRef/offline-config --------------------------------------
+// A2: Rider reports their offline backup readiness in waiting room
+router.post('/:roomRef/offline-config', async (req, res, next) => {
+    const { roomRef } = req.params
+    const user = req.user
+    const { status } = req.body || {}
+
+    const validStatuses = ['CONFIGURING', 'READY', 'OPTED_OUT', 'UNAVAILABLE']
+    if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'status must be one of: CONFIGURING, READY, OPTED_OUT, UNAVAILABLE', code: 'INVALID_STATUS' })
+    }
+
+    try {
+        const room = await resolveRoom(roomRef)
+        const now = new Date()
+
+        // Refresh presence
+        cacheService.set(`lobby_presence:${room.id}:${user.uid}`, now.getTime(), 60)
+
+        // Store config state
+        const configData = {
+            status,
+            updatedAt: now.toISOString(),
+            updatedAtMs: now.getTime()
+        }
+        cacheService.set(`offline_config:${room.id}:${user.uid}`, configData, 24 * 3600)
+
+        if (typeof prisma.rideInvite?.updateMany === 'function') {
+            await prisma.rideInvite.updateMany({
+                where: { roomId: room.id, inviteeId: user.uid },
+                data: {
+                    offlineConfigStatus: status,
+                    offlineConfigUpdatedAt: now,
+                    lastLobbyPollAt: now
+                }
+            }).catch(() => {})
+        }
+
+        invalidateRoom(room.id)
+        cacheService.del(`lobby_status:${room.name}`)
+        cacheService.del(`lobby_status:${room.id}`)
+
+        res.json({
+            success: true,
+            status,
+            offlineConfigUpdatedAt: now.toISOString(),
+            serverTime: now.toISOString()
+        })
+    } catch (err) {
+        if (err instanceof ResolverError) {
+            return res.status(err.status).json({ error: err.message, code: err.code })
+        }
+        next(err)
+    }
+})
+
+// --- PATCH /lobby/:roomRef/offline-mesh ---------------------------------------
+// A3: Host toggles room-level offline backup switch
+router.patch('/:roomRef/offline-mesh', async (req, res, next) => {
+    const { roomRef } = req.params
+    const user = req.user
+    const { enabled } = req.body || {}
+
+    if (enabled === undefined) {
+        return res.status(400).json({ error: 'enabled is required', code: 'MISSING_FIELD' })
+    }
+
+    try {
+        const room = await resolveRoom(roomRef)
+        if (room.ownerId !== user.uid) {
+            return res.status(403).json({ error: 'Only the host can modify offline backup settings' })
+        }
+        if (room.status !== 'LOBBY' || room.startedAt) {
+            return res.status(400).json({ error: 'Cannot change offline backup setting after ride has started' })
+        }
+
+        const boolVal = Boolean(enabled)
+        if (typeof prisma.room?.update === 'function') {
+            await prisma.room.update({
+                where: { id: room.id },
+                data: { offlineMeshEnabled: boolVal }
+            }).catch(() => {})
+        }
+
+        invalidateRoom(room.id)
+        cacheService.del(`lobby_status:${room.name}`)
+        cacheService.del(`lobby_status:${room.id}`)
+
+        res.json({ success: true, offlineMeshEnabled: boolVal })
+    } catch (err) {
+        if (err instanceof ResolverError) {
+            return res.status(err.status).json({ error: err.message, code: err.code })
+        }
+        next(err)
+    }
+})
 
 module.exports = router

@@ -377,4 +377,15 @@
     <string name="mesh_backup_not_persisted_warning">Backup code not saved on this device; it will be lost if the app closes</string>
     <string name="mesh_selftest_bad_version_hint">Incompatible protocol version detected from nearby riders. Please update the app.</string>
     <string name="mesh_banner_audio_failed">Offline Mesh Audio Failed</string>
+
+    <!-- SOS Banner Strings -->
+    <string name="sos_alert_title">EMERGENCY SOS ALERT</string>
+    <string name="sos_needs_help">%1$s needs help!</string>
+    <string name="sos_dismiss_cd">Dismiss SOS Alert</string>
+
+    <!-- Diagnostics Consent Strings -->
+    <string name="diag_consent_title">Share Ride Diagnostics?</string>
+    <string name="diag_consent_body">The host has enabled diagnostics for this ride. Only network link metrics and device performance data are collected (zero audio content, zero GPS location). Data is automatically compiled and emailed to the project team upon ride conclusion to troubleshoot call drops.</string>
+    <string name="diag_consent_accept">OK</string>
+    <string name="diag_consent_decline">Don\'t share my data</string>
 </resources>

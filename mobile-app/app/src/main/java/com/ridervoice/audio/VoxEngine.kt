@@ -338,13 +338,17 @@ open class VoxEngine @Inject constructor(
     fun setPttOverride(open: Boolean) {
         pttReleaseJob?.cancel()
         pttReleaseJob = null
-        pttOverride = open
         if (open) {
+            pttOverride = true
             openMic(isFromVox = false)
         } else {
             val now = System.currentTimeMillis()
             detector.onPttRelease(now)
-            closeMic()
+            pttReleaseJob = scope.launch {
+                delay(200L) // 200 ms hangover tail to prevent clipping the last syllable on PTT release
+                pttOverride = false
+                closeMic()
+            }
         }
     }
 

@@ -109,21 +109,7 @@ fun RoomScreen(
     ) { _ -> }
 
     fun startVoiceServiceIfPermitted() {
-        try {
-            val hasRecordAudio = androidx.core.content.ContextCompat.checkSelfPermission(
-                context,
-                android.Manifest.permission.RECORD_AUDIO
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-            if (hasRecordAudio) {
-                val serviceIntent = Intent(context, VoiceForegroundService::class.java)
-                context.startForegroundService(serviceIntent)
-            } else {
-                android.util.Log.w("RoomScreen", "RECORD_AUDIO not granted; deferring VoiceForegroundService")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("RoomScreen", "Failed to start VoiceForegroundService", e)
-        }
+        VoiceForegroundService.start(context)
     }
 
     val ridePermissionLauncher = rememberLauncherForActivityResult(

@@ -44,6 +44,7 @@ const MIGRATION_STATEMENTS = [
 
     // 4. Room column extensions
     `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "lkRoomName" TEXT`,
+    `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "offlineMeshEnabled" BOOLEAN NOT NULL DEFAULT true`,
 
     // 5. Room unique indexes
     `DROP INDEX IF EXISTS "Room_name_key"`,
@@ -65,6 +66,9 @@ const MIGRATION_STATEMENTS = [
     // 6. RideInvite columns & constraint
     `ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "source" "InviteSource" NOT NULL DEFAULT 'HOST_INVITE'`,
     `ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW()`,
+    `ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "offlineConfigStatus" TEXT`,
+    `ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "offlineConfigUpdatedAt" TIMESTAMP(3)`,
+    `ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "lastLobbyPollAt" TIMESTAMP(3)`,
     `DO $$
     BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RideInvite_roomId_inviteeId_key') THEN
@@ -122,6 +126,8 @@ const MIGRATION_STATEMENTS = [
     )`,
     `CREATE INDEX IF NOT EXISTS "EmergencyAlert_roomName_senderId_idx" ON "EmergencyAlert"("roomName", "senderId")`,
     `CREATE INDEX IF NOT EXISTS "EmergencyAlert_senderId_idx" ON "EmergencyAlert"("senderId")`,
+    `ALTER TABLE "EmergencyAlert" ADD COLUMN IF NOT EXISTS "clientAlertId" TEXT`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "EmergencyAlert_senderId_clientAlertId_key" ON "EmergencyAlert"("senderId", "clientAlertId")`,
 
     // 10. DiagnosticRun table & columns
     `CREATE TABLE IF NOT EXISTS "DiagnosticRun" (

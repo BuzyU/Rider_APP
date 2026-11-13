@@ -21,14 +21,14 @@ const { joinWithLinkToken, joinAsMember, extractCleanToken } = require('../servi
 // Issues a LiveKit token for a room.
 // If ref is a link or token, delegates to joinWithLinkToken.
 // Otherwise delegates to joinAsMember (members only; rejects non-members).
-router.post('/room/token', async (req, res) => {
+router.post('/room/token', async (req, res, next) => {
     try {
-        const { roomName, roomId } = req.body
+        const { roomName, roomId } = req.body || {}
         const user = req.user
 
         const rawRef = roomId || roomName
-        if (!rawRef) {
-            return res.status(400).json({ error: 'roomId or roomName is required' })
+        if (!rawRef || typeof rawRef !== 'string' || !rawRef.trim() || rawRef.trim().length > 256) {
+            return res.status(400).json({ error: 'roomId or roomName must be a non-empty string under 256 characters', code: 'INVALID_INPUT' })
         }
 
         const isLinkToken = typeof rawRef === 'string' && (
@@ -53,22 +53,21 @@ router.post('/room/token', async (req, res) => {
         if (error.status) {
             return res.status(error.status).json({ error: error.message, code: error.code })
         }
-        console.error('[RoomRoutes] Error generating token:', error)
-        return res.status(500).json({ error: 'Failed to generate token' })
+        next(error)
     }
 })
 
 // POST /api/rooms/token/refresh
 // F3 – token refresh: exchange an expiring token for a fresh one.
 // Caller must be an authorized member of a non-ENDED room.
-router.post('/token/refresh', async (req, res) => {
+router.post('/token/refresh', async (req, res, next) => {
     try {
-        const { roomId, roomName } = req.body
+        const { roomId, roomName } = req.body || {}
         const user = req.user
 
         const rawRef = roomId || roomName
-        if (!rawRef) {
-            return res.status(400).json({ error: 'roomId or roomName is required' })
+        if (!rawRef || typeof rawRef !== 'string' || !rawRef.trim() || rawRef.trim().length > 256) {
+            return res.status(400).json({ error: 'roomId or roomName must be a non-empty string under 256 characters', code: 'INVALID_INPUT' })
         }
         const ref = extractCleanToken(rawRef) || rawRef
 
@@ -82,8 +81,7 @@ router.post('/token/refresh', async (req, res) => {
         if (error.status) {
             return res.status(error.status).json({ error: error.message, code: error.code })
         }
-        console.error('[RoomRoutes] Error refreshing token:', error)
-        res.status(500).json({ error: 'Failed to refresh token' })
+        next(error)
     }
 })
 

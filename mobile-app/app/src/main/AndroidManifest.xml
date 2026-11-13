@@ -64,7 +64,7 @@
         <activity android:name=".ui.screens.EmergencyAlertActivity" android:showOnLockScreen="true" android:turnScreenOn="true" android:exported="false" />
 
         <service android:name=".services.VoiceForegroundService" android:foregroundServiceType="microphone|location|connectedDevice" />
-        <service android:name=".services.MeshForegroundService" android:foregroundServiceType="microphone|connectedDevice" />
+        <service android:name=".services.MeshForegroundService" android:foregroundServiceType="microphone" />
         
         <!-- Firebase Messaging Service -->
         <service android:name=".services.FcmService" android:exported="true">

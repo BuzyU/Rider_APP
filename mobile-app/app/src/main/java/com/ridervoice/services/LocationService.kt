@@ -54,6 +54,7 @@ class LocationService @Inject constructor(
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val loc = result.lastLocation ?: return
+            com.ridervoice.diagnostics.PowerProbe.recordGpsFix()
             _currentLocation.value = loc
             maybeUpdateInterval(loc)
         }

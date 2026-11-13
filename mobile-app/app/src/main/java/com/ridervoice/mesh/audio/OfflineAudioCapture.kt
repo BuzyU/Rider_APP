@@ -24,7 +24,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 fun calculateAudioRecordBufferSize(minBuf: Int): Int =
-    maxOf(minBuf, MeshConfig.BYTES_PER_FRAME * 4)
+    maxOf(minBuf, MeshConfig.BYTES_PER_FRAME * 8)
 
 interface AudioRecordSource {
     val state: Int
@@ -72,6 +72,8 @@ class OfflineAudioCapture(
 ) {
     private val _isCapturing = MutableStateFlow(false)
     val isCapturing: StateFlow<Boolean> = _isCapturing.asStateFlow()
+
+    val overrunCount = java.util.concurrent.atomic.AtomicLong(0L)
 
     @Volatile
     private var micEnabled: Boolean = false
@@ -197,9 +199,11 @@ class OfflineAudioCapture(
                         }
                         if (read == 0) {
                             if (++emptyReadCount >= MAX_EMPTY_READS) {
-                                failed = true
-                                onCaptureError("AudioRecord.read returned 0 x$MAX_EMPTY_READS")
-                                break
+                                overrunCount.incrementAndGet()
+                                onCaptureError("AudioRecord.read returned 0 x$MAX_EMPTY_READS - backing off and retrying")
+                                emptyReadCount = 0
+                                delay(50L)
+                                continue
                             }
                             delay(10L)                      // keep `offset`: the partial frame is NOT discarded
                             continue

@@ -15,9 +15,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.audio.AudioDevice
 import com.ridervoice.diagnostics.models.SelfMetricSample
 import com.ridervoice.models.Participant
@@ -265,7 +267,7 @@ fun DiagnosticsConsentDialog(
         onDismissRequest = { /* modal: require choice */ },
         title = {
             Text(
-                text = "Share Ride Diagnostics?",
+                text = stringResource(R.string.diag_consent_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
@@ -273,7 +275,7 @@ fun DiagnosticsConsentDialog(
         },
         text = {
             Text(
-                text = "The host has enabled diagnostics for this ride. Only network link metrics and device performance data are collected (zero audio content, zero GPS location). Data is automatically compiled and emailed to the project team upon ride conclusion to troubleshoot call drops.",
+                text = stringResource(R.string.diag_consent_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
@@ -283,12 +285,12 @@ fun DiagnosticsConsentDialog(
                 onClick = onAccept,
                 colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
             ) {
-                Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.diag_consent_accept), color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             OutlinedButton(onClick = onDecline) {
-                Text("Don't share my data", color = AlertRed)
+                Text(stringResource(R.string.diag_consent_decline), color = AlertRed)
             }
         },
         containerColor = DarkSlate

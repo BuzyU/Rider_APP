@@ -56,7 +56,7 @@ export default function PrivacyPolicy() {
         <section>
           <h2 style={{ fontSize: '1.5rem', marginBottom: '0.75rem', fontWeight: 600 }}>6. Contact Us</h2>
           <p style={{ color: 'var(--text-secondary)' }}>
-            If you have questions regarding this Privacy Policy, reach out to our team at <a href="mailto:a07631356@gmail.com" style={{ color: 'var(--safety-orange)', textDecoration: 'underline' }}>a07631356@gmail.com</a>.
+            If you have questions regarding this Privacy Policy, reach out to our team at <a href="mailto:code4changeteam@gmail.com" style={{ color: 'var(--safety-orange)', textDecoration: 'underline' }}>code4changeteam@gmail.com</a>.
           </p>
         </section>
       </div>

@@ -29,10 +29,24 @@ module.exports = (err, req, res, _next) => {
         return _next(err)
     }
 
-    const statusCode = err?.status || err?.statusCode || 500
+    let statusCode = err?.status || err?.statusCode || 500
+    let code = err?.code || 'INTERNAL_ERROR'
+    let message = err?.message || 'Internal server error'
+
+    // Prisma error mapping (WP-142)
+    if (err?.code === 'P2002') {
+        statusCode = 409
+        code = 'CONFLICT'
+        message = 'A resource with this identifier or unique constraint already exists'
+    } else if (err?.code === 'P2025') {
+        statusCode = 404
+        code = 'NOT_FOUND'
+        message = 'Record not found'
+    }
+
     res.status(statusCode).json({
-        error: err?.message || 'Internal server error',
-        code: err?.code || 'INTERNAL_ERROR',
+        error: message,
+        code,
         requestId
     })
 }

@@ -57,6 +57,24 @@ interface ApiService {
     @POST("/api/lobby/{roomName}/start")
     suspend fun startRide(@Path("roomName") roomName: String): Response<StartRideResponse>
 
+    @POST("/api/lobby/{roomName}/start")
+    suspend fun startRide(
+        @Path("roomName") roomName: String,
+        @Body body: com.ridervoice.models.StartRideRequest
+    ): Response<StartRideResponse> = startRide(roomName)
+
+    @POST("/api/lobby/{roomName}/offline-config")
+    suspend fun reportOfflineConfig(
+        @Path("roomName") roomName: String,
+        @Body body: com.ridervoice.models.OfflineConfigRequest
+    ): Response<Map<String, Any>> = Response.success(emptyMap())
+
+    @retrofit2.http.PATCH("/api/lobby/{roomName}/offline-mesh")
+    suspend fun toggleOfflineMesh(
+        @Path("roomName") roomName: String,
+        @Body body: com.ridervoice.models.ToggleOfflineMeshRequest
+    ): Response<Map<String, Any>> = Response.success(emptyMap())
+
     @POST("/api/lobby/join-token")
     suspend fun getJoinToken(@Body body: JoinTokenRequest): Response<StartRideResponse>
 

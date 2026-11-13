@@ -81,6 +81,7 @@ model Room {
   endedAt            DateTime?
   joinCode           String?
   offlineBackupCode  String?
+  offlineMeshEnabled Boolean      @default(true)
   // Phase 1.5: optional ride metadata
   origin             String?
   destination        String?
@@ -143,9 +144,12 @@ model RideInvite {
   roomId      String
   inviterId   String
   inviteeId   String
-  status      InviteStatus  @default(PENDING)
-  source      InviteSource  @default(HOST_INVITE)
-  createdAt   DateTime      @default(now())
+  status                 InviteStatus  @default(PENDING)
+  source                 InviteSource  @default(HOST_INVITE)
+  offlineConfigStatus    String?
+  offlineConfigUpdatedAt DateTime?
+  lastLobbyPollAt        DateTime?
+  createdAt              DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   room        Room @relation(fields: [roomId], references: [id])
@@ -200,11 +204,13 @@ model EmergencyAlert {
   lng        Float?
   recipients String[]
   status     String   @default("SENT")
+  clientAlertId String?
   createdAt  DateTime @default(now())
 
   sender     User     @relation("AlertSender", fields: [senderId], references: [id])
   room       Room     @relation(fields: [roomId], references: [id])
 
+  @@unique([senderId, clientAlertId])
   @@index([roomName, senderId])
   @@index([senderId])
 }

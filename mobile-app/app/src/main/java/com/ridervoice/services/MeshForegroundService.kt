@@ -53,7 +53,12 @@ class MeshForegroundService : Service() {
 
     private fun releaseWakeLock() {
         try {
-            wakeLock?.let { if (it.isHeld) it.release() }
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                    com.ridervoice.diagnostics.PowerProbe.recordWakeLockReleased("MeshFGS")
+                }
+            }
         } catch (_: Exception) {}
         wakeLock = null
     }
@@ -153,9 +158,7 @@ class MeshForegroundService : Service() {
         val sessionDisplay = session?.let { "ID: ${it.sessionId.take(8)}" } ?: "Active"
         val notification = buildNotification(sessionDisplay, currentPeerCount)
 
-        val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
         } else {
             0
@@ -187,6 +190,7 @@ class MeshForegroundService : Service() {
             )?.apply {
                 setReferenceCounted(false)
                 acquire(4 * 60 * 60 * 1000L) // 4 hours max (WP-120)
+                com.ridervoice.diagnostics.PowerProbe.recordWakeLockAcquired("MeshFGS")
             }
         }
 

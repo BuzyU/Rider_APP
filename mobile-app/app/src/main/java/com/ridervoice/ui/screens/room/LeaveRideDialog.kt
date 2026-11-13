@@ -58,8 +58,10 @@ fun LeaveRideDialog(
                     if (otherRiders.isNotEmpty()) {
                         Button(
                             onClick = {
-                                val successor = otherRiders.first()
-                                onTransferAndLeave(successor.identity)
+                                val successor = otherRiders.firstOrNull()
+                                if (successor != null) {
+                                    onTransferAndLeave(successor.identity)
+                                }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
                             modifier = Modifier.fillMaxWidth(),

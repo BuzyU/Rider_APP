@@ -73,6 +73,13 @@ class VoiceForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
 
+        val hasMic = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        if (!hasMic) {
+            android.util.Log.w("VoiceForegroundService", "RECORD_AUDIO missing on onCreate; terminating")
+            stopSelf()
+            return
+        }
+
         try {
             createNotificationChannel()
             val mask = getForegroundServiceTypeMask()
@@ -83,11 +90,12 @@ class VoiceForegroundService : Service() {
             }
         } catch (se: SecurityException) {
             android.util.Log.e("VoiceForegroundService", "startForeground SecurityException: ${se.message}")
-            try {
-                startForeground(notificationId, buildTacticalNotification())
-            } catch (_: Exception) {}
+            stopSelf()
+            return
         } catch (e: Exception) {
             android.util.Log.e("VoiceForegroundService", "startForeground failed", e)
+            stopSelf()
+            return
         }
 
         // Manage connection state updates and wake lock
@@ -211,7 +219,8 @@ class VoiceForegroundService : Service() {
             }
             wakeLock?.let {
                 if (!it.isHeld) {
-                    it.acquire()
+                    it.acquire(4 * 60 * 60 * 1000L) // 4 hours safety timeout cap (WP-143 / WP-120)
+                    com.ridervoice.diagnostics.PowerProbe.recordWakeLockAcquired("VoiceFGS")
                     com.ridervoice.utils.RvLog.d("BAT", "WakeLock acquired while connected/reconnecting")
                 }
             }
@@ -219,6 +228,7 @@ class VoiceForegroundService : Service() {
             wakeLock?.let {
                 if (it.isHeld) {
                     it.release()
+                    com.ridervoice.diagnostics.PowerProbe.recordWakeLockReleased("VoiceFGS")
                     com.ridervoice.utils.RvLog.d("BAT", "WakeLock released")
                 }
             }
@@ -332,12 +342,37 @@ class VoiceForegroundService : Service() {
         networkDiagnosticsCollector.stopSession()
         liveKitManager.disconnect()
         wakeLock?.let {
-            if (it.isHeld) it.release()
+            if (it.isHeld) {
+                it.release()
+                com.ridervoice.diagnostics.PowerProbe.recordWakeLockReleased("VoiceFGS")
+            }
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
     companion object {
+        fun start(context: Context) {
+            val hasMic = androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!hasMic) {
+                android.util.Log.w("VoiceForegroundService", "start refused: RECORD_AUDIO missing")
+                return
+            }
+            val intent = Intent(context, VoiceForegroundService::class.java)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                // Handles ForegroundServiceStartNotAllowedException on Android 12+ and IllegalStateException
+                android.util.Log.w("VoiceForegroundService", "startForegroundService failed: ${e.javaClass.simpleName}", e)
+            }
+        }
+
         fun stop(context: Context) {
             try {
                 context.stopService(Intent(context, VoiceForegroundService::class.java))

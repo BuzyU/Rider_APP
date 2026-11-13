@@ -61,7 +61,7 @@ export default function TermsOfService() {
         <section>
           <h2 style={{ fontSize: '1.5rem', marginBottom: '0.75rem', fontWeight: 600 }}>6. Contact &amp; Inquiries</h2>
           <p style={{ color: 'var(--text-secondary)' }}>
-            For inquiries regarding these Terms of Service, contact us at <a href="mailto:a07631356@gmail.com" style={{ color: 'var(--safety-orange)', textDecoration: 'underline' }}>a07631356@gmail.com</a>.
+            For inquiries regarding these Terms of Service, contact us at <a href="mailto:code4changeteam@gmail.com" style={{ color: 'var(--safety-orange)', textDecoration: 'underline' }}>code4changeteam@gmail.com</a>.
           </p>
         </section>
       </div>

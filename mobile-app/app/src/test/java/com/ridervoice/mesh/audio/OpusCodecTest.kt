@@ -36,7 +36,7 @@ class OpusCodecTest {
         // Total UDP datagram on v4: header (17) + encrypted payload (<=52) <= 69 bytes
         val totalDatagramBytes = MeshPacketCodec.HEADER_LEN + encryptedPayloadSize
         assertTrue("Total voice datagram on protocol v4 must not exceed 69 bytes (was $totalDatagramBytes)", totalDatagramBytes <= 69)
-        assertEquals("MeshConfig.MAX_VOICE_DATAGRAM_BYTES must be 100", 100, MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
+        assertEquals("MeshConfig.MAX_VOICE_DATAGRAM_BYTES must be 150", 150, MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
         assertTrue(totalDatagramBytes <= MeshConfig.MAX_VOICE_DATAGRAM_BYTES)
     }
 

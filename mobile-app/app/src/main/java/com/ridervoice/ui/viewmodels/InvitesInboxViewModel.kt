@@ -55,8 +55,8 @@ class InvitesInboxViewModel @Inject constructor(
             try {
                 if (accept) {
                     val response = apiService.acceptRideInvite(invite.id)
-                    if (response.isSuccessful && response.body() != null) {
-                        val body = response.body()!!
+                    val body = response.body()
+                    if (response.isSuccessful && body != null) {
                         activeRideRepository.enterLobby(
                             roomId = body.roomId ?: invite.roomId,
                             name = body.roomName ?: invite.room.name,

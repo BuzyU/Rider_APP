@@ -80,6 +80,9 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             const rideCreateRequestMigrationPath = path.join(__dirname, '../prisma/migrations/20261025_add_ride_create_request/migration.sql')
             const lkRoomNameMigrationPath = path.join(__dirname, '../prisma/migrations/20261025_add_lk_room_name/migration.sql')
             const offlineBackupCodeMigrationPath = path.join(__dirname, '../prisma/migrations/20261111_add_offline_backup_code/migration.sql')
+            const offlineMeshGateMigrationPath = path.join(__dirname, '../prisma/migrations/20261113_add_offline_mesh_gate/migration.sql')
+            const sosClientAlertIdMigrationPath = path.join(__dirname, '../prisma/migrations/20261113_add_sos_client_alert_id/migration.sql')
+            const lastLobbyPollAtMigrationPath = path.join(__dirname, '../prisma/migrations/20261113_add_last_lobby_poll_at/migration.sql')
 
             async function setupDb(dbName) {
                 await runSqlFile(dbName, baseSchemaPath)
@@ -125,6 +128,9 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             await runSqlFile('ridervoice_prev', rideCreateRequestMigrationPath)
             await runSqlFile('ridervoice_prev', lkRoomNameMigrationPath)
             await runSqlFile('ridervoice_prev', offlineBackupCodeMigrationPath)
+            await runSqlFile('ridervoice_prev', offlineMeshGateMigrationPath)
+            await runSqlFile('ridervoice_prev', sosClientAlertIdMigrationPath)
+            await runSqlFile('ridervoice_prev', lastLobbyPollAtMigrationPath)
 
             // Verify columns now exist in ridervoice_prev
             const upgradedClient = new Client({ host: 'localhost', port: testPort, user: 'postgres', password: 'password', database: 'ridervoice_prev' })
@@ -145,6 +151,9 @@ describe('Gate 5: Database Migrations & Schema Drift', () => {
             await runSqlFile('ridervoice_fresh', rideCreateRequestMigrationPath)
             await runSqlFile('ridervoice_fresh', lkRoomNameMigrationPath)
             await runSqlFile('ridervoice_fresh', offlineBackupCodeMigrationPath)
+            await runSqlFile('ridervoice_fresh', offlineMeshGateMigrationPath)
+            await runSqlFile('ridervoice_fresh', sosClientAlertIdMigrationPath)
+            await runSqlFile('ridervoice_fresh', lastLobbyPollAtMigrationPath)
 
             // 3. Diff fresh DB against schema.prisma and assert no drift
             const dbUrl = `postgresql://postgres:password@localhost:${testPort}/ridervoice_fresh`

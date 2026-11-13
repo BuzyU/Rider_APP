@@ -71,8 +71,9 @@ class SquadRepository @Inject constructor(
     suspend fun getJoinToken(roomName: String): Result<com.ridervoice.models.StartRideResponse> {
         return try {
             val response = apiService.getJoinToken(com.ridervoice.models.JoinTokenRequest(roomName))
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+            val body = response.body()
+            if (response.isSuccessful && body != null) {
+                Result.success(body)
             } else {
                 val errorMsg = response.errorBody()?.string()?.let { b ->
                     try {

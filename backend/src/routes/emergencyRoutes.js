@@ -71,7 +71,9 @@ const emergencyRateLimiter = (req, res, next) => {
 router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
     const userId = req.user.uid
     const { roomName, lat, lng } = req.body
-
+    const clientAlertId = typeof req.body.clientAlertId === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(req.body.clientAlertId)
+        ? req.body.clientAlertId
+        : null
     // C3 - GLOBAL or missing room: return 200 with sent: false and regional emergency number
     if (!roomName || isReservedName(roomName)) {
         const emergency = getRegionalEmergency(req)
@@ -142,6 +144,20 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
         const senderName = riderCallsign(senderUser || { id: userId })
 
         let alertId = null
+        if (clientAlertId && typeof prisma.emergencyAlert?.findFirst === 'function') {
+            const prior = await prisma.emergencyAlert.findFirst({
+                where: { senderId: userId, clientAlertId },
+                select: { id: true, status: true, recipients: true }
+            }).catch(() => null)
+            if (prior) {
+                return res.status(200).json({
+                    sent: prior.status === 'DELIVERED' || prior.status === 'SENT',
+                    alertId: prior.id,
+                    duplicate: true,
+                    recipientsCount: Array.isArray(prior.recipients) ? prior.recipients.length : 0
+                })
+            }
+        }
         if (typeof prisma.emergencyAlert?.create === 'function') {
             const alert = await prisma.emergencyAlert.create({
                 data: {
@@ -151,13 +167,21 @@ router.post('/alert', emergencyRateLimiter, async (req, res, next) => {
                     lat: parsedLat,
                     lng: parsedLng,
                     recipients: recipientList,
-                    status: 'SENT'
+                    status: 'SENT',
+                    ...(clientAlertId ? { clientAlertId } : {})
                 },
                 select: { id: true }
-            }).catch(err => {
+            }).catch(async err => {
+                if (err && err.code === 'P2002' && clientAlertId) {
+                    const dup = await prisma.emergencyAlert.findFirst({ where: { senderId: userId, clientAlertId }, select: { id: true } }).catch(() => null)
+                    if (dup) return { id: dup.id, __dup: true }
+                }
                 console.warn('[Emergency] Alert create warning:', err.message)
                 return null
             })
+            if (alert && alert.__dup) {
+                return res.status(200).json({ sent: true, alertId: alert.id, duplicate: true, recipientsCount: recipientList.length })
+            }
             alertId = alert?.id || null
         }
 

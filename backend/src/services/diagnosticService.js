@@ -14,8 +14,8 @@ function createMailer() {
     }
     const host = process.env.SMTP_HOST || 'smtp.gmail.com'
     const port = parseInt(process.env.SMTP_PORT || '465', 10)
-    const user = process.env.SMTP_USER || 'a07631356@gmail.com'
-    const pass = (process.env.SMTP_PASS || 'orvr bsie eyks kbyb').replace(/\s+/g, '')
+    const user = process.env.SMTP_USER || ''
+    const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, '')
     return nodemailer.createTransport({
         host,
         port,

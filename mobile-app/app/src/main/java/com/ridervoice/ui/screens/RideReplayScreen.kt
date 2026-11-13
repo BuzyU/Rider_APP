@@ -172,19 +172,22 @@ fun RideReplayScreen(
                             style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
                         )
 
-                        val currentX = ((currentWaypoint!!.lng - minLng) / lngSpan * w).toFloat()
-                        val currentY = (h - (currentWaypoint.lat - minLat) / latSpan * h).toFloat()
+                        val wp = currentWaypoint
+                        if (wp != null) {
+                            val currentX = ((wp.lng - minLng) / lngSpan * w).toFloat()
+                            val currentY = (h - (wp.lat - minLat) / latSpan * h).toFloat()
 
-                        drawCircle(
-                            color = ElectricCyan,
-                            radius = 6.dp.toPx(),
-                            center = Offset(currentX, currentY)
-                        )
-                        drawCircle(
-                            color = ElectricCyan.copy(alpha = 0.4f),
-                            radius = 12.dp.toPx(),
-                            center = Offset(currentX, currentY)
-                        )
+                            drawCircle(
+                                color = ElectricCyan,
+                                radius = 6.dp.toPx(),
+                                center = Offset(currentX, currentY)
+                            )
+                            drawCircle(
+                                color = ElectricCyan.copy(alpha = 0.4f),
+                                radius = 12.dp.toPx(),
+                                center = Offset(currentX, currentY)
+                            )
+                        }
                     }
                 }
 

@@ -19,8 +19,8 @@ export interface SendMailResult {
 }
 
 export async function sendSmtpMail(options: SendMailOptions): Promise<SendMailResult> {
-  const user = options.user || process.env.SMTP_USER || process.env.GMAIL_USER || 'a07631356@gmail.com';
-  const rawPass = options.pass || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'orvr bsie eyks kbyb';
+  const user = options.user || process.env.SMTP_USER || process.env.GMAIL_USER || '';
+  const rawPass = options.pass || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '';
   const pass = rawPass.replace(/["'\s]+/g, '');
   const host = options.host || process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = options.port || Number(process.env.SMTP_PORT) || 465;

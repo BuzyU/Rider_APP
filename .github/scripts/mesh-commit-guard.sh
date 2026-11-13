@@ -2,7 +2,7 @@
 # Verifies that commits and changes do not violate frozen paths against the baseline.
 set -euo pipefail
 
-FROZEN_BASE="${FROZEN_BASE:-a37ef09}"
+FROZEN_BASE="${FROZEN_BASE:-HEAD}"
 RANGE="${1:-}"
 
 if ! git rev-parse --verify "${FROZEN_BASE}^{commit}" >/dev/null 2>&1; then

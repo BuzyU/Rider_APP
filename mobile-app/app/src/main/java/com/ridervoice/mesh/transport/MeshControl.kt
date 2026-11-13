@@ -1,8 +1,15 @@
 package com.ridervoice.mesh.transport
 
+import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.audio.MicController
 import com.ridervoice.mesh.session.OfflineSession
 import kotlinx.coroutines.flow.StateFlow
+
+enum class MeshCadence(val intervalMs: Long) {
+    STANDBY(MeshConfig.STANDBY_HELLO_INTERVAL_MS), // 5,000 ms: warm standby while LiveKit is healthy
+    ACTIVE(MeshConfig.HELLO_INTERVAL_MS),          // 1,500 ms: mesh owns audio
+    BOOST(MeshConfig.BOOST_HELLO_INTERVAL_MS)      // 750 ms: transient initial discovery upon switch or trigger
+}
 
 sealed interface EnableAudioResult {
     object Success : EnableAudioResult
@@ -39,6 +46,11 @@ interface MeshControl {
 
     /** Sets the periodic discovery HELLO beacon interval. */
     fun setHelloIntervalMs(intervalMs: Long) {}
+
+    /** Sets the periodic discovery HELLO beacon cadence via unified MeshCadence state. */
+    fun setCadence(cadence: MeshCadence) {
+        setHelloIntervalMs(cadence.intervalMs)
+    }
 
     /** Optional mic controller for the mesh audio subsystem. */
     val micController: MicController? get() = null

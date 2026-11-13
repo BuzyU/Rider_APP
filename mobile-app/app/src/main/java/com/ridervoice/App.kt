@@ -32,6 +32,9 @@ class App : Application(), Configuration.Provider {
     lateinit var workerFactory: HiltWorkerFactory
 
     @Inject
+    lateinit var sosOutbox: com.ridervoice.services.PersistentSosOutbox
+
+    @Inject
     lateinit var sessionDao: DiagSessionDao
 
     @Inject
@@ -58,6 +61,8 @@ class App : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // Deliver any SOS that was queued before the process died.
+        runCatching { if (sosOutbox.pending().isNotEmpty()) sosOutbox.scheduleFlush() }
         com.ridervoice.mesh.OfflineMeshGate.install(meshRuntimeSettings)
         com.ridervoice.mesh.switching.MeshAutoSwitchLauncher(
             settingsFlow = com.ridervoice.mesh.OfflineMeshGate.settingsFlow,

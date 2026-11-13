@@ -177,8 +177,8 @@ class RideInviteActivity : ComponentActivity() {
                                     } else {
                                         apiService.getJoinToken(JoinTokenRequest(roomName))
                                     }
-                                    if (tokenRes.isSuccessful && tokenRes.body() != null) {
-                                        val body = tokenRes.body()!!
+                                    val body = tokenRes.body()
+                                    if (tokenRes.isSuccessful && body != null) {
                                         activeRideRepository.enterLobby(
                                             roomId = body.roomId ?: roomName,
                                             name = body.roomName ?: roomName,

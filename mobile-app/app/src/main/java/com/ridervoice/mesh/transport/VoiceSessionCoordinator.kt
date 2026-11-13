@@ -118,6 +118,7 @@ class VoiceSessionCoordinator(
         val mesh = meshTransport as? MeshControl ?: return
         if (meshTransport.state.value == VoiceTransportState.STOPPED) {
             mesh.startDiscoveryOnly(session)
+            mesh.setCadence(MeshCadence.STANDBY)
         }
     }
 
@@ -171,7 +172,13 @@ class VoiceSessionCoordinator(
             if (!ok) return@withLock false
             _activeKind.value = PeerTransportKind.OFFLINE_MESH
             _activeTransport.value = meshTransport
-            mesh.setHelloIntervalMs(750L)
+            mesh.setCadence(MeshCadence.BOOST)
+            scope.launch {
+                delay(5_000L)
+                if (_activeKind.value == PeerTransportKind.OFFLINE_MESH) {
+                    mesh.setCadence(MeshCadence.ACTIVE)
+                }
+            }
             if (priorDeafened) {
                 runCatchingCancellable { meshTransport.setDeafened(true) }
             }
@@ -187,7 +194,7 @@ class VoiceSessionCoordinator(
     }
 
     private suspend fun rollbackToLiveKit() = withContext(NonCancellable) {
-        (meshTransport as? MeshControl)?.setHelloIntervalMs(1500L)
+        (meshTransport as? MeshControl)?.setCadence(MeshCadence.STANDBY)
         (meshTransport as? MeshControl)?.let { runCatchingCancellable { it.disableAudio() } }
         audioOwnershipArbiter.release(AudioOwner.OFFLINE_MESH)
         audioOwnershipArbiter.claimLiveKit()
@@ -203,7 +210,7 @@ class VoiceSessionCoordinator(
         (meshTransport as? MeshControl)?.let { mesh ->
             runCatchingCancellable { mesh.enableAudio() }
             mesh.resumeCaptureOnly()
-            mesh.setHelloIntervalMs(750L)
+            mesh.setCadence(MeshCadence.ACTIVE)
         }
         _activeKind.value = PeerTransportKind.OFFLINE_MESH
         _activeTransport.value = meshTransport
@@ -261,7 +268,7 @@ class VoiceSessionCoordinator(
             if (meshMicCtrl != null) {
                 runCatchingCancellable { liveKitTransport.setMicrophoneEnabled(meshMicWanted) }
             }
-            mesh.setHelloIntervalMs(1500L)
+            mesh.setCadence(MeshCadence.STANDBY)
             _activeKind.value = PeerTransportKind.ONLINE_LIVEKIT
             _activeTransport.value = liveKitTransport
             committed = true

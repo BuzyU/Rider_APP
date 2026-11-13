@@ -239,20 +239,18 @@ class AudioDeviceRouter(
         }
 
         if (context != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(wiredHeadsetReceiver, wiredFilter, Context.RECEIVER_NOT_EXPORTED)
-                context.registerReceiver(
-                    scoStateReceiver,
-                    IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED),
-                    Context.RECEIVER_NOT_EXPORTED
-                )
-            } else {
-                context.registerReceiver(wiredHeadsetReceiver, wiredFilter)
-                context.registerReceiver(
-                    scoStateReceiver,
-                    IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED)
-                )
-            }
+            androidx.core.content.ContextCompat.registerReceiver(
+                context,
+                wiredHeadsetReceiver,
+                wiredFilter,
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            androidx.core.content.ContextCompat.registerReceiver(
+                context,
+                scoStateReceiver,
+                IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED),
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+            )
         }
 
         gateway.registerAudioDeviceCallback(deviceCallback, Handler(Looper.getMainLooper()))

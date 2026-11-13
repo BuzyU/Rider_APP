@@ -377,4 +377,15 @@
     <string name="mesh_backup_not_persisted_warning">बॅकअप कोड या डिव्हाइसवर सेव्ह केलेला नाही; ॲप बंद झाल्यास तो नष्ट होईल</string>
     <string name="mesh_selftest_bad_version_hint">जवळच्या रायडर्सकडून विसंगत प्रोटोकॉल आवृत्ती आढळली. कृपया ॲप अपडेट करा.</string>
     <string name="mesh_banner_audio_failed">ऑफलाइन मेश ऑडिओ अयशस्वी झाला</string>
+
+    <!-- SOS Banner Strings -->
+    <string name="sos_alert_title">तातडीचा एसओएस इशारा</string>
+    <string name="sos_needs_help">%1$s ला मदतीची गरज आहे!</string>
+    <string name="sos_dismiss_cd">एसओएस इशारा काढा</string>
+
+    <!-- Diagnostics Consent Strings -->
+    <string name="diag_consent_title">राइड डायग्नोस्टिक्स शेअर करायचे का?</string>
+    <string name="diag_consent_body">होस्टने या राइडसाठी डायग्नोस्टिक्स सक्षम केले आहेत. केवळ नेटवर्क लिंक मेट्रिक्स आणि डिव्हाइस कार्यप्रदर्शन डेटा संकलित केला जातो (ऑडिओ नाही, अचूक जीपीएस नाही).</string>
+    <string name="diag_consent_accept">ठीक आहे</string>
+    <string name="diag_consent_decline">डेटा शेअर करू नका</string>
 </resources>

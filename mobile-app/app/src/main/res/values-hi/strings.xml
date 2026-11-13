@@ -377,4 +377,15 @@
     <string name="mesh_backup_not_persisted_warning">बैकअप कोड इस डिवाइस पर सेव नहीं हुआ; ऐप बंद होने पर यह हट जाएगा</string>
     <string name="mesh_selftest_bad_version_hint">आस-पास के राइडर्स से असंगत प्रोटोकॉल संस्करण पाया गया। कृपया ऐप अपडेट करें।</string>
     <string name="mesh_banner_audio_failed">ऑफ़लाइन मेश ऑडियो विफल रहा</string>
+
+    <!-- SOS Banner Strings -->
+    <string name="sos_alert_title">आपातकालीन एसओएस अलर्ट</string>
+    <string name="sos_needs_help">%1$s को मदद की ज़रूरत है!</string>
+    <string name="sos_dismiss_cd">एसओएस अलर्ट हटाएं</string>
+
+    <!-- Diagnostics Consent Strings -->
+    <string name="diag_consent_title">राइड डायग्नोस्टिक्स साझा करें?</string>
+    <string name="diag_consent_body">होस्ट ने इस राइड के लिए डायग्नोस्टिक्स सक्षम किए हैं। केवल नेटवर्क लिंक मेट्रिक्स और डिवाइस प्रदर्शन डेटा एकत्र किया जाता है (कोई ऑडियो नहीं, कोई सटीक जीपीएस नहीं)।</string>
+    <string name="diag_consent_accept">ठीक है</string>
+    <string name="diag_consent_decline">डेटा साझा न करें</string>
 </resources>

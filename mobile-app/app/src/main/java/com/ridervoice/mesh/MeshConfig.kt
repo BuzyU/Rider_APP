@@ -11,10 +11,9 @@ object MeshConfig {
     const val STANDBY_HELLO_INTERVAL_MS = 5_000L
     const val ACTIVE_NEIGHBOR_TIMEOUT_MS = 5_000L
     const val STANDBY_NEIGHBOR_TIMEOUT_MS = 15_000L
-    /** Neighbor timeout: 3x standby interval (15s) so standby nodes never flap on missed beacons. */
-    const val NEIGHBOR_TIMEOUT_MS = 15_000L
+    const val NEIGHBOR_TIMEOUT_MS = 5_000L
     /** Remote (multi-hop) adjacency reports live slightly longer: they arrive via relays. */
-    const val REMOTE_REPORT_TIMEOUT_MS = 20_000L
+    const val REMOTE_REPORT_TIMEOUT_MS = 8_000L
     const val MEMBER_TIMEOUT_MS = 30_000L
 
     /**

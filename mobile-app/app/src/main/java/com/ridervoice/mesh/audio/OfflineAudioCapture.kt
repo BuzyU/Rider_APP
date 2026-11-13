@@ -24,7 +24,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 fun calculateAudioRecordBufferSize(minBuf: Int): Int =
-    maxOf(minBuf, MeshConfig.BYTES_PER_FRAME * 8)
+    maxOf(minBuf, MeshConfig.BYTES_PER_FRAME * 4)
 
 interface AudioRecordSource {
     val state: Int
@@ -201,6 +201,7 @@ class OfflineAudioCapture(
                             if (++emptyReadCount >= MAX_EMPTY_READS) {
                                 overrunCount.incrementAndGet()
                                 onCaptureError("AudioRecord.read returned 0 x$MAX_EMPTY_READS - backing off and retrying")
+                                onHardwareBusy()
                                 emptyReadCount = 0
                                 delay(50L)
                                 continue

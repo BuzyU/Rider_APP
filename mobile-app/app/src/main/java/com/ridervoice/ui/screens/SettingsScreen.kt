@@ -166,125 +166,13 @@ fun SettingsScreen(
                 }
 
                 item {
-                    val context = LocalContext.current
-                    val meshUiState by meshSettingsViewModel.uiState.collectAsState()
-                    val isMeshEnabled = meshUiState.offlineMeshEnabled
-                    val isAutoFallbackEnabled = meshUiState.autoFallback
-                    val isWarmStandbyEnabled = meshUiState.warmStandby
-                    val isBuildGateOpen = meshUiState.buildGateOpen
-                    val offlineAvailability = meshUiState.offlineAvailability
-
-                    val wifiPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-                        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
-                    ) { permissions ->
-                        val granted = permissions[android.Manifest.permission.RECORD_AUDIO] == true
-                        if (granted) {
-                            meshSettingsViewModel.setOfflineMeshEnabled(true)
-                        }
-                    }
-
                     SettingsSectionHeader(stringResource(R.string.mesh_settings_section_header))
-                    SettingsItemToggle(
+                    SettingsItemAction(
                         label = stringResource(R.string.mesh_settings_title),
-                        icon = Icons.Default.Podcasts,
-                        checked = isBuildGateOpen && isMeshEnabled,
-                        enabled = isBuildGateOpen,
-                        subtitle = if (!isBuildGateOpen) {
-                            stringResource(R.string.mesh_disabled_in_build)
-                        } else if (isMeshEnabled) {
-                            stringResource(R.string.mesh_settings_desc)
-                        } else {
-                            stringResource(R.string.mesh_settings_disabled)
-                        },
-                        onCheckedChange = { enable ->
-                            if (!isBuildGateOpen) return@SettingsItemToggle
-                            if (enable) {
-                                val perms = mutableListOf(android.Manifest.permission.RECORD_AUDIO)
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                    perms.add(android.Manifest.permission.POST_NOTIFICATIONS)
-                                }
-                                wifiPermLauncher.launch(perms.toTypedArray())
-                            } else {
-                                meshSettingsViewModel.setOfflineMeshEnabled(false)
-                                com.ridervoice.services.MeshForegroundService.stop(context)
-                            }
-                        }
-                    )
-
-                    val hasWifiHardware = meshUiState.hasWifiHardware
-                    val canEnableFallback = isBuildGateOpen && isMeshEnabled && hasWifiHardware
-                    val fallbackSubtitle = when {
-                        !hasWifiHardware -> stringResource(R.string.mesh_settings_no_wifi_hardware)
-                        !isBuildGateOpen -> stringResource(R.string.mesh_disabled_in_build)
-                        !isMeshEnabled -> stringResource(R.string.mesh_settings_fallback_disabled_hint)
-                        !isAutoFallbackEnabled -> stringResource(R.string.mesh_settings_disabled)
-                        offlineAvailability == com.ridervoice.mesh.switching.OfflineAvailability.NO_SHARED_SECRET ->
-                            stringResource(R.string.mesh_settings_pair_backup_code)
-                        else -> stringResource(R.string.mesh_settings_fallback_enabled_hint)
-                    }
-
-                    SettingsItemToggle(
-                        label = stringResource(R.string.mesh_settings_fallback_title),
-                        icon = Icons.Default.NetworkCheck,
-                        checked = canEnableFallback && isAutoFallbackEnabled,
-                        enabled = canEnableFallback,
-                        subtitle = fallbackSubtitle,
-                        onCheckedChange = { enable ->
-                            if (canEnableFallback) {
-                                meshSettingsViewModel.setAutomaticFallbackEnabled(enable)
-                            }
-                        }
-                    )
-
-                    if (isBuildGateOpen && isMeshEnabled && isAutoFallbackEnabled &&
-                        offlineAvailability == com.ridervoice.mesh.switching.OfflineAvailability.NO_SHARED_SECRET
-                    ) {
-                        SettingsItemAction(
-                            label = stringResource(R.string.mesh_settings_pair_code_action),
-                            subtitle = stringResource(R.string.mesh_settings_pair_backup_code),
-                            icon = Icons.Default.VpnKey,
-                            onClick = onNavigateToOfflineMeshLobby
-                        )
-                    }
-
-                    if (meshUiState.backupSessionPresent && !meshUiState.backupPersisted) {
-                        Text(
-                            text = stringResource(R.string.mesh_backup_not_persisted_warning),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                        )
-                    }
-
-                    SettingsItemToggle(
-                        label = stringResource(R.string.mesh_settings_warm_standby_title),
+                        subtitle = "Configured per ride in the waiting room",
                         icon = Icons.Default.WifiTethering,
-                        checked = isBuildGateOpen && isMeshEnabled && isWarmStandbyEnabled,
-                        enabled = isBuildGateOpen && isMeshEnabled,
-                        subtitle = if (!isBuildGateOpen) {
-                            stringResource(R.string.mesh_disabled_in_build)
-                        } else if (!isMeshEnabled) {
-                            stringResource(R.string.mesh_settings_fallback_disabled_hint)
-                        } else if (isWarmStandbyEnabled) {
-                            stringResource(R.string.mesh_settings_warm_standby_desc)
-                        } else {
-                            stringResource(R.string.mesh_settings_disabled)
-                        },
-                        onCheckedChange = { enable ->
-                            if (isBuildGateOpen && isMeshEnabled) {
-                                meshSettingsViewModel.setWarmStandbyEnabled(enable)
-                            }
-                        }
+                        onClick = {}
                     )
-
-                    if (isBuildGateOpen && isMeshEnabled) {
-                        SettingsItemAction(
-                            label = stringResource(R.string.mesh_settings_open_lobby),
-                            subtitle = stringResource(R.string.mesh_settings_lobby_subtitle),
-                            icon = Icons.Default.Group,
-                            onClick = onNavigateToOfflineMeshLobby
-                        )
-                    }
                 }
 
                 item {
@@ -338,7 +226,7 @@ fun SettingsScreen(
                     SettingsSectionHeader("UPDATES")
                     SettingsItemValue(
                         label = "App Version",
-                        value = "v${updateViewModel.currentVersionName} • Tap to check",
+                        value = "v${updateViewModel.currentVersionName.removePrefix("v").removePrefix("V")} • Tap to check",
                         icon = Icons.Default.SystemUpdate,
                         onClick = { updateViewModel.checkForUpdates() }
                     )

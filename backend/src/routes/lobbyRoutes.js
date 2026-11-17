@@ -42,7 +42,7 @@ const { selfJoin, removeRider, leaveRoom, notifyJoined } = require('../services/
 const { joinLimiter, recordFailedJoinCode } = require('../middleware/rateLimiter')
 const { joinWithLinkToken, joinWithCode, joinAsMember, extractCleanToken } = require('../services/joinService')
 const { deleteLiveKitRoom } = require('../services/roomSweeper')
-const { setSchemaHealth } = require('./healthRoute')
+const healthRoute = require('./healthRoute')
 const { riderCallsign } = require('../services/identity')
 
 // --- Helpers -----------------------------------------------------------------
@@ -195,7 +195,10 @@ router.post('/create', async (req, res, next) => {
             }
         } catch (err) {
             if (err.code === 'P2021' || err.code === 'P2022' || (err.message && err.message.includes('RideCreateRequest'))) {
-                setSchemaHealth(false, { error: 'Structural failure: RideCreateRequest table unavailable' })
+                console.error('[LobbyCreate] Structural DB error during idempotency lookup (scoped 503, not poisoning global flag):', err.message)
+                if (typeof healthRoute.scheduleRevalidation === 'function') {
+                    healthRoute.scheduleRevalidation()
+                }
                 res.set('Retry-After', '30')
                 return res.status(503).json({
                     error: 'Service Unavailable: Database schema structural validation failed or degraded',
@@ -362,8 +365,10 @@ router.post('/create', async (req, res, next) => {
             }
 
             if (dbErr.code === 'P2021' || dbErr.code === 'P2022' || (dbErr.message && (dbErr.message.includes('lkRoomName') || dbErr.message.includes('RideCreateRequest')))) {
-                console.error('[LobbyCreate] Structural failure: missing column or table in DB:', dbErr.message)
-                setSchemaHealth(false, { error: dbErr.message })
+                console.error('[LobbyCreate] Structural failure on this request (scoped 503, not setting global sticky flag):', dbErr.message)
+                if (typeof healthRoute.scheduleRevalidation === 'function') {
+                    healthRoute.scheduleRevalidation()
+                }
                 res.set('Retry-After', '30')
                 return res.status(503).json({
                     error: 'Service Unavailable: Database schema structural validation failed or degraded',
@@ -514,7 +519,7 @@ router.get('/:roomRef/status', async (req, res, next) => {
         const declinedCount = allInvites.filter(inv => inv.status === 'DECLINED').length
         const leftCount = allInvites.filter(inv => inv.status === 'LEFT').length
 
-        const TERMINAL_CONFIG_STATUSES = new Set(['READY', 'OPTED_OUT', 'UNAVAILABLE', 'TIMED_OUT'])
+        const TERMINAL_CONFIG_STATUSES = new Set(['READY', 'OPTED_OUT', 'UNAVAILABLE', 'UNAVAILABLE_DEVICE', 'FAILED', 'TIMED_OUT'])
 
         const formatInviteRow = (inv) => {
             const riderId = inv.invitee?.id

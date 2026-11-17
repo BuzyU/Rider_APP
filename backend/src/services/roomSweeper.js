@@ -353,7 +353,7 @@ async function sweepStaleRooms(deps = {}) {
                         }
 
                         // Has offline continuity lease?
-                        const hasOfflineLease = Boolean(room.offlineBackupCode) || room.offlineMeshEnabled !== false
+                        const hasOfflineLease = Boolean(room.offlineBackupCode) || room.offlineMeshEnabled === true
                         const emptyTimeoutThreshold = hasOfflineLease ? timeLimits.OFFLINE_BUDGET_MS : standardEmptyTimeoutMs
                         if (Date.now() - emptySince >= emptyTimeoutThreshold) {
                             const updated = await prisma.room.updateMany({

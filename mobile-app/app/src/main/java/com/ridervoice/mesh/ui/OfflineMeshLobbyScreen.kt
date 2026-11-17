@@ -109,8 +109,8 @@ fun OfflineMeshLobbyScreen(
 
     var localIp by remember { mutableStateOf<String?>(null) }
     var bcastAddr by remember { mutableStateOf("255.255.255.255") }
-    val zeroNeighboursStartMs = remember { System.currentTimeMillis() }
     var elapsedZeroNeighboursSec by remember { mutableLongStateOf(0L) }
+    val neighboursCount = diagSnapshot.authenticatedNeighborsLast10s
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -119,9 +119,15 @@ fun OfflineMeshLobbyScreen(
             localIp = ip
             bcastAddr = bcast
         }
-        while (isActive) {
-            delay(1_000L)
-            elapsedZeroNeighboursSec = ((System.currentTimeMillis() - zeroNeighboursStartMs) / 1000L).coerceAtLeast(0L)
+    }
+
+    LaunchedEffect(neighboursCount) {
+        if (neighboursCount > 0) {
+            elapsedZeroNeighboursSec = 0L
+        } else {
+            elapsedZeroNeighboursSec = 0L
+            delay((MeshSelfTestMapper.ZERO_NEIGHBOURS_HINT_THRESHOLD_SECONDS + 1) * 1_000L)
+            elapsedZeroNeighboursSec = MeshSelfTestMapper.ZERO_NEIGHBOURS_HINT_THRESHOLD_SECONDS + 1
         }
     }
 
@@ -313,7 +319,6 @@ fun OfflineMeshLobbyScreen(
             }
             val effectiveIp = diagSnapshot.localIp.takeIf { it.isNotBlank() } ?: localIp
             val effectiveBcast = diagSnapshot.broadcastAddress.takeIf { it.isNotBlank() } ?: bcastAddr
-            val neighboursCount = diagSnapshot.authenticatedNeighborsLast10s
             val selfTestInput = remember(resolvedLinkState, effectiveIp, effectiveBcast, neighboursCount, elapsedZeroNeighboursSec) {
                 MeshSelfTestInput(
                     linkState = resolvedLinkState,

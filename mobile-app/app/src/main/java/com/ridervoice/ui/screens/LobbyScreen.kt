@@ -671,6 +671,8 @@ fun LobbyScreen(
                             "CONFIGURING" -> "Configuring..."
                             "OPTED_OUT" -> "Offline Off"
                             "TIMED_OUT" -> "Timed Out"
+                            "UNAVAILABLE", "UNAVAILABLE_DEVICE" -> "OFFLINE BACKUP UNAVAILABLE ON THIS DEVICE"
+                            "FAILED" -> "Setup Failed"
                             else -> "Joined"
                         }
                         val statusText = if (entry.isPresent && entry.offlineConfigStatus == "READY") {
@@ -873,6 +875,16 @@ fun OfflineConfigCard(
                         Text(stringResource(R.string.lobby_offline_opt_out_button))
                     }
                 }
+            }
+
+            if (meshConfig?.status == com.ridervoice.mesh.offline.OfflineConfigStatus.UNAVAILABLE_DEVICE) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "OFFLINE BACKUP UNAVAILABLE ON THIS DEVICE",
+                    color = AlertRed,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
 
             if (meshConfig?.configCompleted == true && meshConfig.offlineMeshEnabled && !meshConfig.optOut) {

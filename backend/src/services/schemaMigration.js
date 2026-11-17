@@ -45,6 +45,8 @@ const MIGRATION_STATEMENTS = [
     // 4. Room column extensions
     `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "lkRoomName" TEXT`,
     `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "offlineMeshEnabled" BOOLEAN NOT NULL DEFAULT true`,
+    `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "offlineBackupCode" TEXT`,
+    `CREATE INDEX IF NOT EXISTS "Room_lkRoomName_idx" ON "Room"("lkRoomName")`,
 
     // 5. Room unique indexes
     `DROP INDEX IF EXISTS "Room_name_key"`,
@@ -276,14 +278,16 @@ const ADVISORY_LOCK_ID = 742918491
  */
 async function assertSchema(prisma) {
     const missing = []
+    const warnings = []
     try {
         const required = [
-            { table: 'Room', columns: ['id', 'name', 'lkRoomName', 'status', 'ownerId', 'lastEmptyAt'] },
+            { table: 'Room', columns: ['id', 'name', 'lkRoomName', 'status', 'ownerId', 'lastEmptyAt', 'offlineBackupCode', 'offlineMeshEnabled'] },
             { table: 'RideCreateRequest', columns: ['id', 'ownerId', 'clientRequestId', 'roomId', 'payloadHash'] },
-            { table: 'RideInvite', columns: ['id', 'roomId', 'inviteeId', 'status', 'source'] },
+            { table: 'RideInvite', columns: ['id', 'roomId', 'inviteeId', 'status', 'source', 'offlineConfigStatus', 'offlineConfigUpdatedAt', 'lastLobbyPollAt'] },
             { table: 'RoomJoinToken', columns: ['id', 'roomId', 'token', 'maxUses', 'useCount'] },
-            { table: 'EmergencyAlert', columns: ['id', 'roomId', 'senderId', 'status'] },
-            { table: 'DiagnosticRun', columns: ['id', 'convoyId', 'testNumber', 'status', 'closeAt'] }
+            { table: 'EmergencyAlert', columns: ['id', 'roomId', 'senderId', 'status', 'clientAlertId'] },
+            { table: 'DiagnosticRun', columns: ['id', 'convoyId', 'testNumber', 'status', 'closeAt'] },
+            { table: 'RideSession', columns: ['id', 'riderId', 'roomName', 'clientRideId', 'diagnosticsEnabled'] }
         ]
 
         const rows = await prisma.$queryRaw`
@@ -334,13 +338,66 @@ async function assertSchema(prisma) {
                 WHERE schemaname = 'public'
             `
             const indexSet = new Set(indexRows.map(r => r.indexname))
-            if (!indexSet.has('Room_name_active_unique')) missing.push('Index: Room_name_active_unique')
-            if (!indexSet.has('Room_joinCode_active_unique')) missing.push('Index: Room_joinCode_active_unique')
+            if (!indexSet.has('Room_name_active_unique')) {
+                let hasDuplicates = false
+                try {
+                    const dupNames = await prisma.$queryRaw`
+                        SELECT lower("name") AS name, count(*)::int AS count
+                        FROM "Room"
+                        WHERE "status" != 'ENDED'
+                        GROUP BY lower("name")
+                        HAVING count(*) > 1
+                    `
+                    if (Array.isArray(dupNames) && dupNames.length > 0) {
+                        hasDuplicates = true
+                        warnings.push(`Index Room_name_active_unique skipped due to duplicate active Room names (${dupNames.map(d => `${d.name}:${d.count}`).join(', ')}); manual reconciliation required`)
+                    }
+                } catch (_) {}
+                if (!hasDuplicates) {
+                    missing.push('Index: Room_name_active_unique')
+                }
+            }
+            if (!indexSet.has('Room_joinCode_active_unique')) {
+                let hasDupCodes = false
+                try {
+                    const dupCodes = await prisma.$queryRaw`
+                        SELECT "joinCode", count(*)::int AS count
+                        FROM "Room"
+                        WHERE "status" != 'ENDED' AND "joinCode" IS NOT NULL
+                        GROUP BY "joinCode"
+                        HAVING count(*) > 1
+                    `
+                    if (Array.isArray(dupCodes) && dupCodes.length > 0) {
+                        hasDupCodes = true
+                        warnings.push(`Index Room_joinCode_active_unique skipped due to duplicate active joinCodes; manual reconciliation required`)
+                    }
+                } catch (_) {}
+                if (!hasDupCodes) {
+                    missing.push('Index: Room_joinCode_active_unique')
+                }
+            }
             if (!indexSet.has('RideInvite_roomId_inviteeId_key')) {
                 const conRows = await prisma.$queryRaw`
                     SELECT conname FROM pg_constraint WHERE conname = 'RideInvite_roomId_inviteeId_key'
                 `
                 if (conRows.length === 0) missing.push('Constraint/Index: RideInvite_roomId_inviteeId_key')
+            }
+            if (indexSet.size > 0) {
+                const extraUniqueIndexes = [
+                    'EmergencyAlert_senderId_clientAlertId_key',
+                    'RideSession_riderId_clientRideId_key',
+                    'RideCreateRequest_ownerId_clientRequestId_key'
+                ]
+                for (const idx of extraUniqueIndexes) {
+                    if (!indexSet.has(idx)) {
+                        const conRows = await prisma.$queryRaw`
+                            SELECT conname FROM pg_constraint WHERE conname = ${idx}
+                        `.catch(() => [])
+                        if (!Array.isArray(conRows) || conRows.length === 0) {
+                            missing.push(`Index: ${idx}`)
+                        }
+                    }
+                }
             }
         } catch (_) {}
 
@@ -371,7 +428,8 @@ async function assertSchema(prisma) {
 
     return {
         valid: missing.length === 0,
-        missing
+        missing,
+        warnings
     }
 }
 
@@ -429,14 +487,15 @@ async function checkUniqueViolations(prisma) {
 }
 
 async function ensureDbSchema(prisma) {
-    const { valid, missing } = await assertSchema(prisma)
+    const { valid, missing, warnings } = await assertSchema(prisma)
     if (valid) {
         const violations = await checkUniqueViolations(prisma)
+        const allViolations = [...new Set([...(warnings || []), ...violations])]
         return {
-            valid: violations.length === 0,
+            valid: allViolations.length === 0,
             structuralOk: true,
             repaired: false,
-            violations,
+            violations: allViolations,
             missing
         }
     }
@@ -548,8 +607,9 @@ async function ensureDbSchema(prisma) {
         }
 
         console.log(`[DB] Additive schema migrations finished: ${applied} applied, ${failed} failed.`)
-        const recheck = await assertSchema(tx).catch(() => ({ valid: false, missing: ['recheck_failed'] }))
-        const isOverallValid = recheck.valid && failedStatements.length === 0 && violations.length === 0
+        const recheck = await assertSchema(tx).catch(() => ({ valid: false, missing: ['recheck_failed'], warnings: [] }))
+        const allViolations = [...new Set([...(recheck.warnings || []), ...violations])]
+        const isOverallValid = recheck.valid && failedStatements.length === 0 && allViolations.length === 0
         return {
             valid: isOverallValid,
             structuralOk: recheck.valid,
@@ -557,7 +617,7 @@ async function ensureDbSchema(prisma) {
             applied,
             failed,
             failedStatements,
-            violations,
+            violations: allViolations,
             missing: recheck.missing
         }
     }

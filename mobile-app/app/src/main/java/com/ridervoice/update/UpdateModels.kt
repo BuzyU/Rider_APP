@@ -39,7 +39,7 @@ data class AppReleaseInfo(
 sealed class UpdateUiState {
     object Idle : UpdateUiState()
     object Checking : UpdateUiState()
-    data class UpToDate(val currentVersion: String) : UpdateUiState()
+    data class UpToDate(val currentVersion: String, val releaseNotes: String? = null) : UpdateUiState()
     data class UpdateAvailable(
         val releaseInfo: AppReleaseInfo,
         val currentVersion: String

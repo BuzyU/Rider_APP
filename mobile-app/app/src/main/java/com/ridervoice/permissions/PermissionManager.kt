@@ -23,9 +23,13 @@ object PermissionManager {
     val ridePermissions: Array<String>
         get() {
             val list = mutableListOf(
+                Manifest.permission.RECORD_AUDIO,
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_COARSE_LOCATION
             )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                list.add(Manifest.permission.BLUETOOTH_CONNECT)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 list.add(Manifest.permission.POST_NOTIFICATIONS)
             }

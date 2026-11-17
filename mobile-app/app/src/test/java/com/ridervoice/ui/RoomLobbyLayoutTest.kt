@@ -115,7 +115,7 @@ class RoomLobbyLayoutTest {
 
     @Test
     fun testParticipantRosterScaling() {
-        val rosterSizes = listOf(1, 5, 20)
+        val rosterSizes = listOf(1, 5, 6, 20, 30, 100)
         for (count in rosterSizes) {
             val participants = (1..count).map {
                 Participant(
@@ -134,6 +134,30 @@ class RoomLobbyLayoutTest {
                 assertEquals("$count riders in voice", displayLabel)
             }
         }
+    }
+
+    @Test
+    fun testRideTopBarNarrow320dpWithDiagPillAndLargeFontScaleBudget() {
+        val screenWidthDp = 320
+        val horizontalPaddingDp = 16 * 2
+        val rightMinWidthDp = 104 // Audio badge (>=48) + spacer (4) + Leave button (48) + slack
+        val leaveButtonSizeDp = 48
+        val remainingWidthDp = screenWidthDp - horizontalPaddingDp - rightMinWidthDp
+        val leftBudgetDp = (remainingWidthDp * 1.0f / (1.0f + 1.5f)).toInt()
+        val centerBudgetDp = remainingWidthDp - leftBudgetDp
+
+        assertTrue("Right group minimum width ($rightMinWidthDp) must accommodate 48dp leave button", rightMinWidthDp >= leaveButtonSizeDp + 48)
+        assertTrue("Left + center + right must fit within 320dp budget", horizontalPaddingDp + leftBudgetDp + centerBudgetDp + rightMinWidthDp <= screenWidthDp)
+        assertTrue("Center column on 320dp screen must retain >= 96dp width", centerBudgetDp >= 96)
+    }
+
+    @Test
+    fun testRidePermissionsIncludeRecordAudio() {
+        val perms = com.ridervoice.permissions.PermissionManager.ridePermissions
+        assertTrue(
+            "PermissionManager.ridePermissions must include RECORD_AUDIO",
+            perms.contains(android.Manifest.permission.RECORD_AUDIO)
+        )
     }
 
     @Test
@@ -165,5 +189,62 @@ class RoomLobbyLayoutTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun testSettingsHasNoGlobalMeshToggleAndRideTopBarPreventsSqueeze() {
+        val srcRoot = listOf(
+            java.io.File("src/main/java/com/ridervoice"),
+            java.io.File("app/src/main/java/com/ridervoice"),
+            java.io.File("mobile-app/app/src/main/java/com/ridervoice")
+        ).first { it.isDirectory }
+
+        val settingsText = java.io.File(srcRoot, "ui/screens/SettingsScreen.kt").readText()
+        assertTrue(
+            "SettingsScreen must not expose global setOfflineMeshEnabled toggle",
+            !settingsText.contains("setOfflineMeshEnabled")
+        )
+        assertTrue(
+            "SettingsScreen must not expose global setAutomaticFallbackEnabled toggle",
+            !settingsText.contains("setAutomaticFallbackEnabled")
+        )
+        assertTrue(
+            "SettingsScreen must not expose global setWarmStandbyEnabled toggle",
+            !settingsText.contains("setWarmStandbyEnabled")
+        )
+
+        val rideTopBarText = java.io.File(srcRoot, "ui/screens/room/RideTopBar.kt").readText()
+        assertTrue(
+            "RideTopBar right group must reserve minimum 104.dp to avoid squeezing leave button",
+            rideTopBarText.contains("requiredWidthIn(min = 104.dp)")
+        )
+        assertTrue(
+            "RideTopBar leave button must enforce requiredSize(48.dp)",
+            rideTopBarText.contains("requiredSize(48.dp)")
+        )
+
+        val roomVmText = java.io.File(srcRoot, "state/RoomViewModel.kt").readText()
+        assertTrue(
+            "RoomViewModel must not contain 60s ghost cleanup polling loop",
+            !roomVmText.contains("delay(60_000)")
+        )
+        assertTrue(
+            "RoomViewModel must not contain 30s lobby polling loop",
+            !roomVmText.contains("delay(30_000)")
+        )
+
+        val riderListText = java.io.File(srcRoot, "ui/screens/room/RiderList.kt").readText()
+        assertTrue(
+            "RiderList LazyColumn must key items by identity",
+            riderListText.contains("key = { it.identity }")
+        )
+
+        val manifestFile = java.io.File(srcRoot, "../../../AndroidManifest.xml").canonicalFile
+        val manifestText = manifestFile.readText()
+        assertTrue(
+            "VoiceForegroundService must declare microphone|location|connectedDevice foregroundServiceType",
+            manifestText.contains("android:name=\".services.VoiceForegroundService\"") &&
+                manifestText.contains("android:foregroundServiceType=\"microphone|location|connectedDevice\"")
+        )
     }
 }

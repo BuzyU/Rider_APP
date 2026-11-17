@@ -1,1 +1,17 @@
 # Allowed deviations from frozen base commit a37ef09
+backend/src/routes/healthRoute.js
+backend/src/routes/lobbyRoutes.js
+backend/src/services/roomSweeper.js
+backend/src/services/schemaMigration.js
+backend/src/server.js
+backend/supabase_migrations_latest.sql
+backend/supabase_authoritative.sql
+backend/test/p0_migration_safety.test.js
+backend/test/schema_drift.test.js
+mobile-app/app/src/main/java/com/ridervoice/state/ActiveRideRepository.kt
+mobile-app/app/src/main/java/com/ridervoice/state/RoomViewModel.kt
+mobile-app/app/src/main/java/com/ridervoice/ui/screens/room/RideTopBar.kt
+mobile-app/app/src/main/java/com/ridervoice/audio/AudioDeviceRouter.kt
+mobile-app/app/src/main/java/com/ridervoice/permissions/PermissionManager.kt
+backend/src/services/emailService.js
+web-app/src/app/api/tester-application/route.ts

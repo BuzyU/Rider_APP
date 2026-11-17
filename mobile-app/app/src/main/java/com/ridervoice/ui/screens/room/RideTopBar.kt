@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -61,14 +62,19 @@ fun RideTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = if (isLargeFont) 4.dp else 8.dp),
+            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 12.dp, vertical = if (isLargeFont) 4.dp else 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Left: Connection Pill & optional Diagnostics pill
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f, fill = false)
+            modifier = Modifier
+                .requiredWidthIn(min = if (isCollectingDiag) 120.dp else 80.dp)
+                .weight(1f, fill = false)
+                .testTag("ride_topbar_left")
         ) {
             ConnectionPill(connectionState)
 
@@ -96,7 +102,9 @@ fun RideTopBar(
                         color = Color(0xFFFF3B30),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.5.sp,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
@@ -106,8 +114,9 @@ fun RideTopBar(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .weight(2f)
-                .padding(horizontal = 8.dp)
+                .weight(1.5f)
+                .padding(horizontal = 6.dp)
+                .testTag("ride_topbar_center")
         ) {
             Text(
                 text = rideName,
@@ -138,20 +147,25 @@ fun RideTopBar(
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = if (activeSpeaker != null) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.heightIn(min = 16.dp)
             )
         }
 
         // Right: Audio Device Badge & Leave Call button
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f, fill = false),
+            modifier = Modifier
+                .requiredWidthIn(min = 104.dp)
+                .testTag("ride_topbar_right"),
             horizontalArrangement = Arrangement.End
         ) {
             Box(
                 modifier = Modifier
                     .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                    .clickable { onAudioRouteClick() },
+                    .widthIn(max = 120.dp)
+                    .clickable { onAudioRouteClick() }
+                    .testTag("ride_topbar_audio_badge"),
                 contentAlignment = Alignment.Center
             ) {
                 AudioDeviceBadge(
@@ -169,11 +183,12 @@ fun RideTopBar(
             IconButton(
                 onClick = onLeaveClick,
                 modifier = Modifier
-                    .size(48.dp)
+                    .requiredSize(48.dp)
                     .clip(CircleShape)
                     .background(Gunmetal)
                     .border(1.5.dp, AlertRed, CircleShape)
                     .semantics { contentDescription = "Leave Voice Call" }
+                    .testTag("ride_topbar_leave_button")
             ) {
                 Icon(
                     imageVector = Icons.Default.CallEnd,
@@ -218,7 +233,9 @@ fun ConnectionPill(state: ConnectionState) {
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             fontSize = 10.sp,
-            letterSpacing = 0.5.sp
+            letterSpacing = 0.5.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -253,7 +270,9 @@ fun AudioDeviceBadge(
                     color = AlertRed,
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Button(
                     onClick = onRetry,
@@ -270,7 +289,8 @@ fun AudioDeviceBadge(
                 color = TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         } else {
             Text(
@@ -278,14 +298,16 @@ fun AudioDeviceBadge(
                 color = TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = "Audio: ${routedOutput.display()}",
                 color = TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

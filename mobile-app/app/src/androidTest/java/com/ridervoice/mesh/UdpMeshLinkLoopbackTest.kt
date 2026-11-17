@@ -7,6 +7,8 @@ import com.ridervoice.mesh.link.AndroidNetworkLocks
 import com.ridervoice.mesh.link.MeshEndpoint
 import com.ridervoice.mesh.link.MeshLinkState
 import com.ridervoice.mesh.link.UdpMeshLink
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -70,12 +72,16 @@ class UdpMeshLinkLoopbackTest {
             val payload = "HELLO_FROM_SOCKET_1".toByteArray(Charsets.UTF_8)
             val targetEndpoint = MeshEndpoint("127.0.0.1", port2)
 
+            val receiveDeferred = async(start = CoroutineStart.UNDISPATCHED) {
+                withTimeoutOrNull(3_000L) {
+                    link2.incomingFrames.first()
+                }
+            }
+
             val sent = link1.send(targetEndpoint, payload)
             assertTrue("OS socket send must return true", sent)
 
-            val receivedFrame = withTimeoutOrNull(3_000L) {
-                link2.incomingFrames.first()
-            }
+            val receivedFrame = receiveDeferred.await()
 
             assertNotNull("Link 2 must receive datagram frame over loopback interface", receivedFrame)
             assertArrayEquals(payload, receivedFrame?.data)

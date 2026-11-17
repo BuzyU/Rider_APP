@@ -193,4 +193,27 @@ class AppVersionTest {
         assertEquals(0, normalized.compareTo(standard))
         assertTrue("V0.0.0.3.15 normalized must be recognized as newer than 0.0.3.14", normalized.isNewerThan(prevVersion))
     }
+
+    @Test
+    fun testFormatReleaseNotesForAppStripsMarkdownAndSlashes() {
+        val raw = """
+            ### RiderVoice v0.0.3.19
+            | Artifact Attribute | Value |
+            | :--- | :--- |
+            | **Version Name** | `0.0.3.19` |
+            ### 📋 Release Highlights
+            - **Audio HAL / Bluetooth**: Fixed `AudioDeviceRouter` stop race (#142)
+            - **UI/UX**: Fixed [Leave button](https://github.com/BuzyU/Rider_APP) squeeze
+            ```
+            SHA-256: abcdef123456
+            ```
+        """.trimIndent()
+        val formatted = UpdateManager.formatReleaseNotesForApp(raw)
+        assertTrue("Must contain cleaned bullets", formatted.contains("• Audio HAL and Bluetooth: Fixed AudioDeviceRouter stop race (142)"))
+        assertTrue("Must not contain '#' character", !formatted.contains("#"))
+        assertTrue("Must not contain '/' character", !formatted.contains("/"))
+        assertTrue("Must not contain '`' character", !formatted.contains("`"))
+        assertTrue("Must not contain '*' character", !formatted.contains("*"))
+        assertTrue("Must not contain '|' character", !formatted.contains("|"))
+    }
 }

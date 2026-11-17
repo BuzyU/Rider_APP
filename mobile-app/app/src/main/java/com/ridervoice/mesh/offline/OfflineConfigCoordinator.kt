@@ -125,7 +125,7 @@ class OfflineConfigCoordinator(
             if (deviceCapabilityChecker.hasMeshNetworkingCapability()) {
                 StepResult(OfflineConfigStep.DEVICE_CAPABILITY, StepState.PASSED)
             } else {
-                StepResult(OfflineConfigStep.DEVICE_CAPABILITY, StepState.FAILED, "Device lacks network interface capability")
+                StepResult(OfflineConfigStep.DEVICE_CAPABILITY, StepState.FAILED, "OFFLINE BACKUP UNAVAILABLE ON THIS DEVICE")
             }
         }
         currentSteps[OfflineConfigStep.DEVICE_CAPABILITY] = capResult
@@ -282,6 +282,12 @@ class OfflineConfigCoordinator(
 
     fun cancel() {
         executionJob?.cancel()
+    }
+
+    fun reset() {
+        executionJob?.cancel()
+        executionJob = null
+        _state.value = OfflineConfigState()
     }
 
     fun restoreState(savedState: OfflineConfigState) {

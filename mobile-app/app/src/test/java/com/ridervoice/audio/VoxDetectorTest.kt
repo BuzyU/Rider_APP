@@ -121,5 +121,36 @@ class VoxDetectorTest {
         assertFalse(sim.d.openThreshold.isNaN())
         assertFalse(sim.d.floor.isInfinite())
     }
+
+    @Test
+    fun voxDetector_48kHzAnd16kHz_ConsistentHoldAndFrameDuration() {
+        for (rate in listOf(16000, 48000)) {
+            val frameSize = rate / 50 // 20 ms frame: 320 samples @ 16 kHz, 960 samples @ 48 kHz
+            val detector = VoxDetector(
+                cfg = VoxConfig(attackMs = 20, holdMs = 100),
+                initialSampleRate = rate
+            )
+            val speechFrame = ShortArray(frameSize) { i ->
+                (8000.0 * kotlin.math.sin(2.0 * Math.PI * 1000.0 * i / rate)).toInt().toShort()
+            }
+            val silenceFrame = ShortArray(frameSize)
+
+            var nowMs = 1_000L
+            val openDecision = detector.onFrame(speechFrame, rate, nowMs, isOpen = false)
+            assertEquals("Expected immediate open on 20 ms speech frame at ${rate}Hz", VoxDetector.Decision.OPEN, openDecision)
+
+            // Hold for 4 silent frames (20, 40, 60, 80 ms < 100 ms hold)
+            repeat(4) { step ->
+                nowMs += 20L
+                val holdDecision = detector.onFrame(silenceFrame, rate, nowMs, isOpen = true)
+                assertEquals("Expected hold during silent frame ${step + 1} at ${rate}Hz", VoxDetector.Decision.NONE, holdDecision)
+            }
+
+            // Close on the 5th silent frame (100 ms == holdMs)
+            nowMs += 20L
+            val closeDecision = detector.onFrame(silenceFrame, rate, nowMs, isOpen = true)
+            assertEquals("Expected close at 100 ms hold expiry at ${rate}Hz", VoxDetector.Decision.CLOSE, closeDecision)
+        }
+    }
 }
 

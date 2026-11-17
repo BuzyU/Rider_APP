@@ -13,7 +13,7 @@ const DEFAULT_RELEASE = {
   sha256: 'Pending release verification',
   fileSize: '~50 MB',
   targetArch: 'Universal ARM (arm64-v8a, armeabi-v7a)',
-  highlights: 'Staged Room Identity Migration, Durable Create Idempotency, Race Mitigation & Webhook Defense'
+  highlights: 'Per-Room Offline Mesh Config, Non-Sticky DB Health Auto-Recovery, Redesigned RideTopBar, VOX and JitterBuffer Hardening, Android 12-14 Permissions and Play Protect Compliance'
 };
 
 async function getLatestRelease() {

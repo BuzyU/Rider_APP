@@ -74,6 +74,7 @@ fun UpdateDialog(
         }
 
         is UpdateUiState.UpToDate -> {
+            val cleanCurrent = uiState.currentVersion.removePrefix("v").removePrefix("V")
             AlertDialog(
                 onDismissRequest = onDismiss,
                 containerColor = DarkSlate,
@@ -94,11 +95,42 @@ fun UpdateDialog(
                     )
                 },
                 text = {
-                    Text(
-                        text = "You are currently running the latest version of RiderVoice (v${uiState.currentVersion}). No updates are required.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 320.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "You are currently running the latest version of RiderVoice (v$cleanCurrent). No updates are required.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary
+                        )
+                        val notes = uiState.releaseNotes
+                        if (!notes.isNullOrBlank()) {
+                            Text(
+                                text = "WHAT'S NEW IN v$cleanCurrent",
+                                color = NeonOrange,
+                                style = MaterialTheme.typography.labelSmall,
+                                letterSpacing = 1.sp
+                            )
+                            Surface(
+                                color = GraphiteBase,
+                                shape = RoundedCornerShape(6.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = notes,
+                                    color = TextPrimary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(12.dp),
+                                    lineHeight = 18.sp
+                                )
+                            }
+                        }
+                    }
                 },
                 confirmButton = {
                     Button(
@@ -154,12 +186,12 @@ fun UpdateDialog(
                             ) {
                                 Column {
                                     Text("CURRENT", color = TextSecondary, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
-                                    Text("v${uiState.currentVersion}", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                    Text("v${uiState.currentVersion.removePrefix("v").removePrefix("V")}", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 }
                                 Icon(Icons.Default.ArrowForward, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(20.dp))
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text("NEWEST (${uiState.releaseInfo.formattedSize})", color = TechGreen, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
-                                    Text("v${uiState.releaseInfo.versionName}", color = TechGreen, fontWeight = FontWeight.Black, fontSize = 17.sp)
+                                    Text("v${uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")}", color = TechGreen, fontWeight = FontWeight.Black, fontSize = 17.sp)
                                 }
                             }
                         }
@@ -225,7 +257,7 @@ fun UpdateDialog(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = "Download RiderVoice v${uiState.releaseInfo.versionName} (${uiState.releaseInfo.formattedSize})?",
+                            text = "Download RiderVoice v${uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")} (${uiState.releaseInfo.formattedSize})?",
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextPrimary
                         )
@@ -278,7 +310,7 @@ fun UpdateDialog(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "RiderVoice v${uiState.releaseInfo.versionName}",
+                            text = "RiderVoice v${uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = ElectricCyan,
                             fontWeight = FontWeight.Bold
@@ -388,7 +420,7 @@ fun UpdateDialog(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = "Ready to install RiderVoice v${uiState.releaseInfo.versionName}.",
+                            text = "Ready to install RiderVoice v${uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")}.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
@@ -481,7 +513,7 @@ fun UpdateDialog(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = "Android's system package installer has been prompted to install v${uiState.releaseInfo.versionName}.",
+                            text = "Android's system package installer has been prompted to install v${uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")}.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextPrimary
                         )

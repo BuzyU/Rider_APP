@@ -15,6 +15,8 @@ describe('P0-C: Migration and Startup Safety', () => {
                         { table_name: 'Room', column_name: 'status' },
                         { table_name: 'Room', column_name: 'ownerId' },
                         { table_name: 'Room', column_name: 'lastEmptyAt' },
+                        { table_name: 'Room', column_name: 'offlineBackupCode' },
+                        { table_name: 'Room', column_name: 'offlineMeshEnabled' },
                         { table_name: 'RideCreateRequest', column_name: 'id' },
                         { table_name: 'RideCreateRequest', column_name: 'ownerId' },
                         { table_name: 'RideCreateRequest', column_name: 'clientRequestId' },
@@ -25,6 +27,9 @@ describe('P0-C: Migration and Startup Safety', () => {
                         { table_name: 'RideInvite', column_name: 'inviteeId' },
                         { table_name: 'RideInvite', column_name: 'status' },
                         { table_name: 'RideInvite', column_name: 'source' },
+                        { table_name: 'RideInvite', column_name: 'offlineConfigStatus' },
+                        { table_name: 'RideInvite', column_name: 'offlineConfigUpdatedAt' },
+                        { table_name: 'RideInvite', column_name: 'lastLobbyPollAt' },
                         { table_name: 'RoomJoinToken', column_name: 'id' },
                         { table_name: 'RoomJoinToken', column_name: 'roomId' },
                         { table_name: 'RoomJoinToken', column_name: 'token' },
@@ -34,11 +39,17 @@ describe('P0-C: Migration and Startup Safety', () => {
                         { table_name: 'EmergencyAlert', column_name: 'roomId' },
                         { table_name: 'EmergencyAlert', column_name: 'senderId' },
                         { table_name: 'EmergencyAlert', column_name: 'status' },
+                        { table_name: 'EmergencyAlert', column_name: 'clientAlertId' },
                         { table_name: 'DiagnosticRun', column_name: 'id' },
                         { table_name: 'DiagnosticRun', column_name: 'convoyId' },
                         { table_name: 'DiagnosticRun', column_name: 'testNumber' },
                         { table_name: 'DiagnosticRun', column_name: 'status' },
-                        { table_name: 'DiagnosticRun', column_name: 'closeAt' }
+                        { table_name: 'DiagnosticRun', column_name: 'closeAt' },
+                        { table_name: 'RideSession', column_name: 'id' },
+                        { table_name: 'RideSession', column_name: 'riderId' },
+                        { table_name: 'RideSession', column_name: 'roomName' },
+                        { table_name: 'RideSession', column_name: 'clientRideId' },
+                        { table_name: 'RideSession', column_name: 'diagnosticsEnabled' }
                     ]
                 }
                 if (query.includes('pg_enum')) {
@@ -48,7 +59,10 @@ describe('P0-C: Migration and Startup Safety', () => {
                     return [
                         { indexname: 'Room_name_active_unique' },
                         { indexname: 'Room_joinCode_active_unique' },
-                        { indexname: 'RideInvite_roomId_inviteeId_key' }
+                        { indexname: 'RideInvite_roomId_inviteeId_key' },
+                        { indexname: 'EmergencyAlert_senderId_clientAlertId_key' },
+                        { indexname: 'RideSession_riderId_clientRideId_key' },
+                        { indexname: 'RideCreateRequest_ownerId_clientRequestId_key' }
                     ]
                 }
                 if (query.includes('pg_constraint')) {
@@ -83,6 +97,8 @@ describe('P0-C: Migration and Startup Safety', () => {
                         { table_name: 'Room', column_name: 'status' },
                         { table_name: 'Room', column_name: 'ownerId' },
                         { table_name: 'Room', column_name: 'lastEmptyAt' },
+                        { table_name: 'Room', column_name: 'offlineBackupCode' },
+                        { table_name: 'Room', column_name: 'offlineMeshEnabled' },
                         { table_name: 'RideCreateRequest', column_name: 'id' },
                         { table_name: 'RideCreateRequest', column_name: 'ownerId' },
                         { table_name: 'RideCreateRequest', column_name: 'clientRequestId' },
@@ -93,6 +109,9 @@ describe('P0-C: Migration and Startup Safety', () => {
                         { table_name: 'RideInvite', column_name: 'inviteeId' },
                         { table_name: 'RideInvite', column_name: 'status' },
                         { table_name: 'RideInvite', column_name: 'source' },
+                        { table_name: 'RideInvite', column_name: 'offlineConfigStatus' },
+                        { table_name: 'RideInvite', column_name: 'offlineConfigUpdatedAt' },
+                        { table_name: 'RideInvite', column_name: 'lastLobbyPollAt' },
                         { table_name: 'RoomJoinToken', column_name: 'id' },
                         { table_name: 'RoomJoinToken', column_name: 'roomId' },
                         { table_name: 'RoomJoinToken', column_name: 'token' },
@@ -102,15 +121,28 @@ describe('P0-C: Migration and Startup Safety', () => {
                         { table_name: 'EmergencyAlert', column_name: 'roomId' },
                         { table_name: 'EmergencyAlert', column_name: 'senderId' },
                         { table_name: 'EmergencyAlert', column_name: 'status' },
+                        { table_name: 'EmergencyAlert', column_name: 'clientAlertId' },
                         { table_name: 'DiagnosticRun', column_name: 'id' },
                         { table_name: 'DiagnosticRun', column_name: 'convoyId' },
                         { table_name: 'DiagnosticRun', column_name: 'testNumber' },
                         { table_name: 'DiagnosticRun', column_name: 'status' },
-                        { table_name: 'DiagnosticRun', column_name: 'closeAt' }
+                        { table_name: 'DiagnosticRun', column_name: 'closeAt' },
+                        { table_name: 'RideSession', column_name: 'id' },
+                        { table_name: 'RideSession', column_name: 'riderId' },
+                        { table_name: 'RideSession', column_name: 'roomName' },
+                        { table_name: 'RideSession', column_name: 'clientRideId' },
+                        { table_name: 'RideSession', column_name: 'diagnosticsEnabled' }
                     ]
                 }
                 if (query.includes('pg_enum')) return [{ enumlabel: 'REMOVED' }, { enumlabel: 'LEFT' }]
-                if (query.includes('pg_indexes')) return [{ indexname: 'Room_name_active_unique' }, { indexname: 'Room_joinCode_active_unique' }, { indexname: 'RideInvite_roomId_inviteeId_key' }]
+                if (query.includes('pg_indexes')) return [
+                    { indexname: 'Room_name_active_unique' },
+                    { indexname: 'Room_joinCode_active_unique' },
+                    { indexname: 'RideInvite_roomId_inviteeId_key' },
+                    { indexname: 'EmergencyAlert_senderId_clientAlertId_key' },
+                    { indexname: 'RideSession_riderId_clientRideId_key' },
+                    { indexname: 'RideCreateRequest_ownerId_clientRequestId_key' }
+                ]
                 if (query.includes('pg_constraint')) return [
                     { conname: 'RoomJoinToken_roomId_fkey' },
                     { conname: 'DiagnosticRun_convoyId_fkey' },

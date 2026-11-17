@@ -1,72 +1,24 @@
-## RiderVoice v0.0.3.20 Release Notes
-
-### 🚀 Overview
-RiderVoice **v0.0.3.20** delivers the complete **Offline Mesh Intercom Engine (v2.0)**, an autonomous, multi-hop peer-to-peer voice communications engine designed for motorcycle convoys traversing off-grid backcountry trails where cellular infrastructure is unavailable. This release maintains strict zero-modification isolation on frozen online files (`mesh-commit-guard.sh`), introduces an Audio HAL concurrency arbiter (`AudioOwnershipArbiter`), an 8-state deterministic automatic switching state machine (`AutomaticSwitchStateMachine`) with recovery deadlock prevention and exponential handoff backoff, monotonic 20ms `OfflineAudioPlayback` tick pacing, encrypted 8-hour backup session persistence (`EncryptedPrefsBackupSessionStore`), PBKDF2 (`120,000` iterations, salt `"rvmesh/v2/session"`) / AES-256-GCM authenticated payload encryption with per-source subkey derivation, and comprehensive JVM unit and instrumented Android test suites.
-
-| Attribute | Value |
-| :--- | :--- |
-| **Version Name** | `0.0.3.20` |
-| **Version Code** | `3020` |
-| **Release Tag** | [`v0.0.3.20`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.20) |
-| **Download APK** | [`Rider_APP-v0.0.3.20.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.20/Rider_APP-v0.0.3.20.apk) |
-
----
-
-### 🛡️ Key Improvements & Fixes
-
-#### 1. Audio Hardware, Monotonic Playout & HAL Mutual Exclusion (D1, D3, WP-55)
-- **Audio HAL Concurrency Arbiter (`AudioOwnershipArbiter`)**: Enforces strict mutual exclusion between LiveKit WebRTC audio capture/playback and offline mesh `AudioRecord`/`AudioTrack` with a 400ms quiet-guard window. Prevents low-level HAL crash loops when transitioning between online and offline modes.
-- **Monotonic 20ms Playout Tick Pacing (`OfflineAudioPlayback`)**: Paces `AudioTrack` writes on a 20ms monotonic `System.nanoTime()` clock and counts underruns only on active talkspurt concealment, eliminating burst buffer draining and false underrun inflation during idle silence.
-- **Bluetooth SCO & Helmet `MediaSessionCompat` Handback Protection**: Preserves active Bluetooth SCO audio routing and `HardwarePTTManager` media button sessions when handing back from offline mesh to an online LiveKit ride.
-
-#### 2. Automatic Switching, Online Isolation & Deadlock Prevention (D4, D25, WP-53, WP-57)
-- **8-State Deterministic State Machine (`AutomaticSwitchStateMachine`)**: Implements complete state lifecycle (`ONLINE`, `ONLINE_SUSPECT`, `STARTING_OFFLINE_MESH`, `OFFLINE_ACTIVE`, `ONLINE_RECOVERING`, `HANDING_BACK_TO_LIVEKIT`, `FALLBACK_UNAVAILABLE`, `SESSION_ENDED`) with 10s failure confirmation, 8s recovery stability, 20s minimum dwell, and exponential backoff on failed handoffs.
-- **Online-System Zero-Interference (`LiveKitVoiceTransport`)**: Never overwrites user mute state on normal online reconnects when not paused by the coordinator, synchronizes online mute changes, and preserves deafened/VOX state across fallback and recovery.
-- **Recovery Deadlock Fix (D25)**: Evaluates independent network reachability signals (`ValidatedInternetSource`, `/health` probe throttled to 5s on `Dispatchers.IO`) so convoys hand back to LiveKit cleanly when cellular coverage returns.
-
-#### 3. Wire Protocol, Relay Control, Routing & Backup Persistence (D2, D8, D19–D23, D26, WP-54, WP-56)
-- **Configurable Relay Redundancy & Multi-Hop Resilience (D26, WP-49)**: Supports up to 6 devices across 5 hops (`DEFAULT_TTL = 5`, `MAX_HOPS = 5`) on unified UDP port `45454` (`MeshConfig.MESH_PORT`), with route-aware relay pruning (`SUPPRESS_REDUNDANT_RELAYS = false` default for maximum multi-hop resilience) and atomic joint session admission (`SessionManager.canAdmitAll`).
-- **Contiguous Voice Sequence Numbering (D2)**: Decoupled discovery heartbeat sequence numbers from voice stream sequences, eliminating synthetic jitter buffer packet loss and audio concealment glitches.
-- **Cryptographic Wire Hardening & Encrypted Backup Store (D19, WP-54)**: Derives session UUID, 256-bit `authKey` (HMAC-SHA256), and 256-bit `payloadKey` (AES-256-GCM) from 16-character Crockford Base32 pairing codes via PBKDF2-HMAC-SHA256 (`100,000` iterations, salt `"rvmesh/v2/session"`). Pre-ride backup sessions are persisted encrypted in `EncryptedPrefsBackupSessionStore` (8h TTL) across process death and wiped on sign-out.
-  - *Superseded in v3 wire protocol*: PBKDF2 iterations increased to `120,000`; duplicate packet cache operates via bounded FIFO cache and ±60 s timestamp window (not sliding-window).
-- **Sliding-Window Replay Rejection (D8)**: Hardened packet deduplication using a sliding-window duplicate packet cache to reject delayed replay attacks within cache TTL.
-  - *Superseded in v3 wire protocol*: Deduplication operates via bounded duplicate cache and ±60 s timestamp check.
-- **Direct Neighbor Preservation & Steady-State Edge Refresh (D20, WP-56)**: Prevents relayed discovery packets from masking direct 1-hop neighbors and refreshes snapshot edge timestamps on steady-state heartbeats.
-- **Oversized Voice Payload Validation (D21)**: Validates voice payload boundaries against the 747-byte wire packet v2 layout, discarding oversized or malformed frames.
-- **Link Hygiene & Endpoint Verification (D22)**: Enforces strict wire HMAC authentication before registering endpoints into the active routing table.
-- **Event-Driven Capture & Offloaded Voice Encryption (D24, WP-55)**: Captures PCM audio in an interruptible loop and offloads encryption/UDP transmission off the `URGENT_AUDIO` capture thread.
-
-#### 4. UI, Settings, Foreground Service & Reimagined UI/UX Showcase (WP-58–WP-61)
-- **Hilt Dependency Injection (`MeshModule`)**: Wired the offline mesh singleton graph and `@MeshApplicationScope` coroutine lifecycle, ensuring zero startup penalty when offline mesh is disabled.
-- **UI Screens & Guided Setup**: Integrated `OfflineMeshLobbyScreen` (`Routes.OFFLINE_MESH_LOBBY`) with 3-step hotspot instructions and live self-test HUD, `OfflineRoomScreen` (`Routes.OFFLINE_MESH_HUD`), and `OfflineAwareRoomHost` fallback overlays.
-- **Settings & Feature Gating**: Unified `MeshRuntimeSettings` (`offline_mesh_enabled`, `auto_fallback_enabled`, `warm_standby_enabled`) with Wi-Fi hardware pre-checks and full triple-locale string parity (English, Hindi, Marathi).
-
-#### 5. Verification & Test Suite Expansion
-- **Comprehensive Unit Testing**: Expanded the automated JVM test suite to **495** tests (`test-census-floor = 495`) covering all Stage 0–5 and Round 1–4 invariants, protocol vectors, scheduled delivery, 6-node stress smoke testing, architecture rules, and simulated network partitions with a 100% pass rate.
-
----
-
 ## RiderVoice v0.0.3.19 Release Notes
 
-### 🚀 Overview
-RiderVoice **v0.0.3.19** fixes the convoy creation lobby hang, resolves missing column resilience on `lastEmptyAt`, ensures write circuit-breaker exemptions for emergency SOS and webhooks, hardens transaction-scoped advisory locking, and eliminates `TelephonyManager` usage to clear Google Play Protect flags.
+RiderVoice **v0.0.3.19** delivers per-room offline mesh intercom configuration, automatic online and offline voice handover, non-sticky database schema health recovery, redesigned ride controls, and Android 12 to 14 permission and audio hardware hardening.
 
 | Attribute | Value |
 | :--- | :--- |
 | **Version Name** | `0.0.3.19` |
 | **Version Code** | `3019` |
-| **Release Tag** | [`v0.0.3.19`](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.19) |
-| **Download APK** | [`Rider_APP-v0.0.3.19.apk`](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.19/Rider_APP-v0.0.3.19.apk) |
+| **Release Tag** | `v0.0.3.19` |
+| **Download APK** | `Rider_APP-v0.0.3.19.apk` |
 
----
-
-### 🛡️ Key Improvements & Fixes
-- **Lobby Load State Machine & Shell Rendering**: Resolved infinite lobby loading spinner by adding explicit `LobbyLoadState` with bounded exponential backoff, failure transitions after 5 attempts / 30s timeout, immediate local shell rendering from `ActiveRideRepository`, and localized strings with 100% placeholder parity.
-- **Backend Missing-Column Resilience**: Added startup column probing and runtime Prisma `P2022` fallback resilience for `lastEmptyAt` in `roomResolver`, `roomSweeper`, and `livekitWebhook`.
-- **Backend `riderCallsign` Import Fix**: Imported `riderCallsign` from `services/identity.js` in `lobbyRoutes.js`, resolving unhandled 500 errors on `GET /api/lobby/:roomRef/status`.
-- **Circuit Breaker Structural vs Data Separation**: Split health state into `schemaStructuralOk` and `dataWarnings`; guaranteed emergency SOS (`/api/emergency`), LiveKit webhooks, and auth routes are never blocked.
-- **Advisory Migration Lock Hardening**: Wrapped migration repair in interactive transactions with per-statement savepoints and safe concurrent skipping.
-- **Play Protect Telephony Removal**: Completely removed all `TelephonyManager` references from `EmergencyNumbers.kt` and added user-configurable Emergency Country preference in Settings.
+- Per-ride waiting room offline mesh backup configuration with automatic 16-character pairing code provisioning and zero global settings toggles
+- Automatic online and offline voice switching with 10-second loss confirmation, 400ms audio hardware quiet guard, 8-second recovery stability window, and anti-flapping protection
+- Offline multi-hop voice intercom supporting up to 6 riders across 5 hops with Opus 16 kbps compression, packet loss concealment, and 20ms monotonic playback pacing
+- Non-sticky database schema health handling with automatic exponential backoff re-validation, complete schema drift checks, and full emergency SOS route protection
+- Aligned offline readiness gates for non-Play-Services devices displaying OFFLINE BACKUP UNAVAILABLE ON THIS DEVICE without blocking other riders
+- Redesigned ride top bar with fixed 48dp Leave button touch target, display cutout insets, minimum width guards, and zero layout shift on speaker changes
+- Event-driven ghost participant cleanup and removal of background polling timers for lower battery usage
+- Complete Android 12 to 14 runtime permission handling for microphone, location, notifications, and Bluetooth headset teardown safety
+- Google Play Protect compliant regional emergency SOS dialing without telephony carrier inspection
+- Clean single-prefix App Version display and formatted in-app feature notes without raw markdown or symbols
 
 ---
 

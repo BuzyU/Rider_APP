@@ -310,7 +310,9 @@ class AudioDeviceRouter(
             try { context.unregisterReceiver(scoStateReceiver) } catch (_: Exception) {}
             val btManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
             val btAdapter = btManager?.adapter ?: @Suppress("DEPRECATION") BluetoothAdapter.getDefaultAdapter()
-            btAdapter?.closeProfileProxy(BluetoothProfile.HEADSET, bluetoothHeadset)
+            try {
+                btAdapter?.closeProfileProxy(BluetoothProfile.HEADSET, bluetoothHeadset)
+            } catch (_: Exception) {}
             bluetoothHeadset = null
         }
         try { gateway.unregisterAudioDeviceCallback(deviceCallback) } catch (_: Exception) {}

@@ -236,5 +236,32 @@ class Stage3AutomaticSwitchingTest {
         sm.evaluate(healthyOnline)
         assertEquals(AutoSwitchState.OFFLINE_ACTIVE, sm.state.value)
     }
+
+    @Test
+    fun `rapid flapping every 2s for 60s causes at most 2 switches`() = runTest {
+        var now = 100_000L
+        var transitions = 0
+        val sm = AutomaticSwitchStateMachine(
+            isGateAllowed = { true },
+            clock = { now },
+            onHandoffToOffline = {
+                transitions++
+                true
+            },
+            onHandoffToOnline = {
+                transitions++
+                true
+            }
+        )
+
+        while (now < 160_000L) {
+            val isFailingPhase = ((now - 100_000L) / 2_000L) % 2L == 0L
+            sm.evaluate(if (isFailingPhase) failingOnlineWithMesh else healthyOnline)
+            now += 500L
+        }
+
+        assertTrue("Expected <= 2 transitions during 2s rapid flapping over 60s, measured $transitions", transitions <= 2)
+        assertEquals(AutoSwitchState.ONLINE, sm.state.value)
+    }
 }
 

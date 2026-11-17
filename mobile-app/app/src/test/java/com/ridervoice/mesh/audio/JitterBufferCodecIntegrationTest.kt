@@ -174,4 +174,72 @@ class JitterBufferCodecIntegrationTest {
         assertTrue("Seq 4 must be Audio", f4 is PlayoutFrame.Audio)
         assertEquals(4, (f4 as PlayoutFrame.Audio).sequence)
     }
+
+    @Test
+    fun packetLoss15Percent_concealsWithoutDropoutExceeding500ms() {
+        var now = 10_000L
+        val buffer = SourceJitterBuffer(
+            sourceId = "node-loss-15",
+            targetDelayFrames = 3,
+            maxQueueFrames = 8,
+            clock = { now }
+        )
+        val voice40 = ByteArray(40) { 0x42 }
+
+        var maxContiguousBuffering = 0
+        var contiguousBuffering = 0
+
+        for (seq in 1..500) {
+            val isLost = seq > 3 && (seq % 7 == 0 || seq % 50 == 0)
+            if (!isLost) {
+                buffer.enqueue(seq, voice40)
+            }
+            val polled = buffer.pollFrame()
+            if (seq >= 3) {
+                if (polled is PlayoutFrame.Buffering) {
+                    contiguousBuffering++
+                    if (contiguousBuffering > maxContiguousBuffering) {
+                        maxContiguousBuffering = contiguousBuffering
+                    }
+                } else {
+                    contiguousBuffering = 0
+                }
+            }
+            now += 20L
+        }
+
+        assertTrue("PLC must conceal lost frames under 15%+ packet loss", buffer.concealedCount > 0L)
+        assertTrue(
+            "Max contiguous silence dropout ($maxContiguousBuffering frames) must not exceed 500 ms (25 frames)",
+            maxContiguousBuffering <= 25
+        )
+    }
+
+    @Test
+    fun tenMinuteContinuousTalkspurt_virtualClock_noCutoffAndBoundedLatency() {
+        var now = 10_000L
+        val buffer = SourceJitterBuffer(
+            sourceId = "node-10m-soak",
+            targetDelayFrames = 3,
+            maxQueueFrames = 8,
+            clock = { now }
+        )
+        val voice40 = ByteArray(40) { 0x42 }
+
+        buffer.enqueue(1, voice40)
+        now += 20L
+        buffer.enqueue(2, voice40)
+        now += 20L
+
+        for (seq in 3..30_002) {
+            buffer.enqueue(seq, voice40)
+            val polled = buffer.pollFrame()
+            assertTrue("Tick $seq during 10-min continuous talkspurt must stay Audio", polled is PlayoutFrame.Audio)
+            assertTrue("Queue depth (${buffer.depthFrames}) must stay bounded <= 8", buffer.depthFrames <= 8)
+            now += 20L
+        }
+
+        assertEquals(0L, buffer.overflowDroppedCount)
+        assertEquals(30_000L, buffer.deliveredCount)
+    }
 }

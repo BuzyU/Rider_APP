@@ -64,16 +64,25 @@ class ActiveRideRepository @Inject constructor(
     }
 
     fun enterLobby(roomId: String, name: String, isHost: Boolean, joinCode: String? = null, lkRoomName: String? = null) {
-        val ride = ActiveRide(
-            roomId = roomId,
-            displayName = name,
-            isHost = isHost,
-            phase = Phase.LOBBY,
-            joinCode = joinCode,
-            lkRoomName = lkRoomName
-        )
-        _state.update { ride }
-        persist(ride)
+        _state.update { current ->
+            val sameRoom = current != null && current.roomId == roomId
+            val ride = ActiveRide(
+                roomId = roomId,
+                displayName = name,
+                isHost = isHost,
+                phase = if (sameRoom && current!!.phase == Phase.LIVE) Phase.LIVE else Phase.LOBBY,
+                lkRoomName = lkRoomName ?: if (sameRoom) current?.lkRoomName else null,
+                livekitUrl = if (sameRoom) current?.livekitUrl else null,
+                token = if (sameRoom) current?.token else null,
+                tokenExpEpochSec = if (sameRoom) current?.tokenExpEpochSec else null,
+                diagnosticsEnabled = if (sameRoom) current?.diagnosticsEnabled ?: false else false,
+                testNumber = if (sameRoom) current?.testNumber else null,
+                joinCode = joinCode ?: if (sameRoom) current?.joinCode else null,
+                meshConfig = if (sameRoom) current?.meshConfig else null
+            )
+            persist(ride)
+            ride
+        }
     }
 
     fun applyTokenPayload(p: TokenPayload) {

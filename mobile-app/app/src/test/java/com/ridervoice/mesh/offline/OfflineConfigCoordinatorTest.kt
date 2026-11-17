@@ -58,6 +58,7 @@ class OfflineConfigCoordinatorTest {
         assertEquals(OfflineConfigStatus.UNAVAILABLE_DEVICE, coordinator.state.value.status)
         assertFalse(coordinator.state.value.isReady)
         assertEquals(StepState.FAILED, coordinator.state.value.stepResults[OfflineConfigStep.DEVICE_CAPABILITY]?.state)
+        assertEquals("OFFLINE BACKUP UNAVAILABLE ON THIS DEVICE", coordinator.state.value.failureReason)
     }
 
     @Test
@@ -178,6 +179,27 @@ class OfflineConfigCoordinatorTest {
         advanceUntilIdle()
 
         assertNotNull(coordinator.state.value)
+    }
+
+    @Test
+    fun reset_clearsStateBackToNotStarted() = testScope.runTest {
+        val coordinator = OfflineConfigCoordinator(
+            sessionHolder = OfflineSessionHolder(),
+            deviceCapabilityChecker = object : DeviceCapabilityChecker { override fun hasMeshNetworkingCapability() = true },
+            permissionChecker = object : PermissionChecker { override fun hasRecordAudioPermission() = true },
+            batteryOptimizationChecker = object : BatteryOptimizationChecker { override fun isIgnoringBatteryOptimizations() = true },
+            transportReadinessChecker = object : TransportReadinessChecker { override fun canBindMeshTransport() = true },
+            dispatcher = testDispatcher
+        )
+
+        coordinator.startConfig(this, validCode, isHostMeshEnabled = true)
+        advanceUntilIdle()
+        assertEquals(OfflineConfigStatus.READY, coordinator.state.value.status)
+
+        coordinator.reset()
+        assertEquals(OfflineConfigStatus.NOT_STARTED, coordinator.state.value.status)
+        assertTrue(coordinator.state.value.stepResults.isEmpty())
+        assertFalse(coordinator.state.value.optOut)
     }
 }
 

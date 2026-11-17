@@ -192,7 +192,7 @@ jobs:
           CHANGELOG_NOTES=""
           if [ -f "RELEASE_NOTES.md" ]; then
             CHANGELOG_NOTES=$(awk -v ver="${{ env.VERSION_NAME }}" '
-              $0 ~ "^## \\[?" ver { p=1; next }
+              $0 ~ "^## .*" ver { p=1; next }
               $0 ~ "^## " && p { p=0 }
               p { print }
             ' RELEASE_NOTES.md | head -c 15000)
@@ -247,7 +247,7 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           name: "RiderVoice ${{ env.TAG_NAME }}"
           body_path: release_body.md
-          generate_release_notes: true
+          generate_release_notes: false
           draft: false
           prerelease: false
           files: |

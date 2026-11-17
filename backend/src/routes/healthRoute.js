@@ -8,6 +8,79 @@ let schemaStructuralOk = true
 let dataWarnings = []
 let schemaStatus = { valid: true, structuralOk: true }
 
+let _prismaRef = null
+let _assertSchemaFn = null
+let revalidationTimer = null
+let revalidationAttempts = 0
+const REVALIDATION_BASE_MS = 15000
+const REVALIDATION_MAX_MS = 300000
+const REVALIDATION_MAX_ATTEMPTS = 10
+
+function resetRevalidation() {
+    if (revalidationTimer) {
+        clearTimeout(revalidationTimer)
+        revalidationTimer = null
+    }
+    revalidationAttempts = 0
+}
+
+function scheduleRevalidation(customDelayMs) {
+    if (!_prismaRef || !_assertSchemaFn) return false
+    if (revalidationTimer) return true
+    if (revalidationAttempts >= REVALIDATION_MAX_ATTEMPTS) {
+        console.error('[SchemaHealth] Max revalidation attempts reached; schema remains degraded until manual repair or restart.')
+        return false
+    }
+    const delayMs = typeof customDelayMs === 'number'
+        ? customDelayMs
+        : Math.min(REVALIDATION_MAX_MS, REVALIDATION_BASE_MS * Math.pow(2, revalidationAttempts))
+    console.warn(`[SchemaHealth] Scheduling schema re-validation in ${delayMs}ms (attempt ${revalidationAttempts + 1})`)
+    revalidationTimer = setTimeout(async () => {
+        revalidationTimer = null
+        revalidationAttempts++
+        try {
+            const result = await _assertSchemaFn(_prismaRef)
+            const missing = Array.isArray(result?.missing) ? result.missing : []
+            const warnings = Array.isArray(result?.warnings) ? result.warnings : dataWarnings
+            if (result && result.valid) {
+                console.log('[SchemaHealth] Re-validation PASSED — clearing degraded flag')
+                revalidationAttempts = 0
+                setSchemaHealth(true, {
+                    structuralOk: true,
+                    missing: [],
+                    warnings,
+                    message: 'Schema healed after re-validation'
+                })
+            } else {
+                const missingStr = missing.length > 0 ? missing.join(', ') : 'unknown'
+                console.warn(`[SchemaHealth] Re-validation FAILED — still missing: ${missingStr}`)
+                setSchemaHealth(false, {
+                    structuralOk: false,
+                    missing,
+                    warnings,
+                    error: `Database schema missing: ${missingStr}`,
+                    message: 'Schema re-validation failed'
+                })
+            }
+        } catch (err) {
+            console.error('[SchemaHealth] Re-validation error:', err.message)
+            scheduleRevalidation()
+        }
+    }, delayMs)
+    if (typeof revalidationTimer.unref === 'function') {
+        revalidationTimer.unref()
+    }
+    return true
+}
+
+function initSchemaHealthRevalidation(prisma, assertSchemaFn) {
+    _prismaRef = prisma
+    _assertSchemaFn = assertSchemaFn
+    if (!schemaStructuralOk) {
+        scheduleRevalidation()
+    }
+}
+
 function setSchemaHealth(arg1, arg2 = {}) {
     if (typeof arg1 === 'boolean') {
         const details = arg2 || {}
@@ -42,6 +115,12 @@ function setSchemaHealth(arg1, arg2 = {}) {
             ...(arg1.details || arg1)
         }
     }
+
+    if (!schemaStructuralOk && _prismaRef && _assertSchemaFn) {
+        scheduleRevalidation()
+    } else if (schemaStructuralOk) {
+        resetRevalidation()
+    }
 }
 
 function getSchemaHealth() {
@@ -49,12 +128,15 @@ function getSchemaHealth() {
         schemaStructuralOk,
         schemaDegraded: !schemaStructuralOk,
         dataWarnings,
+        revalidationAttempts,
+        revalidationScheduled: revalidationTimer !== null,
         ...schemaStatus
     }
 }
 
 router.get(['/', '/health', '/api/health'], (req, res) => {
     const hasWarnings = dataWarnings.length > 0
+    const missing = Array.isArray(schemaStatus.missing) ? schemaStatus.missing : []
     res.json({
         status: !schemaStructuralOk ? 'degraded' : (hasWarnings ? 'warning' : 'ok'),
         uptime: Math.floor(process.uptime()),
@@ -63,7 +145,10 @@ router.get(['/', '/health', '/api/health'], (req, res) => {
         pipeline: eventPipeline.getStats(),
         schemaStructuralOk,
         schemaDegraded: !schemaStructuralOk,
+        missing,
         dataWarnings,
+        revalidationAttempts,
+        revalidationScheduled: revalidationTimer !== null,
         schemaStatus,
         memoryRssMb: (process.memoryUsage().rss / (1024 * 1024)).toFixed(1)
     })
@@ -75,11 +160,18 @@ router.get(['/ready', '/api/health/ready'], (req, res) => {
     const allowWebhookDisabled = process.env.ALLOW_WEBHOOK_DISABLED === 'true'
 
     if (!schemaStructuralOk) {
+        const missing = Array.isArray(schemaStatus.missing) ? schemaStatus.missing : []
+        const errorMsg = missing.length > 0
+            ? `Database schema structural validation failed (missing: ${missing.join(', ')})`
+            : (schemaStatus.error || 'Database schema structural validation failed')
         return res.status(503).json({
             status: 'degraded',
-            error: schemaStatus.error || 'Database schema structural validation failed',
+            error: errorMsg,
+            missing,
             schemaReady: false,
             schemaStructuralOk: false,
+            revalidationAttempts,
+            revalidationScheduled: revalidationTimer !== null,
             schemaStatus,
             timestamp: new Date().toISOString()
         })
@@ -111,5 +203,8 @@ router.get(['/ready', '/api/health/ready'], (req, res) => {
 module.exports = router
 module.exports.setSchemaHealth = setSchemaHealth
 module.exports.getSchemaHealth = getSchemaHealth
+module.exports.initSchemaHealthRevalidation = initSchemaHealthRevalidation
+module.exports.scheduleRevalidation = scheduleRevalidation
+module.exports.resetRevalidation = resetRevalidation
 
 

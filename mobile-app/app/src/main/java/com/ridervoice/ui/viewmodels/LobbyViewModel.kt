@@ -77,6 +77,7 @@ class LobbyViewModel @Inject constructor(
         if (currentRide != null && currentRide.roomId != roomName) {
             // Room switch: purge prior room's offline session per WP-129 / FX-04
             sessionHolder.clearAll()
+            configCoordinator.reset()
             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.LEFT)
         }
         pollingJob?.cancel()
@@ -372,6 +373,7 @@ class LobbyViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 sessionHolder.clearAll()
+                configCoordinator.reset()
                 apiService.endRideForEveryone(roomName)
             } catch (e: Exception) {
                 _error.value = e.localizedMessage ?: "Failed to end ride"
@@ -506,6 +508,7 @@ class LobbyViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 sessionHolder.clearAll()
+                configCoordinator.reset()
                 apiService.leaveLobby(roomRef)
             } catch (_: Exception) {}
             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.LEFT)

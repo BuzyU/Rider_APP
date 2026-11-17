@@ -39,6 +39,66 @@ class UpdateManager @Inject constructor(
         private const val KEY_LAST_RELEASE_JSON = "last_release_json"
         private const val CACHE_TTL_MS = 60_000L // 60s in-memory TTL to avoid rapid spamming
         private const val TAG = "UpdateManager"
+
+        internal val DEFAULT_V00319_NOTES = """
+            • Per-ride waiting room offline mesh backup configuration with automatic 16-character pairing code provisioning and zero global settings clutter
+            • Automatic online to offline voice switching with 10-second loss confirmation, 400ms audio hardware quiet guard, 8-second recovery stability window, and anti-flapping protection
+            • Offline multi-hop voice intercom supporting up to 6 riders across 5 hops with Opus 16 kbps compression, packet loss concealment, and 20ms monotonic playback pacing
+            • Non-sticky database schema health handling with automatic exponential backoff re-validation and full emergency SOS route protection
+            • Redesigned ride top bar with fixed 48dp Leave button touch target, display cutout padding, and zero layout shift during active speaker changes
+            • Event-driven ghost participant cleanup and removal of background polling timers for lower battery usage
+            • Complete Android 12 to 14 runtime permission handling for microphone, location, notifications, and Bluetooth headset teardown safety
+            • Google Play Protect compliant regional emergency SOS dialing without telephony carrier inspection
+        """.trimIndent()
+
+        internal fun formatReleaseNotesForApp(rawBody: String?): String {
+            if (rawBody.isNullOrBlank()) return DEFAULT_V00319_NOTES
+
+            val cleanedLines = mutableListOf<String>()
+            var inCodeBlock = false
+            val markdownLinkRegex = Regex("\\[([^\\]]+)\\]\\([^)]*\\)")
+            val urlRegex = Regex("https?://\\S+")
+            val multiSpaceRegex = Regex("\\s{2,}")
+
+            for (rawLine in rawBody.lines()) {
+                val trimmed = rawLine.trim()
+                if (trimmed.startsWith("```")) {
+                    inCodeBlock = !inCodeBlock
+                    continue
+                }
+                if (inCodeBlock || trimmed.isEmpty()) continue
+                if (trimmed.startsWith("|") || trimmed.startsWith("---") || trimmed.startsWith("===")) continue
+                if (trimmed.startsWith(">")) continue
+                if (trimmed.startsWith("SHA-256", ignoreCase = true)) continue
+                if (trimmed.startsWith("Full Changelog", ignoreCase = true) || trimmed.startsWith("New Contributors", ignoreCase = true)) continue
+
+                var line = markdownLinkRegex.replace(trimmed, "$1")
+                line = urlRegex.replace(line, "")
+                line = line.replace(Regex("^[#*•\\-]+\\s*"), "")
+                line = line.replace("#", "")
+                line = line.replace("*", "")
+                line = line.replace("`", "")
+                line = line.replace("|", " ")
+                line = line.replace("[", "").replace("]", "")
+                line = line.replace("/", " and ")
+                line = multiSpaceRegex.replace(line, " ").trim()
+
+                if (line.isEmpty()) continue
+                val lower = line.lowercase()
+                if (lower.startsWith("ridervoice v") ||
+                    lower == "release highlights" ||
+                    lower == "overview" ||
+                    lower.contains("cryptographic checksum") ||
+                    lower.contains("release notes") ||
+                    lower == "key improvements and fixes"
+                ) {
+                    continue
+                }
+                cleanedLines.add("• $line")
+            }
+
+            return if (cleanedLines.isEmpty()) DEFAULT_V00319_NOTES else cleanedLines.joinToString("\n")
+        }
     }
 
     @Volatile private var lastCheckTimestamp = 0L
@@ -116,7 +176,7 @@ class UpdateManager @Inject constructor(
     }
 
     val currentVersionName: String
-        get() = BuildConfig.VERSION_NAME
+        get() = BuildConfig.VERSION_NAME.removePrefix("v").removePrefix("V")
 
     val currentVersionCode: Long
         get() {
@@ -146,7 +206,10 @@ class UpdateManager @Inject constructor(
                     currentVersion = currentVersionName
                 )
             } else {
-                _uiState.value = UpdateUiState.UpToDate(currentVersion = currentVersionName)
+                _uiState.value = UpdateUiState.UpToDate(
+                    currentVersion = currentVersionName,
+                    releaseNotes = cached.releaseNotes.ifBlank { DEFAULT_V00319_NOTES }
+                )
             }
             return
         }
@@ -182,7 +245,10 @@ class UpdateManager @Inject constructor(
                         } catch (_: Exception) {}
                     }
                     if (releaseInfo == null) {
-                        _uiState.value = UpdateUiState.UpToDate(currentVersion = currentVersionName)
+                        _uiState.value = UpdateUiState.UpToDate(
+                            currentVersion = currentVersionName,
+                            releaseNotes = DEFAULT_V00319_NOTES
+                        )
                         return@launch
                     }
                 } else if (code == 403 || code == 429) {
@@ -257,7 +323,10 @@ class UpdateManager @Inject constructor(
                     currentVersion = currentVersionName
                 )
             } else {
-                _uiState.value = UpdateUiState.UpToDate(currentVersion = currentVersionName)
+                _uiState.value = UpdateUiState.UpToDate(
+                    currentVersion = currentVersionName,
+                    releaseNotes = releaseInfo.releaseNotes.ifBlank { DEFAULT_V00319_NOTES }
+                )
             }
         }
     }
@@ -296,7 +365,7 @@ class UpdateManager @Inject constructor(
             apkFileName = apkAsset.name,
             downloadUrl = apkAsset.downloadUrl,
             apkSizeBytes = apkAsset.size,
-            releaseNotes = release.body?.ifBlank { "Performance improvements and bug fixes." } ?: "Performance improvements and bug fixes.",
+            releaseNotes = formatReleaseNotesForApp(release.body),
             publishedAt = release.publishedAt ?: "Recently",
             sha256Checksum = sha256Checksum
         )
@@ -359,7 +428,7 @@ class UpdateManager @Inject constructor(
             apkFileName = apkFileName,
             downloadUrl = apkDownloadUrl,
             apkSizeBytes = apkSizeBytes,
-            releaseNotes = "Performance improvements and bug fixes for RiderVoice $tagName.",
+            releaseNotes = DEFAULT_V00319_NOTES,
             publishedAt = "Latest Release",
             sha256Checksum = sha256Checksum
         )

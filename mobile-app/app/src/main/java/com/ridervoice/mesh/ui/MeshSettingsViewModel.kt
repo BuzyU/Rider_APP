@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -68,8 +67,7 @@ class MeshSettingsViewModel : ViewModel {
             } else {
                 flowOf(OfflineAvailability.DISABLED)
             }
-        }.flowOn(Dispatchers.Default)
-            .stateIn(viewModelScope, SharingStarted.Eagerly, OfflineAvailability.DISABLED)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, OfflineAvailability.DISABLED)
         this.availabilityFlow = avail
 
         val bkp = settings.settingsFlow.flatMapLatest { snapshot ->
@@ -78,8 +76,7 @@ class MeshSettingsViewModel : ViewModel {
             } else {
                 flowOf(null)
             }
-        }.flowOn(Dispatchers.Default)
-            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
         this.backupFlow = bkp
 
         val isPersistedCheck = {

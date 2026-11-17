@@ -44,6 +44,9 @@ ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "startedAt" TIMESTAMP(3);
 ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "status" "RoomStatus" NOT NULL DEFAULT 'LOBBY';
 ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "endedAt" TIMESTAMP(3);
 ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "joinCode" TEXT;
+ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "lkRoomName" TEXT;
+ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "offlineBackupCode" TEXT;
+ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "offlineMeshEnabled" BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "origin" TEXT;
 ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "destination" TEXT;
 ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "meetupPoint" TEXT;
@@ -104,6 +107,7 @@ CREATE INDEX IF NOT EXISTS "Room_status_idx" ON "Room"("status");
 CREATE INDEX IF NOT EXISTS "Room_name_status_idx" ON "Room"("name", "status");
 CREATE INDEX IF NOT EXISTS "Room_lastEmptyAt_idx" ON "Room"("lastEmptyAt");
 CREATE INDEX IF NOT EXISTS "Room_ownerId_idx" ON "Room"("ownerId");
+CREATE INDEX IF NOT EXISTS "Room_lkRoomName_idx" ON "Room"("lkRoomName");
 
 DO $$
 BEGIN
@@ -116,6 +120,9 @@ END $$;
 -- 6. RideInvite columns & constraint
 ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "source" "InviteSource" NOT NULL DEFAULT 'HOST_INVITE';
 ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT NOW();
+ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "offlineConfigStatus" TEXT;
+ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "offlineConfigUpdatedAt" TIMESTAMP(3);
+ALTER TABLE "RideInvite" ADD COLUMN IF NOT EXISTS "lastLobbyPollAt" TIMESTAMP(3);
 
 WITH ranked AS (
     SELECT id, ROW_NUMBER() OVER (
@@ -193,10 +200,13 @@ CREATE TABLE IF NOT EXISTS "EmergencyAlert" (
     "lng" DOUBLE PRECISION,
     "recipients" TEXT[],
     "status" TEXT NOT NULL DEFAULT 'SENT',
+    "clientAlertId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "EmergencyAlert_pkey" PRIMARY KEY ("id")
 );
 
+ALTER TABLE "EmergencyAlert" ADD COLUMN IF NOT EXISTS "clientAlertId" TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS "EmergencyAlert_senderId_clientAlertId_key" ON "EmergencyAlert"("senderId", "clientAlertId");
 CREATE INDEX IF NOT EXISTS "EmergencyAlert_roomName_senderId_idx" ON "EmergencyAlert"("roomName", "senderId");
 CREATE INDEX IF NOT EXISTS "EmergencyAlert_senderId_idx" ON "EmergencyAlert"("senderId");
 
@@ -317,7 +327,30 @@ CREATE TABLE IF NOT EXISTS "admin_settings" (
     CONSTRAINT "admin_settings_pkey" PRIMARY KEY ("id")
 );
 
--- 12. Miscellaneous indexes
+-- 12. Miscellaneous indexes & RideCreateRequest
 CREATE INDEX IF NOT EXISTS "DeviceToken_userId_idx" ON "DeviceToken"("userId");
 CREATE INDEX IF NOT EXISTS "Friendship_requesterId_status_idx" ON "Friendship"("requesterId", "status");
 CREATE INDEX IF NOT EXISTS "Friendship_addresseeId_status_idx" ON "Friendship"("addresseeId", "status");
+
+CREATE TABLE IF NOT EXISTS "RideCreateRequest" (
+    "id" TEXT NOT NULL,
+    "ownerId" TEXT NOT NULL,
+    "clientRequestId" TEXT NOT NULL,
+    "payloadHash" TEXT NOT NULL,
+    "roomId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "RideCreateRequest_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "RideCreateRequest_ownerId_clientRequestId_key" ON "RideCreateRequest"("ownerId", "clientRequestId");
+CREATE INDEX IF NOT EXISTS "RideCreateRequest_ownerId_idx" ON "RideCreateRequest"("ownerId");
+CREATE INDEX IF NOT EXISTS "RideCreateRequest_roomId_idx" ON "RideCreateRequest"("roomId");
+CREATE INDEX IF NOT EXISTS "RideCreateRequest_createdAt_idx" ON "RideCreateRequest"("createdAt");
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RideCreateRequest_ownerId_fkey') THEN
+        ALTER TABLE "RideCreateRequest" ADD CONSTRAINT "RideCreateRequest_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'RideCreateRequest_roomId_fkey') THEN
+        ALTER TABLE "RideCreateRequest" ADD CONSTRAINT "RideCreateRequest_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "Room"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;

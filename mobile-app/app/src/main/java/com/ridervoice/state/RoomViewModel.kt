@@ -110,6 +110,7 @@ class RoomViewModel @Inject constructor(
     init {
         liveKitManager.participants
             .onEach { incoming ->
+                val now = System.currentTimeMillis()
                 val current = _participants.value.toMutableList()
                 val incomingIds = incoming.map { it.identity }.toSet()
 
@@ -126,6 +127,9 @@ class RoomViewModel @Inject constructor(
                     } else {
                         current.add(incomingParticipant.copy(isGhost = false))
                     }
+                }
+                current.removeAll { p ->
+                    p.isGhost && p.disconnectedAt != null && (now - p.disconnectedAt) >= (2 * 60 * 1000L)
                 }
                 _participants.value = current
             }
@@ -171,23 +175,10 @@ class RoomViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        viewModelScope.launch {
-            while (isActive) {
-                kotlinx.coroutines.delay(60_000)
-                if (activeRideRepository.state.value == null) continue
-                val now = System.currentTimeMillis()
-                _participants.value = _participants.value.filter { p ->
-                    if (p.isGhost && p.disconnectedAt != null) {
-                        (now - p.disconnectedAt) < (2 * 60 * 1000)
-                    } else true
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            while (isActive) {
-                kotlinx.coroutines.delay(30_000)
-                val ride = activeRideRepository.state.value ?: continue
+        liveKitManager.connectionState
+            .onEach { connState ->
+                if (connState == ConnectionState.CONNECTED) return@onEach
+                val ride = activeRideRepository.state.value ?: return@onEach
                 val active = ride.roomId.ifBlank { ride.displayName }
                 if (!ride.isHost && active.isNotBlank() && !liveKitManager.convoyEnded.value) {
                     try {
@@ -202,7 +193,7 @@ class RoomViewModel @Inject constructor(
                     } catch (_: Exception) {}
                 }
             }
-        }
+            .launchIn(viewModelScope)
 
         viewModelScope.launch {
             liveKitManager.roomFault.collect { fault ->

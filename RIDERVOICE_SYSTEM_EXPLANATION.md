@@ -379,7 +379,7 @@ Rider_APP/
 ├── ARCHITECTURE.md                    High-level system diagrams and decisions
 ├── CODE_DEPTH_STRUCTURE.md            File-level code map
 ├── README.md                          Product overview and developer quickstart
-├── RELEASE_NOTES.md                   Changelog across versions (v0.0.3.0 – v0.0.3.20)
+├── RELEASE_NOTES.md                   Changelog across versions (v0.0.3.0 – v0.0.3.19)
 ├── RIDERVOICE_SYSTEM_EXPLANATION.md   This comprehensive onboarding and architecture guide
 └── render.yaml                        Render.com deployment manifest for backend
 ```
@@ -393,7 +393,7 @@ Rider_APP/
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | High-level engineering reference | Architecture diagrams, subsystem descriptions, data flow models | Document detailing core system contracts and decisions. |
 | [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md) | File-level codebase index | Comprehensive inventory of directories, source files, and responsibilities | Quick-lookup guide for engineers locating where specific features reside. |
 | [README.md](./README.md) | Developer onboarding guide | Overview of the app, prerequisites, environment setup, and local run instructions | Entry point for new contributors cloning the repository. |
-| [RELEASE_NOTES.md](./RELEASE_NOTES.md) | Public version changelog | Detailed release history (`v0.0.3.0` through `v0.0.3.20`) | Documents fixes, new features, and changes for each release. |
+| [RELEASE_NOTES.md](./RELEASE_NOTES.md) | Public version changelog | Detailed release history (`v0.0.3.0` through `v0.0.3.19`) | Documents fixes, new features, and changes for each release. |
 | [render.yaml](./render.yaml) | Cloud infrastructure specification | Blueprint deploying the backend service on Render.com | Provisions Node.js web service, environment variable references, and build commands. |
 
 ---

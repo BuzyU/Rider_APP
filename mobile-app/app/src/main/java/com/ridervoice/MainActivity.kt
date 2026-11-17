@@ -225,8 +225,9 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         text = {
+                            val cleanUpdatedVer = updatedVersionName.value.removePrefix("v").removePrefix("V")
                             Text(
-                                text = "RiderVoice has been successfully updated to v${updatedVersionName.value}.",
+                                text = "RiderVoice has been successfully updated to v$cleanUpdatedVer.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = TextSecondary
                             )

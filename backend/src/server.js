@@ -153,7 +153,7 @@ async function ensureDbExtensions() {
 
     // 2. Self-healing schema synchronization (Fix 2, Fix 3, Fix 4)
     const { ensureDbSchema, assertSchema, checkUniqueViolations } = require('./services/schemaMigration')
-    const { setSchemaHealth } = require('./routes/healthRoute')
+    const { setSchemaHealth, initSchemaHealthRevalidation } = require('./routes/healthRoute')
     const { probeColumns } = require('./services/roomResolver')
 
     const schemaResult = await ensureDbSchema(prisma)
@@ -166,11 +166,12 @@ async function ensureDbExtensions() {
         await new Promise(r => setTimeout(r, 3000))
         const recheck = await assertSchema(prisma).catch(() => ({ valid: false, missing: ['recheck_failed'] }))
         const violations = await checkUniqueViolations(prisma).catch(() => [])
+        const allViolations = [...new Set([...(recheck.warnings || []), ...violations])]
         const structuralOk = recheck.valid && (recheck.missing?.length === 0)
         setSchemaHealth(structuralOk, {
             structuralOk,
             missing: recheck.missing,
-            violations,
+            violations: allViolations,
             message: structuralOk ? 'Schema ready (verified after concurrent repair)' : 'Schema still missing elements after concurrent repair wait'
         })
     } else {
@@ -187,6 +188,7 @@ async function ensureDbExtensions() {
             console.warn('[DB] Schema structural validation passed, but data warnings present:', schemaResult.violations)
         }
     }
+    initSchemaHealthRevalidation(prisma, assertSchema)
     return schemaResult
 }
 
@@ -265,13 +267,6 @@ if (require.main === module) {
                 diagnosticService.cleanOldDiagnosticRuns().catch(() => {})
             }, 24 * 60 * 60 * 1000)
             if (retentionInterval.unref) retentionInterval.unref()
-
-            // H12 – heartbeat log: 10s → 5min (reduces noise in Render logs)
-            const heartbeatInterval = setInterval(() => {
-                if (process.env.NODE_ENV !== 'production') return
-                console.log(`[Heartbeat] ${new Date().toISOString()} – server alive on port ${PORT}`)
-            }, 5 * 60 * 1000)
-            if (heartbeatInterval.unref) heartbeatInterval.unref()
         }).catch((e) => {
             console.warn('[DB] ensureDbExtensions warning:', e.message)
         })

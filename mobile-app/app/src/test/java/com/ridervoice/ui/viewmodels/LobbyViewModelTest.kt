@@ -411,4 +411,46 @@ class LobbyViewModelTest {
         assertNull("Prior room session must be purged on room switch WP-129", sessionHolder.getBackup())
         vm.stopPolling()
     }
+
+    @Test
+    fun leaveRoom_resetsOfflineConfigCoordinatorAndClearsSession() = runTest(testDispatcher) {
+        val api = FakeApiService()
+        api.defaultStatusResponse = {
+            Response.success(
+                LobbyStatus(
+                    roomId = "room-leave-1",
+                    convoyName = "Ride Leave",
+                    offlineBackupCode = "ABCDEFGH23456789",
+                    offlineMeshEnabled = true
+                )
+            )
+        }
+        val repo = ActiveRideRepository(prefs = null, api = api)
+        val sessionHolder = com.ridervoice.mesh.session.OfflineSessionHolder(kdfIterations = 1)
+        val coordinator = com.ridervoice.mesh.offline.OfflineConfigCoordinator(
+            sessionHolder = sessionHolder,
+            deviceCapabilityChecker = object : com.ridervoice.mesh.offline.DeviceCapabilityChecker { override fun hasMeshNetworkingCapability() = true },
+            permissionChecker = object : com.ridervoice.mesh.offline.PermissionChecker { override fun hasRecordAudioPermission() = true },
+            batteryOptimizationChecker = object : com.ridervoice.mesh.offline.BatteryOptimizationChecker { override fun isIgnoringBatteryOptimizations() = true },
+            transportReadinessChecker = object : com.ridervoice.mesh.offline.TransportReadinessChecker { override fun canBindMeshTransport() = true },
+            dispatcher = testDispatcher
+        )
+        val vm = LobbyViewModel(api, repo, sessionHolder, coordinator)
+
+        vm.startPolling("room-leave-1")
+        advanceTimeBy(100)
+        assertEquals(com.ridervoice.mesh.offline.OfflineConfigStatus.READY, vm.offlineConfigState.value.status)
+        assertNotNull(sessionHolder.getBackup())
+
+        var leftCalled = false
+        vm.leaveRoom("room-leave-1") { leftCalled = true }
+        advanceTimeBy(100)
+
+        assertTrue(leftCalled)
+        assertEquals(1, api.leaveLobbyCalls)
+        assertEquals(com.ridervoice.mesh.offline.OfflineConfigStatus.NOT_STARTED, vm.offlineConfigState.value.status)
+        assertNull(sessionHolder.getBackup())
+        assertNull(repo.state.value)
+        vm.stopPolling()
+    }
 }

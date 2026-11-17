@@ -46,6 +46,9 @@ class App : Application(), Configuration.Provider {
     @Inject
     lateinit var meshAutoSwitch: dagger.Lazy<com.ridervoice.mesh.switching.MeshAutoSwitchManager>
 
+    @Inject
+    lateinit var activeRideRepository: com.ridervoice.state.ActiveRideRepository
+
     private val appScope = CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.Default)
     @Volatile private var meshAutoSwitchStarted = false
 
@@ -64,6 +67,21 @@ class App : Application(), Configuration.Provider {
         // Deliver any SOS that was queued before the process died.
         runCatching { if (sosOutbox.pending().isNotEmpty()) sosOutbox.scheduleFlush() }
         com.ridervoice.mesh.OfflineMeshGate.install(meshRuntimeSettings)
+        appScope.launch {
+            activeRideRepository.state.collect { ride ->
+                if (ride != null && ride.phase == com.ridervoice.state.ActiveRideRepository.Phase.LIVE) {
+                    val cfg = ride.meshConfig ?: com.ridervoice.mesh.RoomMeshConfig.DEFAULT
+                    val enableMesh = cfg.offlineMeshEnabled && !cfg.optOut
+                    meshRuntimeSettings.setOfflineMeshEnabled(enableMesh)
+                    meshRuntimeSettings.setAutomaticFallbackEnabled(enableMesh && cfg.automaticFallbackEnabled)
+                    meshRuntimeSettings.setWarmStandbyEnabled(enableMesh && cfg.warmStandbyEnabled)
+                } else if (ride == null || ride.phase == com.ridervoice.state.ActiveRideRepository.Phase.ENDING) {
+                    meshRuntimeSettings.setOfflineMeshEnabled(false)
+                    meshRuntimeSettings.setAutomaticFallbackEnabled(false)
+                    meshRuntimeSettings.setWarmStandbyEnabled(false)
+                }
+            }
+        }
         com.ridervoice.mesh.switching.MeshAutoSwitchLauncher(
             settingsFlow = com.ridervoice.mesh.OfflineMeshGate.settingsFlow,
             isBuildGateOpen = { com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen() },

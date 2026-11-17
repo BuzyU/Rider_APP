@@ -11,9 +11,7 @@ import com.ridervoice.mesh.switching.OfflineAvailability
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -103,7 +101,7 @@ class MeshSettingsViewModel : ViewModel {
     ) : super() {
         this.settings = settings
         this.wifiCapability = wifiCapability
-        this.appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        this.appScope = viewModelScope
         this.holderForWipe = holderForWipe
 
         val avail = availability().stateIn(viewModelScope, SharingStarted.Eagerly, OfflineAvailability.DISABLED)

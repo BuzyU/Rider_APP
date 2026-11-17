@@ -7,7 +7,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import okhttp3.MediaType.Companion.toMediaType
@@ -240,6 +242,7 @@ class LobbyViewModelTest {
         assertEquals(LobbyViewModel.Terminal.ENDED, (state as LobbyLoadState.Terminal).terminal)
         assertEquals(LobbyViewModel.Terminal.ENDED, vm.terminal.value)
         assertEquals(1, api.statusCalls)
+        vm.stopPolling()
     }
 
     @Test
@@ -256,6 +259,7 @@ class LobbyViewModelTest {
         assertTrue("State must be Terminal, was $state", state is LobbyLoadState.Terminal)
         assertEquals(LobbyViewModel.Terminal.REMOVED, (state as LobbyLoadState.Terminal).terminal)
         assertEquals(1, api.statusCalls)
+        vm.stopPolling()
     }
 
     @Test
@@ -272,6 +276,7 @@ class LobbyViewModelTest {
         assertTrue("State must be Terminal, was $state", state is LobbyLoadState.Terminal)
         assertEquals(LobbyViewModel.Terminal.NOT_FOUND, (state as LobbyLoadState.Terminal).terminal)
         assertEquals(1, api.statusCalls)
+        vm.stopPolling()
     }
 
     @Test
@@ -367,6 +372,7 @@ class LobbyViewModelTest {
         assertTrue(started)
         assertEquals(1, api.startRideCalls)
         assertEquals(true, api.lastStartRideRequest?.allowSolo)
+        vm.stopPolling()
     }
 
     @Test
@@ -439,18 +445,21 @@ class LobbyViewModelTest {
 
         vm.startPolling("room-leave-1")
         advanceTimeBy(100)
+        runCurrent()
         assertEquals(com.ridervoice.mesh.offline.OfflineConfigStatus.READY, vm.offlineConfigState.value.status)
         assertNotNull(sessionHolder.getBackup())
 
         var leftCalled = false
         vm.leaveRoom("room-leave-1") { leftCalled = true }
         advanceTimeBy(100)
+        runCurrent()
+        vm.stopPolling()
+        advanceUntilIdle()
 
         assertTrue(leftCalled)
         assertEquals(1, api.leaveLobbyCalls)
         assertEquals(com.ridervoice.mesh.offline.OfflineConfigStatus.NOT_STARTED, vm.offlineConfigState.value.status)
         assertNull(sessionHolder.getBackup())
         assertNull(repo.state.value)
-        vm.stopPolling()
     }
 }

@@ -64,9 +64,9 @@ class ToggleOffWipeOnFreshProcessTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
         FeatureFlags.localOverride = null
         OfflineMeshGate.install(MeshRuntimeSettings.AllOff)
+        Dispatchers.resetMain()
     }
 
     @Test

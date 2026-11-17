@@ -46,6 +46,7 @@ jobs:
         run: ./gradlew testDebugUnitTest --info
 
       - name: Enforce Plan Requirements and Unit Test Census
+        if: always()
         run: |
           python3 -c "
           import xml.etree.ElementTree as ET, glob, sys, re
@@ -64,6 +65,15 @@ jobs:
                   name = tc.attrib.get('name', '')
                   executed_tests.add(f'{simple_cls}#{name}')
                   executed_tests.add(f'{classname}#{name}')
+                  for child_tag in ('failure', 'error'):
+                      node = tc.find(child_tag)
+                      if node is not None:
+                          raw_msg = (node.attrib.get('message') or node.text or 'Test failed').strip()
+                          first_line = raw_msg.splitlines()[0][:240]
+                          print(f'::error title=Unit Test Failed: {simple_cls}#{name}::{first_line}')
+                          if node.text:
+                              print(f'--- {classname}#{name} ({child_tag}) ---')
+                              print(node.text.strip())
           print(f'Total Tests: {total}, Failures: {fail}, Errors: {err}, Skipped: {skip}')
           if fail > 0 or err > 0:
               sys.exit(1)

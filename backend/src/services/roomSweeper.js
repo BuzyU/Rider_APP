@@ -2,6 +2,7 @@ const { RoomServiceClient } = require('livekit-server-sdk')
 const prisma = require('../db')
 const { markRoomEnded, invalidateRoom, resolveLkRoomName } = require('./roomResolver')
 const diagnosticService = require('./diagnosticService')
+const timeLimits = require('../config/timeLimits')
 
 let cachedSweeperClient = null
 let cachedSweeperKey = null
@@ -226,9 +227,9 @@ async function retryPendingCleanups(client = null) {
 async function sweepStaleRooms(deps = {}) {
     const livekitClient = deps.roomServiceClient || getRoomServiceClient()
     const now = new Date()
-    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000)
-    const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000)
-    const fifteenMinMs = 15 * 60 * 1000
+    const lobbyIdleAgo = new Date(now.getTime() - timeLimits.LOBBY_IDLE_MS)
+    const roomCeilingAgo = new Date(now.getTime() - timeLimits.ROOM_CEILING_MS)
+    const standardEmptyTimeoutMs = timeLimits.STANDARD_EMPTY_TIMEOUT_MS
 
     const swept = []
 
@@ -238,7 +239,7 @@ async function sweepStaleRooms(deps = {}) {
         if (typeof prisma.room?.findMany === 'function') {
             const staleLobbies = await safeFindRooms({
                 status: 'LOBBY',
-                createdAt: { lte: sixHoursAgo },
+                createdAt: { lte: lobbyIdleAgo },
                 invites: {
                     none: { status: 'ACCEPTED' }
                 }
@@ -255,11 +256,11 @@ async function sweepStaleRooms(deps = {}) {
                 }
             }
 
-            // 1b. R15: LOBBY older than 24h regardless of accepted riders -> ENDED
-            const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+            // 1b. R15: LOBBY older than max hours regardless of accepted riders -> ENDED
+            const ancientLobbiesAgo = new Date(now.getTime() - timeLimits.LOBBY_MAX_MS)
             const ancientLobbies = await safeFindRooms({
                 status: 'LOBBY',
-                createdAt: { lte: twentyFourHoursAgo }
+                createdAt: { lte: ancientLobbiesAgo }
             })
 
             for (const lobby of ancientLobbies) {
@@ -274,12 +275,12 @@ async function sweepStaleRooms(deps = {}) {
                 }
             }
 
-            // 2. ACTIVE older than 12h -> ENDED (reason ABANDONED) unless riders are connected (F-18)
+            // 2. ACTIVE older than ceiling (12h default) -> ENDED (reason ABANDONED) unless riders are connected (F-18)
             const ancientActive = await safeFindRooms({
                 status: 'ACTIVE',
                 OR: [
-                    { startedAt: { lte: twelveHoursAgo } },
-                    { startedAt: null, createdAt: { lte: twelveHoursAgo } }
+                    { startedAt: { lte: roomCeilingAgo } },
+                    { startedAt: null, createdAt: { lte: roomCeilingAgo } }
                 ]
             })
 
@@ -299,7 +300,7 @@ async function sweepStaleRooms(deps = {}) {
 
                 // F-18: If riders are currently connected in LiveKit, skip ending this active room
                 if (connectedCount !== null && connectedCount > 0) {
-                    console.log(`[roomSweeper] Active room ${room.id} (${room.name}) is older than 12h but has ${connectedCount} connected participants; skipping sweep.`)
+                    console.log(`[roomSweeper] Active room ${room.id} (${room.name}) is older than ceiling but has ${connectedCount} connected participants; skipping sweep.`)
                     continue
                 }
 
@@ -313,10 +314,12 @@ async function sweepStaleRooms(deps = {}) {
                 }
             }
 
-            // 3. ACTIVE with listParticipants empty or lastEmptyAt older than 15 min (or 30 min if offlineBackupCode) (R1 + R15 + WP-117)
+            // 3. ACTIVE with listParticipants empty or lastEmptyAt older than threshold (FX-09):
+            // Rooms with an active offline mesh session/backup code have an 8h offline continuity lease.
+            // Standard online-only rooms without offline capability timeout after 15 min.
             const activeRooms = await safeFindRooms(
                 { status: 'ACTIVE' },
-                { lastEmptyAt: true, offlineBackupCode: true }
+                { lastEmptyAt: true, offlineBackupCode: true, offlineMeshEnabled: true }
             )
 
             for (const room of activeRooms) {
@@ -349,7 +352,9 @@ async function sweepStaleRooms(deps = {}) {
                             })
                         }
 
-                        const emptyTimeoutThreshold = room.offlineBackupCode ? 30 * 60 * 1000 : fifteenMinMs
+                        // Has offline continuity lease?
+                        const hasOfflineLease = Boolean(room.offlineBackupCode) || room.offlineMeshEnabled !== false
+                        const emptyTimeoutThreshold = hasOfflineLease ? timeLimits.OFFLINE_BUDGET_MS : standardEmptyTimeoutMs
                         if (Date.now() - emptySince >= emptyTimeoutThreshold) {
                             const updated = await prisma.room.updateMany({
                                 where: { id: room.id, status: 'ACTIVE' },

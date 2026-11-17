@@ -180,3 +180,4 @@ class AuthViewModelSignOutTest {
         verify(exactly = 1) { mockAuthRepo.signOut() }
     }
 }
+

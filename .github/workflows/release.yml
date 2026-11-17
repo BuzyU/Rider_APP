@@ -207,7 +207,10 @@ jobs:
             CHANGELOG_NOTES=$(awk -v ver="${{ env.VERSION_NAME }}" '
               $0 ~ "^## .*" ver { p=1; next }
               $0 ~ "^## " && p { p=0 }
-              p { print }
+              p {
+                if ($0 ~ "^\\|" || $0 ~ "^---") next
+                print
+              }
             ' RELEASE_NOTES.md | head -c 15000)
             if [ -z "$CHANGELOG_NOTES" ]; then
               CHANGELOG_NOTES=$(head -c 15000 RELEASE_NOTES.md)
@@ -234,13 +237,13 @@ jobs:
           echo "| **Package Asset** | \`Rider_APP-${{ env.TAG_NAME }}.apk\` |" >> release_body.md
           echo "" >> release_body.md
 
-          if [ -n "$TAG_ANNOTATION" ]; then
-            echo "### 📋 Release Highlights" >> release_body.md
-            echo "$TAG_ANNOTATION" >> release_body.md
-            echo "" >> release_body.md
-          elif [ -n "$CHANGELOG_NOTES" ]; then
+          if [ -n "$CHANGELOG_NOTES" ]; then
             echo "### 📋 Release Highlights" >> release_body.md
             echo "$CHANGELOG_NOTES" >> release_body.md
+            echo "" >> release_body.md
+          elif [ -n "$TAG_ANNOTATION" ]; then
+            echo "### 📋 Release Highlights" >> release_body.md
+            echo "$TAG_ANNOTATION" >> release_body.md
             echo "" >> release_body.md
           fi
 

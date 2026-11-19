@@ -152,5 +152,101 @@ class VoxDetectorTest {
             assertEquals("Expected close at 100 ms hold expiry at ${rate}Hz", VoxDetector.Decision.CLOSE, closeDecision)
         }
     }
+
+    @Test
+    fun tenMillisecond48kHzCallbacksMatchTwentyMillisecond16kHzNoiseFloorWindow() {
+        val cfg = VoxConfig(floorWindowMs = 5000, analysisMs = 20, initialFloor = 400f)
+        val tracker16k20ms = NoiseFloorTracker(cfg)
+        val tracker48k10ms = NoiseFloorTracker(cfg)
+
+        // Feed 2.5 seconds of 400 RMS ambient noise, followed by 2.5 seconds of 1200 RMS
+        repeat(125) { tracker16k20ms.update(400f, frameDurationMs = 20) }
+        repeat(125) { tracker16k20ms.update(1200f, frameDurationMs = 20) }
+
+        repeat(250) { tracker48k10ms.update(400f, frameDurationMs = 10) }
+        repeat(250) { tracker48k10ms.update(1200f, frameDurationMs = 10) }
+
+        // Both must span the same 5000 ms window (not 2500 ms for 10ms) and arrive at the same floor (~400f)
+        assertEquals(tracker16k20ms.floor, tracker48k10ms.floor, 25f)
+        assertTrue("10ms floor must remain anchored near 400f over 5s window, was ${tracker48k10ms.floor}", tracker48k10ms.floor < 550f)
+    }
+
+    @Test
+    fun continuousModulatedSpeechOver15SecondsDoesNotSelfPoisonFloorOrCutOffAt8Seconds() {
+        com.ridervoice.utils.RvLog.resetAudioCounters()
+        val detector = VoxDetector(initialSampleRate = 16000)
+        var now = 1_000L
+
+        // Warm up baseline floor at ~350 RMS for 4 seconds
+        repeat(200) {
+            val d = detector.onFrame(noiseFrame(350f), 16000, now, isOpen = false)
+            assertEquals(VoxDetector.Decision.NONE, d)
+            now += 20L
+        }
+        val baselineFloor = detector.floor
+
+        // Open gate on speech onset
+        var open = false
+        repeat(5) {
+            val d = detector.onFrame(noiseFrame(3000f), 16000, now, isOpen = open)
+            if (d == VoxDetector.Decision.OPEN) open = true
+            now += 20L
+        }
+        assertTrue("Gate must open cleanly on speech onset", open)
+
+        // Simulate 15 seconds (750 frames) of continuous uninterrupted speech varying dynamically between
+        // soft phonemes (~1400f > closeThreshold ~630f) and louder vowels (~3600f) WITHOUT dropping below closeThreshold.
+        // Previously, NoiseFloorTracker self-poisoned floor upward AND maxOpenWithoutSpeechMs=8000 force-closed at 8.0s!
+        for (idx in 0 until 750) {
+            val syllableLevel = if ((idx / 8) % 2 == 0) 3600f else 1400f
+            val decision = detector.onFrame(noiseFrame(syllableLevel), 16000, now, isOpen = true)
+            assertFalse(
+                "Continuous speech must NEVER cut off mid-sentence (cut off at elapsed=${idx * 20}ms, floor=${detector.floor})",
+                decision == VoxDetector.Decision.CLOSE
+            )
+            now += 20L
+        }
+        assertTrue("Noise floor must not self-poison above 2x baseline during open speech (baseline=$baselineFloor, now=${detector.floor})", detector.floor <= baselineFloor * 1.5f)
+    }
+
+    @Test
+    fun longestSilenceDuringTalkspurtIsTrackedAndRecordedToRvLog() {
+        com.ridervoice.utils.RvLog.resetAudioCounters()
+        val detector = VoxDetector(cfg = VoxConfig(attackMs = 20, holdMs = 900), initialSampleRate = 16000)
+        detector.setFloor(300f)
+        var now = 1_000L
+
+        // Open on speech
+        val openDecision = detector.evaluate(rms = 2500f, now = now, isOpen = false, frameDurationMs = 20L)
+        assertEquals(VoxDetector.Decision.OPEN, openDecision)
+        assertEquals(1L, com.ridervoice.utils.RvLog.gateOpenCount.get())
+
+        // Pause for 400ms (< 900ms hold), then resume speech for 200ms
+        repeat(20) {
+            now += 20L
+            assertEquals(VoxDetector.Decision.NONE, detector.evaluate(100f, now, isOpen = true, frameDurationMs = 20L))
+        }
+        repeat(10) {
+            now += 20L
+            assertEquals(VoxDetector.Decision.NONE, detector.evaluate(2500f, now, isOpen = true, frameDurationMs = 20L))
+        }
+        assertTrue("Expected intermediate silence >= 380ms tracked", detector.getCurrentLongestSilenceMs() >= 380L)
+
+        // Now stop speaking for 920ms until hold expires
+        var closed = false
+        for (step in 1..60) {
+            now += 20L
+            if (detector.evaluate(100f, now, isOpen = true, frameDurationMs = 20L) == VoxDetector.Decision.CLOSE) {
+                closed = true
+                break
+            }
+        }
+        assertTrue(closed)
+        assertEquals(1L, com.ridervoice.utils.RvLog.gateCloseCount.get())
+        assertTrue(
+            "RvLog.lastLongestSilenceInTalkspurtMs must capture hold/silence duration (>= 900ms), was ${com.ridervoice.utils.RvLog.lastLongestSilenceInTalkspurtMs.get()}",
+            com.ridervoice.utils.RvLog.lastLongestSilenceInTalkspurtMs.get() >= 900L
+        )
+    }
 }
 

@@ -26,21 +26,29 @@ data class RideSummary(
 )
 
 @Singleton
-class RideRecorder @Inject constructor(
+class RideRecorder internal constructor(
     private val rideDao: RideDao,
-    private val locationService: LocationService
+    private val locationService: LocationService,
+    ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
 ) {
+    @Inject
+    constructor(
+        rideDao: RideDao,
+        locationService: LocationService
+    ) : this(rideDao, locationService, Dispatchers.IO)
+
     companion object {
         private const val TAG = "RideRecorder"
         private const val MIN_DISTANCE_METERS = 20.0
         private const val HIGH_SPEED_MPS = 36.1f
     }
 
-    private val recorderScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val recorderScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
     private var recordingJob: Job? = null
 
     private var currentSessionId: String? = null
+    private var currentRoomName: String? = null
 
     private var lastLat = 0.0
     private var lastLng = 0.0
@@ -55,13 +63,17 @@ class RideRecorder @Inject constructor(
     val lastSummary: StateFlow<RideSummary?> = _lastSummary
 
     fun startRecording(roomName: String) {
-        if (recordingJob != null) {
-            Log.w(TAG, "Already recording — ignoring startRecording()")
+        if (recordingJob != null && currentRoomName == roomName) {
+            Log.d(TAG, "Continuing existing ride session $currentSessionId across transport transition for room=$roomName")
             return
+        }
+        if (recordingJob != null && currentRoomName != roomName) {
+            stopRecording()
         }
 
         val sessionId = UUID.randomUUID().toString()
         currentSessionId = sessionId
+        currentRoomName = roomName
         lastLat = 0.0
         lastLng = 0.0
         totalDistanceMeters = 0f

@@ -167,11 +167,10 @@ fun SettingsScreen(
 
                 item {
                     SettingsSectionHeader(stringResource(R.string.mesh_settings_section_header))
-                    SettingsItemAction(
+                    SettingsItemInfo(
                         label = stringResource(R.string.mesh_settings_title),
                         subtitle = "Configured per ride in the waiting room",
-                        icon = Icons.Default.WifiTethering,
-                        onClick = {}
+                        icon = Icons.Default.WifiTethering
                     )
                 }
 
@@ -569,6 +568,52 @@ fun SettingsItemAction(
                 }
             }
             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+@Composable
+fun SettingsItemInfo(
+    label: String,
+    subtitle: String,
+    icon: ImageVector = Icons.Default.Info
+) {
+    Surface(
+        color = DarkSlate,
+        shape = RoundedCornerShape(10.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Gunmetal),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(18.dp))
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = subtitle,
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 11.sp
+                )
+            }
         }
     }
 }

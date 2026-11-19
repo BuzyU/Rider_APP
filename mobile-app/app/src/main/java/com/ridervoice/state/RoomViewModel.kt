@@ -101,35 +101,94 @@ class RoomViewModel @Inject constructor(
     val convoyEnded: StateFlow<Boolean> = liveKitManager.convoyEnded
     val inRideSosAlert: StateFlow<com.ridervoice.network.InRideSosAlert?> = liveKitManager.inRideSosAlert
 
+    internal var clock: () -> Long = { System.currentTimeMillis() }
+    private val ghostExpiryJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
+
+    companion object {
+        const val GHOST_TTL_MS = 2 * 60 * 1000L
+    }
+
+    private fun scheduleGhostExpiry(identity: String, disconnectedAtMs: Long) {
+        if (ghostExpiryJobs[identity]?.isActive == true) return
+        val remainingMs = (GHOST_TTL_MS - (clock() - disconnectedAtMs)).coerceAtLeast(0L)
+        ghostExpiryJobs[identity] = viewModelScope.launch {
+            kotlinx.coroutines.delay(remainingMs)
+            ghostExpiryJobs.remove(identity)
+            _participants.value = _participants.value.filterNot { it.identity == identity && it.isGhost }
+        }
+    }
+
+    private fun cancelAllGhostExpiryJobs() {
+        ghostExpiryJobs.values.forEach { it.cancel() }
+        ghostExpiryJobs.clear()
+    }
+
     fun dismissInRideSosAlert() {
         liveKitManager.dismissInRideSos()
     }
 
-
-
     init {
         liveKitManager.participants
             .onEach { incoming ->
-                val now = System.currentTimeMillis()
+                val now = clock()
                 val current = _participants.value.toMutableList()
-                val incomingIds = incoming.map { it.identity }.toSet()
+                val incomingById = incoming.associateBy { it.identity }
+                val connState = liveKitManager.connectionState.value
 
-                current.removeAll { !incomingIds.contains(it.identity) }
-
-                incoming.forEach { incomingParticipant ->
-                    val idx = current.indexOfFirst { it.identity == incomingParticipant.identity }
-                    if (idx >= 0) {
-                        current[idx] = current[idx].copy(
-                            isGhost = false,
-                            disconnectedAt = null,
-                            displayName = incomingParticipant.displayName ?: current[idx].displayName
-                        )
-                    } else {
-                        current.add(incomingParticipant.copy(isGhost = false))
+                // Update or transition previously tracked participants missing from incoming
+                val iterator = current.listIterator()
+                while (iterator.hasNext()) {
+                    val existing = iterator.next()
+                    if (!incomingById.containsKey(existing.identity)) {
+                        if (connState == ConnectionState.DISCONNECTED) {
+                            ghostExpiryJobs.remove(existing.identity)?.cancel()
+                            iterator.remove()
+                        } else if (!existing.isGhost) {
+                            val ghost = existing.copy(isGhost = true, disconnectedAt = now)
+                            iterator.set(ghost)
+                            scheduleGhostExpiry(ghost.identity, now)
+                        } else {
+                            val disconnectedAt = existing.disconnectedAt ?: now
+                            if ((now - disconnectedAt) >= GHOST_TTL_MS) {
+                                ghostExpiryJobs.remove(existing.identity)?.cancel()
+                                iterator.remove()
+                            } else {
+                                scheduleGhostExpiry(existing.identity, disconnectedAt)
+                            }
+                        }
                     }
                 }
-                current.removeAll { p ->
-                    p.isGhost && p.disconnectedAt != null && (now - p.disconnectedAt) >= (2 * 60 * 1000L)
+
+                // Process incoming participants
+                incoming.forEach { incomingParticipant ->
+                    val idx = current.indexOfFirst { it.identity == incomingParticipant.identity }
+                    if (incomingParticipant.isGhost) {
+                        val existing = if (idx >= 0) current[idx] else null
+                        val disconnectedAt = incomingParticipant.disconnectedAt ?: existing?.disconnectedAt ?: now
+                        val ghost = incomingParticipant.copy(
+                            isGhost = true,
+                            disconnectedAt = disconnectedAt,
+                            displayName = incomingParticipant.displayName ?: existing?.displayName
+                        )
+                        if ((now - disconnectedAt) >= GHOST_TTL_MS) {
+                            ghostExpiryJobs.remove(ghost.identity)?.cancel()
+                            if (idx >= 0) current.removeAt(idx)
+                        } else {
+                            if (idx >= 0) current[idx] = ghost else current.add(ghost)
+                            scheduleGhostExpiry(ghost.identity, disconnectedAt)
+                        }
+                    } else {
+                        ghostExpiryJobs.remove(incomingParticipant.identity)?.cancel()
+                        if (idx >= 0) {
+                            current[idx] = current[idx].copy(
+                                isGhost = false,
+                                disconnectedAt = null,
+                                displayName = incomingParticipant.displayName ?: current[idx].displayName
+                            )
+                        } else {
+                            current.add(incomingParticipant.copy(isGhost = false, disconnectedAt = null))
+                        }
+                    }
                 }
                 _participants.value = current
             }
@@ -429,10 +488,13 @@ class RoomViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        cancelAllGhostExpiryJobs()
         hardwarePTTManager.deactivateSession()
     }
 
     private fun cleanup() {
+        cancelAllGhostExpiryJobs()
+        _participants.value = emptyList()
         hardwarePTTManager.deactivateSession()
     }
 }

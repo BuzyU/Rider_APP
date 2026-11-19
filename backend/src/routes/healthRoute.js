@@ -10,11 +10,13 @@ let schemaStatus = { valid: true, structuralOk: true }
 
 let _prismaRef = null
 let _assertSchemaFn = null
+let _ensureDbSchemaFn = null
 let revalidationTimer = null
 let revalidationAttempts = 0
 const REVALIDATION_BASE_MS = 15000
 const REVALIDATION_MAX_MS = 300000
-const REVALIDATION_MAX_ATTEMPTS = 10
+let _revalidationBaseMs = REVALIDATION_BASE_MS
+let _revalidationMaxMs = REVALIDATION_MAX_MS
 
 function resetRevalidation() {
     if (revalidationTimer) {
@@ -27,18 +29,20 @@ function resetRevalidation() {
 function scheduleRevalidation(customDelayMs) {
     if (!_prismaRef || !_assertSchemaFn) return false
     if (revalidationTimer) return true
-    if (revalidationAttempts >= REVALIDATION_MAX_ATTEMPTS) {
-        console.error('[SchemaHealth] Max revalidation attempts reached; schema remains degraded until manual repair or restart.')
-        return false
-    }
+    const exp = Math.min(revalidationAttempts, 10)
     const delayMs = typeof customDelayMs === 'number'
         ? customDelayMs
-        : Math.min(REVALIDATION_MAX_MS, REVALIDATION_BASE_MS * Math.pow(2, revalidationAttempts))
+        : Math.min(_revalidationMaxMs, _revalidationBaseMs * Math.pow(2, exp))
     console.warn(`[SchemaHealth] Scheduling schema re-validation in ${delayMs}ms (attempt ${revalidationAttempts + 1})`)
     revalidationTimer = setTimeout(async () => {
         revalidationTimer = null
         revalidationAttempts++
         try {
+            if (process.env.AUTO_SCHEMA_REPAIR !== 'false' && typeof _ensureDbSchemaFn === 'function') {
+                await _ensureDbSchemaFn(_prismaRef).catch(repairErr => {
+                    console.warn('[SchemaHealth] Additive schema repair attempt failed:', repairErr.message)
+                })
+            }
             const result = await _assertSchemaFn(_prismaRef)
             const missing = Array.isArray(result?.missing) ? result.missing : []
             const warnings = Array.isArray(result?.warnings) ? result.warnings : dataWarnings
@@ -53,7 +57,7 @@ function scheduleRevalidation(customDelayMs) {
                 })
             } else {
                 const missingStr = missing.length > 0 ? missing.join(', ') : 'unknown'
-                console.warn(`[SchemaHealth] Re-validation FAILED — still missing: ${missingStr}`)
+                console.warn(`[SchemaHealth] Re-validation FAILED (attempt ${revalidationAttempts}) — still missing: ${missingStr}`)
                 setSchemaHealth(false, {
                     structuralOk: false,
                     missing,
@@ -73,9 +77,16 @@ function scheduleRevalidation(customDelayMs) {
     return true
 }
 
-function initSchemaHealthRevalidation(prisma, assertSchemaFn) {
+function initSchemaHealthRevalidation(prisma, assertSchemaFn, ensureDbSchemaFn = null, options = {}) {
     _prismaRef = prisma
     _assertSchemaFn = assertSchemaFn
+    _ensureDbSchemaFn = ensureDbSchemaFn || (
+        typeof prisma?.$queryRawUnsafe === 'function'
+            ? require('../services/schemaMigration').ensureDbSchema
+            : null
+    )
+    _revalidationBaseMs = typeof options?.baseMs === 'number' ? options.baseMs : REVALIDATION_BASE_MS
+    _revalidationMaxMs = typeof options?.maxMs === 'number' ? options.maxMs : REVALIDATION_MAX_MS
     if (!schemaStructuralOk) {
         scheduleRevalidation()
     }

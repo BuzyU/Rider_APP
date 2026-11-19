@@ -168,10 +168,12 @@ class OfflineAudioPlayback(
                     val written = sink.write(toWrite, 0, toWrite.size)
                     if (written < 0) {
                         concealedMidTalkspurt++
+                        com.ridervoice.utils.RvLog.recordPlayoutCounters(0L, 1L, 0L)
                         onUnderrun(concealedMidTalkspurt)
                     } else if (!isDeaf && mixed != null && speakers.isEmpty() && hadMidTalkspurt) {
                         // A primed talker stream had to synthesize a concealed PLC frame mid-talkspurt
                         concealedMidTalkspurt++
+                        com.ridervoice.utils.RvLog.recordPlayoutCounters(0L, 1L, 0L)
                         onUnderrun(concealedMidTalkspurt)
                     }
 
@@ -179,7 +181,12 @@ class OfflineAudioPlayback(
                     val nowNs = nanoClock()
                     if (nowNs - lastTrackUnderrunCheckNs >= 1_000_000_000L) {
                         lastTrackUnderrunCheckNs = nowNs
-                        trackUnderrunCount = sink.underrunCount.toLong()
+                        val newTrackUnderruns = sink.underrunCount.toLong()
+                        val delta = (newTrackUnderruns - trackUnderrunCount).coerceAtLeast(0L)
+                        trackUnderrunCount = newTrackUnderruns
+                        if (delta > 0L) {
+                            com.ridervoice.utils.RvLog.recordPlayoutCounters(0L, 0L, delta)
+                        }
                     }
                     val remainingNs = nextTickNs - nowNs
                     if (remainingNs >= 1_000_000L) {

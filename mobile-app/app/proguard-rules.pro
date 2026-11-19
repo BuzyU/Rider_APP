@@ -88,3 +88,9 @@
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
 
+# Release BuildConfig verification fields (WP-153)
+-keep class com.ridervoice.BuildConfig {
+    public static final boolean OFFLINE_MESH_BUILD_ENABLED;
+    public static final boolean PER_ROOM_OFFLINE_CONFIG_ENABLED;
+}
+

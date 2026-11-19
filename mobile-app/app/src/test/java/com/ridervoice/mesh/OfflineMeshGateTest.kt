@@ -32,8 +32,8 @@ class OfflineMeshGateTest {
     }
 
     @Test
-    fun releaseBuildConfigurationGuardsOfflineMeshDisabled() {
-        // Assert that the release build configuration explicitly enforces OFFLINE_MESH_BUILD_ENABLED = false.
+    fun releaseBuildConfigurationEnablesOfflineMeshAndPerRoomConfigByDefault() {
+        // WP-153: Assert that release builds ship with OFFLINE_MESH_BUILD_ENABLED and PER_ROOM_OFFLINE_CONFIG_ENABLED = true by default.
         val buildGradle = listOf(
             java.io.File("build.gradle"),
             java.io.File("app/build.gradle"),
@@ -43,26 +43,50 @@ class OfflineMeshGateTest {
         assertTrue("build.gradle must be accessible to verify release build configuration", buildGradle != null)
         val content = buildGradle!!.readText()
 
+        val defaultConfigIdx = content.indexOf("defaultConfig {")
+        assertTrue("defaultConfig block must exist in build.gradle", defaultConfigIdx != -1)
         val buildTypesIdx = content.indexOf("buildTypes {")
         assertTrue("buildTypes block must exist in build.gradle", buildTypesIdx != -1)
+        val defaultConfigBlock = content.substring(defaultConfigIdx, buildTypesIdx)
+        assertTrue(
+            "defaultConfig must set OFFLINE_MESH_BUILD_ENABLED to true by default",
+            defaultConfigBlock.contains("""buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "true"""")
+        )
+        assertTrue(
+            "defaultConfig must default PER_ROOM_OFFLINE_CONFIG_ENABLED to true",
+            defaultConfigBlock.contains("PER_ROOM_OFFLINE_CONFIG_ENABLED") &&
+                defaultConfigBlock.contains("!project.hasProperty('perRoomOfflineConfigEnabled')")
+        )
+
         val releaseIdx = content.indexOf("release {", buildTypesIdx)
         assertTrue("release block must exist in buildTypes", releaseIdx != -1)
         val releaseBlock = content.substring(releaseIdx, content.indexOf("signingConfig", releaseIdx))
         assertTrue(
-            "release build type must explicitly configure OFFLINE_MESH_BUILD_ENABLED = false",
-            releaseBlock.contains("""buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "false"""")
+            "release build type must default OFFLINE_MESH_BUILD_ENABLED to true unless -PenableOfflineMeshInRelease=false",
+            releaseBlock.contains("!project.hasProperty('enableOfflineMeshInRelease')") &&
+                releaseBlock.contains("""buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", enableMeshInRelease ? "true" : "false"""")
+        )
+        assertTrue(
+            "release build type must default PER_ROOM_OFFLINE_CONFIG_ENABLED to true unless -PperRoomOfflineConfigEnabled=false",
+            releaseBlock.contains("!project.hasProperty('perRoomOfflineConfigEnabled')") &&
+                releaseBlock.contains("""buildConfigField "boolean", "PER_ROOM_OFFLINE_CONFIG_ENABLED", enablePerRoomInRelease ? "true" : "false"""")
         )
 
-        // Also assert that the generated release BuildConfig (if compiled) has OFFLINE_MESH_BUILD_ENABLED = false
+        // Also assert that if generated release BuildConfig.java is present, both flags are true
         val generatedReleaseConfig = listOf(
             java.io.File("build/generated/source/buildConfig/release/com/ridervoice/BuildConfig.java"),
             java.io.File("app/build/generated/source/buildConfig/release/com/ridervoice/BuildConfig.java"),
             java.io.File("mobile-app/app/build/generated/source/buildConfig/release/com/ridervoice/BuildConfig.java")
         ).firstOrNull { it.exists() }
         generatedReleaseConfig?.let { file ->
+            val generatedText = file.readText()
             assertTrue(
-                "Generated release BuildConfig.java must have OFFLINE_MESH_BUILD_ENABLED = false",
-                file.readText().contains("public static final boolean OFFLINE_MESH_BUILD_ENABLED = false;")
+                "Generated release BuildConfig.java must have OFFLINE_MESH_BUILD_ENABLED = true",
+                generatedText.contains("public static final boolean OFFLINE_MESH_BUILD_ENABLED = true;")
+            )
+            assertTrue(
+                "Generated release BuildConfig.java must have PER_ROOM_OFFLINE_CONFIG_ENABLED = true",
+                generatedText.contains("public static final boolean PER_ROOM_OFFLINE_CONFIG_ENABLED = true;")
             )
         }
     }

@@ -1043,6 +1043,17 @@ router.post('/:roomRef/end', async (req, res, next) => {
         await new Promise(r => setTimeout(r, 400))
         await deleteLiveKitRoom(lkRoomName(room), room.id)
 
+        if (typeof prisma.rideInvite?.findMany === 'function') {
+            const members = await prisma.rideInvite.findMany({
+                where: { roomId: room.id, status: 'ACCEPTED' },
+                select: { inviteeId: true }
+            }).catch(() => [])
+            const recipientIds = (members || []).map(m => m.inviteeId).filter(uid => uid && uid !== hostId)
+            if (recipientIds.length > 0 && typeof notificationService.sendConvoyEnded === 'function') {
+                notificationService.sendConvoyEnded(recipientIds, room.name, room.id).catch(() => {})
+            }
+        }
+
         // B6 - Diagnostics: close active run; persist closeAt on DB row
         try {
             const activeRun = typeof prisma.diagnosticRun?.findFirst === 'function' ? await prisma.diagnosticRun.findFirst({

@@ -15,3 +15,13 @@ mobile-app/app/src/main/java/com/ridervoice/audio/AudioDeviceRouter.kt
 mobile-app/app/src/main/java/com/ridervoice/permissions/PermissionManager.kt
 backend/src/services/emailService.js
 web-app/src/app/api/tester-application/route.ts
+mobile-app/app/src/main/java/com/ridervoice/network/LiveKitManager.kt
+mobile-app/app/src/main/java/com/ridervoice/audio/VoxDetector.kt
+mobile-app/app/src/main/java/com/ridervoice/audio/VoxEngine.kt
+mobile-app/app/src/main/java/com/ridervoice/ui/screens/room/TalkControls.kt
+backend/src/middleware/rateLimiter.js
+backend/src/routes/inviteRoutes.js
+backend/src/routes/testerRoutes.js
+backend/src/routes/userRoutes.js
+backend/src/services/notificationService.js
+backend/test/cross_feature_e2e.test.js

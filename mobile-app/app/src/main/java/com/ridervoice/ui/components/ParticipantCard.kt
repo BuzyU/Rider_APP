@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.models.Participant
@@ -157,7 +158,10 @@ fun ParticipantCard(
                             text = name,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
 
                         if (isCurrentUser) {
@@ -172,6 +176,7 @@ fun ParticipantCard(
                                     color = TechGreen,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Black,
+                                    maxLines = 1,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                 )
                             }
@@ -189,6 +194,7 @@ fun ParticipantCard(
                                     color = NeonOrange,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Black,
+                                    maxLines = 1,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                 )
                             }
@@ -197,13 +203,18 @@ fun ParticipantCard(
 
                     Spacer(modifier = Modifier.height(2.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.heightIn(min = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         if (isSpeaking) {
                             Text(
                                 text = "TRANSMITTING LIVE",
                                 color = ElectricCyan,
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         } else if (participant.isGhost) {
                             val elapsedSec = participant.disconnectedAt?.let {
@@ -213,14 +224,18 @@ fun ParticipantCard(
                                 text = if (elapsedSec != null) "RECONNECTING (${elapsedSec}s)" else "RECONNECTING...",
                                 color = NeonOrange,
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         } else {
                             Text(
                                 text = "CONNECTED ON SQUAD NET",
                                 color = SuccessGreen,
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

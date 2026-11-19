@@ -371,10 +371,15 @@ fun NavGraph(
             arguments = listOf(navArgument("rideId") { type = NavType.StringType; defaultValue = "latest" })
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getString("rideId") ?: "latest"
+            val statsVm: com.ridervoice.ui.viewmodels.RideStatsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val replay by statsVm.replayData.collectAsState()
+            LaunchedEffect(rideId) {
+                statsVm.loadReplay(rideId)
+            }
             RideReplayScreen(
-                rideId = rideId,
-                waypoints = emptyList(),
-                events = emptyList(),
+                rideId = replay?.sessionId ?: rideId,
+                waypoints = replay?.waypoints ?: emptyList(),
+                events = replay?.events ?: emptyList(),
                 onBack = { navController.popBackStack() }
             )
         }

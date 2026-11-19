@@ -315,7 +315,8 @@ data class SyncRideRequest(
     val distanceKm: Float = 0f,
     val privacyState: String = "PRIVATE",
     val routeJson: String? = null,
-    val events: List<SyncRideEvent>? = null
+    val events: List<SyncRideEvent>? = null,
+    val clientRideId: String? = null
 )
 
 data class SyncRideEvent(

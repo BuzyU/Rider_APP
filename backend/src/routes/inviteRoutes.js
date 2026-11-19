@@ -110,7 +110,9 @@ router.post('/invite', async (req, res, next) => {
             notificationService.sendRideInvite(
                 inviterData?.handle || inviterData?.displayName || 'A rider',
                 inviteeId,
-                room.name
+                room.name,
+                null,
+                invite.id
             ).catch(err => console.error('[Notification] sendRideInvite error:', err.message))
 
             emailService.sendRideInviteEmailSafe({

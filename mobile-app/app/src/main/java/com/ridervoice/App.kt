@@ -67,21 +67,23 @@ class App : Application(), Configuration.Provider {
         // Deliver any SOS that was queued before the process died.
         runCatching { if (sosOutbox.pending().isNotEmpty()) sosOutbox.scheduleFlush() }
         com.ridervoice.mesh.OfflineMeshGate.install(meshRuntimeSettings)
-        appScope.launch {
-            activeRideRepository.state.collect { ride ->
-                if (ride != null && ride.phase == com.ridervoice.state.ActiveRideRepository.Phase.LIVE) {
-                    val cfg = ride.meshConfig ?: com.ridervoice.mesh.RoomMeshConfig.DEFAULT
-                    val enableMesh = cfg.offlineMeshEnabled && !cfg.optOut
-                    meshRuntimeSettings.setOfflineMeshEnabled(enableMesh)
-                    meshRuntimeSettings.setAutomaticFallbackEnabled(enableMesh && cfg.automaticFallbackEnabled)
-                    meshRuntimeSettings.setWarmStandbyEnabled(enableMesh && cfg.warmStandbyEnabled)
-                } else if (ride == null || ride.phase == com.ridervoice.state.ActiveRideRepository.Phase.ENDING) {
-                    meshRuntimeSettings.setOfflineMeshEnabled(false)
-                    meshRuntimeSettings.setAutomaticFallbackEnabled(false)
-                    meshRuntimeSettings.setWarmStandbyEnabled(false)
-                }
+        fun com.ridervoice.state.ActiveRideRepository.ActiveRide?.toMirrorSnapshot(): com.ridervoice.mesh.RoomMeshMirrorSnapshot? =
+            this?.let { ride ->
+                val cfg = ride.meshConfig ?: com.ridervoice.mesh.RoomMeshConfig.DEFAULT
+                com.ridervoice.mesh.RoomMeshMirrorSnapshot(
+                    isLive = ride.phase == com.ridervoice.state.ActiveRideRepository.Phase.LIVE,
+                    offlineMeshEnabled = cfg.offlineMeshEnabled,
+                    optOut = cfg.optOut,
+                    automaticFallbackEnabled = cfg.automaticFallbackEnabled,
+                    warmStandbyEnabled = cfg.warmStandbyEnabled
+                )
             }
-        }
+        com.ridervoice.mesh.RoomMeshFlagMirror.observe(
+            snapshots = activeRideRepository.state.map { it.toMirrorSnapshot() },
+            initialSnapshot = activeRideRepository.state.value.toMirrorSnapshot(),
+            settings = meshRuntimeSettings,
+            scope = appScope
+        )
         com.ridervoice.mesh.switching.MeshAutoSwitchLauncher(
             settingsFlow = com.ridervoice.mesh.OfflineMeshGate.settingsFlow,
             isBuildGateOpen = { com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen() },

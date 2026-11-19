@@ -1,6 +1,33 @@
+## RiderVoice v0.0.3.20 Release Notes
+
+RiderVoice **v0.0.3.20** turns offline mesh backup ON by default in release builds, fixes proven VOX and audio-route cut-off defects, guarantees independent ghost participant expiry, restores continuous backend schema self-repair, eliminates room UI layout shift, and completes cross-feature flow hardening across invites, FCM logout cleanup, ride stats sync, and Room migrations.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.20` |
+| **Version Code** | `3020` |
+| **Release Tag** | `v0.0.3.20` |
+| **Download APK** | `Rider_APP-v0.0.3.20.apk` |
+
+- Enabled offline mesh and per-room offline configuration by default in release APKs (WP-153), verified via Gradle `verifyReleaseOfflineMeshFlags` and `dexdump -d` in CI
+- Fixed VOX noise-floor self-poisoning and continuous-speech max-open cut-offs via envelope crest modulation tracking, frame-duration-aware noise binning, and deferred LiveKit route republishes during active speech (WP-154)
+- Added structured audio telemetry counters in `RvLog` (gate opens/closes, route republishes, underruns, concealed frames, longest mid-talkspurt silence) for device field capture (WP-154)
+- Replaced piggybacked ghost participant expiry with independent 120-second coroutine timers cancelled on return or cleanup (WP-155)
+- Removed the 10-attempt limit on backend schema health revalidation and added automatic `ensureDbSchema` repair when `AUTO_SCHEMA_REPAIR !== 'false'` (WP-156)
+- Eliminated layout shifts and text clipping across room/mesh controls, fixed the inert Settings Offline Backup row, and removed unsafe `!!` assertions (WP-157, WP-164)
+- Restored synchronous active-ride/mesh persistence across process death and fresh-install defaults without stale global pref leakage (WP-158, WP-163)
+- Completed cross-feature fixes: FCM token removal on sign-out, `CONVOY_ENDED` and `inviteId` push routing, non-destructive `RideDatabase` v1->v2 migration, continuous ride recording across online/offline transitions, idempotent ride stats sync via `clientRideId`, removal of countdown dispatch/splash delays, and raised shared-hotspot rate limits (WP-160..WP-166)
+
+### Not verified on real devices
+- Multi-device field audio quality, VOX gate tuning under road/wind noise, Opus bitrate, and jitter buffer behavior on physical Android phones
+- Physical Bluetooth SCO / helmet intercom routing, wired headset hot-plug, and hardware audio focus interruptions
+- Phone Wi-Fi Direct / Wi-Fi Aware / hotspot endurance, multi-hop packet forwarding across 2+ and 4+ phones, and background/locked battery behavior on Android 12–14 OEM builds (Samsung, Xiaomi)
+
+---
+
 ## RiderVoice v0.0.3.19 Release Notes
 
-RiderVoice **v0.0.3.19** delivers per-room offline mesh intercom configuration, automatic online and offline voice handover, non-sticky database schema health recovery, redesigned ride controls, and Android 12 to 14 permission and audio hardware hardening.
+RiderVoice **v0.0.3.19** introduced per-room offline mesh backup configuration (note: release builds shipped with `OFFLINE_MESH_BUILD_ENABLED=false` unless explicitly passed at build time, fixed in v0.0.3.20), non-sticky database schema health checks, redesigned ride top bar, and Android 12 to 14 permissions. (Audio/VOX production code itself did not change in v0.0.3.19, and physical multi-device tests were not executed on real hardware.)
 
 | Attribute | Value |
 | :--- | :--- |
@@ -9,13 +36,10 @@ RiderVoice **v0.0.3.19** delivers per-room offline mesh intercom configuration, 
 | **Release Tag** | `v0.0.3.19` |
 | **Download APK** | `Rider_APP-v0.0.3.19.apk` |
 
-- Per-ride waiting room offline mesh backup configuration with automatic 16-character pairing code provisioning and zero global settings toggles
-- Automatic online and offline voice switching with 10-second loss confirmation, 400ms audio hardware quiet guard, 8-second recovery stability window, and anti-flapping protection
-- Offline multi-hop voice intercom supporting up to 6 riders across 5 hops with Opus 16 kbps compression, packet loss concealment, and 20ms monotonic playback pacing
-- Non-sticky database schema health handling with automatic exponential backoff re-validation, complete schema drift checks, and full emergency SOS route protection
+- Per-ride waiting room offline mesh backup configuration with automatic 16-character pairing code provisioning
+- Non-sticky database schema health handling with exponential backoff re-validation and emergency SOS route protection
 - Aligned offline readiness gates for non-Play-Services devices displaying OFFLINE BACKUP UNAVAILABLE ON THIS DEVICE without blocking other riders
-- Redesigned ride top bar with fixed 48dp Leave button touch target, display cutout insets, minimum width guards, and zero layout shift on speaker changes
-- Event-driven ghost participant cleanup and removal of background polling timers for lower battery usage
+- Redesigned ride top bar with fixed 48dp Leave button touch target, display cutout insets, and minimum width guards
 - Complete Android 12 to 14 runtime permission handling for microphone, location, notifications, and Bluetooth headset teardown safety
 - Google Play Protect compliant regional emergency SOS dialing without telephony carrier inspection
 - Clean single-prefix App Version display and formatted in-app feature notes without raw markdown or symbols

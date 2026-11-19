@@ -64,7 +64,7 @@ class NotificationService {
         }
     }
 
-    async sendRideInvite(inviterHandle, inviteeId, roomName, senderCallsign = null) {
+    async sendRideInvite(inviterHandle, inviteeId, roomName, senderCallsign = null, inviteId = null) {
         const displayName = senderCallsign || inviterHandle
         await this.sendToUser(inviteeId, {
             notification: {
@@ -74,15 +74,39 @@ class NotificationService {
             data: {
                 type: 'RIDE_INVITE',
                 inviterHandle: String(inviterHandle),
+                senderCallsign: String(displayName),
                 senderName: String(displayName),
                 callsign: String(displayName),
                 roomName: String(roomName),
+                convoyName: String(roomName),
+                ...(inviteId ? { inviteId: String(inviteId) } : {}),
                 channelId: 'CHANNEL_CONVOY'
             },
             android: {
                 priority: 'high'
             }
         })
+    }
+
+    async sendConvoyEnded(userIds, roomName, roomId = '') {
+        if (!Array.isArray(userIds) || userIds.length === 0) return { sentCount: 0 }
+        const payload = {
+            notification: {
+                title: 'Ride ended',
+                body: `${roomName} was ended by the host`
+            },
+            data: {
+                type: 'CONVOY_ENDED',
+                roomId: String(roomId || ''),
+                roomName: String(roomName || ''),
+                convoyName: String(roomName || ''),
+                channelId: 'CHANNEL_CONVOY'
+            },
+            android: {
+                priority: 'high'
+            }
+        }
+        await Promise.allSettled(userIds.map(uid => this.sendToUser(uid, payload)))
     }
 
     async sendInviteAccepted(riderName, inviterId, roomName, riderCallsign = null) {

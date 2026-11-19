@@ -105,7 +105,44 @@ jobs:
 
       - name: Verify Release Assembly With Insecure Keystore
         working-directory: mobile-app
-        run: ALLOW_INSECURE_RELEASE_BUILD=true ./gradlew assembleRelease
+        run: ALLOW_INSECURE_RELEASE_BUILD=true ./gradlew assembleRelease verifyReleaseOfflineMeshFlags
+
+      - name: Verify Release APK Offline Mesh Flags (WP-153)
+        run: |
+          APK_SOURCE="mobile-app/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK_SOURCE" ]; then
+            echo "::error::Generated release APK not found at $APK_SOURCE"
+            exit 1
+          fi
+          DEXDUMP_CMD=""
+          if command -v dexdump >/dev/null 2>&1; then
+            DEXDUMP_CMD="dexdump"
+          elif [ -n "${ANDROID_HOME:-}" ] && [ -d "$ANDROID_HOME/build-tools" ]; then
+            BUILD_TOOLS_DIR=$(ls -d "$ANDROID_HOME"/build-tools/* 2>/dev/null | sort -V | tail -n 1)
+            if [ -n "$BUILD_TOOLS_DIR" ] && [ -x "$BUILD_TOOLS_DIR/dexdump" ]; then
+              DEXDUMP_CMD="$BUILD_TOOLS_DIR/dexdump"
+            fi
+          fi
+          if [ -z "$DEXDUMP_CMD" ]; then
+            echo "::error::dexdump not found on PATH or in ANDROID_HOME/build-tools."
+            exit 1
+          fi
+          TMP_DEX_DIR="$(mktemp -d)"
+          unzip -q -o "$APK_SOURCE" "classes*.dex" -d "$TMP_DEX_DIR"
+          python3 - "$TMP_DEX_DIR" "$DEXDUMP_CMD" << 'PYEOF'
+          import glob, re, subprocess, sys
+          dex_dir, dexdump = sys.argv[1], sys.argv[2]
+          dump = ""
+          for p in sorted(glob.glob(f"{dex_dir}/classes*.dex")):
+              dump += subprocess.check_output([dexdump, "-d", p], text=True, errors="replace")
+          # Check BuildConfig fields in DEX; fail if missing, unreadable, or false
+          m_mesh = re.search(r"name\s*:\s*'OFFLINE_MESH_BUILD_ENABLED'.{0,200}?(?:value\s*:\s*|=\s*)(true|false)", dump, re.S)
+          m_room = re.search(r"name\s*:\s*'PER_ROOM_OFFLINE_CONFIG_ENABLED'.{0,200}?(?:value\s*:\s*|=\s*)(true|false)", dump, re.S)
+          print(f"APK DEX BuildConfig inspection: OFFLINE_MESH_BUILD_ENABLED={m_mesh.group(1) if m_mesh else 'MISSING'}, PER_ROOM_OFFLINE_CONFIG_ENABLED={m_room.group(1) if m_room else 'MISSING'}")
+          if not m_mesh or not m_room or m_mesh.group(1) != "true" or m_room.group(1) != "true":
+              sys.exit("WP-153 FAILED: Release APK DEX missing flags or has OFFLINE_MESH_BUILD_ENABLED/PER_ROOM_OFFLINE_CONFIG_ENABLED != true!")
+          PYEOF
+          rm -rf "$TMP_DEX_DIR"
 
       - name: Run Release Signing Verification Tests
         run: |

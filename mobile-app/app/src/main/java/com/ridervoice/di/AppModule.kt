@@ -114,7 +114,9 @@ object AppModule {
             context,
             com.ridervoice.data.local.RideDatabase::class.java,
             "ridervoice_flight_recorder.db"
-        ).fallbackToDestructiveMigration().build()
+        ).addMigrations(com.ridervoice.data.local.RideDatabase.MIGRATION_1_2)
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides

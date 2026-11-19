@@ -26,6 +26,15 @@ object FcmTokenManager {
         }
     }
 
+    suspend fun unregisterCurrentToken(apiService: ApiService) {
+        try {
+            val token = fetchToken()
+            apiService.deleteFcmToken(token?.takeIf { it.isNotBlank() })
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to unregister FCM token: ${e.message}")
+        }
+    }
+
     private suspend fun fetchToken(): String? = suspendCancellableCoroutine { continuation ->
         try {
             FirebaseMessaging.getInstance().token

@@ -149,7 +149,7 @@ router.post('/fcm-token', async (req, res, next) => {
 
 router.delete('/fcm-token', async (req, res, next) => {
     const userId = req.user.uid
-    const { token } = req.body || {}
+    const token = req.body?.token || req.query?.token
 
     try {
         if (token) {

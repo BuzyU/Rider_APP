@@ -59,4 +59,25 @@ interface RideDao {
 )
 abstract class RideDatabase : RoomDatabase() {
     abstract fun rideDao(): RideDao
+
+    companion object {
+        /** Non-destructive migration from v1 to v2 ensuring indices and tables exist cleanly. */
+        val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `ride_sessions` (`id` TEXT NOT NULL, `roomName` TEXT NOT NULL, `startTime` INTEGER NOT NULL, `endTime` INTEGER, `totalDistanceMeters` REAL NOT NULL, `isSynced` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `raw_waypoints` (`id` TEXT NOT NULL, `sessionId` TEXT NOT NULL, `lat` DOUBLE NOT NULL, `lng` DOUBLE NOT NULL, `speedMps` REAL NOT NULL, `heading` REAL NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_raw_waypoints_sessionId` ON `raw_waypoints` (`sessionId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_raw_waypoints_timestamp` ON `raw_waypoints` (`timestamp`)")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `convoy_events` (`id` TEXT NOT NULL, `sessionId` TEXT NOT NULL, `eventType` TEXT NOT NULL, `lat` DOUBLE NOT NULL, `lng` DOUBLE NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_convoy_events_sessionId` ON `convoy_events` (`sessionId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_convoy_events_timestamp` ON `convoy_events` (`timestamp`)")
+            }
+        }
+    }
 }

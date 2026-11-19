@@ -522,8 +522,8 @@ async function ensureDbSchema(prisma) {
             return { valid: false, structuralOk: false, repaired: false, skippedDueToLock: true, missing }
         }
 
-        // Pre-check for unique constraint/index violations
-        const violations = await checkUniqueViolations(tx).catch(() => [])
+        // Pre-check for unique constraint/index violations outside tx so missing legacy columns never abort the repair transaction
+        const violations = await checkUniqueViolations(prisma).catch(() => [])
         if (violations.length > 0) {
             for (const v of violations) {
                 console.warn(`[DB Schema Pre-Check Violation] ${v}`)

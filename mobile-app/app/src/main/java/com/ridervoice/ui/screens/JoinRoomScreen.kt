@@ -2,7 +2,9 @@ package com.ridervoice.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.MeetingRoom
@@ -88,7 +90,11 @@ fun JoinRoomScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .navigationBarsPadding()
                 .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp)
         ) {
             if (activeToken != null) {
                 Spacer(modifier = Modifier.height(32.dp))

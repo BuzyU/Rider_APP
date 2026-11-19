@@ -63,7 +63,7 @@ function ipLimiter(req, res, next) {
         return next()
     }
 
-    const ipLimit = parseInt(process.env.RATE_LIMIT_IP_PER_MIN || '600', 10)
+    const ipLimit = parseInt(process.env.RATE_LIMIT_IP_PER_MIN || '1800', 10)
     const ip = req.ip || req.socket?.remoteAddress || 'unknown'
     const now = Date.now()
 

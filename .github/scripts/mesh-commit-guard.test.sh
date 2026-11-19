@@ -13,14 +13,14 @@ trap cleanup EXIT
 echo "Creating isolated detached worktree at $tmp..."
 git worktree add --detach "$tmp" HEAD
 
-# Test 1: Change to frozen LiveKitManager.kt must be rejected
+# Test 1: Change to un-allowlisted frozen ConnectionState.kt must be rejected
 echo "Test 1: Frozen file modification must be rejected..."
 (
   cd "$tmp"
-  echo "// guard test" >> "mobile-app/app/src/main/java/com/ridervoice/network/LiveKitManager.kt"
-  git -c user.name=ci -c user.email=ci@example.com commit -qam "temp: modify LiveKitManager"
+  echo "// guard test" >> "mobile-app/app/src/main/java/com/ridervoice/network/ConnectionState.kt"
+  git -c user.name=ci -c user.email=ci@example.com commit -qam "temp: modify ConnectionState"
   if bash "$REPO_ROOT/.github/scripts/mesh-commit-guard.sh" HEAD~1..HEAD >/dev/null 2>&1; then
-    echo "FAIL: Expected mesh-commit-guard to reject LiveKitManager modification"
+    echo "FAIL: Expected mesh-commit-guard to reject ConnectionState modification"
     exit 1
   fi
 )
@@ -56,9 +56,9 @@ echo "Test 4: Default mode (no args) rejects uncommitted frozen file change..."
 (
   cd "$tmp"
   git reset --hard HEAD~1 -q
-  echo "// guard test default mode uncommitted" >> "mobile-app/app/src/main/java/com/ridervoice/network/LiveKitManager.kt"
+  echo "// guard test default mode uncommitted" >> "mobile-app/app/src/main/java/com/ridervoice/network/ConnectionState.kt"
   if bash "$REPO_ROOT/.github/scripts/mesh-commit-guard.sh" >/dev/null 2>&1; then
-    echo "FAIL: Expected default mode to reject uncommitted LiveKitManager modification"
+    echo "FAIL: Expected default mode to reject uncommitted ConnectionState modification"
     exit 1
   fi
 )
@@ -67,7 +67,7 @@ echo "Test 4: Default mode (no args) rejects uncommitted frozen file change..."
 echo "Test 5: Default mode (no args) accepts uncommitted mesh file change..."
 (
   cd "$tmp"
-  git checkout -f "mobile-app/app/src/main/java/com/ridervoice/network/LiveKitManager.kt"
+  git checkout -f "mobile-app/app/src/main/java/com/ridervoice/network/ConnectionState.kt"
   echo "// guard test mesh uncommitted" >> "mobile-app/app/src/main/java/com/ridervoice/mesh/MeshConfig.kt"
   if ! bash "$REPO_ROOT/.github/scripts/mesh-commit-guard.sh" >/dev/null 2>&1; then
     echo "FAIL: Expected default mode to accept uncommitted mesh modification"
@@ -80,10 +80,10 @@ echo "Test 6: Default mode (no args) accepts allowlisted file modification..."
 (
   cd "$tmp"
   git checkout -f "mobile-app/app/src/main/java/com/ridervoice/mesh/MeshConfig.kt"
-  echo "mobile-app/app/src/main/java/com/ridervoice/network/LiveKitManager.kt" >> ".github/frozen-allowlist"
-  echo "// guard test allowlist" >> "mobile-app/app/src/main/java/com/ridervoice/network/LiveKitManager.kt"
+  echo "mobile-app/app/src/main/java/com/ridervoice/network/ConnectionState.kt" >> ".github/frozen-allowlist"
+  echo "// guard test allowlist" >> "mobile-app/app/src/main/java/com/ridervoice/network/ConnectionState.kt"
   if ! bash "$REPO_ROOT/.github/scripts/mesh-commit-guard.sh" >/dev/null 2>&1; then
-    echo "FAIL: Expected default mode to accept allowlisted LiveKitManager modification"
+    echo "FAIL: Expected default mode to accept allowlisted ConnectionState modification"
     exit 1
   fi
 )

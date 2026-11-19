@@ -114,13 +114,15 @@ class UpdateManager @Inject constructor(
     @Volatile private var lastCheckTimestamp = 0L
     @Volatile private var cachedReleaseInfo: AppReleaseInfo? = null
 
-    private val httpClient = OkHttpClient.Builder()
+    @androidx.annotation.VisibleForTesting
+    internal var httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .followRedirects(true)
         .build()
 
-    private val downloadHttpClient = OkHttpClient.Builder()
+    @androidx.annotation.VisibleForTesting
+    internal var downloadHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
@@ -218,7 +220,7 @@ class UpdateManager @Inject constructor(
             } else {
                 _uiState.value = UpdateUiState.UpToDate(
                     currentVersion = currentVersionName,
-                    releaseNotes = cached.releaseNotes.ifBlank { DEFAULT_V00319_NOTES }
+                    releaseNotes = cached.releaseNotes.ifBlank { DEFAULT_V00320_NOTES }
                 )
             }
             return
@@ -257,7 +259,7 @@ class UpdateManager @Inject constructor(
                     if (releaseInfo == null) {
                         _uiState.value = UpdateUiState.UpToDate(
                             currentVersion = currentVersionName,
-                            releaseNotes = DEFAULT_V00319_NOTES
+                            releaseNotes = DEFAULT_V00320_NOTES
                         )
                         return@launch
                     }
@@ -335,7 +337,7 @@ class UpdateManager @Inject constructor(
             } else {
                 _uiState.value = UpdateUiState.UpToDate(
                     currentVersion = currentVersionName,
-                    releaseNotes = releaseInfo.releaseNotes.ifBlank { DEFAULT_V00319_NOTES }
+                    releaseNotes = releaseInfo.releaseNotes.ifBlank { DEFAULT_V00320_NOTES }
                 )
             }
         }
@@ -438,7 +440,7 @@ class UpdateManager @Inject constructor(
             apkFileName = apkFileName,
             downloadUrl = apkDownloadUrl,
             apkSizeBytes = apkSizeBytes,
-            releaseNotes = DEFAULT_V00319_NOTES,
+            releaseNotes = DEFAULT_V00320_NOTES,
             publishedAt = "Latest Release",
             sha256Checksum = sha256Checksum
         )

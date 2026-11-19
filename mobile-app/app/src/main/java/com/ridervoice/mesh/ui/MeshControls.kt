@@ -22,6 +22,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -59,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -181,6 +186,7 @@ fun MeshPeerCard(
         colors = CardDefaults.cardColors(containerColor = MeshColors.SurfaceDark),
         shape = RoundedCornerShape(10.dp),
         modifier = modifier
+            .testTag("mesh_peer_card_${peer.id}")
             .fillMaxWidth()
             .border(1.dp, borderColor, RoundedCornerShape(10.dp))
     ) {
@@ -212,22 +218,27 @@ fun MeshPeerCard(
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("mesh_peer_name_${peer.id}")
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
-                            .width(72.dp)
+                            .widthIn(min = 72.dp)
                             .alpha(if (isSpeaking) 1f else 0f),
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         Text(
                             text = stringResource(R.string.mesh_speaking),
+                            modifier = Modifier.testTag("mesh_peer_speaking_${peer.id}"),
                             color = MeshColors.Emerald,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -395,6 +406,7 @@ fun MeshBottomBar(
                     color = MeshColors.SurfaceElevated,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
+                        .testTag("mesh_bottom_audio_route")
                         .weight(1f)
                         .heightIn(min = 48.dp)
                         .clickable { onCycleAudioRoute() }
@@ -422,6 +434,7 @@ fun MeshBottomBar(
                     color = if (isVoxEnabled) MeshColors.EmeraldDark else MeshColors.SurfaceElevated,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
+                        .testTag("mesh_bottom_vox")
                         .weight(0.9f)
                         .heightIn(min = 48.dp)
                         .clickable { onToggleVox() }
@@ -443,12 +456,22 @@ fun MeshBottomBar(
                 }
 
                 // PTT Press-and-Hold Button (>= 56.dp height for gloved riders, fixed weight so text swaps never shift siblings)
+                val pttLabel = stringResource(R.string.mesh_ptt_button)
                 Surface(
                     color = if (isPttActive) MeshColors.EmeraldActive else MeshColors.SurfaceElevated,
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
+                        .testTag("mesh_bottom_ptt")
                         .weight(1.3f)
                         .heightIn(min = 56.dp)
+                        .semantics {
+                            contentDescription = pttLabel
+                            onClick(label = pttLabel) {
+                                currentOnPttPressChange(true)
+                                currentOnPttPressChange(false)
+                                true
+                            }
+                        }
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onPress = {
@@ -489,6 +512,7 @@ fun MeshBottomBar(
                 IconButton(
                     onClick = onToggleMic,
                     modifier = Modifier
+                        .testTag("mesh_bottom_mic")
                         .size(50.dp)
                         .clip(CircleShape)
                         .background(if (isMicEnabled) MeshColors.Emerald else MeshColors.SurfaceElevated)
@@ -504,6 +528,7 @@ fun MeshBottomBar(
                 IconButton(
                     onClick = onToggleDeafen,
                     modifier = Modifier
+                        .testTag("mesh_bottom_deafen")
                         .size(50.dp)
                         .clip(CircleShape)
                         .background(if (isDeafened) MeshColors.Red else MeshColors.SurfaceElevated)
@@ -520,6 +545,8 @@ fun MeshBottomBar(
                     color = MeshColors.RedCrimson,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
+                        .testTag("mesh_bottom_leave")
+                        .widthIn(min = 64.dp)
                         .heightIn(min = 48.dp)
                         .clickable { onLeave() }
                 ) {

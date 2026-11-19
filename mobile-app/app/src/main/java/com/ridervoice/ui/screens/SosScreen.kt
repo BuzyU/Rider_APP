@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +43,33 @@ fun SosScreen(
     val emergencyInfo = remember { com.ridervoice.utils.EmergencyNumbers.resolve(context) }
     val emergencyNumber = emergencyInfo.number
     val isDark = ThemeState.isDarkTheme
+    var countdown by rememberSaveable { mutableStateOf(10) }
+    var hasAutoDispatched by rememberSaveable { mutableStateOf(false) }
+    var isCancelled by rememberSaveable { mutableStateOf(false) }
+
+    val triggerDispatchOnce: () -> Unit = {
+        if (state is SosState.Failed && !isCancelled) {
+            onSend()
+        } else if (state is SosState.Idle && !hasAutoDispatched && !isCancelled) {
+            hasAutoDispatched = true
+            onSend()
+        }
+    }
+
+    LaunchedEffect(state, hasAutoDispatched, isCancelled) {
+        if (state is SosState.Idle && !hasAutoDispatched && !isCancelled) {
+            while (countdown > 0 && !hasAutoDispatched && !isCancelled) {
+                delay(1_000L)
+                if (!hasAutoDispatched && !isCancelled) {
+                    countdown = (countdown - 1).coerceAtLeast(0)
+                }
+            }
+            if (countdown <= 0 && !hasAutoDispatched && !isCancelled) {
+                hasAutoDispatched = true
+                onSend()
+            }
+        }
+    }
 
     val bgModifier = if (isDark) {
         Modifier
@@ -82,7 +110,10 @@ fun SosScreen(
                         letterSpacing = 1.sp
                     )
                 }
-                IconButton(onClick = onCancelClick) {
+                IconButton(onClick = {
+                    isCancelled = true
+                    onCancelClick()
+                }) {
                     Icon(Icons.Default.Close, contentDescription = "Close SOS", tint = TextSecondary)
                 }
             }
@@ -256,13 +287,13 @@ fun SosScreen(
                                 fontSize = 11.sp
                             )
                             Text(
-                                text = "SOS",
+                                text = "${countdown}s",
                                 color = AlertRed,
                                 style = MaterialTheme.typography.displayLarge,
-                                fontSize = 64.sp
+                                fontSize = 60.sp
                             )
                             Text(
-                                text = "READY TO BROADCAST",
+                                text = "AUTO-SENDING IN ${countdown}s",
                                 color = AlertRed,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 11.sp
@@ -310,7 +341,7 @@ fun SosScreen(
 
                 if (state !is SosState.Sent) {
                     Button(
-                        onClick = onSend,
+                        onClick = triggerDispatchOnce,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -331,7 +362,10 @@ fun SosScreen(
                 }
 
                 Button(
-                    onClick = onCancelClick,
+                    onClick = {
+                        isCancelled = true
+                        onCancelClick()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(64.dp),

@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,6 +67,7 @@ fun ParticipantCard(
 
     Card(
         modifier = Modifier
+            .testTag("participant_card_${participant.identity}")
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .alpha(alphaVal)
@@ -161,7 +163,9 @@ fun ParticipantCard(
                             fontSize = 14.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .testTag("participant_name_${participant.identity}")
                         )
 
                         if (isCurrentUser) {
@@ -244,6 +248,7 @@ fun ParticipantCard(
 
             if (!participant.isGhost && (distanceMeters != null || speedKmh != null)) {
                 Column(
+                    modifier = Modifier.widthIn(min = 56.dp),
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -263,9 +268,13 @@ fun ParticipantCard(
                             }
                             Text(
                                 text = distStr,
+                                modifier = Modifier.testTag("participant_distance_${participant.identity}"),
                                 color = ElectricCyan,
                                 fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -282,9 +291,13 @@ fun ParticipantCard(
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "${speedKmh.toInt()} km/h",
+                                modifier = Modifier.testTag("participant_speed_${participant.identity}"),
                                 color = TextSecondary,
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

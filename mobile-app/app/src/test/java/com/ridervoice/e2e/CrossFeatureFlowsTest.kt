@@ -146,6 +146,7 @@ class CrossFeatureFlowsTest {
             fcmDeletedCalled = true
             return Response.success(Unit)
         }
+        override suspend fun deleteAccount(): Response<Any> = Response.success(Unit)
         override suspend fun updateFcmToken(body: FcmTokenRequest): Response<Any> = Response.success(Unit)
         override suspend fun upsertProfile(body: ProfileRequest): Response<ProfileResponse> {
             currentProfile = currentProfile.copy(

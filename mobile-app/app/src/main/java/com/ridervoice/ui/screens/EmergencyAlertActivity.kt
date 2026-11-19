@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,6 +52,14 @@ class EmergencyAlertActivity : ComponentActivity() {
     @Inject lateinit var locationService: LocationService
 
     private var vibrator: Vibrator? = null
+    private var incidentClientAlertId: String? = null
+    @Volatile private var hasDispatchedIncident: Boolean = false
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        incidentClientAlertId?.let { outState.putString("incident_client_alert_id", it) }
+        outState.putBoolean("incident_has_dispatched", hasDispatchedIncident)
+    }
 
     override fun attachBaseContext(newBase: Context) {
         val prefs = com.ridervoice.security.SecurePreferences(newBase)
@@ -61,6 +70,9 @@ class EmergencyAlertActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        incidentClientAlertId = savedInstanceState?.getString("incident_client_alert_id")
+            ?: java.util.UUID.randomUUID().toString()
+        hasDispatchedIncident = savedInstanceState?.getBoolean("incident_has_dispatched", false) ?: false
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
@@ -127,6 +139,14 @@ class EmergencyAlertActivity : ComponentActivity() {
     }
 
     private fun dispatchAlert(roomName: String, onResult: (Boolean, String?) -> Unit) {
+        if (hasDispatchedIncident) {
+            onResult(true, null)
+            return
+        }
+        hasDispatchedIncident = true
+        val clientAlertId = incidentClientAlertId ?: java.util.UUID.randomUUID().toString().also {
+            incidentClientAlertId = it
+        }
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val loc = locationService.currentLocation.value
@@ -134,17 +154,20 @@ class EmergencyAlertActivity : ComponentActivity() {
                     SosAlertRequest(
                         roomName = roomName,
                         lat = loc?.latitude,
-                        lng = loc?.longitude
+                        lng = loc?.longitude,
+                        clientAlertId = clientAlertId
                     )
                 )
                 withContext(Dispatchers.Main) {
                     if (response.isSuccessful) {
                         onResult(true, null)
                     } else {
+                        hasDispatchedIncident = false
                         onResult(false, "Dispatch error: ${response.code()}")
                     }
                 }
             } catch (e: Exception) {
+                hasDispatchedIncident = false
                 withContext(Dispatchers.Main) {
                     onResult(false, e.message ?: "Network failure")
                 }
@@ -184,10 +207,38 @@ fun EmergencyAlertContent(
     onCancelEmergency: (String, String?) -> Unit
 ) {
     val isDark = ThemeState.isDarkTheme
-    var isDispatched by remember { mutableStateOf(false) }
-    var isDispatching by remember { mutableStateOf(false) }
-    var dispatchStatus by remember { mutableStateOf<String?>(null) }
-    var isCancelling by remember { mutableStateOf(false) }
+    var countdown by rememberSaveable { mutableStateOf(15) }
+    var hasAutoDispatched by rememberSaveable { mutableStateOf(false) }
+    var isDispatched by rememberSaveable { mutableStateOf(false) }
+    var isDispatching by rememberSaveable { mutableStateOf(false) }
+    var dispatchStatus by rememberSaveable { mutableStateOf<String?>(null) }
+    var isCancelling by rememberSaveable { mutableStateOf(false) }
+
+    val triggerDispatchOnce: () -> Unit = {
+        if (!hasAutoDispatched && !isDispatched && !isDispatching && !isCancelling) {
+            hasAutoDispatched = true
+            isDispatching = true
+            onTriggerDispatch(roomName) { success, err ->
+                isDispatching = false
+                isDispatched = true
+                dispatchStatus = if (success) "DISPATCHED TO SQUAD & CONVOY" else "FAILED: $err"
+            }
+        }
+    }
+
+    LaunchedEffect(hasAutoDispatched, isDispatched, isCancelling) {
+        if (!hasAutoDispatched && !isDispatched && !isCancelling) {
+            while (countdown > 0 && !hasAutoDispatched && !isDispatched && !isCancelling) {
+                delay(1_000L)
+                if (!hasAutoDispatched && !isDispatched && !isCancelling) {
+                    countdown = (countdown - 1).coerceAtLeast(0)
+                }
+            }
+            if (countdown <= 0 && !hasAutoDispatched && !isDispatched && !isCancelling) {
+                triggerDispatchOnce()
+            }
+        }
+    }
 
     val bgModifier = if (isDark) {
         Modifier
@@ -253,7 +304,7 @@ fun EmergencyAlertContent(
                 modifier = Modifier.size(180.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val progress = if (isDispatched) 1f else 0.75f
+                val progress = if (isDispatched) 1f else (countdown.coerceIn(0, 15) / 15f)
                 val meterColor = AlertRed
                 val trackColor = if (isDark) Color(0xFF331010) else LightPalette.SurfaceAlt
 
@@ -288,13 +339,13 @@ fun EmergencyAlertContent(
                         )
                     } else {
                         Text(
-                            text = "SOS",
+                            text = "${countdown}s",
                             style = MaterialTheme.typography.displayLarge,
                             color = AlertRed,
                             fontSize = 48.sp
                         )
                         Text(
-                            text = "ACTIVE",
+                            text = "AUTO-DISPATCH IN ${countdown}s",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextSecondary
                         )
@@ -318,7 +369,7 @@ fun EmergencyAlertContent(
                         isCancelling -> "CANCELING DISTRESS BROADCAST..."
                         isDispatching -> "TRANSMITTING DISTRESS TELEMETRY..."
                         isDispatched -> dispatchStatus ?: "EMERGENCY BROADCAST ACTIVE"
-                        else -> "TAP SEND SOS OR CALL EMERGENCY SERVICES"
+                        else -> "AUTO-BROADCAST IN ${countdown}s OR CANCEL BELOW"
                     }
                     Text(
                         text = statusMessage,
@@ -345,14 +396,7 @@ fun EmergencyAlertContent(
 
                 if (!isDispatched) {
                     Button(
-                        onClick = {
-                            isDispatching = true
-                            onTriggerDispatch(roomName) { success, err ->
-                                isDispatching = false
-                                isDispatched = true
-                                dispatchStatus = if (success) "DISPATCHED TO SQUAD & CONVOY" else "FAILED: $err"
-                            }
-                        },
+                        onClick = triggerDispatchOnce,
                         enabled = !isDispatching && !isCancelling,
                         modifier = Modifier
                             .fillMaxWidth()

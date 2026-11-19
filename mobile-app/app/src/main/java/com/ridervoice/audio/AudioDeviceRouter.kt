@@ -528,14 +528,8 @@ class AudioDeviceRouter(
 
     private fun startVerificationLogging(requested: AudioDeviceDescriptor) {
         verificationLoggingJob?.cancel()
-        verificationLoggingJob = scope.launch {
-            delay(500)
-            logDiagnosticsCheck("500ms", requested)
-            delay(1000)
-            logDiagnosticsCheck("1500ms", requested)
-            delay(1500)
-            logDiagnosticsCheck("3000ms", requested)
-        }
+        verificationLoggingJob = null
+        logDiagnosticsCheck("immediate", requested)
     }
 
     private fun logDiagnosticsCheck(elapsed: String, requested: AudioDeviceDescriptor) {

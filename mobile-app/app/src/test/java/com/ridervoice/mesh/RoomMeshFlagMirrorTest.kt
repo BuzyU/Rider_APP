@@ -92,6 +92,7 @@ class RoomMeshFlagMirrorTest {
         override suspend fun acceptRideInvite(id: String): Response<StartRideResponse> = throw NotImplementedError()
         override suspend fun getAppConfig(): Response<AppConfigResponse> = throw NotImplementedError()
         override suspend fun deleteFcmToken(token: String?): Response<Any> = Response.success(Unit)
+        override suspend fun deleteAccount(): Response<Any> = Response.success(Unit)
         override suspend fun finalizeDiagnosticRun(roomName: String): Response<Any> = throw NotImplementedError()
         override suspend fun getLatestDiagnosticRun(roomName: String): Response<Any> = throw NotImplementedError()
     }

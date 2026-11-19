@@ -167,4 +167,64 @@ router.delete('/fcm-token', async (req, res, next) => {
     }
 })
 
+router.delete('/account', async (req, res, next) => {
+    const id = req.user.uid
+    try {
+        await prisma.$transaction(async (tx) => {
+            const ownedRooms = await tx.room.findMany({
+                where: { ownerId: id },
+                select: { id: true }
+            })
+            const ownedRoomIds = ownedRooms.map(r => r.id)
+
+            await tx.deviceToken.deleteMany({ where: { userId: id } })
+            await tx.friendship.deleteMany({
+                where: { OR: [{ requesterId: id }, { addresseeId: id }] }
+            })
+            await tx.rideInvite.deleteMany({
+                where: {
+                    OR: [
+                        { inviterId: id },
+                        { inviteeId: id },
+                        ...(ownedRoomIds.length > 0 ? [{ roomId: { in: ownedRoomIds } }] : [])
+                    ]
+                }
+            })
+            await tx.emergencyAlert.deleteMany({
+                where: {
+                    OR: [
+                        { senderId: id },
+                        ...(ownedRoomIds.length > 0 ? [{ roomId: { in: ownedRoomIds } }] : [])
+                    ]
+                }
+            })
+
+            const sessions = await tx.rideSession.findMany({
+                where: { riderId: id },
+                select: { id: true }
+            })
+            const sessionIds = sessions.map(s => s.id)
+            if (sessionIds.length > 0) {
+                await tx.convoyEvent.deleteMany({ where: { rideId: { in: sessionIds } } })
+            }
+            await tx.rideSession.deleteMany({ where: { riderId: id } })
+            await tx.rideCreateRequest.deleteMany({ where: { ownerId: id } })
+            if (ownedRoomIds.length > 0) {
+                await tx.room.deleteMany({ where: { id: { in: ownedRoomIds } } })
+            }
+            try {
+                await tx.user.delete({ where: { id } })
+            } catch (err) {
+                if (err.code !== 'P2025') throw err
+            }
+        })
+
+        cacheService.del(`user_me:${id}`)
+        cacheService.del(`user_name:${id}`)
+        res.json({ deleted: true })
+    } catch (error) {
+        next(error)
+    }
+})
+
 module.exports = router

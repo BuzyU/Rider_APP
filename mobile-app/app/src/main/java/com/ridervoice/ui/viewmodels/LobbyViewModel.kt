@@ -231,7 +231,6 @@ class LobbyViewModel @Inject constructor(
                                     authRefreshedOnce = true
                                     val refreshed = activeRideRepository.ensureFreshToken().isSuccess
                                     if (refreshed) {
-                                        delay(1000L)
                                         continue
                                     }
                                 }

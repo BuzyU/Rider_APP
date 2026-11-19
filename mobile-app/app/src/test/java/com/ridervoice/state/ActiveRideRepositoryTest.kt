@@ -66,6 +66,7 @@ class ActiveRideRepositoryTest {
         override suspend fun acceptRideInvite(id: String): Response<StartRideResponse> = throw NotImplementedError()
         override suspend fun getAppConfig(): Response<AppConfigResponse> = throw NotImplementedError()
         override suspend fun deleteFcmToken(token: String?): Response<Any> = throw NotImplementedError()
+        override suspend fun deleteAccount(): Response<Any> = throw NotImplementedError()
     }
 
     @Test

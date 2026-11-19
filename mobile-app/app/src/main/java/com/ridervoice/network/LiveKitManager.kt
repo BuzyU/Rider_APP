@@ -431,9 +431,8 @@ class LiveKitManager @Inject constructor(
             }
 
             withTimeoutOrNull(5000) {
-                while (audioDeviceRouter.routerState.value != RouterState.ACTIVE &&
-                       audioDeviceRouter.routerState.value != RouterState.FAILED) {
-                    delay(100)
+                audioDeviceRouter.routerState.first { state ->
+                    state == RouterState.ACTIVE || state == RouterState.FAILED
                 }
             }
 

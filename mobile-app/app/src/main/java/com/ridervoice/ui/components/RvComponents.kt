@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,7 +48,7 @@ fun PrimaryButton(
         enabled = enabled && !loading,
         modifier = modifier
             .fillMaxWidth()
-            .height(RvTouchTarget.primary),
+            .heightIn(min = RvTouchTarget.primary),
         shape = RoundedCornerShape(RvRadius.md),
         colors = ButtonDefaults.buttonColors(
             containerColor = NeonOrange,
@@ -98,7 +100,7 @@ fun SecondaryButton(
         enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
-            .height(RvTouchTarget.min),
+            .heightIn(min = RvTouchTarget.min),
         shape = RoundedCornerShape(RvRadius.md),
         border = ButtonDefaults.outlinedButtonBorder.copy(
             brush = androidx.compose.ui.graphics.SolidColor(if (destructive) AlertRed else BorderColor)
@@ -176,13 +178,14 @@ fun RiderAvatar(
         modifier = modifier
             .size(size)
             .border(2.dp, ringColor, CircleShape)
-            .padding(if (isSpeaking) 2.dp else 0.dp)
+            .padding(2.dp)
             .clip(CircleShape)
             .background(DarkSlate),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = initials.take(2).uppercase(),
+            modifier = Modifier.testTag("rider_avatar_inner"),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = TextPrimary
@@ -245,9 +248,14 @@ fun RiderRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = name,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .testTag("rider_row_name"),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (status != null) {
                     Spacer(modifier = Modifier.width(RvSpacing.sm))
@@ -257,8 +265,11 @@ fun RiderRow(
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
+                    modifier = Modifier.testTag("rider_row_subtitle"),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
+                    color = TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -322,7 +333,7 @@ fun CodeCard(
                     onClick = onCopy,
                     modifier = Modifier
                         .weight(1f)
-                        .height(RvTouchTarget.min),
+                        .heightIn(min = RvTouchTarget.min),
                     shape = RoundedCornerShape(RvRadius.sm),
                     border = ButtonDefaults.outlinedButtonBorder.copy(
                         brush = androidx.compose.ui.graphics.SolidColor(BorderColor)
@@ -342,7 +353,7 @@ fun CodeCard(
                     onClick = onShare,
                     modifier = Modifier
                         .weight(1f)
-                        .height(RvTouchTarget.min),
+                        .heightIn(min = RvTouchTarget.min),
                     shape = RoundedCornerShape(RvRadius.sm),
                     colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
                 ) {

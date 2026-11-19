@@ -96,6 +96,81 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    private fun clearAdditionalLocalStores(wipeIdentity: Boolean) {
+        val storeNames = mutableListOf(
+            "mesh_runtime_prefs",
+            "user_profile",
+            "sos_outbox",
+            "app_update_prefs"
+        )
+        if (wipeIdentity) {
+            storeNames.add("mesh_identity_prefs")
+        }
+        storeNames.forEach { name ->
+            runCatching {
+                context.getSharedPreferences(name, android.content.Context.MODE_PRIVATE)
+                    .edit()
+                    .clear()
+                    .apply()
+            }
+        }
+    }
+
+    private suspend fun tearDownActiveSessionAndLocalData(
+        forceHostEnd: Boolean,
+        onHostConfirmationRequired: (() -> Unit)?,
+        wipeIdentity: Boolean,
+        callDeleteAccountEndpoint: Boolean
+    ): Boolean {
+        val activeRide = activeRideRepository.state.value
+
+        // 1. Host confirmation (D13)
+        if (activeRide != null && activeRide.isHost && !forceHostEnd && onHostConfirmationRequired != null) {
+            onHostConfirmationRequired.invoke()
+            return false
+        }
+
+        // 2. Unregister FCM push token and leave / end active room via backend API before credential invalidation
+        runCatching {
+            com.ridervoice.services.FcmTokenManager.unregisterCurrentToken(apiService)
+        }
+        if (activeRide != null) {
+            runCatching {
+                if (activeRide.isHost) {
+                    apiService.endRideForEveryone(activeRide.roomId)
+                } else {
+                    apiService.leaveLobby(activeRide.roomId)
+                }
+            }
+        }
+        if (callDeleteAccountEndpoint) {
+            runCatching { apiService.deleteAccount() }
+        }
+
+        // 3. Stop VoiceForegroundService
+        runCatching {
+            com.ridervoice.services.VoiceForegroundService.stop(context)
+        }
+
+        // 4. Disconnect LiveKit
+        runCatching {
+            liveKitManager.disconnect()
+        }
+
+        // 5. Clear ActiveRideRepository (SIGNED_OUT)
+        activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.SIGNED_OUT)
+
+        // 6. Destroy per-room offline session & backup
+        sessionHolder.clearAll()
+
+        // 7. Clear tokens, ride sessions, and all encrypted/mesh/profile/outbox/update prefs
+        com.ridervoice.models.RideSession.clear()
+        securePrefs.clearActiveRide()
+        securePrefs.clear()
+        clearAdditionalLocalStores(wipeIdentity = wipeIdentity)
+        return true
+    }
+
     fun signOut(
         forceHostEnd: Boolean = false,
         onHostConfirmationRequired: (() -> Unit)? = null,
@@ -103,49 +178,16 @@ class AuthViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _isLoading.value = true
-            val activeRide = activeRideRepository.state.value
-
-            // 1. Host confirmation (D13)
-            if (activeRide != null && activeRide.isHost && !forceHostEnd && onHostConfirmationRequired != null) {
+            val proceeded = tearDownActiveSessionAndLocalData(
+                forceHostEnd = forceHostEnd,
+                onHostConfirmationRequired = onHostConfirmationRequired,
+                wipeIdentity = false,
+                callDeleteAccountEndpoint = false
+            )
+            if (!proceeded) {
                 _isLoading.value = false
-                onHostConfirmationRequired()
                 return@launch
             }
-
-            // 2. Unregister FCM push token and leave / end active room via backend API before credential invalidation
-            runCatching {
-                com.ridervoice.services.FcmTokenManager.unregisterCurrentToken(apiService)
-            }
-            if (activeRide != null) {
-                runCatching {
-                    if (activeRide.isHost) {
-                        apiService.endRideForEveryone(activeRide.roomId)
-                    } else {
-                        apiService.leaveLobby(activeRide.roomId)
-                    }
-                }
-            }
-
-            // 3. Stop VoiceForegroundService
-            runCatching {
-                com.ridervoice.services.VoiceForegroundService.stop(context)
-            }
-
-            // 4. Disconnect LiveKit
-            runCatching {
-                liveKitManager.disconnect()
-            }
-
-            // 5. Clear ActiveRideRepository (SIGNED_OUT)
-            activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.SIGNED_OUT)
-
-            // 6. Destroy per-room offline session & backup
-            sessionHolder.clearAll()
-
-            // 7. Clear tokens, ride sessions, and all encrypted prefs (retains language & emergency country only)
-            com.ridervoice.models.RideSession.clear()
-            securePrefs.clearActiveRide()
-            securePrefs.clear()
 
             // 8. authRepository.signOut() LAST
             authRepository.signOut()
@@ -158,6 +200,36 @@ class AuthViewModel @Inject constructor(
             _resetEmailSent.value = false
             _isLoading.value = false
             onSignOutComplete?.invoke()
+        }
+    }
+
+    fun deleteAccount(
+        forceHostEnd: Boolean = false,
+        onHostConfirmationRequired: (() -> Unit)? = null,
+        onDeleteComplete: (() -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            val proceeded = tearDownActiveSessionAndLocalData(
+                forceHostEnd = forceHostEnd,
+                onHostConfirmationRequired = onHostConfirmationRequired,
+                wipeIdentity = true,
+                callDeleteAccountEndpoint = true
+            )
+            if (!proceeded) {
+                _isLoading.value = false
+                return@launch
+            }
+
+            authRepository.deleteAccount()
+
+            _loginSuccess.value = false
+            _otpSent.value = false
+            _verificationId = null
+            _wrongPasswordCount.value = 0
+            _resetEmailSent.value = false
+            _isLoading.value = false
+            onDeleteComplete?.invoke()
         }
     }
 

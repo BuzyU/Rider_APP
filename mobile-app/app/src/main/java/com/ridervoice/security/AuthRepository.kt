@@ -76,6 +76,18 @@ class AuthRepository @Inject constructor() {
         auth.signOut()
     }
 
+    suspend fun deleteAccount(): String? {
+        com.ridervoice.di.AppModule.AuthTokenCache.clear()
+        return try {
+            auth.currentUser?.delete()?.await()
+            auth.signOut()
+            null
+        } catch (e: Exception) {
+            auth.signOut()
+            e.localizedMessage
+        }
+    }
+
     suspend fun signInWithGoogle(idToken: String): Boolean {
         return try {
             val credential = GoogleAuthProvider.getCredential(idToken, null)

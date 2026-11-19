@@ -30,7 +30,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,7 +56,7 @@ fun TalkControls(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(76.dp),
+            .heightIn(min = 76.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -62,13 +64,14 @@ fun TalkControls(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .width(60.dp)
+                .widthIn(min = 60.dp)
                 .padding(end = 4.dp)
         ) {
             FilledIconButton(
                 onClick = onToggleMic,
                 modifier = Modifier
                     .size(52.dp)
+                    .testTag("talk_controls_mic")
                     .border(
                         1.5.dp,
                         if (isMicEnabled) ElectricCyan else BorderColor,
@@ -88,6 +91,7 @@ fun TalkControls(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = if (isMicEnabled) "MIC ON" else "MUTED",
+                modifier = Modifier.testTag("talk_controls_mic_label"),
                 color = if (isMicEnabled) ElectricCyan else TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
@@ -102,13 +106,14 @@ fun TalkControls(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .width(60.dp)
+                .widthIn(min = 60.dp)
                 .padding(end = 4.dp)
         ) {
             FilledIconButton(
                 onClick = onToggleDeafen,
                 modifier = Modifier
                     .size(52.dp)
+                    .testTag("talk_controls_deafen")
                     .border(
                         1.5.dp,
                         if (isDeafened) AlertRed else BorderColor,
@@ -128,6 +133,7 @@ fun TalkControls(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = if (isDeafened) "DEAFENED" else "HEARING",
+                modifier = Modifier.testTag("talk_controls_deafen_label"),
                 color = if (isDeafened) AlertRed else TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
@@ -154,12 +160,13 @@ fun TalkControls(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .width(56.dp)
+                .widthIn(min = 56.dp)
                 .padding(start = 4.dp)
         ) {
             Box(
                 modifier = Modifier
                     .size(52.dp)
+                    .testTag("talk_controls_sos")
                     .clip(RoundedCornerShape(10.dp))
                     .background(HazardContainer)
                     .border(2.dp, AlertRed, RoundedCornerShape(10.dp))
@@ -177,6 +184,7 @@ fun TalkControls(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "SOS",
+                modifier = Modifier.testTag("talk_controls_sos_label"),
                 color = AlertRed,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 10.sp,
@@ -238,7 +246,15 @@ fun PttPerforatedButton(
                     }
                 )
             }
-            .semantics { contentDescription = "Push To Talk button" },
+            .semantics {
+                contentDescription = "Push To Talk button"
+                onClick(label = "Push To Talk") {
+                    onPressStart()
+                    onPressEnd()
+                    true
+                }
+            }
+            .testTag("talk_controls_ptt"),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -265,7 +281,7 @@ fun PttPerforatedButton(
             color = if (isPressed) NeonOrange else Gunmetal.copy(alpha = 0.9f),
             shape = RoundedCornerShape(12.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, rimColor),
-            modifier = Modifier.widthIn(min = 128.dp)
+            modifier = Modifier.widthIn(min = 64.dp)
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

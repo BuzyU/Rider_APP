@@ -127,6 +127,9 @@ interface ApiService {
     @DELETE("/api/users/fcm-token")
     suspend fun deleteFcmToken(@retrofit2.http.Query("token") token: String? = null): Response<Any>
 
+    @DELETE("/api/users/account")
+    suspend fun deleteAccount(): Response<Any>
+
     @POST("/api/diagnostics/runs/room/{roomName}/finalize")
     suspend fun finalizeDiagnosticRun(@Path("roomName") roomName: String): Response<Any>
 

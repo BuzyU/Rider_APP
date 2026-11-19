@@ -90,14 +90,22 @@ class SosViewModel(
         }
     }
 
-    fun sendAlert(roomName: String) {
+    fun sendAlert(roomName: String, clientAlertId: String? = null) {
+        val currentState = _state.value
+        if (currentState is SosState.Sending || currentState is SosState.Sent) {
+            return
+        }
+        val effectiveClientAlertId = clientAlertId ?: activeClientAlertId ?: java.util.UUID.randomUUID().toString()
+        activeClientAlertId = effectiveClientAlertId
+        _state.value = SosState.Sending
         viewModelScope.launch {
             _state.value = SosState.Sending
             val (lat, lng) = locationProvider?.invoke() ?: run {
                 val loc = locationService?.currentLocation?.value
                 Pair(loc?.latitude, loc?.longitude)
             }
-            val alertReq = SosAlertRequest(roomName = roomName, lat = lat, lng = lng)
+            val effectiveId = activeClientAlertId ?: java.util.UUID.randomUUID().toString()
+            val alertReq = SosAlertRequest(roomName = roomName, lat = lat, lng = lng, clientAlertId = effectiveId)
             activeClientAlertId = alertReq.clientAlertId
             try {
                 val response = apiService.sendSosAlert(alertReq)
@@ -151,6 +159,7 @@ class SosViewModel(
             } catch (_: Exception) {
             } finally {
                 activeAlertId = null
+                activeClientAlertId = null
                 _state.value = SosState.Idle
             }
         }

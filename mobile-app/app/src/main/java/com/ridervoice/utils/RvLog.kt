@@ -40,7 +40,7 @@ object RvLog {
 
     /** Always-on non-PII numeric metric log for release/debug logcat diagnostics. */
     fun metric(component: String, msg: String) {
-        runCatching { Log.i("RV_$component", msg) }
+        runCatching { Log.i("RV_$component", "[METRIC] [RvLog] $msg") }
     }
 
     fun w(component: String, msg: String) {

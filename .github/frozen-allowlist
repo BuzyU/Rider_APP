@@ -25,3 +25,5 @@ backend/src/routes/testerRoutes.js
 backend/src/routes/userRoutes.js
 backend/src/services/notificationService.js
 backend/test/cross_feature_e2e.test.js
+backend/test/wp173_flows.test.js
+mobile-app/app/src/main/java/com/ridervoice/ui/screens/room/RiderList.kt

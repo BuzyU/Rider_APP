@@ -112,7 +112,10 @@ class AuthViewModel @Inject constructor(
                 return@launch
             }
 
-            // 2. Leave / end active room via backend API before credential invalidation
+            // 2. Unregister FCM push token and leave / end active room via backend API before credential invalidation
+            runCatching {
+                com.ridervoice.services.FcmTokenManager.unregisterCurrentToken(apiService)
+            }
             if (activeRide != null) {
                 runCatching {
                     if (activeRide.isHost) {
@@ -139,9 +142,10 @@ class AuthViewModel @Inject constructor(
             // 6. Destroy per-room offline session & backup
             sessionHolder.clearAll()
 
-            // 7. Clear tokens and ride sessions
+            // 7. Clear tokens, ride sessions, and all encrypted prefs (retains language & emergency country only)
             com.ridervoice.models.RideSession.clear()
             securePrefs.clearActiveRide()
+            securePrefs.clear()
 
             // 8. authRepository.signOut() LAST
             authRepository.signOut()

@@ -25,6 +25,7 @@ import javax.inject.Inject
 class FcmService : FirebaseMessagingService() {
 
     @Inject lateinit var apiService: ApiService
+    @Inject lateinit var activeRideRepository: com.ridervoice.state.ActiveRideRepository
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -49,9 +50,30 @@ class FcmService : FirebaseMessagingService() {
         when (type) {
             "RIDE_INVITE" -> handleRideInvite(data)
             "INVITE_ACCEPTED" -> handleInviteAccepted(data)
+            "CONVOY_ENDED" -> handleConvoyEnded(data)
             "EMERGENCY" -> handleEmergency(data)
             else -> Log.d(TAG, "Unhandled FCM message type: $type")
         }
+    }
+
+    private fun handleConvoyEnded(data: Map<String, String>) {
+        val endedRoomId = data["roomId"]
+        val endedRoomName = data["convoyName"] ?: data["roomName"] ?: "Ride"
+        if (::activeRideRepository.isInitialized) {
+            val current = activeRideRepository.state.value
+            if (current != null && (endedRoomId.isNullOrBlank() || current.roomId == endedRoomId || current.displayName == endedRoomName)) {
+                activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.ENDED_BY_HOST)
+            }
+        }
+        val notification = NotificationCompat.Builder(this, "CHANNEL_CONVOY")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Ride ended")
+            .setContentText("$endedRoomName has ended.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(("ended_$endedRoomName").hashCode(), notification)
     }
 
     private fun handleRideInvite(data: Map<String, String>) {

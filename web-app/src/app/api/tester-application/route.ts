@@ -5,15 +5,15 @@ import { buildTesterWelcomeEmail } from '@/lib/email/templates';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 
 const DEFAULT_RELEASE = {
-  version: 'v0.0.3.19',
-  releaseName: 'RiderVoice v0.0.3.19',
-  fileName: 'Rider_APP-v0.0.3.19.apk',
-  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.19/Rider_APP-v0.0.3.19.apk',
-  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.19',
+  version: 'v0.0.3.20',
+  releaseName: 'RiderVoice v0.0.3.20',
+  fileName: 'Rider_APP-v0.0.3.20.apk',
+  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.20/Rider_APP-v0.0.3.20.apk',
+  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.20',
   sha256: 'Pending release verification',
   fileSize: '~50 MB',
   targetArch: 'Universal ARM (arm64-v8a, armeabi-v7a)',
-  highlights: 'Per-Room Offline Mesh Config, Non-Sticky DB Health Auto-Recovery, Redesigned RideTopBar, VOX and JitterBuffer Hardening, Android 12-14 Permissions and Play Protect Compliance'
+  highlights: 'Offline Mesh ON by Default in Release Builds, VOX Envelope & Route-Change Audio Fixes, Independent Ghost Expiry, Infinite Schema Self-Repair, Cross-Feature & Session Isolation Hardening'
 };
 
 async function getLatestRelease() {

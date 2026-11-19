@@ -184,27 +184,10 @@ fun EmergencyAlertContent(
     onCancelEmergency: (String, String?) -> Unit
 ) {
     val isDark = ThemeState.isDarkTheme
-    var secondsRemaining by remember { mutableIntStateOf(10) }
     var isDispatched by remember { mutableStateOf(false) }
     var isDispatching by remember { mutableStateOf(false) }
     var dispatchStatus by remember { mutableStateOf<String?>(null) }
     var isCancelling by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isDispatched) {
-        if (!isDispatched) {
-            while (secondsRemaining > 0) {
-                delay(1000L)
-                secondsRemaining--
-            }
-
-            isDispatching = true
-            onTriggerDispatch(roomName) { success, err ->
-                isDispatching = false
-                isDispatched = true
-                dispatchStatus = if (success) "DISPATCHED TO SQUAD & CONVOY" else "FAILED: $err"
-            }
-        }
-    }
 
     val bgModifier = if (isDark) {
         Modifier
@@ -270,7 +253,7 @@ fun EmergencyAlertContent(
                 modifier = Modifier.size(180.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val progress = if (isDispatched) 0f else (secondsRemaining / 10f)
+                val progress = if (isDispatched) 1f else 0.75f
                 val meterColor = AlertRed
                 val trackColor = if (isDark) Color(0xFF331010) else LightPalette.SurfaceAlt
 
@@ -305,13 +288,13 @@ fun EmergencyAlertContent(
                         )
                     } else {
                         Text(
-                            text = String.format("%02d", secondsRemaining),
+                            text = "SOS",
                             style = MaterialTheme.typography.displayLarge,
                             color = AlertRed,
-                            fontSize = 54.sp
+                            fontSize = 48.sp
                         )
                         Text(
-                            text = "SECONDS",
+                            text = "ACTIVE",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextSecondary
                         )
@@ -335,7 +318,7 @@ fun EmergencyAlertContent(
                         isCancelling -> "CANCELING DISTRESS BROADCAST..."
                         isDispatching -> "TRANSMITTING DISTRESS TELEMETRY..."
                         isDispatched -> dispatchStatus ?: "EMERGENCY BROADCAST ACTIVE"
-                        else -> "AUTOMATIC LOCATION DISPATCH IN ${secondsRemaining}S"
+                        else -> "TAP SEND SOS OR CALL EMERGENCY SERVICES"
                     }
                     Text(
                         text = statusMessage,

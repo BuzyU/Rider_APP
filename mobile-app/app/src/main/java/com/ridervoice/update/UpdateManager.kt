@@ -40,19 +40,29 @@ class UpdateManager @Inject constructor(
         private const val CACHE_TTL_MS = 60_000L // 60s in-memory TTL to avoid rapid spamming
         private const val TAG = "UpdateManager"
 
+        internal val DEFAULT_V00320_NOTES = """
+            • Offline backup mesh is now enabled by default in release builds with DEX verification during CI release packaging
+            • Improved hands-free VOX speech tracking for continuous talking and deferred Bluetooth or audio route changes until TX is quiet
+            • Added measurable audio and VOX telemetry counters in RvLog for real-device field diagnosis
+            • Independent 120-second ghost rider expiry and fixed-width controls in online and offline rooms to prevent layout shifts
+            • Continuous backend database schema self-repair loop beyond 10 attempts with automatic column repair when enabled
+            • Complete cross-ride session isolation, instant invite notification handling, and idempotent ride stats sync
+            • Non-destructive Room database migration and higher default group polling headroom behind shared hotspots
+            • Not verified on real devices: multi-device field audio, Bluetooth SCO helmet, and phone hotspot endurance
+        """.trimIndent()
+
         internal val DEFAULT_V00319_NOTES = """
             • Per-ride waiting room offline mesh backup configuration with automatic 16-character pairing code provisioning and zero global settings clutter
             • Automatic online to offline voice switching with 10-second loss confirmation, 400ms audio hardware quiet guard, 8-second recovery stability window, and anti-flapping protection
             • Offline multi-hop voice intercom supporting up to 6 riders across 5 hops with Opus 16 kbps compression, packet loss concealment, and 20ms monotonic playback pacing
             • Non-sticky database schema health handling with automatic exponential backoff re-validation and full emergency SOS route protection
             • Redesigned ride top bar with fixed 48dp Leave button touch target, display cutout padding, and zero layout shift during active speaker changes
-            • Event-driven ghost participant cleanup and removal of background polling timers for lower battery usage
             • Complete Android 12 to 14 runtime permission handling for microphone, location, notifications, and Bluetooth headset teardown safety
             • Google Play Protect compliant regional emergency SOS dialing without telephony carrier inspection
         """.trimIndent()
 
         internal fun formatReleaseNotesForApp(rawBody: String?): String {
-            if (rawBody.isNullOrBlank()) return DEFAULT_V00319_NOTES
+            if (rawBody.isNullOrBlank()) return DEFAULT_V00320_NOTES
 
             val cleanedLines = mutableListOf<String>()
             var inCodeBlock = false
@@ -97,7 +107,7 @@ class UpdateManager @Inject constructor(
                 cleanedLines.add("• $line")
             }
 
-            return if (cleanedLines.isEmpty()) DEFAULT_V00319_NOTES else cleanedLines.joinToString("\n")
+            return if (cleanedLines.isEmpty()) DEFAULT_V00320_NOTES else cleanedLines.joinToString("\n")
         }
     }
 

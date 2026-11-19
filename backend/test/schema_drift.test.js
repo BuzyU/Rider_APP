@@ -753,4 +753,134 @@ describe('WP-142: Schema Drift, Re-validation, Sticky Flag & Authoritative SQL',
             await new Promise(r => server.close(r))
         }
     })
+
+    it('WP-156: schema revalidation never gives up past 10 failures and runs ensureDbSchema repair when AUTO_SCHEMA_REPAIR is not false', { timeout: 120000 }, async () => {
+        const healthRoute = require('../src/routes/healthRoute')
+        const { ensureDbSchema, assertSchema } = require('../src/services/schemaMigration')
+
+        healthRoute.resetRevalidation()
+        let attemptCount = 0
+        let repairCalls = 0
+
+        const fakePrisma = { $queryRawUnsafe: async () => [] }
+        const fakeRepair = async () => {
+            repairCalls++
+            return { structuralOk: attemptCount >= 12, repaired: true }
+        }
+        const fakeAssert = async () => {
+            if (attemptCount < 12) {
+                return { valid: false, missing: ['Room.offlineBackupCode'], warnings: [] }
+            }
+            return { valid: true, missing: [], warnings: [] }
+        }
+
+        const origAutoRepair = process.env.AUTO_SCHEMA_REPAIR
+        delete process.env.AUTO_SCHEMA_REPAIR
+
+        healthRoute.initSchemaHealthRevalidation(fakePrisma, async () => {
+            attemptCount = healthRoute.getSchemaHealth().revalidationAttempts
+            return await fakeAssert()
+        }, fakeRepair, { baseMs: 5, maxMs: 10 })
+
+        healthRoute.setSchemaHealth(false, {
+            structuralOk: false,
+            missing: ['Room.offlineBackupCode']
+        })
+
+        // Wait up to 3 seconds for >12 rapid attempts to complete
+        const deadline = Date.now() + 3000
+        while (!healthRoute.getSchemaHealth().schemaStructuralOk && Date.now() < deadline) {
+            await new Promise(r => setTimeout(r, 20))
+        }
+
+        assert.ok(repairCalls >= 12, `Expected at least 12 repair+revalidation attempts without giving up, got ${repairCalls}`)
+        assert.strictEqual(healthRoute.getSchemaHealth().schemaStructuralOk, true)
+        assert.strictEqual(healthRoute.getSchemaHealth().revalidationAttempts, 0)
+
+        // Real Postgres auto-heal integration: drop offlineBackupCode, degrade /ready -> 503, let revalidation run ensureDbSchema, assert /ready heals to 200 without restart
+        const testPort = 5440
+        const testDataDir = path.join(__dirname, '../.pg_data_wp156_reval')
+        const pg = new EmbeddedPostgres({
+            databaseDir: testDataDir,
+            user: 'postgres',
+            password: 'password',
+            port: testPort,
+            persistent: false
+        })
+        let localPrisma = null
+        let client = null
+        let srv = null
+        try {
+            if (fs.existsSync(testDataDir)) fs.rmSync(testDataDir, { recursive: true, force: true })
+            await pg.initialise()
+            await pg.start()
+            await pg.createDatabase('ridervoice_wp156')
+
+            const dbUrl = `postgresql://postgres:password@localhost:${testPort}/ridervoice_wp156`
+            client = new Client({ connectionString: dbUrl })
+            await client.connect()
+            await client.query(fs.readFileSync(path.join(__dirname, '../supabase_schema.sql'), 'utf8'))
+
+            const authSql = fs.readFileSync(path.join(__dirname, '../supabase_authoritative.sql'), 'utf8')
+            const lines = authSql.split(/\r?\n/)
+            const preEnum = []
+            const rest = []
+            let inEnum = false
+            for (const l of lines) {
+                if (l.includes('SECTION 1:')) inEnum = true
+                if (inEnum && l.startsWith('ALTER TYPE ')) {
+                    preEnum.push(l)
+                } else {
+                    if (l.includes('SECTION 2:')) inEnum = false
+                    rest.push(l)
+                }
+            }
+            for (const stmt of preEnum) {
+                await client.query(stmt)
+            }
+            await client.query(rest.join('\n'))
+
+            localPrisma = new PrismaClient({ datasources: { db: { url: dbUrl } } })
+            await localPrisma.$connect()
+            const repairedBoot = await ensureDbSchema(localPrisma)
+            assert.strictEqual(repairedBoot.structuralOk, true)
+
+            // Drop column to simulate schema drift after boot
+            await client.query('ALTER TABLE "Room" DROP COLUMN "offlineBackupCode"')
+
+            healthRoute.resetRevalidation()
+            healthRoute.initSchemaHealthRevalidation(localPrisma, assertSchema, ensureDbSchema, { baseMs: 20, maxMs: 50 })
+            healthRoute.setSchemaHealth(false, { structuralOk: false, missing: ['Room.offlineBackupCode'] })
+
+            const appTest = express()
+            appTest.use('/', healthRoute)
+            srv = http.createServer(appTest)
+            await new Promise(r => srv.listen(0, r))
+            const p = srv.address().port
+
+            const beforeRes = await fetch(`http://127.0.0.1:${p}/ready`)
+            assert.strictEqual(beforeRes.status, 503)
+
+            const healDeadline = Date.now() + 10000
+            while (!healthRoute.getSchemaHealth().schemaStructuralOk && Date.now() < healDeadline) {
+                await new Promise(r => setTimeout(r, 50))
+            }
+            assert.strictEqual(healthRoute.getSchemaHealth().schemaStructuralOk, true)
+
+            const afterRes = await fetch(`http://127.0.0.1:${p}/ready`)
+            assert.strictEqual(afterRes.status, 200)
+        } finally {
+            if (origAutoRepair !== undefined) process.env.AUTO_SCHEMA_REPAIR = origAutoRepair
+            healthRoute.resetRevalidation()
+            if (srv) await new Promise(r => srv.close(r))
+            if (client) await client.end().catch(() => {})
+            if (localPrisma) await localPrisma.$disconnect().catch(() => {})
+            try {
+                await Promise.race([pg.stop(), new Promise(r => setTimeout(r, 2000))])
+            } catch (_) {}
+            if (process.platform === 'win32') {
+                try { require('child_process').execSync('taskkill /F /IM postgres.exe /T', { stdio: 'ignore' }) } catch (_) {}
+            }
+        }
+    })
 })

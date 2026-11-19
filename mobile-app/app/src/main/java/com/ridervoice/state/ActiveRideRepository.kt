@@ -45,11 +45,13 @@ class ActiveRideRepository @Inject constructor(
 
     fun setMeshConfig(config: com.ridervoice.mesh.RoomMeshConfig) {
         _state.update { current ->
-            current?.copy(meshConfig = config)
+            val updated = current?.copy(meshConfig = config)
+            if (updated != null) persist(updated)
+            updated
         }
     }
 
-    private val _state = MutableStateFlow<ActiveRide?>(null)
+    private val _state = MutableStateFlow<ActiveRide?>(restoreFromPrefs())
     val state: StateFlow<ActiveRide?> = _state.asStateFlow()
     private val _lastEnded = MutableStateFlow<PostRideSnapshot?>(null)
     val lastEnded: StateFlow<PostRideSnapshot?> = _lastEnded.asStateFlow()
@@ -70,7 +72,7 @@ class ActiveRideRepository @Inject constructor(
                 roomId = roomId,
                 displayName = name,
                 isHost = isHost,
-                phase = if (sameRoom && current!!.phase == Phase.LIVE) Phase.LIVE else Phase.LOBBY,
+                phase = if (sameRoom && current?.phase == Phase.LIVE) Phase.LIVE else Phase.LOBBY,
                 lkRoomName = lkRoomName ?: if (sameRoom) current?.lkRoomName else null,
                 livekitUrl = if (sameRoom) current?.livekitUrl else null,
                 token = if (sameRoom) current?.token else null,
@@ -226,6 +228,7 @@ class ActiveRideRepository @Inject constructor(
         val isHost = prefs?.isActiveRideHost() ?: false
         val phaseName = prefs?.getString("active_ride_phase", Phase.LOBBY.name) ?: Phase.LOBBY.name
         val phase = runCatching { Phase.valueOf(phaseName) }.getOrDefault(Phase.LOBBY)
+        val restoredConfig = _state.value?.meshConfig ?: loadPersistedMeshConfig()
 
         try {
             val res = api.getLobbyStatus(savedRoomId)
@@ -239,15 +242,26 @@ class ActiveRideRepository @Inject constructor(
             } else {
                 val status = res.body()
                 if (res.isSuccessful && status != null) {
+                    val serverMeshEnabled = status.offlineMeshEnabled
+                    val effectiveConfig = when {
+                        restoredConfig != null -> restoredConfig.copy(
+                            offlineMeshEnabled = serverMeshEnabled,
+                            optOut = restoredConfig.optOut || !serverMeshEnabled
+                        )
+                        !serverMeshEnabled -> com.ridervoice.mesh.RoomMeshConfig.DISABLED
+                        else -> null
+                    }
                     val activeRide = ActiveRide(
-                    roomId = status.roomId ?: savedRoomId,
-                    displayName = status.convoyName ?: savedRoomId,
-                    isHost = status.isHost ?: isHost,
-                    phase = if (status.isRideStarted == true) Phase.LIVE else phase,
-                    lkRoomName = status.lkRoomName ?: savedLkRoom,
-                    diagnosticsEnabled = status.diagnosticsEnabled ?: false,
-                    joinCode = status.joinCode
+                        roomId = status.roomId ?: savedRoomId,
+                        displayName = status.convoyName ?: savedRoomId,
+                        isHost = status.isHost ?: isHost,
+                        phase = if (status.isRideStarted == true) Phase.LIVE else phase,
+                        lkRoomName = status.lkRoomName ?: savedLkRoom,
+                        diagnosticsEnabled = status.diagnosticsEnabled ?: false,
+                        joinCode = status.joinCode,
+                        meshConfig = effectiveConfig
                     )
+                    persist(activeRide)
                     _state.update { activeRide }
                 }
             }
@@ -256,18 +270,70 @@ class ActiveRideRepository @Inject constructor(
             _state.update { current ->
                 current ?: ActiveRide(
                     roomId = savedRoomId,
-                    displayName = savedRoomId,
+                    displayName = prefs?.getString("active_ride_display_name", savedRoomId) ?: savedRoomId,
                     isHost = isHost,
                     phase = phase,
-                    lkRoomName = savedLkRoom
+                    lkRoomName = savedLkRoom,
+                    meshConfig = restoredConfig
                 )
             }
         }
     }
 
+    private fun loadPersistedMeshConfig(): com.ridervoice.mesh.RoomMeshConfig? {
+        val p = prefs ?: return null
+        if (!p.getBoolean("active_ride_mesh_present", false)) return null
+        val statusName = p.getString(
+            "active_ride_mesh_status",
+            com.ridervoice.mesh.offline.OfflineConfigStatus.NOT_STARTED.name
+        )
+        val status = runCatching {
+            com.ridervoice.mesh.offline.OfflineConfigStatus.valueOf(statusName)
+        }.getOrDefault(com.ridervoice.mesh.offline.OfflineConfigStatus.NOT_STARTED)
+        return com.ridervoice.mesh.RoomMeshConfig(
+            offlineMeshEnabled = p.getBoolean("active_ride_mesh_enabled", true),
+            automaticFallbackEnabled = p.getBoolean("active_ride_mesh_auto", true),
+            warmStandbyEnabled = p.getBoolean("active_ride_mesh_warm", true),
+            configCompleted = p.getBoolean("active_ride_mesh_completed", false),
+            status = status,
+            optOut = p.getBoolean("active_ride_mesh_opt_out", false)
+        )
+    }
+
+    private fun restoreFromPrefs(): ActiveRide? {
+        val savedRoomId = prefs?.getActiveRideRoom()?.takeIf { it.isNotBlank() } ?: return null
+        val savedDisplayName = prefs?.getString("active_ride_display_name", savedRoomId)?.takeIf { it.isNotBlank() } ?: savedRoomId
+        val savedLkRoom = prefs?.getActiveRideLkRoom()
+        val isHost = prefs?.isActiveRideHost() ?: false
+        val phaseName = prefs?.getString("active_ride_phase", Phase.LOBBY.name) ?: Phase.LOBBY.name
+        val phase = runCatching { Phase.valueOf(phaseName) }.getOrDefault(Phase.LOBBY)
+        val cfg = loadPersistedMeshConfig()
+        return ActiveRide(
+            roomId = savedRoomId,
+            displayName = savedDisplayName,
+            isHost = isHost,
+            phase = phase,
+            lkRoomName = savedLkRoom,
+            meshConfig = cfg
+        )
+    }
+
     private fun persist(ride: ActiveRide) {
         prefs?.saveActiveRide(ride.roomId, ride.isHost, ride.lkRoomName)
+        prefs?.saveString("active_ride_display_name", ride.displayName)
         prefs?.saveString("active_ride_phase", ride.phase.name)
+        val cfg = ride.meshConfig
+        if (cfg != null) {
+            prefs?.saveBoolean("active_ride_mesh_present", true)
+            prefs?.saveBoolean("active_ride_mesh_enabled", cfg.offlineMeshEnabled)
+            prefs?.saveBoolean("active_ride_mesh_auto", cfg.automaticFallbackEnabled)
+            prefs?.saveBoolean("active_ride_mesh_warm", cfg.warmStandbyEnabled)
+            prefs?.saveBoolean("active_ride_mesh_completed", cfg.configCompleted)
+            prefs?.saveBoolean("active_ride_mesh_opt_out", cfg.optOut)
+            prefs?.saveString("active_ride_mesh_status", cfg.status.name)
+        } else {
+            prefs?.saveBoolean("active_ride_mesh_present", false)
+        }
     }
 
     private fun parseEpochSec(isoString: String): Long? {

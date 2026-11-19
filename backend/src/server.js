@@ -82,7 +82,7 @@ app.get('/api/app/config', (req, res) => {
     res.json({
         roomIdMode: process.env.ROOM_ID_MODE === 'true',
         minAppVersion: process.env.MIN_APP_VERSION || '0.0.3.14',
-        latestVersion: process.env.LATEST_APP_VERSION || process.env.MIN_APP_VERSION || '0.0.3.19',
+        latestVersion: process.env.LATEST_APP_VERSION || process.env.MIN_APP_VERSION || '0.0.3.20',
         apkUrl: process.env.APK_DOWNLOAD_URL || (process.env.APP_BASE_URL ? `${process.env.APP_BASE_URL}/download` : '/download'),
         maintenance: process.env.MAINTENANCE_MODE === 'true'
     })
@@ -188,7 +188,7 @@ async function ensureDbExtensions() {
             console.warn('[DB] Schema structural validation passed, but data warnings present:', schemaResult.violations)
         }
     }
-    initSchemaHealthRevalidation(prisma, assertSchema)
+    initSchemaHealthRevalidation(prisma, assertSchema, ensureDbSchema)
     return schemaResult
 }
 

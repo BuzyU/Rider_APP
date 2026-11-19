@@ -68,6 +68,18 @@ class MeshAutoSwitchManager(
 
     private var drivingJob: Job? = null
 
+    private fun ActiveRideRepository.ActiveRide?.toMirrorSnapshot(): com.ridervoice.mesh.RoomMeshMirrorSnapshot? =
+        this?.let { ride ->
+            val cfg = ride.meshConfig ?: com.ridervoice.mesh.RoomMeshConfig.DEFAULT
+            com.ridervoice.mesh.RoomMeshMirrorSnapshot(
+                isLive = ride.phase == ActiveRideRepository.Phase.LIVE,
+                offlineMeshEnabled = cfg.offlineMeshEnabled,
+                optOut = cfg.optOut,
+                automaticFallbackEnabled = cfg.automaticFallbackEnabled,
+                warmStandbyEnabled = cfg.warmStandbyEnabled
+            )
+        }
+
     fun start() {
         if (!OfflineMeshGate.isBuildGateOpen() || OfflineMeshGate.decision() == com.ridervoice.mesh.GateDecision.DISABLED_BY_BUILD) return
         if (drivingJob?.isActive == true) return
@@ -95,10 +107,8 @@ class MeshAutoSwitchManager(
                     if (wasRideLive) {
                         stateMachine.endSession()
                         currentLiveRideId = null
-                        meshRuntimeSettings?.setOfflineMeshEnabled(false)
-                        meshRuntimeSettings?.setAutomaticFallbackEnabled(false)
-                        meshRuntimeSettings?.setWarmStandbyEnabled(false)
                     }
+                    meshRuntimeSettings?.let { com.ridervoice.mesh.RoomMeshFlagMirror.sync(ride.toMirrorSnapshot(), it) }
                     coordinator.setOnlineSession(null)
                     _groupStatus.value = GroupConnectivityStatus.ONLINE_ALL
                     if (wasRideLive) {
@@ -115,12 +125,7 @@ class MeshAutoSwitchManager(
                 // Phase.LIVE (new rideId) -> beginSession, start evaluation ticks
                 if (currentLiveRideId != ride.roomId) {
                     currentLiveRideId = ride.roomId
-                    val roomConfig = ride.meshConfig
-                    if (roomConfig != null) {
-                        meshRuntimeSettings?.setOfflineMeshEnabled(roomConfig.offlineMeshEnabled)
-                        meshRuntimeSettings?.setAutomaticFallbackEnabled(roomConfig.automaticFallbackEnabled)
-                        meshRuntimeSettings?.setWarmStandbyEnabled(roomConfig.warmStandbyEnabled)
-                    }
+                    meshRuntimeSettings?.let { com.ridervoice.mesh.RoomMeshFlagMirror.sync(ride.toMirrorSnapshot(), it) }
                     stateMachine.beginSession(ride.roomId, clock.nowMs())
                 }
                 // Phase.LIVE (same rideId) -> continue

@@ -33,6 +33,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.ui.theme.*
@@ -60,7 +61,9 @@ fun TalkControls(
         // 1. Mic toggle button
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(end = 4.dp)
+            modifier = Modifier
+                .width(60.dp)
+                .padding(end = 4.dp)
         ) {
             FilledIconButton(
                 onClick = onToggleMic,
@@ -88,14 +91,19 @@ fun TalkControls(
                 color = if (isMicEnabled) ElectricCyan else TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
         }
 
         // 2. Deafen toggle button
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(end = 6.dp)
+            modifier = Modifier
+                .width(60.dp)
+                .padding(end = 4.dp)
         ) {
             FilledIconButton(
                 onClick = onToggleDeafen,
@@ -123,7 +131,10 @@ fun TalkControls(
                 color = if (isDeafened) AlertRed else TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
         }
 
@@ -142,7 +153,9 @@ fun TalkControls(
         // 4. Emergency SOS Button
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(start = 6.dp)
+            modifier = Modifier
+                .width(56.dp)
+                .padding(start = 4.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -167,7 +180,9 @@ fun TalkControls(
                 color = AlertRed,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 10.sp,
-                fontWeight = FontWeight.Black
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                softWrap = false
             )
         }
     }
@@ -185,11 +200,11 @@ fun PttPerforatedButton(
     val isActive = isPressed || isVoxOpen
 
     val pulseTransition = rememberInfiniteTransition(label = "ptt")
-    val scale by pulseTransition.animateFloat(
+    val pulseAlpha by pulseTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (isActive) 1.04f else 1f,
+        targetValue = if (isActive) 0.55f else 1f,
         animationSpec = infiniteRepeatable(tween(400, easing = LinearEasing), RepeatMode.Reverse),
-        label = "pttScale"
+        label = "pttPulseAlpha"
     )
 
     val buttonBg = when {
@@ -199,8 +214,8 @@ fun PttPerforatedButton(
     }
 
     val rimColor = when {
-        isPressed -> NeonOrange
-        isVoxOpen -> ElectricCyan
+        isPressed -> NeonOrange.copy(alpha = pulseAlpha)
+        isVoxOpen -> ElectricCyan.copy(alpha = pulseAlpha)
         else      -> BorderColor
     }
 
@@ -211,7 +226,6 @@ fun PttPerforatedButton(
 
     Box(
         modifier = modifier
-            .scale(scale)
             .clip(RoundedCornerShape(18.dp))
             .background(buttonBg)
             .border(2.dp, rimColor, RoundedCornerShape(18.dp))
@@ -250,11 +264,13 @@ fun PttPerforatedButton(
         Surface(
             color = if (isPressed) NeonOrange else Gunmetal.copy(alpha = 0.9f),
             shape = RoundedCornerShape(12.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, rimColor)
+            border = androidx.compose.foundation.BorderStroke(1.dp, rimColor),
+            modifier = Modifier.widthIn(min = 128.dp)
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Mic,
@@ -272,7 +288,10 @@ fun PttPerforatedButton(
                     color = if (isPressed) (if (isDark) Color.Black else Color.White) else TextPrimary,
                     style = MaterialTheme.typography.labelLarge,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

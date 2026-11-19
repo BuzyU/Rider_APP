@@ -52,6 +52,7 @@ import org.json.JSONObject
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -468,7 +469,7 @@ class LiveKitManager @Inject constructor(
 
     private suspend fun startVoxSafely() {
         withTimeoutOrNull(5000) {
-            while (audioDeviceRouter.routerState.value != RouterState.ACTIVE) delay(100)
+            audioDeviceRouter.routerState.first { it == RouterState.ACTIVE }
         }
         delay(150)
         try {
@@ -487,6 +488,7 @@ class LiveKitManager @Inject constructor(
 
     fun onVoiceGate(open: Boolean) {
         voiceGateOpen = open
+        txGateBusy.value = isPttPressed || voiceGateOpen
         scope.launch { applyMic() }
     }
 
@@ -540,6 +542,7 @@ class LiveKitManager @Inject constructor(
                 else -> RouteType.PHONE
             }
             val profile = AudioProfile.forRoute(routeType)
+            voxEngine.setOpenRatio(profile.voxOpenRatio)
             val ok = try {
                 lp.publishAudioTrack(
                     track,
@@ -584,6 +587,9 @@ class LiveKitManager @Inject constructor(
 
     @Volatile private var isPttPressed = false
     @Volatile private var lastPublishTime = 0L
+    @Volatile private var pendingRouteDevice: AudioDevice? = null
+    private var pendingRouteRepublishJob: Job? = null
+    private val txGateBusy = MutableStateFlow(false)
 
     fun applyRouteOptions(device: AudioDevice) {
         currentAudioDevice = device
@@ -602,14 +608,53 @@ class LiveKitManager @Inject constructor(
             return
         }
 
-        if (!isPttPressed && (now - lastPublishTime >= 3000L)) {
+        val elapsed = now - lastPublishTime
+        if (!isPttPressed && !voiceGateOpen && elapsed >= 3000L) {
+            pendingRouteDevice = null
+            pendingRouteRepublishJob?.cancel()
             lastPublishTime = now
+            com.ridervoice.utils.RvLog.recordRouteRepublish("executed", device.javaClass.simpleName, "immediate")
             scope.launch { publishAudioTrack(device, force = true) }
+        } else {
+            pendingRouteDevice = device
+            val remainingMs = (3000L - elapsed).coerceAtLeast(0L)
+            com.ridervoice.utils.RvLog.recordRouteRepublish(
+                "deferred",
+                device.javaClass.simpleName,
+                "ptt=$isPttPressed vox=$voiceGateOpen cooldownRemaining=$remainingMs"
+            )
+            schedulePendingRouteRepublish()
+        }
+    }
+
+    private fun schedulePendingRouteRepublish() {
+        if (pendingRouteDevice == null || pendingRouteRepublishJob?.isActive == true) return
+        pendingRouteRepublishJob = scope.launch {
+            while (isActive) {
+                val targetDevice = pendingRouteDevice ?: break
+                val remaining = 3000L - (System.currentTimeMillis() - lastPublishTime)
+                if (remaining > 0L) {
+                    delay(remaining)
+                    continue
+                }
+                if (isPttPressed || voiceGateOpen) {
+                    txGateBusy.value = true
+                    txGateBusy.first { !it }
+                    continue
+                }
+                val finalDevice = pendingRouteDevice ?: break
+                pendingRouteDevice = null
+                lastPublishTime = System.currentTimeMillis()
+                com.ridervoice.utils.RvLog.recordRouteRepublish("executed", finalDevice.javaClass.simpleName, "deferred_flush")
+                publishAudioTrack(finalDevice, force = true)
+                break
+            }
         }
     }
 
     fun onPttPressed(pressed: Boolean) {
         isPttPressed = pressed
+        txGateBusy.value = isPttPressed || voiceGateOpen
         voxEngine.setPttOverride(pressed)
     }
 

@@ -203,18 +203,28 @@ open class SecurePreferences(private val context: Context? = null) {
     }
 
     open fun clearActiveRide() {
+        val keys = listOf(
+            "active_ride_room",
+            "active_ride_display_name",
+            "active_ride_is_host",
+            "active_ride_lk_room",
+            "active_ride_phase",
+            "active_ride_mesh_present",
+            "active_ride_mesh_enabled",
+            "active_ride_mesh_auto",
+            "active_ride_mesh_warm",
+            "active_ride_mesh_opt_out",
+            "active_ride_mesh_completed",
+            "active_ride_mesh_status"
+        )
         val p = prefs ?: run {
-            memoryStore.remove("active_ride_room")
-            memoryStore.remove("active_ride_is_host")
-            memoryStore.remove("active_ride_lk_room")
+            keys.forEach { memoryStore.remove(it) }
             return
         }
         runCatching {
-            p.edit()
-                .remove("active_ride_room")
-                .remove("active_ride_is_host")
-                .remove("active_ride_lk_room")
-                .apply()
+            val editor = p.edit()
+            keys.forEach { editor.remove(it) }
+            editor.apply()
         }
     }
 

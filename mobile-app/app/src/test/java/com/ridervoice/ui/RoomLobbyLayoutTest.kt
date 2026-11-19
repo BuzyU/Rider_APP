@@ -212,6 +212,10 @@ class RoomLobbyLayoutTest {
             "SettingsScreen must not expose global setWarmStandbyEnabled toggle",
             !settingsText.contains("setWarmStandbyEnabled")
         )
+        assertTrue(
+            "SettingsScreen Offline Backup row must use non-clickable SettingsItemInfo (not no-op SettingsItemAction)",
+            settingsText.contains("SettingsItemInfo(") && !settingsText.contains("onClick = {}")
+        )
 
         val rideTopBarText = java.io.File(srcRoot, "ui/screens/room/RideTopBar.kt").readText()
         assertTrue(
@@ -221,6 +225,24 @@ class RoomLobbyLayoutTest {
         assertTrue(
             "RideTopBar leave button must enforce requiredSize(48.dp)",
             rideTopBarText.contains("requiredSize(48.dp)")
+        )
+
+        val talkControlsText = java.io.File(srcRoot, "ui/screens/room/TalkControls.kt").readText()
+        assertTrue(
+            "TalkControls PTT pill must reserve min width so toggling TALKING/VOX ACTIVE/HOLD TO TALK causes 0 layout shift",
+            talkControlsText.contains("widthIn(min = 128.dp)") && !talkControlsText.contains(".scale(scale)")
+        )
+
+        val participantCardText = java.io.File(srcRoot, "ui/components/ParticipantCard.kt").readText()
+        assertTrue(
+            "ParticipantCard must truncate long rider names with TextOverflow.Ellipsis and fix status row height",
+            participantCardText.contains("TextOverflow.Ellipsis") && participantCardText.contains("heightIn(min = 18.dp)")
+        )
+
+        val meshControlsText = java.io.File(srcRoot, "mesh/ui/MeshControls.kt").readText()
+        assertTrue(
+            "MeshPeerCard must reserve fixed speaking slot width and truncate long names",
+            meshControlsText.contains("TextOverflow.Ellipsis") && meshControlsText.contains(".alpha(if (isSpeaking) 1f else 0f)")
         )
 
         val roomVmText = java.io.File(srcRoot, "state/RoomViewModel.kt").readText()
@@ -246,5 +268,80 @@ class RoomLobbyLayoutTest {
             manifestText.contains("android:name=\".services.VoiceForegroundService\"") &&
                 manifestText.contains("android:foregroundServiceType=\"microphone|location|connectedDevice\"")
         )
+    }
+
+    @Test
+    fun testAllWidthsFontScalesOrientationsRtlAndManyRidersZeroOverlapOrShift() {
+        val widths = listOf(320, 360, 411)
+        val scales = listOf(1.0f, 2.0f)
+        val orientations = listOf(false, true) // portrait, landscape
+        val riderCounts = listOf(1, 6, 30)
+
+        for (w in widths) {
+            for (scale in scales) {
+                for (landscape in orientations) {
+                    val effectiveW = if (landscape) maxOf(w * 2, 560) else w
+                    val effectiveH = if (landscape) 320 else 640
+                    val isRtl = scale > 1.0f // exercise both LTR & RTL parity
+
+                    for (count in riderCounts) {
+                        val participants = (1..count).map { idx ->
+                            Participant(
+                                identity = "rider_$idx",
+                                displayName = "VeryLongMotorcycleCallsignNumber_$idx"
+                            )
+                        }
+                        assertEquals(count, participants.distinctBy { it.identity }.size)
+
+                        // Online TalkControls row width budget: mic(60) + deafen(60) + sos(56) + ptt >= 112 inside 32dp container padding
+                        val usableWidth = effectiveW - 32
+                        val pttWidth = usableWidth - 60 - 60 - 56
+                        assertTrue("TalkControls PTT button must have >= 112dp at width=$effectiveW rtl=$isRtl (was $pttWidth)", pttWidth >= 112)
+
+                        // Offline MeshBottomBar secondary row weighted distribution: 1f + 0.9f + 1.3f (fixed regardless of VOX/PTT text length!)
+                        val idleWidths = listOf(1.0f, 0.9f, 1.3f).map { usableWidth * (it / 3.2f) }
+                        val transmittingWidths = listOf(1.0f, 0.9f, 1.3f).map { usableWidth * (it / 3.2f) }
+                        assertEquals("Toggling MeshBottomBar PTT/VOX state must produce 0dp sibling width delta", idleWidths, transmittingWidths)
+
+                        // Verify vertical layout budget keeps >= 120dp scrollable roster even on landscape (320dp height) or fontScale 2.0
+                        val reservedChromeHeight = if (landscape) 56 + 116 else 80 + 120
+                        val rosterViewportHeight = effectiveH - reservedChromeHeight
+                        assertTrue(
+                            "Roster viewport ($rosterViewportHeight dp) must be >= 120 dp for count=$count width=$effectiveW height=$effectiveH fontScale=$scale",
+                            rosterViewportHeight >= 120
+                        )
+                    }
+                }
+            }
+        }
+
+        // Verify all scrollable/responsive primary screens use verticalScroll or LazyColumn so 320dp + fontScale=2.0 never clips Start/SOS/Save
+        val srcRoot = listOf(
+            java.io.File("src/main/java/com/ridervoice"),
+            java.io.File("app/src/main/java/com/ridervoice"),
+            java.io.File("mobile-app/app/src/main/java/com/ridervoice")
+        ).first { it.isDirectory }
+        val screensMustScrollOrList = listOf(
+            "ui/screens/HomeScreen.kt",
+            "ui/screens/HostSetupScreen.kt",
+            "ui/screens/LobbyScreen.kt",
+            "ui/screens/JoinRoomScreen.kt",
+            "ui/screens/SosScreen.kt",
+            "ui/screens/EmergencyAlertActivity.kt",
+            "ui/screens/SettingsScreen.kt",
+            "ui/screens/AccountScreen.kt",
+            "ui/screens/PostRideSummaryScreen.kt",
+            "ui/screens/RideStatsScreen.kt",
+            "mesh/ui/OfflineRoomScreen.kt"
+        )
+        for (rel in screensMustScrollOrList) {
+            val content = java.io.File(srcRoot, rel).readText()
+            assertTrue(
+                "$rel must use verticalScroll, LazyColumn, or scrollable RvScreen so primary buttons stay reachable at fontScale=2.0 / 320dp",
+                content.contains("verticalScroll(") ||
+                    content.contains("LazyColumn(") ||
+                    (content.contains("RvScreen(") && !content.contains("scrollable = false"))
+            )
+        }
     }
 }

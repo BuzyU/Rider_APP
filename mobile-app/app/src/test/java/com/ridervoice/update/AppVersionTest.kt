@@ -186,6 +186,15 @@ class AppVersionTest {
     }
 
     @Test
+    fun testV00320Bump() {
+        val prevVersion = AppVersion.parse("0.0.3.19")
+        val newVersion = AppVersion.parse("V0.0.3.20")
+        assertTrue("V0.0.3.20 must be recognized as newer than 0.0.3.19", newVersion.isNewerThan(prevVersion))
+        assertEquals(0, AppVersion.parse("v0.0.3.20").compareTo(newVersion))
+        assertEquals(0, AppVersion.parse("0.0.3.20").compareTo(newVersion))
+    }
+
+    @Test
     fun testV000315Normalization() {
         val normalized = AppVersion.parse("V0.0.0.3.15")
         val standard = AppVersion.parse("v0.0.3.15")
@@ -215,5 +224,17 @@ class AppVersionTest {
         assertTrue("Must not contain '`' character", !formatted.contains("`"))
         assertTrue("Must not contain '*' character", !formatted.contains("*"))
         assertTrue("Must not contain '|' character", !formatted.contains("|"))
+    }
+
+    @Test
+    fun testDefaultV00320NotesHaveNoRawMarkdownOrSlashes() {
+        val fallback = UpdateManager.formatReleaseNotesForApp("")
+        assertTrue("Fallback must mention offline backup mesh", fallback.contains("Offline backup mesh"))
+        assertTrue("Fallback must mention Not verified on real devices", fallback.contains("Not verified on real devices"))
+        assertTrue("Must not contain '#' character", !fallback.contains("#"))
+        assertTrue("Must not contain '/' character", !fallback.contains("/"))
+        assertTrue("Must not contain '`' character", !fallback.contains("`"))
+        assertTrue("Must not contain '*' character", !fallback.contains("*"))
+        assertTrue("Must not contain '|' character", !fallback.contains("|"))
     }
 }

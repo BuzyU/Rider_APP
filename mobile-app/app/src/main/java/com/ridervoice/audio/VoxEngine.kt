@@ -222,10 +222,6 @@ open class VoxEngine @Inject constructor(
 
                 while (isActive) {
                     val now = System.currentTimeMillis()
-                    if (_isMicOpen.value) {
-                        delay(20)
-                        continue
-                    }
                     if (audioRecord?.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
                         delay(50)
                         continue
@@ -235,16 +231,24 @@ open class VoxEngine @Inject constructor(
 
                     val rms = detector.rms(frame, read, SAMPLE_RATE)
                     _currentAmplitude.value = rms
+                    val frameMs = ((read * 1000L) / SAMPLE_RATE).coerceAtLeast(1L)
 
                     if (!pttOverride && !_isMicOpen.value) {
-                        detector.updateFloor(rms)
+                        detector.updateFloor(rms, frameMs.toInt())
                         _noiseFloor.value = detector.floor
                     }
 
-                    if (voxEnabled && !pttOverride) {
-                        when (detector.evaluate(rms, now, false)) {
-                            VoxDetector.Decision.OPEN -> openMic(isFromVox = true)
-                            else -> {}
+                    if (voxEnabled && !pttOverride && evaluator.activePath == "own") {
+                        if (!_isMicOpen.value) {
+                            when (detector.evaluate(rms, now, false, frameMs)) {
+                                VoxDetector.Decision.OPEN -> openMic(isFromVox = true)
+                                else -> {}
+                            }
+                        } else {
+                            when (detector.evaluate(rms, now, true, frameMs)) {
+                                VoxDetector.Decision.CLOSE -> closeMic()
+                                else -> {}
+                            }
                         }
                     }
                 }
@@ -315,11 +319,10 @@ open class VoxEngine @Inject constructor(
         _currentAmplitude.value = rms
 
         if (!pttOverride && voxEnabled) {
-            detector.updateFloor(rms)
-            _noiseFloor.value = detector.floor
-
-            val frameMs = (numSamples * 1000L) / sampleRate
+            val frameMs = ((numSamples * 1000L) / sampleRate.coerceAtLeast(1)).coerceAtLeast(1L)
             if (!_isMicOpen.value) {
+                detector.updateFloor(rms, frameMs.toInt())
+                _noiseFloor.value = detector.floor
                 if (evaluator.activePath == "adm") {
                     when (detector.evaluate(rms, now, isOpen = false, frameDurationMs = frameMs)) {
                         VoxDetector.Decision.OPEN -> openMic(isFromVox = true)
@@ -327,6 +330,11 @@ open class VoxEngine @Inject constructor(
                     }
                 }
             } else {
+                // Only update floor during active talkspurt pauses when signal is below open threshold
+                if (rms < detector.openThreshold) {
+                    detector.updateFloor(rms, frameMs.toInt())
+                    _noiseFloor.value = detector.floor
+                }
                 when (detector.evaluate(rms, now, isOpen = true, frameDurationMs = frameMs)) {
                     VoxDetector.Decision.CLOSE -> closeMic()
                     else -> {}
@@ -365,8 +373,22 @@ open class VoxEngine @Inject constructor(
         if (!enabled && !pttOverride) closeMic()
     }
 
+    @Volatile private var userOpenRatioOffset: Float = 0f
+    @Volatile private var routeOpenRatio: Float = VoxDetector.DEFAULT_OPEN_RATIO
+
+    private fun applyCombinedOpenRatio() {
+        detector.openRatio = (routeOpenRatio + userOpenRatioOffset).coerceIn(2.0f, 5.0f)
+    }
+
     fun setSensitivity(sensitivity: Float) {
-        detector.openRatio = 4.0f - 2.0f * sensitivity.coerceIn(0f, 1f)
+        val ratioFromSensitivity = 4.0f - 2.0f * sensitivity.coerceIn(0f, 1f)
+        userOpenRatioOffset = ratioFromSensitivity - VoxDetector.DEFAULT_OPEN_RATIO
+        applyCombinedOpenRatio()
+    }
+
+    fun setOpenRatio(ratio: Float) {
+        routeOpenRatio = ratio.coerceIn(2.0f, 5.0f)
+        applyCombinedOpenRatio()
     }
 
     fun updateSpeed(speedMps: Float) {

@@ -25,25 +25,39 @@ class NoiseFloorTracker(private val cfg: VoxConfig) {
     private var target = cfg.initialFloor
     var floor = cfg.initialFloor
         private set
-    private var tick = 0
+    private var accumMs = 0
+    private var accumWeightedSum = 0.0
+    private var elapsedSinceSortMs = 0
 
-    fun update(rms: Float): Float {
-        ring[i] = rms
-        i = (i + 1) % cap
-        if (n < cap) n++
-        if (++tick % 10 == 0) { // every 200 ms
-            val c = ring.copyOf(n)
-            c.sort()
-            target = c[(n * cfg.floorPercentile).toInt().coerceIn(0, n - 1)].coerceIn(cfg.minFloor, cfg.maxFloor)
+    fun update(rms: Float, frameDurationMs: Int = cfg.analysisMs): Float {
+        val dt = frameDurationMs.coerceAtLeast(1)
+        accumWeightedSum += rms.toDouble() * dt
+        accumMs += dt
+        if (accumMs >= cfg.analysisMs) {
+            val binnedRms = (accumWeightedSum / accumMs).toFloat()
+            ring[i] = binnedRms
+            i = (i + 1) % cap
+            if (n < cap) n++
+            elapsedSinceSortMs += accumMs
+            if (elapsedSinceSortMs >= 200) { // every 200 ms regardless of 10ms or 20ms input frames
+                elapsedSinceSortMs = 0
+                val c = ring.copyOf(n)
+                c.sort()
+                target = c[(n * cfg.floorPercentile).toInt().coerceIn(0, n - 1)].coerceIn(cfg.minFloor, cfg.maxFloor)
+            }
+            val tau = if (target > floor) cfg.floorUpTauMs else cfg.floorDownTauMs
+            floor += (target - floor) * (1f - kotlin.math.exp(-accumMs / tau.toFloat()))
+            accumMs = 0
+            accumWeightedSum = 0.0
         }
-        val tau = if (target > floor) cfg.floorUpTauMs else cfg.floorDownTauMs
-        floor += (target - floor) * (1f - kotlin.math.exp(-cfg.analysisMs / tau.toFloat()))
         return floor
     }
 
     fun setFloor(value: Float) {
         floor = value.coerceIn(cfg.minFloor, cfg.maxFloor)
         target = floor
+        accumMs = 0
+        accumWeightedSum = 0.0
     }
 }
 
@@ -123,7 +137,18 @@ class VoxDetector(
     private var attackAccumMs = 0L
     private var lastSpeechTime = 0L
     private var openStartTime = 0L
+    private var talkspurtOpenedAt = 0L
     private var highestRmsDuringOpen = 0f
+    private var silenceRunStartMs = -1L
+    private var currentTalkspurtLongestSilenceMs = 0L
+    var lastTalkspurtLongestSilenceMs = 0L
+        private set
+
+    // Rolling 1-second envelope spread to distinguish modulated continuous speech from steady noise step-up
+    private var envWindowStartMs = 0L
+    private var envMinRms = Float.MAX_VALUE
+    private var envMaxRms = 0f
+    private var isUnmodulatedHighNoise = false
 
     init {
         filter.updateSampleRate(initialSampleRate)
@@ -147,8 +172,8 @@ class VoxDetector(
     }
 
     @Synchronized
-    fun updateFloor(rms: Float) {
-        floorTracker.update(rms)
+    fun updateFloor(rms: Float, frameDurationMs: Int = cfg.analysisMs) {
+        floorTracker.update(rms, frameDurationMs)
     }
 
     @Synchronized
@@ -161,15 +186,23 @@ class VoxDetector(
     @Synchronized
     fun evaluate(rms: Float, now: Long, isOpen: Boolean, frameDurationMs: Long = cfg.analysisMs.toLong()): Decision {
         if (!isOpen) {
+            isUnmodulatedHighNoise = false
             if (rms >= openThreshold) {
                 attackAccumMs += frameDurationMs
                 if (attackAccumMs >= cfg.attackMs) {
                     lastSpeechTime = now
                     openStartTime = now
+                    talkspurtOpenedAt = now
                     wasBelowClose = false
                     highestRmsDuringOpen = rms
+                    silenceRunStartMs = -1L
+                    currentTalkspurtLongestSilenceMs = 0L
+                    envWindowStartMs = now
+                    envMinRms = rms
+                    envMaxRms = rms
                     attackAccumMs = 0L
                     com.ridervoice.utils.RvLog.vox("open floor=$floor thr=$openThreshold speed=$speedExtra")
+                    com.ridervoice.utils.RvLog.recordGateOpen(floor, openThreshold, speedExtra)
                     return Decision.OPEN
                 }
             } else {
@@ -180,7 +213,30 @@ class VoxDetector(
                 highestRmsDuringOpen = rms
             }
 
+            // Envelope variation over 1-second windows separates continuous modulated speech from flat wind/noise step-up
+            if (rms < envMinRms) envMinRms = rms
+            if (rms > envMaxRms) envMaxRms = rms
+            if (now - envWindowStartMs >= 1000L) {
+                val dynamicModulation = envMinRms > 0f && (envMaxRms / envMinRms) >= 1.45f && envMaxRms >= openThreshold
+                if (dynamicModulation) {
+                    openStartTime = now
+                    isUnmodulatedHighNoise = false
+                } else if (envMinRms >= closeThreshold) {
+                    isUnmodulatedHighNoise = true
+                }
+                envWindowStartMs = now
+                envMinRms = rms
+                envMaxRms = rms
+            }
+
             if (rms >= closeThreshold) {
+                if (silenceRunStartMs >= 0L) {
+                    val gap = (now - silenceRunStartMs).coerceAtLeast(0L)
+                    if (gap > currentTalkspurtLongestSilenceMs) {
+                        currentTalkspurtLongestSilenceMs = gap
+                    }
+                    silenceRunStartMs = -1L
+                }
                 if (wasBelowClose) {
                     openStartTime = now
                     wasBelowClose = false
@@ -188,15 +244,36 @@ class VoxDetector(
                 lastSpeechTime = now
             } else {
                 wasBelowClose = true
-                if (now - lastSpeechTime >= cfg.holdMs) {
-                    com.ridervoice.utils.RvLog.vox("close floor=$floor thr=$closeThreshold hold=${now - lastSpeechTime}")
+                if (silenceRunStartMs < 0L) silenceRunStartMs = now
+                val holdElapsed = (now - lastSpeechTime).coerceAtLeast(0L)
+                if (holdElapsed > currentTalkspurtLongestSilenceMs) {
+                    currentTalkspurtLongestSilenceMs = holdElapsed
+                }
+                if (holdElapsed >= cfg.holdMs) {
+                    lastTalkspurtLongestSilenceMs = currentTalkspurtLongestSilenceMs
+                    com.ridervoice.utils.RvLog.vox("close floor=$floor thr=$closeThreshold hold=$holdElapsed longestSilence=$currentTalkspurtLongestSilenceMs")
+                    com.ridervoice.utils.RvLog.recordGateClose(
+                        reason = "hold_expiry",
+                        floor = floor,
+                        threshold = closeThreshold,
+                        durationMs = (now - talkspurtOpenedAt).coerceAtLeast(0L),
+                        longestSilenceMs = currentTalkspurtLongestSilenceMs
+                    )
                     return Decision.CLOSE
                 }
             }
 
-            // Max open guard: if OPEN for maxOpenWithoutSpeechMs continuously, force close
+            // Max open guard: if OPEN continuously without modulation or inter-word dips for maxOpenWithoutSpeechMs, force close
             if (now - openStartTime >= cfg.maxOpenWithoutSpeechMs) {
-                com.ridervoice.utils.RvLog.vox("close max_open_guard=true floor=$floor")
+                lastTalkspurtLongestSilenceMs = currentTalkspurtLongestSilenceMs
+                com.ridervoice.utils.RvLog.vox("close max_open_guard=true floor=$floor longestSilence=$currentTalkspurtLongestSilenceMs")
+                com.ridervoice.utils.RvLog.recordGateClose(
+                    reason = "max_open_guard",
+                    floor = floor,
+                    threshold = closeThreshold,
+                    durationMs = (now - talkspurtOpenedAt).coerceAtLeast(0L),
+                    longestSilenceMs = currentTalkspurtLongestSilenceMs
+                )
                 return Decision.CLOSE
             }
         }
@@ -206,14 +283,17 @@ class VoxDetector(
     @Synchronized
     fun onFrame(pcm: ShortArray, sampleRate: Int, nowMs: Long, isOpen: Boolean): Decision {
         val r = rms(pcm, pcm.size, sampleRate)
-        updateFloor(r)
-        val frameMs = (pcm.size * 1000L) / sampleRate
+        val frameMs = ((pcm.size * 1000L) / sampleRate.coerceAtLeast(1)).coerceAtLeast(1L)
+        if (!isOpen || r < openThreshold || isUnmodulatedHighNoise) {
+            updateFloor(r, frameMs.toInt())
+        }
         return evaluate(r, nowMs, isOpen, frameMs)
     }
 
     @Synchronized
     fun onPttRelease(now: Long) {
         lastSpeechTime = now
+        openStartTime = now
         attackAccumMs = 0L
     }
 
@@ -221,4 +301,6 @@ class VoxDetector(
     fun resetAttack() {
         attackAccumMs = 0L
     }
+
+    fun getCurrentLongestSilenceMs(): Long = currentTalkspurtLongestSilenceMs
 }

@@ -4,14 +4,14 @@
 
 RiderVoice is a Jetpack Compose Android application designed for motorcycle convoys. It enables hands-free push-to-talk (PTT) communication over WebRTC, squad coordination, active ride telemetry, and over-the-air (OTA) application updates. It is backed by a Node.js Express REST API, Prisma PostgreSQL (Supabase), and LiveKit for real-time audio.
 
-> **Latest Release:** [**v0.0.3.19 (APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.19)  
+> **Latest Release:** [**v0.0.3.20 (APK)**](https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.20)  
 > For system architecture and protocol details, see [ARCHITECTURE.md](./ARCHITECTURE.md). For file-level code navigation, see [CODE_DEPTH_STRUCTURE.md](./CODE_DEPTH_STRUCTURE.md). For the Offline Mesh Intercom architecture and protocol specs, see [docs/implementation/mesh/README.md](./docs/implementation/mesh/README.md).
 
 ---
 
 ## 🚀 Key Features
 
-- **Offline Mesh Intercom Engine (v4 wire)** – Zero-infrastructure peer-to-peer ad-hoc Wi-Fi/UDP multi-hop voice mesh on port `45454` (`MeshConfig.MESH_PORT`) for motorcycle convoys outside cellular coverage. Standard release builds ship with the mesh OFF unless explicitly compiled with `-PenableOfflineMeshInRelease=true`. Features a "Light Packet" wire v4 design with a compact 17-byte header, single 12-byte AEAD tag, zero wall clocks, and Opus 16 kbit/s speech compression with PCM fallback, reducing on-the-wire voice datagrams from 747 B to 69 B per 20 ms frame (≤ 100 B size budget). Automatic fallback during an online ride uses a 16-character Crockford Base32 pairing-code backup session pre-shared in the offline lobby (persisted encrypted via `EncryptedPrefsBackupSessionStore` with an 8h TTL across process death and wiped on sign-out and when offline mesh is turned off). Includes an 8-state deterministic `AutomaticSwitchStateMachine` with non-disruptive recovery, daisy-hop packet forwarding up to 6 devices / 5 hops (`DEFAULT_TTL = 5`) with redundant relay suppression (cutting 6-device clique traffic from 18–25 down to 5 datagrams per frame), sliding 64-frame bitmask replay window, monotonic 20ms `OfflineAudioPlayback` tick pacing, and Audio HAL mutual-exclusion via `AudioOwnershipArbiter`.
+- **Offline Mesh Intercom Engine (v4 wire)** – Zero-infrastructure peer-to-peer ad-hoc Wi-Fi/UDP multi-hop voice mesh on port `45454` (`MeshConfig.MESH_PORT`) for motorcycle convoys outside cellular coverage. Standard release builds ship with offline mesh backup ON by default (with `FeatureFlags.localKillSwitch` retained as the runtime emergency off switch). Features a "Light Packet" wire v4 design with a compact 17-byte header, single 12-byte AEAD tag, zero wall clocks, and Opus 16 kbit/s speech compression with PCM fallback, reducing on-the-wire voice datagrams from 747 B to 69 B per 20 ms frame (≤ 100 B size budget). Automatic fallback during an online ride uses a 16-character Crockford Base32 pairing-code backup session pre-shared in the offline lobby (persisted encrypted via `EncryptedPrefsBackupSessionStore` with an 8h TTL across process death and wiped on sign-out and when offline mesh is turned off). Includes an 8-state deterministic `AutomaticSwitchStateMachine` with non-disruptive recovery, daisy-hop packet forwarding up to 6 devices / 5 hops (`DEFAULT_TTL = 5`) with redundant relay suppression (cutting 6-device clique traffic from 18–25 down to 5 datagrams per frame), sliding 64-frame bitmask replay window, monotonic 20ms `OfflineAudioPlayback` tick pacing, and Audio HAL mutual-exclusion via `AudioOwnershipArbiter`.
 - **Lobby Reliability, Missing Column Resilience & SOS Protection (v0.0.3.19)** – Resolved convoy creation lobby hang with bounded exponential backoff and immediate local shell rendering; fixed unhandled `ReferenceError: riderCallsign` 500 error; added dynamic probing and runtime Prisma `P2022` fallback resilience for `lastEmptyAt`; guaranteed write circuit-breaker exemptions for emergency SOS alerts and webhooks; hardened transaction-scoped advisory locks; and completely eliminated `TelephonyManager` to clear Google Play Protect flags.
 - **Staged Room Identity, Create Idempotency & Webhook Defense (v0.0.3.18)** – Per-ride persisted LiveKit room identity migration layer with legacy room fallback, database-backed atomic ride create idempotency (`clientRequestId`), race-condition-safe room termination, retryable sweeper cleanup queue, readiness health probe with webhook enforcement, and APK signing certificate validation on OTA updates.
 - **Google Play Protect Heuristic Clean-up & Production Keystore (v0.0.3.17)** – Replaced telephony carrier inspection with non-intrusive locale region detection in emergency SOS routing, eliminating false-positive toll-fraud heuristic flags from Google Play Protect on sideloaded updates. Added dedicated production release keystore infrastructure.
@@ -42,12 +42,12 @@ RiderVoice is a Jetpack Compose Android application designed for motorcycle conv
 
 You can download the latest signed APK directly from GitHub Releases:
 
-- 📱 [**Download RiderVoice v0.0.3.19 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.19/Rider_APP-v0.0.3.19.apk)
-- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.19/Rider_APP-v0.0.3.19.apk.sha256)
+- 📱 [**Download RiderVoice v0.0.3.20 APK**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.20/Rider_APP-v0.0.3.20.apk)
+- 🔐 [**SHA-256 Checksum**](https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.20/Rider_APP-v0.0.3.20.apk.sha256)
 
 ### Sideloading Instructions:
 
-1. Download `Rider_APP-v0.0.3.19.apk` onto your Android phone (or transfer via USB/Quick Share).
+1. Download `Rider_APP-v0.0.3.20.apk` onto your Android phone (or transfer via USB or Quick Share).
 2. Open your device's **Files** app and tap the APK.
 3. If prompted by Android, toggle **"Allow from this source"**.
 4. Tap **Install**. Subsequent updates can be downloaded directly from within the app under **Settings → Check for OTA Updates**.

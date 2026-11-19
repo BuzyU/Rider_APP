@@ -52,7 +52,7 @@ def calculateVersionCode(String vName) {
     }
 }
 
-def appVersionName = project.hasProperty('versionName') ? project.property('versionName').toString() : (System.getenv("VERSION_NAME") ?: "0.0.3.19")
+def appVersionName = project.hasProperty('versionName') ? project.property('versionName').toString() : (System.getenv("VERSION_NAME") ?: "0.0.3.20")
 def appVersionCode = calculateVersionCode(appVersionName)
 
 android {
@@ -115,7 +115,7 @@ android {
         versionCode appVersionCode
         versionName appVersionName
 
-        buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "false"
+        buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "true"
         def enablePerRoomConfig = !project.hasProperty('perRoomOfflineConfigEnabled') || Boolean.parseBoolean(project.property('perRoomOfflineConfigEnabled').toString())
         buildConfigField "boolean", "PER_ROOM_OFFLINE_CONFIG_ENABLED", enablePerRoomConfig ? "true" : "false"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -130,12 +130,10 @@ android {
             buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "true"
         }
         release {
-            def enableMeshInRelease = project.hasProperty('enableOfflineMeshInRelease') && Boolean.parseBoolean(project.property('enableOfflineMeshInRelease').toString())
-            if (enableMeshInRelease) {
-                buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "true"
-            } else {
-                buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", "false"
-            }
+            def enableMeshInRelease = !project.hasProperty('enableOfflineMeshInRelease') || Boolean.parseBoolean(project.property('enableOfflineMeshInRelease').toString())
+            def enablePerRoomInRelease = !project.hasProperty('perRoomOfflineConfigEnabled') || Boolean.parseBoolean(project.property('perRoomOfflineConfigEnabled').toString())
+            buildConfigField "boolean", "OFFLINE_MESH_BUILD_ENABLED", enableMeshInRelease ? "true" : "false"
+            buildConfigField "boolean", "PER_ROOM_OFFLINE_CONFIG_ENABLED", enablePerRoomInRelease ? "true" : "false"
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -242,4 +240,28 @@ dependencies {
     androidTestImplementation "androidx.test:runner:1.5.2"
     androidTestImplementation "androidx.test:rules:1.5.0"
     androidTestImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3"
+}
+
+tasks.register("verifyReleaseOfflineMeshFlags") {
+    group = "verification"
+    description = "Dumps and validates release BuildConfig to ensure OFFLINE_MESH_BUILD_ENABLED and PER_ROOM_OFFLINE_CONFIG_ENABLED are true."
+    dependsOn("generateReleaseBuildConfig")
+    doLast {
+        def configFile = file("$buildDir/generated/source/buildConfig/release/com/ridervoice/BuildConfig.java")
+        if (!configFile.exists()) {
+            throw new GradleException("WP-153 verification failed: missing ${configFile}")
+        }
+        def src = configFile.getText("UTF-8")
+        def meshMatch = (src =~ /public static final boolean OFFLINE_MESH_BUILD_ENABLED = (true|false);/)
+        def perRoomMatch = (src =~ /public static final boolean PER_ROOM_OFFLINE_CONFIG_ENABLED = (true|false);/)
+        def meshVal = meshMatch.find() ? meshMatch.group(1) : "MISSING"
+        def perRoomVal = perRoomMatch.find() ? perRoomMatch.group(1) : "MISSING"
+        println("Release BuildConfig dump: OFFLINE_MESH_BUILD_ENABLED=${meshVal}, PER_ROOM_OFFLINE_CONFIG_ENABLED=${perRoomVal}")
+        if (meshVal != "true") {
+            throw new GradleException("WP-153 verification failed: Release OFFLINE_MESH_BUILD_ENABLED is ${meshVal}, expected true.")
+        }
+        if (perRoomVal != "true") {
+            throw new GradleException("WP-153 verification failed: Release PER_ROOM_OFFLINE_CONFIG_ENABLED is ${perRoomVal}, expected true.")
+        }
+    }
 }

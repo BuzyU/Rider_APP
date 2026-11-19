@@ -54,6 +54,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -61,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.R
@@ -199,21 +201,33 @@ fun MeshPeerCard(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = peer.name,
                         color = Color.White,
                         fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
-                    if (isSpeaking) {
-                        Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(72.dp)
+                            .alpha(if (isSpeaking) 1f else 0f),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
                         Text(
                             text = stringResource(R.string.mesh_speaking),
                             color = MeshColors.Emerald,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1
                         )
                     }
                 }
@@ -367,7 +381,7 @@ fun MeshBottomBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Audio Route Cycle Button
@@ -381,12 +395,14 @@ fun MeshBottomBar(
                     color = MeshColors.SurfaceElevated,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
+                        .weight(1f)
                         .heightIn(min = 48.dp)
                         .clickable { onCycleAudioRoute() }
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
                     ) {
                         Icon(imageVector = routeIcon, contentDescription = null, tint = MeshColors.Cyan, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -394,7 +410,9 @@ fun MeshBottomBar(
                             text = stringResource(routeLabelRes),
                             color = Color.White,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -404,11 +422,12 @@ fun MeshBottomBar(
                     color = if (isVoxEnabled) MeshColors.EmeraldDark else MeshColors.SurfaceElevated,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
+                        .weight(0.9f)
                         .heightIn(min = 48.dp)
                         .clickable { onToggleVox() }
                 ) {
                     Box(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -416,16 +435,19 @@ fun MeshBottomBar(
                             color = if (isVoxEnabled) MeshColors.EmeraldLight else MeshColors.Slate,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                // PTT Press-and-Hold Button (>= 56.dp height for gloved riders)
+                // PTT Press-and-Hold Button (>= 56.dp height for gloved riders, fixed weight so text swaps never shift siblings)
                 Surface(
                     color = if (isPttActive) MeshColors.EmeraldActive else MeshColors.SurfaceElevated,
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
+                        .weight(1.3f)
                         .heightIn(min = 56.dp)
                         .pointerInput(Unit) {
                             detectTapGestures(
@@ -441,7 +463,7 @@ fun MeshBottomBar(
                         }
                 ) {
                     Box(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -449,7 +471,9 @@ fun MeshBottomBar(
                             color = if (isPttActive) MeshColors.EmeraldLight else MeshColors.SlateLight,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -491,19 +515,26 @@ fun MeshBottomBar(
                     )
                 }
 
-                // Leave Session Button
+                // Leave Session Button (>= 48.dp height for accessible touch target)
                 Surface(
                     color = MeshColors.RedCrimson,
                     shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.clickable { onLeave() }
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable { onLeave() }
                 ) {
-                    Text(
-                        text = stringResource(R.string.mesh_leave),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                    )
+                    Box(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.mesh_leave),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }

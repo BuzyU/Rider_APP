@@ -719,7 +719,7 @@ class ForwardingEngine(
 
         when (type) {
             MeshPacketType.HELLO -> {
-                val hello = decodedHello!!
+                val hello = decodedHello ?: return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.MALFORMED_HELLO)
                 val changed = graphRepository.onHello(
                     sourceId = sourceFullId,
                     name = hello.name,

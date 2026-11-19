@@ -42,16 +42,6 @@ fun SosScreen(
     val emergencyInfo = remember { com.ridervoice.utils.EmergencyNumbers.resolve(context) }
     val emergencyNumber = emergencyInfo.number
     val isDark = ThemeState.isDarkTheme
-    var countdown by remember { mutableIntStateOf(15) }
-
-    LaunchedEffect(countdown, state) {
-        if (state is SosState.Idle && countdown > 0) {
-            delay(1000L)
-            countdown--
-        } else if (countdown == 0 && state is SosState.Idle) {
-            onSend()
-        }
-    }
 
     val bgModifier = if (isDark) {
         Modifier
@@ -240,7 +230,7 @@ fun SosScreen(
                 is SosState.Idle -> {
 
                     Box(
-                        modifier = Modifier.size(240.dp),
+                        modifier = Modifier.size(220.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -252,7 +242,7 @@ fun SosScreen(
                             drawArc(
                                 color = AlertRed,
                                 startAngle = -90f,
-                                sweepAngle = 360f * (countdown / 15f),
+                                sweepAngle = 360f,
                                 useCenter = false,
                                 style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
                             )
@@ -260,19 +250,19 @@ fun SosScreen(
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = "AUTOMATIC BROADCAST",
+                                text = "EMERGENCY BEACON",
                                 color = AlertRed,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 11.sp
                             )
                             Text(
-                                text = String.format("%02d", countdown),
+                                text = "SOS",
                                 color = AlertRed,
                                 style = MaterialTheme.typography.displayLarge,
-                                fontSize = 72.sp
+                                fontSize = 64.sp
                             )
                             Text(
-                                text = "SECONDS",
+                                text = "READY TO BROADCAST",
                                 color = AlertRed,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 11.sp

@@ -237,7 +237,7 @@ fun AddRidersBottomSheet(
                                         }
                                     }
                                 } else if (shareLink != null) {
-                                    val activeLink = shareLink!!
+                                    val activeLink = shareLink ?: return@Surface
 
                                     Surface(
                                         color = Gunmetal,

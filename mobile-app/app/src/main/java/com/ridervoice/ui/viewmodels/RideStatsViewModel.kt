@@ -31,6 +31,31 @@ class RideStatsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(RideStatsState())
     val uiState: StateFlow<RideStatsState> = _uiState.asStateFlow()
 
+    data class ReplayData(
+        val sessionId: String,
+        val waypoints: List<com.ridervoice.data.local.entities.RawWaypointEntity> = emptyList(),
+        val events: List<com.ridervoice.data.local.entities.ConvoyEventEntity> = emptyList()
+    )
+
+    private val _replayData = MutableStateFlow<ReplayData?>(null)
+    val replayData: StateFlow<ReplayData?> = _replayData.asStateFlow()
+
+    private val _latestSessionId = MutableStateFlow<String?>(null)
+    val latestSessionId: StateFlow<String?> = _latestSessionId.asStateFlow()
+
+    fun loadReplay(requestedRideId: String) {
+        viewModelScope.launch {
+            val targetId = if (requestedRideId == "latest" || requestedRideId.isBlank()) {
+                _latestSessionId.value ?: return@launch
+            } else {
+                requestedRideId
+            }
+            val wpts = runCatching { rideDao.getWaypointsForSession(targetId) }.getOrDefault(emptyList())
+            val evts = runCatching { rideDao.getEventsForSession(targetId) }.getOrDefault(emptyList())
+            _replayData.value = ReplayData(sessionId = targetId, waypoints = wpts, events = evts)
+        }
+    }
+
     init {
         viewModelScope.launch {
             val maxSpeedMps = rideDao.getAllTimeMaxSpeed() ?: 0f
@@ -38,6 +63,7 @@ class RideStatsViewModel @Inject constructor(
             val topSpeedStr = String.format(Locale.US, "%.0f", topSpeedKmh)
 
             rideDao.getAllSessions().collectLatest { sessions ->
+                _latestSessionId.value = sessions.firstOrNull()?.id
                 var totalDistMeters = 0f
                 var totalDurationSec = 0L
 
@@ -82,7 +108,8 @@ class RideStatsViewModel @Inject constructor(
                         startTime = startIso,
                         endTime = endIso,
                         distanceKm = session.totalDistanceMeters / 1000f,
-                        privacyState = "PRIVATE"
+                        privacyState = "PRIVATE",
+                        clientRideId = session.id
                     )
                     val syncRes = apiService.syncRide(syncReq)
                     if (syncRes.isSuccessful) {

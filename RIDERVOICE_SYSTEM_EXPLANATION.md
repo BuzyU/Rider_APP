@@ -362,7 +362,7 @@ flowchart TD
 4. **Deterministic 8-State Switching & Deadlock Prevention (D25):** The `AutomaticSwitchStateMachine` evaluates network health (`LocalHealthSignals`) across debounced windows (10s failure confirmation, 8s recovery stability, 20s minimum dwell). When cellular coverage drops and LiveKit is disconnected, the state machine continues evaluating independent network reachability signals so the convoy hands back to LiveKit with zero dead air when connectivity returns.
 5. **Slow-KDF, Encrypted Backup Store & Authenticated Payload Encryption (D19):** Derives 128-bit session UUID, 256-bit `authKey` (HMAC-SHA256), and 256-bit `payloadKey` (AES-256-GCM) from 16-character Crockford Base32 pairing codes using PBKDF2-HMAC-SHA256 (`100,000` iterations, salt `"rvmesh/v2/session"`). Pre-ride backup pairing metadata is persisted encrypted via `EncryptedPrefsBackupSessionStore` (8h TTL) across process death and wiped on sign-out.
 6. **Sliding-Window Replay Protection (D8):** Utilizes a sliding-window duplicate packet cache to detect and reject delayed replay packets within the cache TTL.
-*(Note: Feature gate `BuildConfig.OFFLINE_MESH_BUILD_ENABLED = false` by default in release builds unless built with `-PenableOfflineMeshInRelease=true`).*
+*(Feature gates `BuildConfig.OFFLINE_MESH_BUILD_ENABLED = true` and `BuildConfig.PER_ROOM_OFFLINE_CONFIG_ENABLED = true` are enabled by default in release builds, with `FeatureFlags.localKillSwitch` retained as the runtime emergency off switch unless explicitly built with `-PenableOfflineMeshInRelease=false`).*
 
 ---
 

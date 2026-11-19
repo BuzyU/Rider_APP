@@ -179,30 +179,35 @@ class RideInviteActivity : ComponentActivity() {
                                     }
                                     val body = tokenRes.body()
                                     if (tokenRes.isSuccessful && body != null) {
+                                        val resolvedRoomName = body.roomName ?: roomName
                                         activeRideRepository.enterLobby(
-                                            roomId = body.roomId ?: roomName,
-                                            name = body.roomName ?: roomName,
+                                            roomId = body.roomId ?: resolvedRoomName,
+                                            name = resolvedRoomName,
                                             isHost = false
                                         )
                                         activeRideRepository.applyTokenPayload(
                                             com.ridervoice.models.TokenPayload(
                                                 token = body.token,
                                                 livekitUrl = body.livekitUrl,
-                                                roomId = body.roomId ?: roomName,
-                                                roomName = body.roomName ?: roomName,
+                                                roomId = body.roomId ?: resolvedRoomName,
+                                                roomName = resolvedRoomName,
                                                 diagnosticsEnabled = body.diagnosticsEnabled,
                                                 testNumber = body.testNumber
                                             )
                                         )
+                                        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                            putExtra("NAV_ROUTE", Routes.lobbyPath(resolvedRoomName))
+                                            putExtra("ROOM_NAME", resolvedRoomName)
+                                        }
+                                        if (launchIntent != null) {
+                                            startActivity(launchIntent)
+                                        }
+                                        finish()
+                                    } else {
+                                        errorMessage = "Could not accept invite (HTTP ${tokenRes.code()}). Please try again."
+                                        isJoining = false
                                     }
-
-                                    val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                                        putExtra("NAV_ROUTE", Routes.activeRideHudPath(roomName, inviter))
-                                        putExtra("ROOM_NAME", roomName)
-                                    }
-                                    startActivity(launchIntent)
-                                    finish()
                                 } catch (e: Exception) {
                                     errorMessage = "Failed to connect: ${e.localizedMessage ?: "Network error"}. Please retry."
                                     isJoining = false

@@ -6,10 +6,11 @@ import com.ridervoice.BuildConfig
 /**
  * Feature switch for the offline mesh intercom.
  *
- * Driven by [BuildConfig.OFFLINE_MESH_BUILD_ENABLED] (true in debug, false in release builds),
- * combined with an in-app emergency kill switch [localKillSwitch] and an internal debug/test override [localOverride].
+ * Driven by [BuildConfig.OFFLINE_MESH_BUILD_ENABLED] (defaults to true in debug and release builds
+ * unless overridden with -PenableOfflineMeshInRelease=false), combined with an in-app emergency
+ * kill switch [localKillSwitch] and an internal debug/test override [localOverride].
  *
- * In release builds, [localOverride] is ignored and the feature is unconditionally false.
+ * In release builds, [localOverride] is ignored and the gate follows [BuildConfig.OFFLINE_MESH_BUILD_ENABLED] && ![localKillSwitch].
  *
  * While this evaluates to `false`, the offline subsystem must not open sockets, start discovery,
  * build a graph, create AudioRecord/AudioTrack, request offline permissions, or start foreground services.

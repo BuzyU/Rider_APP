@@ -514,9 +514,9 @@ fun LobbyScreen(
                                             onClick = { viewModel.retryPolling(convoyName) },
                                             modifier = Modifier.weight(1f).height(RvTouchTarget.min),
                                             shape = RoundedCornerShape(RvRadius.sm),
-                                            colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                                            colors = ButtonDefaults.buttonColors(containerColor = Pop)
                                         ) {
-                                            Text(stringResource(R.string.action_retry), color = Color.White)
+                                            Text(stringResource(R.string.action_retry), color = PaperOnPop)
                                         }
                                     }
                                     OutlinedButton(

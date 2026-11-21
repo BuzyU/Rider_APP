@@ -74,16 +74,10 @@ fun SosScreen(
         }
     }
 
-    val bgModifier = if (isDark) {
-        Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1A0808))
-    } else {
-        Modifier
-            .fillMaxSize()
-            .background(Paper)
-            .border(6.dp, Brick)
-    }
+    val bgModifier = Modifier
+        .fillMaxSize()
+        .background(Paper)
+        .border(6.dp, Brick)
 
     Box(modifier = bgModifier) {
         Column(
@@ -299,7 +293,7 @@ fun SosScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         val progress = (countdown.coerceIn(0, 10) / 10f)
-                        val trackColor = if (isDark) Color(0xFF331010) else PaperSunken
+                        val trackColor = PaperSunken
                         val meterColor = Brick
                         Canvas(modifier = Modifier.fillMaxSize()) {
                             drawCircle(

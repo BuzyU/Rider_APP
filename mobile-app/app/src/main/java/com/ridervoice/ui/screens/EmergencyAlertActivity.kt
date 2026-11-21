@@ -248,16 +248,10 @@ fun EmergencyAlertContent(
         }
     }
 
-    val bgModifier = if (isDark) {
-        Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1A0808))
-    } else {
-        Modifier
-            .fillMaxSize()
-            .background(Paper)
-            .border(6.dp, Brick)
-    }
+    val bgModifier = Modifier
+        .fillMaxSize()
+        .background(Paper)
+        .border(6.dp, Brick)
 
     Box(modifier = bgModifier, contentAlignment = Alignment.Center) {
         Column(
@@ -324,7 +318,7 @@ fun EmergencyAlertContent(
             ) {
                 val progress = if (isDispatched) 1f else (countdown.coerceIn(0, 15) / 15f)
                 val meterColor = Brick
-                val trackColor = if (isDark) Color(0xFF331010) else PaperSunken
+                val trackColor = PaperSunken
 
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawCircle(

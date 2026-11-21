@@ -186,9 +186,9 @@ class MainActivity : ComponentActivity() {
                                     try { java.io.File(filesDir, App.CRASH_FILE_NAME).delete() } catch (_: Exception) {}
                                     crashReportText.value = null
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
+                                colors = ButtonDefaults.buttonColors(containerColor = Brick)
                             ) {
-                                Text("COPY REPORT", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("COPY REPORT", color = PaperOnBrick, fontWeight = FontWeight.Bold)
                             }
                         },
                         dismissButton = {
@@ -286,9 +286,9 @@ class MainActivity : ComponentActivity() {
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/BuzyU/Rider_APP/releases/latest"))
                                     startActivity(intent)
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                                colors = ButtonDefaults.buttonColors(containerColor = Pop)
                             ) {
-                                Text("Update app", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("Update app", color = PaperOnPop, fontWeight = FontWeight.Bold)
                             }
                         }
                     )

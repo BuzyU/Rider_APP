@@ -147,8 +147,8 @@ fun RvBottomNavigationBar(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 72.dp)
-                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                        .heightIn(min = 60.dp)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     BottomNavTabItem(
@@ -194,21 +194,19 @@ private fun BottomNavTabItem(
     modifier: Modifier = Modifier
 ) {
     val iconTint = if (selected) Ink else InkSecondary
-    val labelColor = if (selected) Ink else InkSecondary
 
-    Column(
+    Box(
         modifier = modifier
-            .defaultMinSize(minWidth = RvTouchTarget.min, minHeight = 56.dp)
+            .defaultMinSize(minWidth = RvTouchTarget.min, minHeight = 48.dp)
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
                 .width(56.dp)
-                .height(30.dp)
+                .height(36.dp)
                 .clip(RoundedCornerShape(RvRadius.pill))
                 .background(if (selected) PopContainer else Color.Transparent),
             contentAlignment = Alignment.Center
@@ -217,20 +215,9 @@ private fun BottomNavTabItem(
                 imageVector = icon,
                 contentDescription = label,
                 tint = iconTint,
-                modifier = Modifier.size(21.dp)
+                modifier = Modifier.size(23.dp)
             )
         }
-        Spacer(modifier = Modifier.height(3.dp))
-        Text(
-            text = label,
-            color = labelColor,
-            style = MaterialTheme.typography.bodySmall,
-            fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }
 

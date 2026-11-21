@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import com.ridervoice.ui.components.MoreMenuBottomSheet
@@ -146,6 +147,10 @@ class NavigationCompletenessTest {
             node.performClick()
             assertTrue("Clicking $tag should trigger $expected", clicked == expected)
         }
+        composeRule.onNodeWithText("Dashboard").assertDoesNotExist()
+        composeRule.onNodeWithText("History").assertDoesNotExist()
+        composeRule.onNodeWithText("My Squad").assertDoesNotExist()
+        composeRule.onNodeWithText("Settings").assertDoesNotExist()
     }
 
     @Test

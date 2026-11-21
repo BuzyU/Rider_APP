@@ -7,6 +7,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import com.ridervoice.R
 import com.ridervoice.navigation.Routes
@@ -59,8 +60,10 @@ class LocalizedUiRenderingTest {
             }
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText(hiSettings).assertIsDisplayed()
-        composeRule.onNodeWithText(hiHistory).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(hiSettings).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(hiHistory).assertIsDisplayed()
+        composeRule.onNodeWithText(hiSettings).assertDoesNotExist()
+        composeRule.onNodeWithText(hiHistory).assertDoesNotExist()
         composeRule.onNodeWithText("Settings").assertDoesNotExist()
         composeRule.onNodeWithText("History").assertDoesNotExist()
     }

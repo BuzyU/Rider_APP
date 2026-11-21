@@ -164,7 +164,13 @@ fun NavGraph(
     NavHost(navController = navController, startDestination = Routes.SPLASH) {
 
         composable(Routes.SPLASH) {
-            SplashScreen(onSplashFinished = {
+            val splashCtx = LocalContext.current
+            val launchCtx = remember(startRoute) {
+                SplashSkipPolicy.detectLaunchContext(splashCtx, startRoute = startRoute)
+            }
+            SplashScreen(
+                launchContext = launchCtx,
+                onSplashFinished = {
                 val hasUser = try {
                     FirebaseAuth.getInstance().currentUser != null
                 } catch (e: Exception) {

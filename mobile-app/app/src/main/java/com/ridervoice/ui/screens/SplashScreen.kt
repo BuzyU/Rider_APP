@@ -1,21 +1,16 @@
 package com.ridervoice.ui.screens
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -25,25 +20,49 @@ import androidx.compose.ui.unit.sp
 import com.ridervoice.R
 import com.ridervoice.ui.theme.*
 
+/**
+ * Event-driven Roadside Paper splash screen (zero fixed delays, zero audio focus, zero drawings).
+ * When [SplashSkipPolicy.shouldSkipSplash] returns true (including while res/raw/splash_ride.mp4 is
+ * absent), navigation triggers immediately without starting a player.
+ */
 @Composable
-fun SplashScreen(onSplashFinished: () -> Unit) {
-    var startAnimation by remember { mutableStateOf(false) }
+fun SplashScreen(
+    onSplashFinished: () -> Unit,
+    launchContext: SplashLaunchContext? = null,
+    playerHost: SplashPlayerHost? = null
+) {
+    val context = LocalContext.current
+    val resolvedContext = launchContext ?: remember(context) {
+        SplashSkipPolicy.detectLaunchContext(context)
+    }
+    val shouldSkip = remember(resolvedContext) {
+        SplashSkipPolicy.shouldSkipSplash(resolvedContext)
+    }
 
-    val alphaAnim by animateFloatAsState(
-        targetValue = if (startAnimation) 1f else 0f,
-        animationSpec = tween(durationMillis = 800),
-        label = "alpha"
-    )
+    var hasFinished by remember { mutableStateOf(false) }
+    val finishOnce: () -> Unit = {
+        if (!hasFinished) {
+            hasFinished = true
+            onSplashFinished()
+        }
+    }
 
-    val scaleAnim by animateFloatAsState(
-        targetValue = if (startAnimation) 1f else 0.92f,
-        animationSpec = tween(durationMillis = 800),
-        label = "scale"
-    )
-
-    LaunchedEffect(Unit) {
-        startAnimation = true
-        onSplashFinished()
+    if (shouldSkip) {
+        LaunchedEffect(Unit) {
+            finishOnce()
+        }
+    } else {
+        val activeHost = playerHost ?: NoOpSplashPlayerHost
+        DisposableEffect(activeHost) {
+            activeHost.start(
+                onPrepared = {},
+                onCompleted = { finishOnce() },
+                onError = { finishOnce() }
+            )
+            onDispose {
+                activeHost.release()
+            }
+        }
     }
 
     Box(
@@ -54,10 +73,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier
-                .alpha(alphaAnim)
-                .scale(scaleAnim)
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = stringResource(R.string.app_name),
@@ -73,7 +89,6 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 60.dp)
-                .alpha(alphaAnim)
         ) {
             Text(
                 text = stringResource(R.string.splash_starting_up),

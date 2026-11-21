@@ -65,59 +65,67 @@ fun RideTopBar(
         modifier = modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
-            .heightIn(min = 56.dp)
-            .padding(horizontal = 12.dp, vertical = if (isLargeFont) 4.dp else 8.dp),
+            .height(64.dp)
+            .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left: Connection Pill & optional Diagnostics pill
+        // Left: Fixed-width slot (104dp) so ConnectionPill/DIAG changes never shift Center or Right siblings
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .requiredWidthIn(min = if (isCollectingDiag) 120.dp else 80.dp)
-                .weight(1f, fill = false)
+                .width(104.dp)
+                .fillMaxHeight()
                 .testTag("ride_topbar_left")
         ) {
-            ConnectionPill(connectionState)
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                ConnectionPill(connectionState)
+            }
 
             if (isCollectingDiag) {
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
                     modifier = Modifier
-                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                        .requiredSize(width = 48.dp, height = 48.dp)
+                        .testTag("ride_topbar_diag_pill")
+                        .clip(RoundedCornerShape(8.dp))
                         .background(BrickContainer)
-                        .border(1.dp, Brick, RoundedCornerShape(6.dp))
+                        .border(1.dp, Brick, RoundedCornerShape(8.dp))
                         .clickable { onDiagnosticsClick() }
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(6.dp)
+                            .size(5.dp)
                             .clip(CircleShape)
                             .background(Brick)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = if (diagSampleCount > 0) stringResource(R.string.room_diag_count, diagSampleCount) else stringResource(R.string.room_diag_rec),
                         color = Brick,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp,
+                        letterSpacing = 0.2.sp,
                         maxLines = 1,
-                        softWrap = false
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("ride_topbar_diag_label")
                     )
                 }
             }
         }
 
-        // Center: Ride Name & Active Speaker / Rider Count
+        // Center: Ride Name & Active Speaker / Rider Count (fixed height prevents vertical jitter)
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
             modifier = Modifier
-                .weight(1.5f)
-                .padding(horizontal = 6.dp)
+                .weight(1f)
+                .fillMaxHeight()
+                .padding(horizontal = 4.dp)
                 .testTag("ride_topbar_center")
         ) {
             Text(
@@ -154,18 +162,18 @@ fun RideTopBar(
             )
         }
 
-        // Right: Audio Device Badge & Leave Call button
+        // Right: Fixed-width slot (48dp Audio + 16dp clear gap + 56dp Leave = 120dp)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .requiredWidthIn(min = 104.dp)
+                .width(120.dp)
+                .fillMaxHeight()
                 .testTag("ride_topbar_right"),
             horizontalArrangement = Arrangement.End
         ) {
             Box(
                 modifier = Modifier
-                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                    .widthIn(max = 120.dp)
+                    .requiredSize(48.dp)
                     .clickable { onAudioRouteClick() }
                     .testTag("ride_topbar_audio_badge"),
                 contentAlignment = Alignment.Center
@@ -180,13 +188,13 @@ fun RideTopBar(
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
             val leaveVoiceCd = stringResource(R.string.cd_leave_voice_call)
             IconButton(
                 onClick = onLeaveClick,
                 modifier = Modifier
-                    .requiredSize(48.dp)
+                    .requiredSize(56.dp)
                     .clip(CircleShape)
                     .background(BrickContainer)
                     .border(1.5.dp, Brick, CircleShape)
@@ -197,7 +205,7 @@ fun RideTopBar(
                     imageVector = Icons.Default.CallEnd,
                     contentDescription = stringResource(R.string.cd_leave_ride),
                     tint = Brick,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -235,8 +243,8 @@ fun ConnectionPill(state: ConnectionState) {
             color = color,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            fontSize = 10.sp,
-            letterSpacing = 0.5.sp,
+            fontSize = 11.sp,
+            letterSpacing = 0.4.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )

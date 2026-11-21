@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.R
+import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.theme.*
 
 @Composable
@@ -61,17 +62,15 @@ fun TalkControls(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 1. Mic toggle button
+        // 1. Mic toggle button (56dp ride-time primary touch target)
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .widthIn(min = 60.dp)
-                .padding(end = 4.dp)
+            modifier = Modifier.width(58.dp)
         ) {
             FilledIconButton(
                 onClick = onToggleMic,
                 modifier = Modifier
-                    .size(52.dp)
+                    .size(56.dp)
                     .testTag("talk_controls_mic")
                     .border(
                         1.5.dp,
@@ -90,30 +89,32 @@ fun TalkControls(
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = if (isMicEnabled) stringResource(R.string.talk_mic_on) else stringResource(R.string.talk_mic_muted),
-                modifier = Modifier.testTag("talk_controls_mic_label"),
-                color = if (isMicEnabled) Pop else InkSecondary,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
-            )
+            CapChromeFontScale(maxScale = 1.3f) {
+                Text(
+                    text = if (isMicEnabled) stringResource(R.string.talk_mic_on) else stringResource(R.string.talk_mic_muted),
+                    modifier = Modifier.testTag("talk_controls_mic_label"),
+                    color = if (isMicEnabled) Pop else InkSecondary,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
-        // 2. Deafen toggle button
+        Spacer(modifier = Modifier.width(2.dp))
+
+        // 2. Deafen toggle button (56dp ride-time primary touch target)
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .widthIn(min = 60.dp)
-                .padding(end = 4.dp)
+            modifier = Modifier.width(58.dp)
         ) {
             FilledIconButton(
                 onClick = onToggleDeafen,
                 modifier = Modifier
-                    .size(52.dp)
+                    .size(56.dp)
                     .testTag("talk_controls_deafen")
                     .border(
                         1.5.dp,
@@ -132,18 +133,22 @@ fun TalkControls(
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = if (isDeafened) stringResource(R.string.talk_deafened) else stringResource(R.string.talk_hearing),
-                modifier = Modifier.testTag("talk_controls_deafen_label"),
-                color = if (isDeafened) Brick else InkSecondary,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
-            )
+            CapChromeFontScale(maxScale = 1.3f) {
+                Text(
+                    text = if (isDeafened) stringResource(R.string.talk_deafened) else stringResource(R.string.talk_hearing),
+                    modifier = Modifier.testTag("talk_controls_deafen_label"),
+                    color = if (isDeafened) Brick else InkSecondary,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
+
+        Spacer(modifier = Modifier.width(2.dp))
 
         // 3. PTT Capsule Button (76dp height, gloved-hand friendly)
         PttPerforatedButton(
@@ -151,23 +156,23 @@ fun TalkControls(
             isVoxOpen = isVoxOpen,
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = RvTouchTarget.ptt)
-                .padding(horizontal = 4.dp),
+                .height(RvTouchTarget.ptt),
             onPressStart = onPttPressStart,
             onPressEnd = onPttPressEnd
         )
 
-        // 4. Emergency SOS Button
+        // Guaranteed >= 16dp clear separation between PTT and Emergency SOS
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // 4. Emergency SOS Button (56dp ride-time primary touch target)
         val sosBtnCd = stringResource(R.string.cd_emergency_sos_button)
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .widthIn(min = 56.dp)
-                .padding(start = 4.dp)
+            modifier = Modifier.width(56.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(52.dp)
+                    .size(56.dp)
                     .testTag("talk_controls_sos")
                     .clip(RoundedCornerShape(14.dp))
                     .background(BrickContainer)
@@ -184,16 +189,18 @@ fun TalkControls(
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = stringResource(R.string.mesh_sos),
-                modifier = Modifier.testTag("talk_controls_sos_label"),
-                color = Brick,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Black,
-                maxLines = 1,
-                softWrap = false
-            )
+            CapChromeFontScale(maxScale = 1.3f) {
+                Text(
+                    text = stringResource(R.string.mesh_sos),
+                    modifier = Modifier.testTag("talk_controls_sos_label"),
+                    color = Brick,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
         }
     }
 }
@@ -261,7 +268,7 @@ fun PttPerforatedButton(
             .testTag("talk_controls_ptt"),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        Canvas(modifier = Modifier.matchParentSize()) {
             val stepX = 14.dp.toPx()
             val stepY = 10.dp.toPx()
             val dotRadius = 1.4.dp.toPx()

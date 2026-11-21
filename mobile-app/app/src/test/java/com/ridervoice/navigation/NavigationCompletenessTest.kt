@@ -215,6 +215,7 @@ class NavigationCompletenessTest {
             Routes.SOS,
             Routes.POST_RIDE_SUMMARY,
             Routes.ACCOUNT,
+            Routes.SQUAD_REQUESTS,
             Routes.ROUTE_PLANNER,
             Routes.JOIN_ROOM,
             Routes.JOIN_VIA_TOKEN,

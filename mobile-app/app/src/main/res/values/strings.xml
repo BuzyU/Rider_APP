@@ -453,10 +453,10 @@
     <string name="menu_inbox_title">Inbox</string>
     <string name="menu_inbox_subtitle">Pending group ride invitations</string>
     <string name="menu_settings_subtitle">Voice, language, display &amp; updates</string>
-    <string name="dialog_add_rider_title">Add Rider to Squad</string>
-    <string name="dialog_add_rider_desc">Enter a rider\'s handle (@handle) to add them to your squad.</string>
-    <string name="dialog_add_rider_placeholder">e.g. ApexPredator</string>
-    <string name="dialog_add_rider_confirm">Add to Squad</string>
+    <string name="dialog_add_rider_title">Add Rider</string>
+    <string name="dialog_add_rider_desc">Find a rider by @handle to send a squad request.</string>
+    <string name="dialog_add_rider_placeholder">Search by @handle</string>
+    <string name="dialog_add_rider_confirm">Send Request</string>
     <string name="sheet_add_riders_title">Add Riders</string>
     <string name="sheet_tab_from_squad">From Squad</string>
     <string name="sheet_tab_share_link">Share Link</string>
@@ -878,5 +878,24 @@
     <string name="update_cat_notes">Notes</string>
     <string name="update_downloaded_unknown_total">%1$s downloaded</string>
     <string name="update_no_release_notes">No release notes provided for this version.</string>
+    <string name="squad_requests_title">Requests</string>
+    <string name="squad_requests_empty_title">No pending requests</string>
+    <string name="squad_requests_empty_desc">When another rider sends you a squad request, it will appear here.</string>
+    <string name="cd_open_squad_requests">Open squad requests</string>
+    <string name="cd_accept_squad_request">Accept request from @%1$s</string>
+    <string name="cd_decline_squad_request">Decline request from @%1$s</string>
+    <string name="cd_send_squad_request">Send squad request to @%1$s</string>
+    <string name="cd_remove_rejected_request">Remove rejected request for @%1$s</string>
+    <string name="squad_already_member">Already in your Squad</string>
+    <string name="squad_status_pending">Pending</string>
+    <string name="squad_status_rejected">Rejected</string>
+    <string name="squad_status_you">That\'s you</string>
+    <string name="squad_pending_section">PENDING</string>
+    <string name="squad_clear_rejected">Clear rejected</string>
+    <string name="squad_search_not_found">No rider found for @%1$s</string>
+    <string name="squad_search_hint">Type a rider\'s @handle to check and send a request.</string>
+    <string name="squad_request_sent_incoming">Requested to join your squad</string>
+    <string name="notif_squad_request_title">New Squad Request</string>
+    <string name="notif_squad_request_desc">@%1$s wants to join your squad.</string>
 </resources>
 

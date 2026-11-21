@@ -39,6 +39,29 @@ interface ApiService {
     @POST("/api/friends/request")
     suspend fun sendFriendRequest(@Body body: FriendRequest): Response<Any>
 
+    @DELETE("/api/friends/{friendId}")
+    suspend fun removeFriend(@Path("friendId") friendId: String): Response<Any> = Response.success(Unit)
+
+    @GET("/api/friends/pending")
+    suspend fun getPendingFriendRequests(): Response<List<com.ridervoice.models.IncomingSquadRequest>> =
+        Response.success(emptyList())
+
+    @POST("/api/friends/accept")
+    suspend fun acceptFriendRequest(@Body body: com.ridervoice.models.AcceptFriendRequestBody): Response<Any> =
+        Response.success(Unit)
+
+    @POST("/api/friends/decline")
+    suspend fun declineFriendRequest(@Body body: com.ridervoice.models.DeclineFriendRequestBody): Response<Any> =
+        Response.success(Unit)
+
+    @GET("/api/friends/sent")
+    suspend fun getSentFriendRequests(): Response<List<com.ridervoice.models.SentSquadRequestDto>> =
+        Response.success(emptyList())
+
+    @DELETE("/api/friends/request/{requestId}")
+    suspend fun cancelOrDismissFriendRequest(@Path("requestId") requestId: String): Response<Any> =
+        Response.success(Unit)
+
     @GET("/api/invites/invites/{userId}")
     suspend fun getPendingInvites(@Path("userId") userId: String): Response<List<RideInvite>>
 

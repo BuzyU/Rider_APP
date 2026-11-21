@@ -26,6 +26,7 @@ class FcmService : FirebaseMessagingService() {
 
     @Inject lateinit var apiService: ApiService
     @Inject lateinit var activeRideRepository: com.ridervoice.state.ActiveRideRepository
+    @Inject lateinit var squadSyncBus: com.ridervoice.data.repository.SquadSyncBus
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -52,8 +53,44 @@ class FcmService : FirebaseMessagingService() {
             "INVITE_ACCEPTED" -> handleInviteAccepted(data)
             "CONVOY_ENDED" -> handleConvoyEnded(data)
             "EMERGENCY" -> handleEmergency(data)
+            "FRIEND_REQUEST", "SQUAD_REQUEST" -> handleSquadRequest(data)
+            "FRIEND_ACCEPTED", "SQUAD_ACCEPTED" -> {
+                if (::squadSyncBus.isInitialized) {
+                    squadSyncBus.emit(com.ridervoice.data.repository.SquadSyncEvent.RequestAccepted)
+                }
+            }
+            "FRIEND_REJECTED", "FRIEND_DECLINED", "SQUAD_REJECTED" -> {
+                if (::squadSyncBus.isInitialized) {
+                    squadSyncBus.emit(
+                        com.ridervoice.data.repository.SquadSyncEvent.RequestRejected(
+                            data["handle"] ?: data["addresseeId"]
+                        )
+                    )
+                }
+            }
+            "FRIEND_REMOVED", "SQUAD_UPDATE" -> {
+                if (::squadSyncBus.isInitialized) {
+                    squadSyncBus.emit(com.ridervoice.data.repository.SquadSyncEvent.SquadChanged)
+                }
+            }
             else -> Log.d(TAG, "Unhandled FCM message type: $type")
         }
+    }
+
+    private fun handleSquadRequest(data: Map<String, String>) {
+        if (::squadSyncBus.isInitialized) {
+            squadSyncBus.emit(com.ridervoice.data.repository.SquadSyncEvent.IncomingRequestReceived)
+        }
+        val sender = data["senderHandle"] ?: data["senderName"] ?: data["handle"] ?: "A rider"
+        val notification = NotificationCompat.Builder(this, "CHANNEL_CONVOY")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(getString(R.string.notif_squad_request_title))
+            .setContentText(getString(R.string.notif_squad_request_desc, sender.removePrefix("@")))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(("squad_req_$sender").hashCode(), notification)
     }
 
     private fun handleConvoyEnded(data: Map<String, String>) {

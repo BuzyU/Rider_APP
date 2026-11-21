@@ -385,7 +385,15 @@ fun NavGraph(
                 onBackClick = { navController.popBackStack() },
                 onJoinRoom = { roomName ->
                     navController.navigate(Routes.deviceSetupPath(roomName, isHost = false))
+                },
+                onOpenRequests = {
+                    navController.navigate(Routes.SQUAD_REQUESTS)
                 }
+            )
+        }
+        composable(Routes.SQUAD_REQUESTS) {
+            SquadRequestsScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(Routes.ACCOUNT) {

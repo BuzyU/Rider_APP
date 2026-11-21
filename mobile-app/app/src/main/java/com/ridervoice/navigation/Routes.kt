@@ -5,6 +5,7 @@ object Routes {
     const val LOGIN          = "login"
     const val HOME           = "home"
     const val SQUAD          = "squad"
+    const val SQUAD_REQUESTS = "squad_requests"
     const val ROUTE_PLANNER  = "route_planner"
     const val RIDE_STATS     = "ride_stats"
     const val SETTINGS       = "settings"

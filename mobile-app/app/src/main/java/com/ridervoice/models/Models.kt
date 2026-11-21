@@ -252,6 +252,64 @@ data class Friend(
     val bikeModel: String?
 )
 
+data class AcceptFriendRequestBody(
+    val requesterId: String
+)
+
+data class DeclineFriendRequestBody(
+    val requesterId: String,
+    val requestId: String? = null
+)
+
+data class IncomingSquadRequest(
+    val id: String,
+    val requesterId: String,
+    val addresseeId: String? = null,
+    val status: String = "PENDING",
+    val createdAt: String? = null,
+    val requester: Friend? = null
+)
+
+data class SentSquadRequestDto(
+    val id: String,
+    val requesterId: String? = null,
+    val addresseeId: String,
+    val status: String = "PENDING",
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
+    val addressee: Friend? = null
+)
+
+data class SentSquadRequest(
+    val id: String,
+    val addresseeId: String,
+    val handle: String,
+    val displayName: String? = null,
+    val bikeModel: String? = null,
+    val status: String = "PENDING",
+    val createdAtMillis: Long = System.currentTimeMillis(),
+    val rejectedAtMillis: Long? = null
+) {
+    val isRejected: Boolean
+        get() = status.equals("REJECTED", ignoreCase = true) || status.equals("DECLINED", ignoreCase = true)
+}
+
+enum class RiderRelation {
+    AVAILABLE,
+    ALREADY_IN_SQUAD,
+    PENDING_SENT,
+    INCOMING_REQUEST,
+    SELF
+}
+
+sealed class RiderSearchState {
+    object Idle : RiderSearchState()
+    object Searching : RiderSearchState()
+    data class Found(val profile: ProfileResponse, val relation: RiderRelation) : RiderSearchState()
+    data class NotFound(val query: String) : RiderSearchState()
+    data class Error(val message: String) : RiderSearchState()
+}
+
 data class RideInvite(
     val id: String,
     val roomId: String,

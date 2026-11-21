@@ -125,7 +125,7 @@
     <string name="notif_emergency_title">CRITICAL: %1$s</string>
     <string name="notif_emergency_desc">Emergency alert from %1$s in %2$s</string>
     <string name="notif_open_alert">Open Alert</string>
-    <string name="notif_channel_hud_name">Tactical Convoy HUD</string>
+    <string name="notif_channel_hud_name">Active Ride Voice</string>
     <string name="notif_channel_hud_desc">Convoy communication and telemetry overlay</string>
     <string name="notif_convoy_live">Convoy LIVE</string>
     <string name="notif_convoy_connecting">Connecting...</string>
@@ -141,7 +141,7 @@
     <string name="update_checking_desc">Querying official release channel...</string>
     <string name="update_uptodate_title">Up to date</string>
     <string name="update_uptodate_desc">You are currently running the latest version of RiderVoice (v%1$s). No updates are required.</string>
-    <string name="update_available_badge">Firmware Upgrade</string>
+    <string name="update_available_badge">App Update</string>
     <string name="update_available_title">New Version Available</string>
     <string name="update_current_label">CURRENT</string>
     <string name="update_newest_label">NEWEST (%1$s)</string>
@@ -152,7 +152,7 @@
     <string name="update_confirm_title">Confirm download</string>
     <string name="update_confirm_body">Download RiderVoice v%1$s (%2$s)?</string>
     <string name="update_confirm_storage_note">The APK will be streamed securely over HTTPS and stored in app-internal cache. Storage space has been verified.</string>
-    <string name="update_downloading_badge">OTA Transmission</string>
+    <string name="update_downloading_badge">Downloading Update</string>
     <string name="update_downloading_title">Downloading update</string>
     <string name="update_verifying_title">Verifying package</string>
     <string name="update_install_ready_title">Ready to install</string>
@@ -186,9 +186,9 @@
     <string name="summary_excel_exported">Exported to %1$s in Excel (.xlsx) format</string>
 
     <!-- Account Screen -->
-    <string name="account_operator_badge">Transceiver Operator</string>
+    <string name="account_operator_badge">Rider Profile</string>
     <string name="account_title">Rider Account</string>
-    <string name="account_loading_dossier">Retrieving operator dossier...</string>
+    <string name="account_loading_dossier">Loading profile...</string>
     <string name="account_edit_profile">Edit Profile</string>
 
     <!-- Diagnostics Dialog -->
@@ -206,16 +206,16 @@
     <string name="settings_voice_activation">Voice activation (VOX)</string>
 
     <!-- Register Screen -->
-    <string name="register_operator_badge">New Transceiver Operator</string>
-    <string name="register_callsign_title">Register Callsign</string>
-    <string name="register_callsign_desc">Provision your station profile and join squad frequencies.</string>
+    <string name="register_operator_badge">New Rider</string>
+    <string name="register_callsign_title">Create your rider profile</string>
+    <string name="register_callsign_desc">Set up your rider name and join group voice rides.</string>
 
     <!-- Join Room Screen -->
     <string name="join_room_title">Join Ride</string>
     <string name="join_connecting">Connecting to ride...</string>
     <string name="join_verifying">Verifying ride invite...</string>
     <string name="join_failed_title">Could not join ride</string>
-    <string name="join_callsign_label">Your Callsign / Name</string>
+    <string name="join_callsign_label">Your rider name</string>
     <string name="join_action_enter_code">Enter code</string>
     <!-- Offline Mesh Intercom (D15) -->
     <string name="mesh_title">Offline mesh intercom</string>
@@ -236,7 +236,7 @@
     <string name="mesh_mic_open_settings">Open settings</string>
     <string name="mesh_mic_busy">Microphone is in use by another app</string>
     <string name="mesh_state_connected">Connected</string>
-    <string name="mesh_lobby_header">Tactical Intercom</string>
+    <string name="mesh_lobby_header">Offline Mesh</string>
     <string name="mesh_lobby_title">Offline Mesh Lobby</string>
     <string name="mesh_lobby_description">Connect directly with nearby riders over local Wi-Fi without internet or cellular data. All audio is end-to-end encrypted.</string>
     <string name="mesh_lobby_create_title">Create Mesh Session</string>
@@ -446,7 +446,7 @@
     <string name="tab_my_squad">My Squad</string>
     <string name="menu_rider_title">Rider Menu</string>
     <string name="menu_account_title">Account &amp; Profile</string>
-    <string name="menu_account_subtitle">Callsign, motorcycle &amp; details</string>
+    <string name="menu_account_subtitle">Rider name, motorcycle &amp; details</string>
     <string name="menu_audio_title">Audio &amp; Helmet Setup</string>
     <string name="menu_audio_subtitle">Bluetooth intercom &amp; mic routing</string>
     <string name="menu_route_planner_subtitle">Plan waypoints &amp; offline radar</string>
@@ -494,7 +494,7 @@
     <string name="update_ready_install_line">Ready to install RiderVoice v%1$s.</string>
     <string name="update_install_prompt_hint">Tapping \'Install Update\' will launch Android\'s system package installer. Please confirm installation when prompted.</string>
     <string name="update_permission_title">PERMISSION REQUIRED</string>
-    <string name="update_permission_body">To install firmware updates directly, RiderVoice requires permission to install unknown apps.</string>
+    <string name="update_permission_body">To install app updates directly, RiderVoice needs permission to install unknown apps.</string>
     <string name="update_permission_steps">Turn on \'Allow from this source\', then come back. The update will install automatically.</string>
     <string name="update_installer_launched_title">INSTALLER LAUNCHED</string>
     <string name="update_installer_launched_body">Android\'s system package installer has been prompted to install v%1$s.</string>
@@ -507,7 +507,7 @@
     <string name="dialog_sign_out_settings_body">You will disconnect from all background voice services and will need to sign back in.</string>
     <string name="cd_battery_warning">Battery Warning</string>
     <string name="home_battery_warning_body">Battery restrictions may mute background voice. Disable optimization for reliable audio.</string>
-    <string name="home_hero_eyebrow">CONVOY LEAD</string>
+    <string name="home_hero_eyebrow">Host a ride</string>
     <string name="home_create_ride_title">Create a ride</string>
     <string name="home_create_ride_subtitle">Start a convoy and invite your squad</string>
     <string name="cd_start_creating_ride">Start creating ride</string>
@@ -525,7 +525,7 @@
     <string name="account_section_details">PROFILE DETAILS</string>
     <string name="account_display_name">Display Name</string>
     <string name="account_not_configured">Not configured</string>
-    <string name="account_callsign_handle">Call-Sign Handle</string>
+    <string name="account_callsign_handle">Rider handle</string>
     <string name="account_email_address">Email Address</string>
     <string name="account_phone_number">Phone Number</string>
     <string name="account_section_bike_bio">MOTORCYCLE &amp; BIO</string>
@@ -558,7 +558,7 @@
     <string name="device_continue_to_lobby">Continue to lobby</string>
     <string name="device_ready_to_join">Ready to join convoy</string>
     <string name="cd_warning_hazard">Warning Hazard</string>
-    <string name="sos_beacon_badge">EMERGENCY BEACON</string>
+    <string name="sos_beacon_badge">Emergency SOS</string>
     <string name="sos_channel_label">Channel: %1$s</string>
     <string name="sos_alert_upper">ALERT</string>
     <string name="sos_sent_upper">SENT</string>
@@ -630,7 +630,7 @@
     <string name="inbox_decline_body">Are you sure you want to decline the invitation to \'%1$s\' from @%2$s?</string>
     <string name="cd_refresh_invites">Refresh Invites</string>
     <string name="inbox_empty_title">No pending invites</string>
-    <string name="inbox_empty_desc">When convoy leads invite you to join a ride, their invitations will appear here.</string>
+    <string name="inbox_empty_desc">When ride hosts invite you to join a ride, their invitations will appear here.</string>
     <string name="inbox_card_badge">RIDE INVITE</string>
     <string name="inbox_status_pending">Pending</string>
     <string name="invite_activity_badge">RIDE INVITATION</string>
@@ -640,7 +640,7 @@
     <string name="error_network_generic">Network error</string>
     <string name="join_verifying_link">Verifying your invite link...</string>
     <string name="join_link_expired_hint">This join link may have expired or is invalid.</string>
-    <string name="join_intro_desc">Enter the ride code or paste an invite link from your convoy lead.</string>
+    <string name="join_intro_desc">Enter the ride code or paste an invite link from your ride host.</string>
     <string name="join_code_or_link_label">Ride Code or Invite Link</string>
     <string name="join_code_placeholder">e.g. LONAVALA-01 or paste link</string>
     <string name="join_code_helper">Enter a ride code, invite code, or invite URL</string>
@@ -679,8 +679,8 @@
     <string name="auth_no_google_account">No Google account found on this device. Please add a Google account in your device Settings.</string>
     <string name="auth_google_failed">Google sign-in failed: %1$s</string>
     <string name="error_unknown">Unknown error</string>
-    <string name="splash_eyebrow_badge">GROUP VOICE INTERCOM</string>
-    <string name="splash_legacy_tagline">Stay connected. Ride united.</string>
+    <string name="splash_eyebrow_badge">Group voice</string>
+    <string name="splash_legacy_tagline">Talk to your riding group, hands-free.</string>
     <string name="auth_sign_in_title">Sign in</string>
     <string name="auth_sign_in_subtitle">Sign in to connect with your riding group.</string>
     <string name="auth_email_label">Email</string>
@@ -704,7 +704,7 @@
     <string name="auth_register_subtitle">Set up your rider profile to join group rides.</string>
     <string name="cd_registration_error">Registration error</string>
     <string name="auth_rider_handle">Rider Handle</string>
-    <string name="auth_callsign_helper">Your callsign shown to riders in your convoy</string>
+    <string name="auth_callsign_helper">Your handle shown to riders in your group</string>
     <string name="auth_password_min_error">Must be at least 6 characters</string>
     <string name="auth_password_min_hint">Minimum 6 characters</string>
     <string name="auth_confirm_password">Confirm Password</string>

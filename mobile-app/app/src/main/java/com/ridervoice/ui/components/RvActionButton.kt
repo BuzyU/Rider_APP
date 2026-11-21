@@ -17,13 +17,13 @@ import androidx.compose.ui.unit.sp
 import com.ridervoice.ui.theme.*
 
 @Composable
-fun TacticalButton(
+fun RvActionButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isOutlined: Boolean = false,
-    color: Color = NeonOrange,
-    textColor: Color = TextPrimary,
+    color: Color = Pop,
+    textColor: Color = if (isOutlined) Ink else PaperOnPop,
     enabled: Boolean = true
 ) {
     if (isOutlined) {

@@ -325,7 +325,7 @@ fun RoutePlannerScreen(
                     mapViewportState = mapViewportState
                 )
             } else {
-                TacticalRadarCanvas(
+                OfflineRouteRadarCanvas(
                     nearbyRiders = uiState.nearbyRiders,
                     hasDestination = uiState.destination.isNotBlank(),
                     destinationLabel = uiState.destination
@@ -550,7 +550,7 @@ fun RoutePlannerScreen(
 }
 
 @Composable
-private fun TacticalRadarCanvas(
+private fun OfflineRouteRadarCanvas(
     nearbyRiders: List<NearbyRider>,
     hasDestination: Boolean,
     destinationLabel: String

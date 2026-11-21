@@ -59,37 +59,12 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 .alpha(alphaAnim)
                 .scale(scaleAnim)
         ) {
-            Surface(
-                shape = RoundedCornerShape(RvRadius.pill),
-                color = PaperSunken,
-                border = BorderStroke(1.dp, InkHairline),
-                modifier = Modifier.padding(bottom = 14.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.splash_eyebrow_badge),
-                    color = InkSecondary,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.1.sp,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                )
-            }
-
             Text(
                 text = stringResource(R.string.app_name),
                 color = Ink,
                 style = MaterialTheme.typography.displayLarge,
                 fontSize = 40.sp,
                 fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = stringResource(R.string.splash_legacy_tagline),
-                color = Pop,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
             )
         }
 

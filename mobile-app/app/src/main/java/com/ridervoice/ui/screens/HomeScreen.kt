@@ -249,13 +249,6 @@ fun HomeScreen(
                 ) {
                     Column(modifier = Modifier.fillMaxWidth(0.76f)) {
                         Text(
-                            text = stringResource(R.string.home_hero_eyebrow),
-                            color = Color(0xE6FFFDF8),
-                            style = MaterialTheme.typography.labelSmall,
-                            letterSpacing = 1.1.sp
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
                             text = stringResource(R.string.home_create_ride_title),
                             color = Color(0xFFFFFDF8),
                             style = MaterialTheme.typography.titleLarge,

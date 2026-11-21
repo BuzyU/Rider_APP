@@ -144,22 +144,6 @@ fun LoginScreen(
         ) {
             Spacer(modifier = Modifier.height(14.dp))
 
-            Surface(
-                shape = RoundedCornerShape(RvRadius.pill),
-                color = PaperSunken,
-                border = BorderStroke(1.dp, InkHairline),
-                modifier = Modifier.padding(bottom = 12.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.splash_eyebrow_badge),
-                    color = InkSecondary,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-                )
-            }
-
             Text(
                 text = stringResource(R.string.app_name),
                 color = Ink,
@@ -168,7 +152,7 @@ fun LoginScreen(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = stringResource(R.string.splash_legacy_tagline),
+                text = stringResource(R.string.app_tagline),
                 color = InkSecondary,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 4.dp)

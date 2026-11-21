@@ -1,3 +1,35 @@
+## RiderVoice v0.0.3.21 Release Notes
+
+RiderVoice **v0.0.3.21** introduces the complete Roadside Paper & Obsidian Carbon redesign, offline bundled typography, full Hindi and Marathi localization, a redesigned My Squad and Requests experience, floating animated bottom navigation, hardened in-app updates with categorized release notes, and ride history naming fixes.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.21` |
+| **Version Code** | `3021` |
+| **Release Tag** | `v0.0.3.21` |
+| **Download APK** | `Rider_APP-v0.0.3.21.apk` |
+
+### What's new
+- Added the floating pill bottom navigation bar with spring-gliding indicator and micro-tactile icon animations across light and dark themes
+- Added a dedicated Squad Requests screen with Accept and Decline actions, a live rider search dialog with "Already in your Squad" detection, sent/pending/rejected request tracking with 7-day auto-expiry, and pull-to-refresh
+- Added categorized release note cards in the redesigned in-app update popup
+- Added Obsidian Carbon dark theme with WCAG AA+ verified contrast across all surfaces and accents
+- Bundled static Manrope fonts offline so typography renders without network or Google Play Services
+
+### Improvements
+- Localized all user-facing UI strings across English, Hindi, and Marathi with automated parity guards
+- Streamlined Dashboard, Account, and History screens with cleaner cards, Dashboard-only Account avatar shortcut, and 56dp ride-time touch targets
+- Added Android 12+ paper splash theme and event-driven splash skip policy
+- Cached My Squad state across tab switches and added live FCM and foreground resume listeners
+
+### Bug fixes
+- Fixed completed rides saving raw room UUIDs in History instead of the custom ride title or room display name
+- Fixed orphaned incomplete ride sessions endlessly inflating Saddle Time totals
+- Fixed removing a squad member not persisting to the backend (`DELETE /api/friends/{friendId}`)
+- Fixed Android 9–12 (API 28–32) archive verification crash, fail-open cached APK checks, OkHttp response leaks, and background download cancellation in the in-app updater
+
+---
+
 ## RiderVoice v0.0.3.20 Release Notes
 
 RiderVoice **v0.0.3.20** turns offline mesh backup ON by default in release builds, fixes proven VOX and audio-route cut-off defects, guarantees independent ghost participant expiry, restores continuous backend schema self-repair, eliminates room UI layout shift, and completes cross-feature flow hardening across invites, FCM logout cleanup, ride stats sync, and Room migrations.

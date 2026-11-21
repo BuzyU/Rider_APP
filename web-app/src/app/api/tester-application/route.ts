@@ -5,15 +5,15 @@ import { buildTesterWelcomeEmail } from '@/lib/email/templates';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 
 const DEFAULT_RELEASE = {
-  version: 'v0.0.3.20',
-  releaseName: 'RiderVoice v0.0.3.20',
-  fileName: 'Rider_APP-v0.0.3.20.apk',
-  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.20/Rider_APP-v0.0.3.20.apk',
-  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.20',
+  version: 'v0.0.3.21',
+  releaseName: 'RiderVoice v0.0.3.21',
+  fileName: 'Rider_APP-v0.0.3.21.apk',
+  downloadUrl: 'https://github.com/BuzyU/Rider_APP/releases/download/v0.0.3.21/Rider_APP-v0.0.3.21.apk',
+  releasePageUrl: 'https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.21',
   sha256: 'Pending release verification',
   fileSize: '~50 MB',
   targetArch: 'Universal ARM (arm64-v8a, armeabi-v7a)',
-  highlights: 'Offline Mesh ON by Default in Release Builds, VOX Envelope & Route-Change Audio Fixes, Independent Ghost Expiry, Infinite Schema Self-Repair, Cross-Feature & Session Isolation Hardening'
+  highlights: 'Roadside Paper & Obsidian Carbon Redesign, Offline Bundled Manrope Fonts, Full EN/HI/MR Localization, Redesigned My Squad & Requests System, Floating Animated Navbar, Hardened In-App Updater, Ride History Naming Fixes'
 };
 
 async function getLatestRelease() {

@@ -140,6 +140,44 @@ class RealDataBindingTest {
     }
 
     @Test
+    fun rideStatsScreen_hidesUuidNames_andOmitsCardMetricPillsAndInitialCircle() {
+        val start = 1_763_727_120_000L
+        val sessions = listOf(
+            RideSessionEntity(
+                id = "s-uuid",
+                roomName = "9fb15f96-ba3e-4e30-ac23-597a353375a1",
+                startTime = start,
+                endTime = start + 60_000L,
+                totalDistanceMeters = 0f,
+                isSynced = false
+            ),
+            RideSessionEntity(
+                id = "s-named",
+                roomName = "Lonavala Run",
+                startTime = start - 86_400_000L,
+                endTime = start - 86_340_000L,
+                totalDistanceMeters = 12_500f,
+                isSynced = true
+            )
+        )
+        val vm = RideStatsViewModel(FakeRideDao(sessions), mockk<ApiService>(relaxed = true))
+        composeRule.setContent {
+            RiderVoiceTheme {
+                RideStatsScreen(viewModel = vm, onBackClick = {})
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Recorded Ride").assertIsDisplayed()
+        composeRule.onNodeWithText("Lonavala Run").assertIsDisplayed()
+        composeRule.onNodeWithText("9fb15f96", substring = true).assertDoesNotExist()
+        composeRule.onNodeWithText("0.0 km").assertDoesNotExist()
+        composeRule.onNodeWithText("12.5 km").assertDoesNotExist()
+        composeRule.onNodeWithText("< 1m").assertDoesNotExist()
+        composeRule.onNodeWithText("LR").assertDoesNotExist()
+    }
+
+    @Test
     fun routePlannerScreen_labelsStaticPreviewMetricsHonestly() {
         val vm = RoutePlannerViewModel()
         vm.updateOrigin("Pune")

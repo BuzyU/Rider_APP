@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.R
 import com.ridervoice.data.local.entities.RideSessionEntity
+import com.ridervoice.services.RideRecorder
 import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.RideStatsViewModel
@@ -488,33 +489,17 @@ private fun RideHistoryCard(
     session: RideSessionEntity,
     onClick: () -> Unit
 ) {
+    val defaultRideTitle = stringResource(R.string.replay_recorded_ride_default)
+    val displayTitle = remember(session.roomName, defaultRideTitle) {
+        val trimmed = session.roomName.trim()
+        if (trimmed.isBlank() || RideRecorder.isUuidLike(trimmed)) {
+            defaultRideTitle
+        } else {
+            trimmed
+        }
+    }
     val dateLabel = remember(session.startTime) {
         SimpleDateFormat("EEE, d MMM · hh:mm a", Locale.US).format(Date(session.startTime))
-    }
-    val distKm = session.totalDistanceMeters / 1000f
-    val distText = if (distKm >= 10f) {
-        String.format(Locale.US, "%.0f km", distKm)
-    } else {
-        String.format(Locale.US, "%.1f km", distKm)
-    }
-    val durationSec = (((session.endTime ?: session.startTime) - session.startTime) / 1000L).coerceAtLeast(0L)
-    val durHours = durationSec / 3600L
-    val durMins = (durationSec % 3600L) / 60L
-    val durText = when {
-        durHours > 0 -> "${durHours}h ${durMins}m"
-        durMins > 0 -> "${durMins}m"
-        else -> "< 1m"
-    }
-    val avgKmh = if (durationSec > 30L) (distKm / (durationSec / 3600f)) else 0f
-    val avgText = String.format(Locale.US, "Avg %.0f km/h", avgKmh)
-
-    val initials = remember(session.roomName) {
-        session.roomName.split(" ")
-            .filter { it.isNotBlank() }
-            .take(2)
-            .mapNotNull { it.firstOrNull()?.uppercase() }
-            .joinToString("")
-            .ifBlank { "RV" }
     }
 
     Surface(
@@ -531,15 +516,15 @@ private fun RideHistoryCard(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left: Stylized Mini Route Thumbnail (Matches Image 1)
+            // Left: Stylized Mini Route Thumbnail
             MiniRouteThumbnail(seed = session.id.hashCode())
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Middle: Title, Timestamp, Metric Pills
+            // Middle: Title & Timestamp
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = session.roomName,
+                    text = displayTitle,
                     color = Ink,
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = 15.sp,
@@ -547,7 +532,7 @@ private fun RideHistoryCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = dateLabel,
                     color = InkSecondary,
@@ -556,63 +541,18 @@ private fun RideHistoryCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    MetricPill(text = distText)
-                    MetricPill(text = durText)
-                }
-                Spacer(modifier = Modifier.height(5.dp))
-                MetricPill(text = avgText)
             }
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Right: Badge + Chevron
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(if (session.isSynced) MossContainer else PopContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = initials,
-                        color = if (session.isSynced) Moss else Pop,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = stringResource(R.string.cd_open_replay),
-                    tint = InkSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+            // Right: Chevron
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = stringResource(R.string.cd_open_replay),
+                tint = InkSecondary,
+                modifier = Modifier.size(18.dp)
+            )
         }
-    }
-}
-
-@Composable
-private fun MetricPill(text: String) {
-    Surface(
-        color = PaperSunken,
-        shape = RoundedCornerShape(RvRadius.pill)
-    ) {
-        Text(
-            text = text,
-            color = Ink,
-            style = MaterialTheme.typography.bodySmall,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-        )
     }
 }
 

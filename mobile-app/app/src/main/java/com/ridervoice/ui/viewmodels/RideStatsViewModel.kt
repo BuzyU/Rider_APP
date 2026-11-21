@@ -84,8 +84,8 @@ class RideStatsViewModel @Inject constructor(
 
                 for (session in sessions) {
                     totalDistMeters += session.totalDistanceMeters
-                    val end = session.endTime ?: System.currentTimeMillis()
-                    totalDurationSec += (end - session.startTime) / 1000
+                    val end = session.endTime ?: session.startTime
+                    totalDurationSec += ((end - session.startTime) / 1000L).coerceAtLeast(0L)
                 }
 
                 val totalKm = totalDistMeters / 1000f
@@ -160,9 +160,15 @@ class RideStatsViewModel @Inject constructor(
                             }
 
                             val existing = rideDao.getSessionById(rideResponse.id)
-                            val resolvedRoomName = rideResponse.roomName?.takeIf { it.isNotBlank() }
-                                ?: existing?.roomName?.takeIf { it.isNotBlank() }
-                                ?: "Unnamed Ride"
+                            val remoteName = rideResponse.roomName?.trim()?.takeIf {
+                                it.isNotBlank() && !com.ridervoice.services.RideRecorder.isUuidLike(it)
+                            }
+                            val localName = existing?.roomName?.trim()?.takeIf {
+                                it.isNotBlank() && !com.ridervoice.services.RideRecorder.isUuidLike(it)
+                            }
+                            val resolvedRoomName = remoteName
+                                ?: localName
+                                ?: "Recorded Ride"
 
                             val entity = com.ridervoice.data.local.entities.RideSessionEntity(
                                 id = rideResponse.id,

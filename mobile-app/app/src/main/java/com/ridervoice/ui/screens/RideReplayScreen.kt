@@ -38,6 +38,7 @@ import com.ridervoice.R
 import com.ridervoice.data.local.entities.ConvoyEventEntity
 import com.ridervoice.data.local.entities.RawWaypointEntity
 import com.ridervoice.data.local.entities.RideSessionEntity
+import com.ridervoice.services.RideRecorder
 import com.ridervoice.ui.theme.*
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -109,7 +110,8 @@ fun RideReplayScreen(
 
     val defaultRideTitle = stringResource(R.string.replay_recorded_ride_default)
     val rideTitle = remember(session, defaultRideTitle) {
-        session?.roomName?.takeIf { it.isNotBlank() } ?: defaultRideTitle
+        session?.roomName?.trim()?.takeIf { it.isNotBlank() && !RideRecorder.isUuidLike(it) }
+            ?: defaultRideTitle
     }
 
     val dateSubtitle = remember(startTimeMs) {

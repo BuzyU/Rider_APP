@@ -31,8 +31,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.ridervoice.R
 import com.ridervoice.ui.components.CapChromeFontScale
-import com.ridervoice.ui.components.ConfirmDialog
-import com.ridervoice.ui.components.MoreMenuBottomSheet
 import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.HomeViewModel
@@ -57,8 +55,6 @@ fun HomeScreen(
 ) {
     val uiState = viewModel.uiState.collectAsState().value
 
-    var showProfileSheet by remember { mutableStateOf(false) }
-    var showLogoutConfirmDialog by remember { mutableStateOf(false) }
     var showBatteryWarning by remember { mutableStateOf(OEMBatteryWarning.isAggressiveOEM()) }
 
     val userInitial = remember {
@@ -74,34 +70,6 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         viewModel.refreshDeviceState()
         viewModel.refreshActiveRideState()
-    }
-
-    if (showProfileSheet) {
-        MoreMenuBottomSheet(
-            onDismiss = { showProfileSheet = false },
-            onAccountClick = onAccountClick,
-            onSettingsClick = onSettingsClick,
-            onDeviceSetupClick = onDeviceSetupClick,
-            onRoutePlannerClick = onRoutePlannerClick,
-            onInvitesInboxClick = onInvitesInboxClick,
-            onSignOutClick = { showLogoutConfirmDialog = true }
-        )
-    }
-
-    if (showLogoutConfirmDialog) {
-        ConfirmDialog(
-            title = stringResource(R.string.dialog_sign_out_title),
-            body = stringResource(R.string.dialog_sign_out_home_body),
-            confirmLabel = stringResource(R.string.action_sign_out),
-            dismissLabel = stringResource(R.string.action_cancel),
-            destructive = true,
-            onConfirm = {
-                showLogoutConfirmDialog = false
-                viewModel.clearActiveRide()
-                onLogoutSuccess()
-            },
-            onDismiss = { showLogoutConfirmDialog = false }
-        )
     }
 
     Column(
@@ -140,7 +108,7 @@ fun HomeScreen(
 
                     TabProfileAvatar(
                         userInitial = userInitial,
-                        onClick = { showProfileSheet = true }
+                        onClick = onAccountClick
                     )
                 }
             }

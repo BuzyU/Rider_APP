@@ -30,7 +30,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.R
 import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.components.ConfirmDialog
-import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.components.UpdateDialog
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
@@ -47,8 +46,7 @@ fun SettingsScreen(
     onNavigateToAccount: () -> Unit = {},
     onDeviceSetupClick: () -> Unit = {},
     onSignOutSuccess: () -> Unit = {},
-    onNavigateToOfflineMeshLobby: () -> Unit = {},
-    onOpenProfileMenu: () -> Unit = {}
+    onNavigateToOfflineMeshLobby: () -> Unit = {}
 ) {
     val settingsState by settingsViewModel.settingsState.collectAsState()
 
@@ -81,8 +79,6 @@ fun SettingsScreen(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-
-                    TabProfileAvatar(onClick = onOpenProfileMenu)
                 }
             }
 

@@ -35,7 +35,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.R
 import com.ridervoice.data.local.entities.RideSessionEntity
 import com.ridervoice.ui.components.CapChromeFontScale
-import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.RideStatsViewModel
 import java.text.SimpleDateFormat
@@ -48,8 +47,7 @@ import java.util.Locale
 fun RideStatsScreen(
     viewModel: RideStatsViewModel = hiltViewModel(),
     onBackClick: () -> Unit,
-    onReplayRide: (String) -> Unit = {},
-    onOpenProfileMenu: () -> Unit = {}
+    onReplayRide: (String) -> Unit = {}
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     val context = LocalContext.current
@@ -147,8 +145,6 @@ fun RideStatsScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-
-                    TabProfileAvatar(onClick = onOpenProfileMenu)
                 }
             }
         }

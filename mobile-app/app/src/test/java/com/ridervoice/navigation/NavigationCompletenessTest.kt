@@ -49,31 +49,33 @@ class NavigationCompletenessTest {
     }
 
     @Test
-    fun allFourTopLevelTabs_renderSharedTabProfileAvatar_andNavGraphHidesBarOnIme() {
+    fun onlyDashboardRendersProfileAvatar_andOpensAccountDirectly_andNavGraphHidesBarOnIme() {
         val root = locateJavaRoot()
-        val tabScreens = listOf(
-            "ui/screens/HomeScreen.kt",
+        val homeContent = File(root, "ui/screens/HomeScreen.kt").readText()
+        assertTrue(
+            "Dashboard (HomeScreen.kt) must render TabProfileAvatar opening Account directly",
+            homeContent.contains("TabProfileAvatar(") &&
+                homeContent.contains("onClick = onAccountClick") &&
+                !homeContent.contains("MoreMenuBottomSheet(")
+        )
+
+        val nonDashboardScreens = listOf(
             "ui/screens/RideStatsScreen.kt",
             "ui/screens/SquadScreen.kt",
             "ui/screens/SettingsScreen.kt"
         )
-        val missingAvatar = tabScreens.filter { rel ->
-            val content = File(root, rel).readText()
-            !content.contains("TabProfileAvatar(")
+        val unexpectedAvatar = nonDashboardScreens.filter { rel ->
+            File(root, rel).readText().contains("TabProfileAvatar(")
         }
         assertTrue(
-            "All 4 top-level tab screens must render TabProfileAvatar; missing in: $missingAvatar",
-            missingAvatar.isEmpty()
+            "Only Dashboard should render TabProfileAvatar; found unexpectedly in: $unexpectedAvatar",
+            unexpectedAvatar.isEmpty()
         )
 
         val navGraph = File(root, "navigation/NavGraph.kt").readText()
         assertTrue(
             "NavGraph must check IME visibility to hide bottom bar when keyboard is open",
             navGraph.contains("WindowInsets.ime") && navGraph.contains("shouldShowBottomBar(")
-        )
-        assertTrue(
-            "NavGraph must wire shared MoreMenuBottomSheet for tab profile menu",
-            navGraph.contains("MoreMenuBottomSheet(")
         )
     }
 

@@ -11,13 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -27,9 +24,6 @@ import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
-import com.ridervoice.R
-import com.ridervoice.ui.components.ConfirmDialog
-import com.ridervoice.ui.components.MoreMenuBottomSheet
 import com.ridervoice.ui.components.RvBottomNavigationBar
 import com.ridervoice.ui.components.shouldShowBottomBar
 import com.ridervoice.ui.screens.*
@@ -70,49 +64,6 @@ fun NavGraph(
     val currentRoute = navBackStackEntry?.destination?.route
     val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val showBottomBar = shouldShowBottomBar(currentRoute, isImeVisible)
-
-    var showTabProfileSheet by remember { mutableStateOf(false) }
-    var showTabLogoutConfirm by remember { mutableStateOf(false) }
-
-    if (showTabProfileSheet) {
-        MoreMenuBottomSheet(
-            onDismiss = { showTabProfileSheet = false },
-            onAccountClick = { navController.navigate(Routes.ACCOUNT) },
-            onSettingsClick = {
-                if (currentRoute != Routes.SETTINGS) {
-                    navController.navigate(Routes.SETTINGS) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                }
-            },
-            onDeviceSetupClick = { navController.navigate(Routes.deviceSetupPath("GLOBAL", isHost = false)) },
-            onRoutePlannerClick = { navController.navigate(Routes.ROUTE_PLANNER) },
-            onInvitesInboxClick = { navController.navigate(Routes.INVITES_INBOX) },
-            onSignOutClick = { showTabLogoutConfirm = true }
-        )
-    }
-
-    if (showTabLogoutConfirm) {
-        val authVm: com.ridervoice.ui.viewmodels.AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel()
-        val meshSettingsVm: com.ridervoice.mesh.ui.MeshSettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
-        ConfirmDialog(
-            title = stringResource(R.string.dialog_sign_out_title),
-            body = stringResource(R.string.dialog_sign_out_home_body),
-            confirmLabel = stringResource(R.string.action_sign_out),
-            dismissLabel = stringResource(R.string.action_cancel),
-            destructive = true,
-            onConfirm = {
-                showTabLogoutConfirm = false
-                meshSettingsVm.clearAllOnSignOut()
-                authVm.signOut()
-                navController.navigate(Routes.LOGIN) {
-                    popUpTo(0) { inclusive = true }
-                }
-            },
-            onDismiss = { showTabLogoutConfirm = false }
-        )
-    }
 
     Scaffold(
         containerColor = Paper,
@@ -435,8 +386,7 @@ fun NavGraph(
                 onBackClick = { navController.popBackStack() },
                 onJoinRoom = { roomName ->
                     navController.navigate(Routes.deviceSetupPath(roomName, isHost = false))
-                },
-                onOpenProfileMenu = { showTabProfileSheet = true }
+                }
             )
         }
         composable(Routes.ACCOUNT) {
@@ -456,8 +406,7 @@ fun NavGraph(
                 },
                 onNavigateToOfflineMeshLobby = {
                     navController.navigate(Routes.OFFLINE_MESH_LOBBY)
-                },
-                onOpenProfileMenu = { showTabProfileSheet = true }
+                }
             )
         }
         composable(Routes.ROUTE_PLANNER){ RoutePlannerScreen(onBackClick = { navController.popBackStack() }) }
@@ -466,8 +415,7 @@ fun NavGraph(
                 onBackClick = { navController.popBackStack() },
                 onReplayRide = { rideId ->
                     navController.navigate(Routes.rideReplayPath(rideId))
-                },
-                onOpenProfileMenu = { showTabProfileSheet = true }
+                }
             )
         }
         composable(Routes.JOIN_ROOM) {

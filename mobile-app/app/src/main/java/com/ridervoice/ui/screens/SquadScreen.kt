@@ -28,7 +28,6 @@ import com.ridervoice.models.Friend
 import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.components.ConfirmDialog
 import com.ridervoice.ui.components.InlineError
-import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.SquadViewModel
 
@@ -37,7 +36,6 @@ import com.ridervoice.ui.viewmodels.SquadViewModel
 fun SquadScreen(
     onBackClick: () -> Unit,
     onJoinRoom: (String) -> Unit = {},
-    onOpenProfileMenu: () -> Unit = {},
     viewModel: SquadViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -132,8 +130,6 @@ fun SquadScreen(
                             modifier = Modifier.size(22.dp)
                         )
                     }
-
-                    TabProfileAvatar(onClick = onOpenProfileMenu)
                 }
             }
         }

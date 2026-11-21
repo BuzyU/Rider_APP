@@ -51,8 +51,7 @@ fun shouldShowBottomBar(currentRoute: String?, isImeVisible: Boolean): Boolean {
 }
 
 /**
- * Shared 48dp touch-target profile avatar rendered in the top-right header of all 4 top-level tabs
- * (Dashboard, History, My Squad, Settings) to open MoreMenuBottomSheet consistently.
+ * 48dp touch-target profile avatar rendered in the top-right header of Dashboard to open Account.
  */
 @Composable
 fun TabProfileAvatar(
@@ -69,12 +68,12 @@ fun TabProfileAvatar(
             "R"
         }
     }
-    val openMenuCd = stringResource(R.string.menu_rider_title)
+    val openAccountCd = stringResource(R.string.nav_account)
     Box(
         modifier = modifier
             .size(RvTouchTarget.min)
             .testTag("tab_profile_avatar")
-            .semantics { contentDescription = openMenuCd }
+            .semantics { contentDescription = openAccountCd }
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {

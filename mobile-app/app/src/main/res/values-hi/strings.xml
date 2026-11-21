@@ -869,4 +869,5 @@
         <item quantity="one">वॉइस में %1$d राइडर</item>
         <item quantity="other">वॉइस में %1$d राइडर्स</item>
     </plurals>
+    <string name="action_continue">जारी रखें</string>
 </resources>

@@ -869,5 +869,6 @@
         <item quantity="one">%1$d rider in voice</item>
         <item quantity="other">%1$d riders in voice</item>
     </plurals>
+    <string name="action_continue">Continue</string>
 </resources>
 

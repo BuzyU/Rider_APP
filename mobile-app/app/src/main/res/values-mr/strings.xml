@@ -869,4 +869,5 @@
         <item quantity="one">व्हॉइसमध्ये %1$d रायडर</item>
         <item quantity="other">व्हॉइसमध्ये %1$d रायडर्स</item>
     </plurals>
+    <string name="action_continue">सुरू ठेवा</string>
 </resources>

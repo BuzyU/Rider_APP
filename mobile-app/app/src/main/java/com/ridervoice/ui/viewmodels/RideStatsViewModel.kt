@@ -36,7 +36,8 @@ class RideStatsViewModel @Inject constructor(
         val sessionId: String,
         val session: com.ridervoice.data.local.entities.RideSessionEntity? = null,
         val waypoints: List<com.ridervoice.data.local.entities.RawWaypointEntity> = emptyList(),
-        val events: List<com.ridervoice.data.local.entities.ConvoyEventEntity> = emptyList()
+        val events: List<com.ridervoice.data.local.entities.ConvoyEventEntity> = emptyList(),
+        val errorMessage: String? = null
     )
 
     private val _replayData = MutableStateFlow<ReplayData?>(null)
@@ -52,10 +53,21 @@ class RideStatsViewModel @Inject constructor(
             } else {
                 requestedRideId
             }
-            val session = runCatching { rideDao.getSessionById(targetId) }.getOrNull()
-            val wpts = runCatching { rideDao.getWaypointsForSession(targetId) }.getOrDefault(emptyList())
-            val evts = runCatching { rideDao.getEventsForSession(targetId) }.getOrDefault(emptyList())
-            _replayData.value = ReplayData(sessionId = targetId, session = session, waypoints = wpts, events = evts)
+            val sessionResult = runCatching { rideDao.getSessionById(targetId) }
+            val wptsResult = runCatching { rideDao.getWaypointsForSession(targetId) }
+            val evtsResult = runCatching { rideDao.getEventsForSession(targetId) }
+
+            val firstError = sessionResult.exceptionOrNull()
+                ?: wptsResult.exceptionOrNull()
+                ?: evtsResult.exceptionOrNull()
+
+            _replayData.value = ReplayData(
+                sessionId = targetId,
+                session = sessionResult.getOrNull(),
+                waypoints = wptsResult.getOrDefault(emptyList()),
+                events = evtsResult.getOrDefault(emptyList()),
+                errorMessage = firstError?.let { it.localizedMessage ?: it.message ?: "Failed to load ride replay" }
+            )
         }
     }
 

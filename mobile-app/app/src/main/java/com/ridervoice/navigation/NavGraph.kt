@@ -500,6 +500,7 @@ fun NavGraph(
                 session = replay?.session,
                 waypoints = replay?.waypoints ?: emptyList(),
                 events = replay?.events ?: emptyList(),
+                errorMessage = replay?.errorMessage,
                 onBack = { navController.popBackStack() }
             )
         }

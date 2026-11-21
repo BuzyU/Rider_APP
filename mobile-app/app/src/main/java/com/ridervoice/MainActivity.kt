@@ -237,7 +237,11 @@ class MainActivity : ComponentActivity() {
                                 onClick = { showUpdateSuccessDialog.value = false },
                                 colors = ButtonDefaults.buttonColors(containerColor = Pop)
                             ) {
-                                Text("Continue", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                                Text(
+                                    androidx.compose.ui.res.stringResource(R.string.action_continue),
+                                    color = PaperOnPop,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     )

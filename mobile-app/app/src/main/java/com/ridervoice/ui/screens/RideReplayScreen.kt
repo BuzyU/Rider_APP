@@ -52,7 +52,8 @@ fun RideReplayScreen(
     waypoints: List<RawWaypointEntity> = emptyList(),
     events: List<ConvoyEventEntity> = emptyList(),
     onBack: () -> Unit,
-    session: RideSessionEntity? = null
+    session: RideSessionEntity? = null,
+    errorMessage: String? = null
 ) {
     val context = LocalContext.current
     var timelineProgress by remember { mutableFloatStateOf(0f) }
@@ -301,6 +302,10 @@ fun RideReplayScreen(
                             )
                         }
                     }
+                }
+
+                if (!errorMessage.isNullOrBlank()) {
+                    com.ridervoice.ui.components.InlineError(message = errorMessage)
                 }
 
                 Text(

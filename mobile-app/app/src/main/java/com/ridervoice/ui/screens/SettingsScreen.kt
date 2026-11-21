@@ -28,7 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.R
+import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.components.ConfirmDialog
+import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.components.UpdateDialog
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
@@ -45,7 +47,8 @@ fun SettingsScreen(
     onNavigateToAccount: () -> Unit = {},
     onDeviceSetupClick: () -> Unit = {},
     onSignOutSuccess: () -> Unit = {},
-    onNavigateToOfflineMeshLobby: () -> Unit = {}
+    onNavigateToOfflineMeshLobby: () -> Unit = {},
+    onOpenProfileMenu: () -> Unit = {}
 ) {
     val settingsState by settingsViewModel.settingsState.collectAsState()
 
@@ -60,35 +63,26 @@ fun SettingsScreen(
                 .statusBarsPadding()
         ) {
             // Top Header matching Dashboard, History & My Squad
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.nav_settings),
-                    color = Ink,
-                    style = MaterialTheme.typography.displayLarge,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                IconButton(
-                    onClick = onNavigateToAccount,
+            CapChromeFontScale(maxScale = 1.3f) {
+                Row(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(PaperRaised)
-                        .border(1.dp, InkHairline, CircleShape)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = stringResource(R.string.nav_account),
-                        tint = Ink,
-                        modifier = Modifier.size(20.dp)
+                    Text(
+                        text = stringResource(R.string.nav_settings),
+                        color = Ink,
+                        style = MaterialTheme.typography.displayLarge,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
+
+                    TabProfileAvatar(onClick = onOpenProfileMenu)
                 }
             }
 

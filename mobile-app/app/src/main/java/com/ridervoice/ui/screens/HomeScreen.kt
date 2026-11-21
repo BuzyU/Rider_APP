@@ -33,6 +33,7 @@ import com.ridervoice.R
 import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.components.ConfirmDialog
 import com.ridervoice.ui.components.MoreMenuBottomSheet
+import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.HomeViewModel
 import com.ridervoice.utils.OEMBatteryWarning
@@ -133,40 +134,14 @@ fun HomeScreen(
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
 
-                    Box(
-                        modifier = Modifier
-                            .size(RvTouchTarget.min)
-                            .clickable { showProfileSheet = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(CharcoalSurface)
-                                .border(1.5.dp, InkHairline, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = userInitial,
-                                color = PaperOnPop,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(3.dp)
-                                .size(11.dp)
-                                .clip(CircleShape)
-                                .background(Moss)
-                                .border(2.dp, Paper, CircleShape)
-                        )
-                    }
+                    TabProfileAvatar(
+                        userInitial = userInitial,
+                        onClick = { showProfileSheet = true }
+                    )
                 }
             }
 

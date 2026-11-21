@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.R
 import com.ridervoice.data.local.entities.RideSessionEntity
+import com.ridervoice.ui.components.CapChromeFontScale
+import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.RideStatsViewModel
 import java.text.SimpleDateFormat
@@ -46,7 +48,8 @@ import java.util.Locale
 fun RideStatsScreen(
     viewModel: RideStatsViewModel = hiltViewModel(),
     onBackClick: () -> Unit,
-    onReplayRide: (String) -> Unit = {}
+    onReplayRide: (String) -> Unit = {},
+    onOpenProfileMenu: () -> Unit = {}
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     val context = LocalContext.current
@@ -95,50 +98,57 @@ fun RideStatsScreen(
             .background(Paper)
             .statusBarsPadding()
     ) {
-        // Top Header: "History" + Share Action (Matches Image 1 History Tab)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.tab_history),
-                color = Ink,
-                style = MaterialTheme.typography.displayLarge,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-
+        // Top Header: "History" + Share Action + Profile Avatar
+        CapChromeFontScale(maxScale = 1.3f) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = {
-                        val shareIntent = Intent().apply {
-                            action = Intent.ACTION_SEND
-                            putExtra(
-                                Intent.EXTRA_TEXT,
-                                "RiderVoice Ride Summary:\nRides: ${uiState.totalRidesCount}\nTotal Distance: ${uiState.totalDistance} km\nSaddle Time: $saddleTimeShort\nTop Speed: ${uiState.topSpeed} km/h\nAvg Speed: ${uiState.avgSpeed} km/h"
-                            )
-                            type = "text/plain"
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.cd_share_ride_summary)))
-                    },
-                    modifier = Modifier
-                        .size(RvTouchTarget.min)
-                        .clip(CircleShape)
-                        .background(PaperRaised)
-                        .border(1.dp, InkHairline, CircleShape)
+                Text(
+                    text = stringResource(R.string.tab_history),
+                    color = Ink,
+                    style = MaterialTheme.typography.displayLarge,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = stringResource(R.string.cd_share_ride_stats),
-                        tint = Ink,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    IconButton(
+                        onClick = {
+                            val shareIntent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "RiderVoice Ride Summary:\nRides: ${uiState.totalRidesCount}\nTotal Distance: ${uiState.totalDistance} km\nSaddle Time: $saddleTimeShort\nTop Speed: ${uiState.topSpeed} km/h\nAvg Speed: ${uiState.avgSpeed} km/h"
+                                )
+                                type = "text/plain"
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.cd_share_ride_summary)))
+                        },
+                        modifier = Modifier
+                            .size(RvTouchTarget.min)
+                            .clip(CircleShape)
+                            .background(PaperRaised)
+                            .border(1.dp, InkHairline, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = stringResource(R.string.cd_share_ride_stats),
+                            tint = Ink,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    TabProfileAvatar(onClick = onOpenProfileMenu)
                 }
             }
         }

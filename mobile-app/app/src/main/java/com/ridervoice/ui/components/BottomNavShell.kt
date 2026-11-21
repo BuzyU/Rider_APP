@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
@@ -27,9 +29,81 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.runtime.remember
+import com.google.firebase.auth.FirebaseAuth
 import com.ridervoice.R
 import com.ridervoice.navigation.Routes
 import com.ridervoice.ui.theme.*
+
+private val TOP_LEVEL_TAB_ROUTES = setOf(
+    Routes.HOME,
+    Routes.RIDE_STATS,
+    Routes.SQUAD,
+    Routes.SETTINGS
+)
+
+/**
+ * Bottom navigation bar is shown ONLY on the 4 top-level tab routes and hidden whenever
+ * the software keyboard (IME) is open or the user is on any secondary/in-ride screen.
+ */
+fun shouldShowBottomBar(currentRoute: String?, isImeVisible: Boolean): Boolean {
+    return !isImeVisible && currentRoute != null && currentRoute in TOP_LEVEL_TAB_ROUTES
+}
+
+/**
+ * Shared 48dp touch-target profile avatar rendered in the top-right header of all 4 top-level tabs
+ * (Dashboard, History, My Squad, Settings) to open MoreMenuBottomSheet consistently.
+ */
+@Composable
+fun TabProfileAvatar(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    userInitial: String? = null
+) {
+    val resolvedInitial = userInitial ?: remember {
+        try {
+            val u = FirebaseAuth.getInstance().currentUser
+            val name = u?.displayName?.takeIf { it.isNotBlank() } ?: u?.email ?: "R"
+            name.trim().firstOrNull()?.uppercase() ?: "R"
+        } catch (_: Exception) {
+            "R"
+        }
+    }
+    val openMenuCd = stringResource(R.string.menu_rider_title)
+    Box(
+        modifier = modifier
+            .size(RvTouchTarget.min)
+            .testTag("tab_profile_avatar")
+            .semantics { contentDescription = openMenuCd }
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(CharcoalSurface)
+                .border(1.5.dp, InkHairline, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = resolvedInitial,
+                color = PaperOnPop,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(3.dp)
+                .size(11.dp)
+                .clip(CircleShape)
+                .background(Moss)
+                .border(2.dp, Paper, CircleShape)
+        )
+    }
+}
 
 /**
  * Caps fontScale for fixed non-scrolling chrome (bottom navigation, compact headers)
@@ -294,14 +368,19 @@ fun MoreMenuBottomSheet(
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
-                    Divider(color = InkHairline, thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Divider(
+                        color = InkHairline,
+                        thickness = 1.dp,
+                        modifier = Modifier.testTag("more_menu_sign_out_divider")
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     MoreSheetRow(
                         icon = Icons.Default.Logout,
                         title = stringResource(R.string.action_sign_out),
                         subtitle = null,
                         destructive = true,
+                        modifier = Modifier.testTag("more_menu_sign_out"),
                         onClick = {
                             onDismiss()
                             onSignOutClick()
@@ -319,6 +398,7 @@ private fun MoreSheetRow(
     title: String,
     subtitle: String?,
     destructive: Boolean = false,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val contentTint = if (destructive) Brick else Ink
@@ -328,7 +408,7 @@ private fun MoreSheetRow(
         color = if (destructive) BrickContainer.copy(alpha = 0.4f) else Paper,
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, if (destructive) Brick else InkHairline),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 52.dp)
             .clickable(onClick = onClick)

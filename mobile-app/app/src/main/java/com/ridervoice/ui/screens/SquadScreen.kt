@@ -25,8 +25,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.ridervoice.R
 import com.ridervoice.models.Friend
+import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.components.ConfirmDialog
 import com.ridervoice.ui.components.InlineError
+import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.SquadViewModel
 
@@ -35,6 +37,7 @@ import com.ridervoice.ui.viewmodels.SquadViewModel
 fun SquadScreen(
     onBackClick: () -> Unit,
     onJoinRoom: (String) -> Unit = {},
+    onOpenProfileMenu: () -> Unit = {},
     viewModel: SquadViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -74,56 +77,63 @@ fun SquadScreen(
             .statusBarsPadding()
             .padding(horizontal = 16.dp)
     ) {
-        // Top Header matching Dashboard & History ("My Squad" + Circular Refresh & Add buttons)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.tab_my_squad),
-                color = Ink,
-                style = MaterialTheme.typography.displayLarge,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-
+        // Top Header matching Dashboard & History ("My Squad" + Refresh, Add & Profile Avatar)
+        CapChromeFontScale(maxScale = 1.3f) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = { currentUserId?.let { viewModel.fetchData(it) } },
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(PaperRaised)
-                        .border(1.dp, InkHairline, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.cd_refresh_squad),
-                        tint = Ink,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                Text(
+                    text = stringResource(R.string.tab_my_squad),
+                    color = Ink,
+                    style = MaterialTheme.typography.displayLarge,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
 
-                IconButton(
-                    onClick = { showAddFriendDialog = true },
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(PopContainer)
-                        .border(1.dp, Pop.copy(alpha = 0.35f), CircleShape)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(R.string.cd_add_rider),
-                        tint = Pop,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    IconButton(
+                        onClick = { currentUserId?.let { viewModel.fetchData(it) } },
+                        modifier = Modifier
+                            .size(RvTouchTarget.min)
+                            .clip(CircleShape)
+                            .background(PaperRaised)
+                            .border(1.dp, InkHairline, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.cd_refresh_squad),
+                            tint = Ink,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { showAddFriendDialog = true },
+                        modifier = Modifier
+                            .size(RvTouchTarget.min)
+                            .clip(CircleShape)
+                            .background(PopContainer)
+                            .border(1.dp, Pop.copy(alpha = 0.35f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = stringResource(R.string.cd_add_rider),
+                            tint = Pop,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    TabProfileAvatar(onClick = onOpenProfileMenu)
                 }
             }
         }

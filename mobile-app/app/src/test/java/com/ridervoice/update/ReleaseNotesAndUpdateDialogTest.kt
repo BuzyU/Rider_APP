@@ -109,6 +109,7 @@ class ReleaseNotesAndUpdateDialogTest {
         composeRule.onNodeWithTag("release_category_bug_fixes", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("release_category_improvements", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Fixed audio cutoff crash", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("You are currently running the latest version", substring = true, useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test

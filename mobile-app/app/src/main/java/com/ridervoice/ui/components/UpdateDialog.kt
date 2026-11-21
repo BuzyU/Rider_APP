@@ -85,7 +85,7 @@ fun UpdateDialog(
             val versionBadge = "v$cleanCurrent"
             UpdateDialogShell(
                 title = stringResource(R.string.update_uptodate_title),
-                subtitle = stringResource(R.string.update_uptodate_desc, cleanCurrent),
+                subtitle = null,
                 versionBadge = versionBadge,
                 icon = Icons.Default.CheckCircle,
                 iconBg = MossContainer,

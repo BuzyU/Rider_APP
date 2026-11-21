@@ -240,7 +240,7 @@ fun SettingsScreen(
                             label = stringResource(R.string.settings_app_version),
                             value = "v${updateViewModel.currentVersionName.removePrefix("v").removePrefix("V")}",
                             icon = Icons.Default.SystemUpdate,
-                            onClick = { updateViewModel.checkForUpdates() }
+                            onClick = { updateViewModel.checkForUpdates(forceRefresh = true) }
                         )
                     }
                 }
@@ -281,7 +281,7 @@ fun SettingsScreen(
             onCancelDownload = { updateViewModel.cancelDownload() },
             onInstallUpdate = { file, info -> updateViewModel.installUpdate(file, info) },
             onOpenSettings = { updateViewModel.openSettings() },
-            onRetry = { updateViewModel.checkForUpdates() },
+            onRetry = { updateViewModel.checkForUpdates(forceRefresh = true) },
             onDismiss = { updateViewModel.dismiss() },
             onOpenBrowserDownload = { url ->
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {

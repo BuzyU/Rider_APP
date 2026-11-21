@@ -23,8 +23,8 @@ class UpdateViewModel @Inject constructor(
     val currentVersionCode: Long
         get() = updateManager.currentVersionCode
 
-    fun checkForUpdates() {
-        updateManager.checkForUpdates(viewModelScope)
+    fun checkForUpdates(forceRefresh: Boolean = false) {
+        updateManager.checkForUpdates(forceRefresh = forceRefresh)
     }
 
     fun promptDownloadConfirmation(releaseInfo: AppReleaseInfo) {
@@ -32,7 +32,7 @@ class UpdateViewModel @Inject constructor(
     }
 
     fun startDownload(releaseInfo: AppReleaseInfo) {
-        updateManager.startDownload(releaseInfo, viewModelScope)
+        updateManager.startDownload(releaseInfo)
     }
 
     fun cancelDownload() {

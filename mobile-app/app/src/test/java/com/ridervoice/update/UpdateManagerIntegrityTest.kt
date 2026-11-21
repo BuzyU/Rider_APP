@@ -103,4 +103,67 @@ class UpdateManagerIntegrityTest {
         assertTrue("Error must report checksum mismatch, was: $errorMsg", errorMsg.contains("checksum mismatch"))
         assertFalse("Temp file must be deleted on mismatch", tempFile.exists())
     }
+
+    @Test
+    fun cachedApk_withMissingChecksum_failsClosedAndDeletesUntrustedCache() {
+        val tempCache = java.nio.file.Files.createTempDirectory("rv_update_cache_test").toFile()
+        try {
+            val updatesDir = File(tempCache, "updates").apply { mkdirs() }
+            val cachedApk = File(updatesDir, "Rider_APP-v9.9.9.apk").apply {
+                writeText("unverified cached payload")
+            }
+            assertTrue(cachedApk.exists())
+
+            val mockContext = mockk<Context>(relaxed = true)
+            val mockApp = mockk<Application>(relaxed = true)
+            val mockPrefs = mockk<android.content.SharedPreferences>(relaxed = true)
+            every { mockContext.applicationContext } returns mockApp
+            every { mockContext.cacheDir } returns tempCache
+            every { mockContext.getSharedPreferences(any(), any()) } returns mockPrefs
+
+            val releaseJson = """
+                {
+                  "tag_name": "v9.9.9",
+                  "name": "v9.9.9",
+                  "body": "Release without sha256",
+                  "published_at": "2026-11-21T00:00:00Z",
+                  "assets": [
+                    {
+                      "name": "Rider_APP-v9.9.9.apk",
+                      "size": 1024,
+                      "browser_download_url": "https://example.com/Rider_APP-v9.9.9.apk"
+                    }
+                  ]
+                }
+            """.trimIndent()
+
+            val fakeClient = okhttp3.OkHttpClient.Builder()
+                .addInterceptor { chain ->
+                    okhttp3.Response.Builder()
+                        .request(chain.request())
+                        .protocol(okhttp3.Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK")
+                        .body(okhttp3.ResponseBody.create(null, releaseJson))
+                        .build()
+                }
+                .build()
+
+            val manager = UpdateManager(mockContext)
+            manager.httpClient = fakeClient
+
+            kotlinx.coroutines.runBlocking {
+                manager.checkForUpdates(this, forceRefresh = true)
+            }
+
+            val state = manager.uiState.value
+            assertTrue(
+                "Cached APK without checksum must NEVER fast-path to ReadyToInstall; got $state",
+                state is UpdateUiState.UpdateAvailable
+            )
+            assertFalse("Untrusted cached APK must be deleted", cachedApk.exists())
+        } finally {
+            tempCache.deleteRecursively()
+        }
+    }
 }

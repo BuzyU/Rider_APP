@@ -871,5 +871,12 @@
     </plurals>
     <string name="action_continue">Continue</string>
     <string name="route_preview_estimate">Preview estimate</string>
+    <string name="update_cat_whats_new">What\'s new</string>
+    <string name="update_cat_improvements">Improvements</string>
+    <string name="update_cat_bug_fixes">Bug fixes</string>
+    <string name="update_cat_reliability">Reliability &amp; safety</string>
+    <string name="update_cat_notes">Notes</string>
+    <string name="update_downloaded_unknown_total">%1$s downloaded</string>
+    <string name="update_no_release_notes">No release notes provided for this version.</string>
 </resources>
 

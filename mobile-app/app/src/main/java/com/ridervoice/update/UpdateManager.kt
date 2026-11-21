@@ -134,6 +134,9 @@ class UpdateManager @Inject constructor(
 
     private val gson = Gson()
 
+    /** Application-scoped coroutine scope so downloads survive screen/ViewModel navigation. */
+    private val updateScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private val _uiState = MutableStateFlow<UpdateUiState>(UpdateUiState.Idle)
     val uiState: StateFlow<UpdateUiState> = _uiState.asStateFlow()
 
@@ -204,7 +207,7 @@ class UpdateManager @Inject constructor(
             }
         }
 
-    fun checkForUpdates(scope: CoroutineScope, forceRefresh: Boolean = false) {
+    fun checkForUpdates(scope: CoroutineScope = updateScope, forceRefresh: Boolean = false) {
         if (_uiState.value is UpdateUiState.Checking || _uiState.value is UpdateUiState.Downloading) return
 
         val now = System.currentTimeMillis()
@@ -245,40 +248,46 @@ class UpdateManager @Inject constructor(
                     reqBuilder.header("If-None-Match", cachedEtag)
                 }
 
-                val response = httpClient.newCall(reqBuilder.build()).execute()
-                val code = response.code
-
-                if (code == 304) {
-                    val cachedJson = prefs.getString(KEY_LAST_RELEASE_JSON, null)
-                    if (!cachedJson.isNullOrBlank()) {
-                        try {
-                            val cachedRel = gson.fromJson(cachedJson, GitHubRelease::class.java)
-                            releaseInfo = parseReleaseToInfo(cachedRel)
-                        } catch (_: Exception) {}
-                    }
-                    if (releaseInfo == null) {
-                        _uiState.value = UpdateUiState.UpToDate(
-                            currentVersion = currentVersionName,
-                            releaseNotes = DEFAULT_V00320_NOTES
-                        )
-                        return@launch
-                    }
-                } else if (code == 403 || code == 429) {
-                    rateLimited = true
-                    Log.w(TAG, "GitHub REST API rate limit encountered ($code). Falling back to direct web release redirect.")
-                } else if (code == 200) {
-                    val newEtag = response.header("ETag")
-                    val body = response.body?.string()
-                    if (!body.isNullOrBlank()) {
-                        if (!newEtag.isNullOrBlank()) {
-                            prefs.edit().putString(KEY_LAST_ETAG, newEtag).putString(KEY_LAST_RELEASE_JSON, body).apply()
+                httpClient.newCall(reqBuilder.build()).execute().use { response ->
+                    when (val code = response.code) {
+                        304 -> {
+                            val cachedJson = prefs.getString(KEY_LAST_RELEASE_JSON, null)
+                            if (!cachedJson.isNullOrBlank()) {
+                                try {
+                                    val cachedRel = gson.fromJson(cachedJson, GitHubRelease::class.java)
+                                    releaseInfo = parseReleaseToInfo(cachedRel)
+                                } catch (_: Exception) {}
+                            }
+                            if (releaseInfo == null) {
+                                _uiState.value = UpdateUiState.UpToDate(
+                                    currentVersion = currentVersionName,
+                                    releaseNotes = DEFAULT_V00320_NOTES
+                                )
+                                return@launch
+                            }
                         }
-                        val release = gson.fromJson(body, GitHubRelease::class.java)
-                        releaseInfo = parseReleaseToInfo(release)
+                        403, 429 -> {
+                            rateLimited = true
+                            Log.w(TAG, "GitHub REST API rate limit encountered ($code). Falling back to direct web release redirect.")
+                        }
+                        200 -> {
+                            val newEtag = response.header("ETag")
+                            val body = response.body?.string()
+                            if (!body.isNullOrBlank()) {
+                                if (!newEtag.isNullOrBlank()) {
+                                    prefs.edit().putString(KEY_LAST_ETAG, newEtag).putString(KEY_LAST_RELEASE_JSON, body).apply()
+                                }
+                                val release = gson.fromJson(body, GitHubRelease::class.java)
+                                releaseInfo = parseReleaseToInfo(release)
+                            }
+                        }
+                        404 -> {
+                            _uiState.value = UpdateUiState.Error("No releases published yet on repository.")
+                            return@launch
+                        }
+                        else -> Unit
                     }
-                } else if (code == 404) {
-                    _uiState.value = UpdateUiState.Error("No releases published yet on repository.")
-                    return@launch
+                    Unit
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "GitHub REST API call failed (${e.message}). Falling back to web release redirect.")
@@ -286,18 +295,19 @@ class UpdateManager @Inject constructor(
 
             // Resilient Fallback: If GitHub API was rate limited or failed, fetch from the official web redirect
             // https://github.com/BuzyU/Rider_APP/releases/latest which has NO REST API rate limit!
-            if (releaseInfo == null) {
+            var resolvedRelease = releaseInfo
+            if (resolvedRelease == null) {
                 try {
-                    releaseInfo = fetchReleaseViaWebRedirect()
-                    if (releaseInfo != null) {
-                        Log.i(TAG, "Successfully resolved release ${releaseInfo.tagName} via web redirect fallback.")
+                    resolvedRelease = fetchReleaseViaWebRedirect()
+                    if (resolvedRelease != null) {
+                        Log.i(TAG, "Successfully resolved release ${resolvedRelease.tagName} via web redirect fallback.")
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Web redirect fallback failed: ${e.message}")
                 }
             }
 
-            if (releaseInfo == null) {
+            if (resolvedRelease == null) {
                 if (rateLimited) {
                     _uiState.value = UpdateUiState.Error("GitHub API rate limit exceeded and fallback failed. Please try again later.")
                 } else {
@@ -307,38 +317,54 @@ class UpdateManager @Inject constructor(
             }
 
             lastCheckTimestamp = System.currentTimeMillis()
-            cachedReleaseInfo = releaseInfo
+            cachedReleaseInfo = resolvedRelease
 
-            val releaseVersion = releaseInfo.versionName
+            val releaseVersion = resolvedRelease.versionName
             val latestVer = AppVersion.parse(releaseVersion)
             val installedVer = AppVersion.parse(currentVersionName)
 
+            val updatesDir = File(context.cacheDir, "updates")
+            pruneStaleUpdates(updatesDir, keepVersion = releaseVersion)
+
             if (latestVer.isNewerThan(installedVer)) {
-                val updatesDir = File(context.cacheDir, "updates")
                 val existingApk = File(updatesDir, "Rider_APP-v${releaseVersion}.apk")
                 if (existingApk.exists() && existingApk.length() > 0) {
-                    val expectedHash = releaseInfo.sha256Checksum
-                    val matchesChecksum = if (!expectedHash.isNullOrBlank()) {
-                        calculateSha256(existingApk).equals(expectedHash.trim(), ignoreCase = true)
-                    } else true
-                    if (matchesChecksum) {
+                    val expectedHash = resolvedRelease.sha256Checksum
+                    // Fail closed: cached APK MUST pass SHA-256 + package/signature/non-downgrade verification
+                    val verifiedCached = !expectedHash.isNullOrBlank() &&
+                        calculateSha256(existingApk).equals(expectedHash.trim(), ignoreCase = true) &&
+                        verifyArchiveSecurity(existingApk) == null
+                    if (verifiedCached) {
                         _uiState.value = UpdateUiState.ReadyToInstall(
-                            releaseInfo = releaseInfo,
+                            releaseInfo = resolvedRelease,
                             apkFile = existingApk
                         )
                         return@launch
+                    } else {
+                        existingApk.delete()
                     }
                 }
 
                 _uiState.value = UpdateUiState.UpdateAvailable(
-                    releaseInfo = releaseInfo,
+                    releaseInfo = resolvedRelease,
                     currentVersion = currentVersionName
                 )
             } else {
                 _uiState.value = UpdateUiState.UpToDate(
                     currentVersion = currentVersionName,
-                    releaseNotes = releaseInfo.releaseNotes.ifBlank { DEFAULT_V00320_NOTES }
+                    releaseNotes = resolvedRelease.releaseNotes.ifBlank { DEFAULT_V00320_NOTES }
                 )
+            }
+        }
+    }
+
+    private fun pruneStaleUpdates(updatesDir: File, keepVersion: String) {
+        if (!updatesDir.isDirectory) return
+        val keepApk = "Rider_APP-v${keepVersion}.apk"
+        val keepPart = "Rider_APP-v${keepVersion}.apk.part"
+        updatesDir.listFiles()?.forEach { file ->
+            if (file.isFile && file.name != keepApk && file.name != keepPart) {
+                file.delete()
             }
         }
     }
@@ -354,11 +380,12 @@ class UpdateManager @Inject constructor(
         if (shaAsset != null) {
             try {
                 val shaReq = Request.Builder().url(shaAsset.downloadUrl).build()
-                val shaResp = httpClient.newCall(shaReq).execute()
-                val shaContent = shaResp.body?.string()?.trim()
-                if (!shaContent.isNullOrBlank()) {
-                    val match = Regex("[a-fA-F0-9]{64}").find(shaContent)
-                    sha256Checksum = match?.value
+                httpClient.newCall(shaReq).execute().use { shaResp ->
+                    val shaContent = shaResp.body?.string()?.trim()
+                    if (!shaContent.isNullOrBlank()) {
+                        val match = Regex("[a-fA-F0-9]{64}").find(shaContent)
+                        sha256Checksum = match?.value
+                    }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to download sha256 asset: ${e.message}")
@@ -394,8 +421,9 @@ class UpdateManager @Inject constructor(
             .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36")
             .build()
 
-        val resp = nonRedirectingClient.newCall(req).execute()
-        val location = resp.header("Location") ?: return null
+        val location = nonRedirectingClient.newCall(req).execute().use { resp ->
+            resp.header("Location")
+        } ?: return null
 
         // Location header format: https://github.com/BuzyU/Rider_APP/releases/tag/v0.0.3.5
         val tagName = location.substringAfterLast("/").trim()
@@ -411,12 +439,13 @@ class UpdateManager @Inject constructor(
         var sha256Checksum: String? = null
         try {
             val shaReq = Request.Builder().url(shaDownloadUrl).build()
-            val shaResp = httpClient.newCall(shaReq).execute()
-            if (shaResp.isSuccessful) {
-                val content = shaResp.body?.string()?.trim()
-                if (!content.isNullOrBlank()) {
-                    val match = Regex("[a-fA-F0-9]{64}").find(content)
-                    sha256Checksum = match?.value
+            httpClient.newCall(shaReq).execute().use { shaResp ->
+                if (shaResp.isSuccessful) {
+                    val content = shaResp.body?.string()?.trim()
+                    if (!content.isNullOrBlank()) {
+                        val match = Regex("[a-fA-F0-9]{64}").find(content)
+                        sha256Checksum = match?.value
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -426,9 +455,10 @@ class UpdateManager @Inject constructor(
         var apkSizeBytes = 0L
         try {
             val headReq = Request.Builder().url(apkDownloadUrl).head().build()
-            val headResp = httpClient.newCall(headReq).execute()
-            if (headResp.isSuccessful) {
-                apkSizeBytes = headResp.header("Content-Length")?.toLongOrNull() ?: 0L
+            httpClient.newCall(headReq).execute().use { headResp ->
+                if (headResp.isSuccessful) {
+                    apkSizeBytes = headResp.header("Content-Length")?.toLongOrNull() ?: 0L
+                }
             }
         } catch (e: Exception) {
             Log.w(TAG, "Direct HEAD content-length fetch failed: ${e.message}")
@@ -453,10 +483,11 @@ class UpdateManager @Inject constructor(
         )
     }
 
-    fun startDownload(releaseInfo: AppReleaseInfo, scope: CoroutineScope) {
+    fun startDownload(releaseInfo: AppReleaseInfo, scope: CoroutineScope = updateScope) {
         downloadJob?.cancel()
 
         val updatesDir = File(context.cacheDir, "updates").apply { mkdirs() }
+        pruneStaleUpdates(updatesDir, keepVersion = releaseInfo.versionName)
 
         val requiredBytes = if (releaseInfo.apkSizeBytes > 0) releaseInfo.apkSizeBytes + 20_000_000 else 80_000_000
         if (updatesDir.usableSpace < requiredBytes) {
@@ -510,80 +541,81 @@ class UpdateManager @Inject constructor(
                         Log.i(TAG, "Resuming update download at byte $downloadedSoFar (attempt $attempt/$maxRetries)")
                     }
 
-                    val response = downloadHttpClient.newCall(reqBuilder.build()).execute()
-                    val code = response.code
+                    downloadHttpClient.newCall(reqBuilder.build()).execute().use { response ->
+                        val code = response.code
 
-                    if (code != 200 && code != 206) {
-                        if (code == 416) {
-                            Log.w(TAG, "HTTP 416 Range Not Satisfiable. Resetting partial file and restarting.")
-                            partFile.delete()
-                            continue
-                        }
-                        throw java.io.IOException("Download server returned HTTP $code.")
-                    }
-
-                    val isResume = (code == 206)
-                    val body = response.body ?: throw java.io.IOException("Empty response body from download server")
-                    val totalLength = when {
-                        isResume -> {
-                            val contentRange = response.header("Content-Range")
-                            val totalFromRange = contentRange?.substringAfterLast("/")?.toLongOrNull()
-                            totalFromRange ?: if (releaseInfo.apkSizeBytes > 0) releaseInfo.apkSizeBytes else (downloadedSoFar + body.contentLength())
-                        }
-                        body.contentLength() > 0 -> body.contentLength()
-                        releaseInfo.apkSizeBytes > 0 -> releaseInfo.apkSizeBytes
-                        else -> 0L
-                    }
-
-                    val append = isResume && downloadedSoFar > 0
-                    if (!append && partFile.exists()) {
-                        partFile.delete()
-                    }
-
-                    body.byteStream().use { input ->
-                        FileOutputStream(partFile, append).use { output ->
-                            val buffer = ByteArray(64 * 1024) // 64 KB buffer for high-bandwidth mobile streaming
-                            var bytesRead: Int
-                            var totalDownloaded = if (append) downloadedSoFar else 0L
-                            var lastTimestamp = System.currentTimeMillis()
-                            var bytesSinceLastTimestamp = 0L
-
-                            while (input.read(buffer).also { bytesRead = it } != -1) {
-                                ensureActive()
-
-                                output.write(buffer, 0, bytesRead)
-                                totalDownloaded += bytesRead
-                                bytesSinceLastTimestamp += bytesRead
-
-                                val now = System.currentTimeMillis()
-                                val elapsed = now - lastTimestamp
-                                if (elapsed >= 500) {
-                                    val speedBps = (bytesSinceLastTimestamp.toDouble() / (elapsed / 1000.0)).toLong()
-                                    val currentSpeedText = formatSpeed(speedBps)
-                                    lastTimestamp = now
-                                    bytesSinceLastTimestamp = 0L
-
-                                    val progressPercent = if (totalLength > 0) {
-                                        ((totalDownloaded * 100) / totalLength).toInt().coerceIn(0, 99)
-                                    } else 0
-
-                                    _uiState.value = UpdateUiState.Downloading(
-                                        releaseInfo = releaseInfo,
-                                        downloadedBytes = totalDownloaded,
-                                        totalBytes = totalLength,
-                                        progressPercent = progressPercent,
-                                        speedText = currentSpeedText
-                                    )
-                                }
+                        if (code != 200 && code != 206) {
+                            if (code == 416) {
+                                Log.w(TAG, "HTTP 416 Range Not Satisfiable. Resetting partial file and restarting.")
+                                partFile.delete()
+                                return@use
                             }
-                            output.flush()
+                            throw java.io.IOException("Download server returned HTTP $code.")
                         }
-                    }
 
-                    if (totalLength <= 0 || partFile.length() >= totalLength) {
-                        isCompleted = true
-                    } else {
-                        Log.w(TAG, "Stream ended prematurely: got ${partFile.length()} of $totalLength bytes. Retrying...")
+                        val isResume = (code == 206)
+                        val body = response.body ?: throw java.io.IOException("Empty response body from download server")
+                        val totalLength = when {
+                            isResume -> {
+                                val contentRange = response.header("Content-Range")
+                                val totalFromRange = contentRange?.substringAfterLast("/")?.toLongOrNull()
+                                totalFromRange ?: if (releaseInfo.apkSizeBytes > 0) releaseInfo.apkSizeBytes else (downloadedSoFar + body.contentLength())
+                            }
+                            body.contentLength() > 0 -> body.contentLength()
+                            releaseInfo.apkSizeBytes > 0 -> releaseInfo.apkSizeBytes
+                            else -> 0L
+                        }
+
+                        val append = isResume && downloadedSoFar > 0
+                        if (!append && partFile.exists()) {
+                            partFile.delete()
+                        }
+
+                        body.byteStream().use { input ->
+                            FileOutputStream(partFile, append).use { output ->
+                                val buffer = ByteArray(64 * 1024) // 64 KB buffer for high-bandwidth mobile streaming
+                                var bytesRead: Int
+                                var totalDownloaded = if (append) downloadedSoFar else 0L
+                                var lastTimestamp = System.currentTimeMillis()
+                                var bytesSinceLastTimestamp = 0L
+
+                                while (input.read(buffer).also { bytesRead = it } != -1) {
+                                    ensureActive()
+
+                                    output.write(buffer, 0, bytesRead)
+                                    totalDownloaded += bytesRead
+                                    bytesSinceLastTimestamp += bytesRead
+
+                                    val now = System.currentTimeMillis()
+                                    val elapsed = now - lastTimestamp
+                                    if (elapsed >= 500) {
+                                        val speedBps = (bytesSinceLastTimestamp.toDouble() / (elapsed / 1000.0)).toLong()
+                                        val currentSpeedText = formatSpeed(speedBps)
+                                        lastTimestamp = now
+                                        bytesSinceLastTimestamp = 0L
+
+                                        val progressPercent = if (totalLength > 0) {
+                                            ((totalDownloaded * 100) / totalLength).toInt().coerceIn(0, 99)
+                                        } else 0
+
+                                        _uiState.value = UpdateUiState.Downloading(
+                                            releaseInfo = releaseInfo,
+                                            downloadedBytes = totalDownloaded,
+                                            totalBytes = totalLength,
+                                            progressPercent = progressPercent,
+                                            speedText = currentSpeedText
+                                        )
+                                    }
+                                }
+                                output.flush()
+                            }
+                        }
+
+                        if (totalLength <= 0 || partFile.length() >= totalLength) {
+                            isCompleted = true
+                        } else {
+                            Log.w(TAG, "Stream ended prematurely: got ${partFile.length()} of $totalLength bytes. Retrying...")
+                        }
                     }
 
                 } catch (e: CancellationException) {
@@ -655,83 +687,10 @@ class UpdateManager @Inject constructor(
                 return
             }
 
-            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.packageManager.getPackageArchiveInfo(
-                    tempFile.absolutePath,
-                    PackageManager.PackageInfoFlags.of(0)
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                context.packageManager.getPackageArchiveInfo(tempFile.absolutePath, 0)
-            }
-
-            if (packageInfo == null) {
+            val securityError = verifyArchiveSecurity(tempFile)
+            if (securityError != null) {
                 tempFile.delete()
-                _uiState.value = UpdateUiState.Error("Downloaded file is not a valid Android application package (APK).")
-                return
-            }
-
-            if (packageInfo.packageName != context.packageName) {
-                tempFile.delete()
-                _uiState.value = UpdateUiState.Error(
-                    "Security violation: Package ID (${packageInfo.packageName}) does not match RiderVoice (${context.packageName})."
-                )
-                return
-            }
-
-            // SEC-2: Verify signing certificate matches currently installed app
-            try {
-                val currentSignatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    context.packageManager.getPackageInfo(
-                        context.packageName,
-                        PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
-                    ).signingInfo?.apkContentsSigners
-                } else {
-                    @Suppress("DEPRECATION")
-                    context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES).signatures
-                }
-
-                val archiveSignatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    context.packageManager.getPackageArchiveInfo(
-                        tempFile.absolutePath,
-                        PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
-                    )?.signingInfo?.apkContentsSigners
-                } else {
-                    @Suppress("DEPRECATION")
-                    context.packageManager.getPackageArchiveInfo(tempFile.absolutePath, PackageManager.GET_SIGNATURES)?.signatures
-                }
-
-                if (currentSignatures != null && archiveSignatures != null && currentSignatures.isNotEmpty() && archiveSignatures.isNotEmpty()) {
-                    val signatureMatches = currentSignatures.any { cur ->
-                        archiveSignatures.any { arc -> cur == arc }
-                    }
-                    if (!signatureMatches) {
-                        tempFile.delete()
-                        _uiState.value = UpdateUiState.Error(
-                            "Security violation: APK signing certificate mismatch. Update rejected to protect against tampering."
-                        )
-                        return
-                    }
-                }
-            } catch (certEx: Exception) {
-                Log.w(TAG, "Signing certificate verification warning: ${certEx.message}")
-            }
-
-            val archiveVersion = AppVersion.parse(packageInfo.versionName)
-            val installedVersion = AppVersion.parse(currentVersionName)
-
-            val archiveVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                packageInfo.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                packageInfo.versionCode.toLong()
-            }
-
-            if (archiveVersion < installedVersion || archiveVersionCode < currentVersionCode) {
-                tempFile.delete()
-                _uiState.value = UpdateUiState.Error(
-                    "Downgrade attack rejected: Downloaded version ($archiveVersion / code $archiveVersionCode) is older than currently installed ($installedVersion / code $currentVersionCode)."
-                )
+                _uiState.value = UpdateUiState.Error(securityError)
                 return
             }
 
@@ -756,6 +715,96 @@ class UpdateManager @Inject constructor(
             tempFile.delete()
             _uiState.value = UpdateUiState.Error("Verification error: ${e.localizedMessage ?: "Unknown verification fault"}")
         }
+    }
+
+    /**
+     * Validates an APK archive's package ID, signing certificate (API-level safe for API <28, 28-32, and 33+),
+     * and non-downgrade version constraints. Returns null if valid, or a user-facing error message if rejected.
+     */
+    private fun verifyArchiveSecurity(apkFile: File): String? {
+        val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.packageManager.getPackageArchiveInfo(
+                apkFile.absolutePath,
+                PackageManager.PackageInfoFlags.of(0)
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageArchiveInfo(apkFile.absolutePath, 0)
+        } ?: return "Downloaded file is not a valid Android application package (APK)."
+
+        if (packageInfo.packageName != context.packageName) {
+            return "Security violation: Package ID (${packageInfo.packageName}) does not match RiderVoice (${context.packageName})."
+        }
+
+        // SEC-2: Verify signing certificate matches currently installed app (API 33+, API 28-32, and API <28 safe)
+        try {
+            val currentSignatures = when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                    context.packageManager.getPackageInfo(
+                        context.packageName,
+                        PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
+                    ).signingInfo?.apkContentsSigners
+                }
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.P -> {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageInfo(
+                        context.packageName,
+                        PackageManager.GET_SIGNING_CERTIFICATES
+                    ).signingInfo?.apkContentsSigners
+                }
+                else -> {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES).signatures
+                }
+            }
+
+            val archiveSignatures = when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                    context.packageManager.getPackageArchiveInfo(
+                        apkFile.absolutePath,
+                        PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
+                    )?.signingInfo?.apkContentsSigners
+                }
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.P -> {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageArchiveInfo(
+                        apkFile.absolutePath,
+                        PackageManager.GET_SIGNING_CERTIFICATES
+                    )?.signingInfo?.apkContentsSigners
+                }
+                else -> {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageArchiveInfo(apkFile.absolutePath, PackageManager.GET_SIGNATURES)?.signatures
+                }
+            }
+
+            if (currentSignatures != null && archiveSignatures != null && currentSignatures.isNotEmpty() && archiveSignatures.isNotEmpty()) {
+                val signatureMatches = currentSignatures.any { cur ->
+                    archiveSignatures.any { arc -> cur == arc }
+                }
+                if (!signatureMatches) {
+                    return "Security violation: APK signing certificate mismatch. Update rejected to protect against tampering."
+                }
+            }
+        } catch (certEx: Throwable) {
+            Log.w(TAG, "Signing certificate verification warning: ${certEx.message}")
+        }
+
+        val archiveVersion = AppVersion.parse(packageInfo.versionName)
+        val installedVersion = AppVersion.parse(currentVersionName)
+
+        val archiveVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            packageInfo.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.versionCode.toLong()
+        }
+
+        if (archiveVersion < installedVersion || archiveVersionCode < currentVersionCode) {
+            return "Downgrade attack rejected: Downloaded version ($archiveVersion / code $archiveVersionCode) is older than currently installed ($installedVersion / code $currentVersionCode)."
+        }
+
+        return null
     }
 
     fun installUpdate(apkFile: File, releaseInfo: AppReleaseInfo) {

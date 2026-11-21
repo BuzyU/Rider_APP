@@ -871,4 +871,11 @@
     </plurals>
     <string name="action_continue">सुरू ठेवा</string>
     <string name="route_preview_estimate">पूर्वावलोकन अंदाज</string>
+    <string name="update_cat_whats_new">नवीन काय आहे</string>
+    <string name="update_cat_improvements">सुधारणा</string>
+    <string name="update_cat_bug_fixes">दुरुस्त्या</string>
+    <string name="update_cat_reliability">विश्वासार्हता आणि सुरक्षितता</string>
+    <string name="update_cat_notes">टीपा</string>
+    <string name="update_downloaded_unknown_total">%1$s डाउनलोड झाले</string>
+    <string name="update_no_release_notes">या आवृत्तीसाठी कोणतीही रिलीझ माहिती उपलब्ध नाही.</string>
 </resources>

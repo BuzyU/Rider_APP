@@ -871,4 +871,11 @@
     </plurals>
     <string name="action_continue">जारी रखें</string>
     <string name="route_preview_estimate">पूर्वावलोकन अनुमान</string>
+    <string name="update_cat_whats_new">नया क्या है</string>
+    <string name="update_cat_improvements">सुधार</string>
+    <string name="update_cat_bug_fixes">बग फ़िक्स</string>
+    <string name="update_cat_reliability">स्थिरता और सुरक्षा</string>
+    <string name="update_cat_notes">नोट्स</string>
+    <string name="update_downloaded_unknown_total">%1$s डाउनलोड हो गया</string>
+    <string name="update_no_release_notes">इस संस्करण के लिए कोई रिलीज़ नोट्स उपलब्ध नहीं हैं।</string>
 </resources>

@@ -690,7 +690,8 @@ private fun SettingsRowToggle(
                 checkedThumbColor = PaperOnPop,
                 checkedTrackColor = Pop,
                 uncheckedThumbColor = InkSecondary,
-                uncheckedTrackColor = PaperSunken
+                uncheckedTrackColor = PaperSunken,
+                uncheckedBorderColor = InkHairline
             )
         )
     }

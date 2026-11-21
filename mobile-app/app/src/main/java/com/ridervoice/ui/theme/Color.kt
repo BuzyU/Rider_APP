@@ -48,32 +48,37 @@ internal object LightPalette {
 }
 
 /**
- * Roadside Paper Dark — Warm Charcoal Dark Palette (blue-free, neon-free).
+ * Roadside Paper Dark — Sleek Obsidian Carbon Dark Palette (blue-free, neon-free, WCAG AA+ verified).
+ * Base 1 (Obsidian): Canvas #0E0E0F / Card #171718 / Elevated Tile #222224 / Hairline #2C2C2E
+ * Base 2 (Alabaster): Ink #F4F3F0 / Secondary #A4A29D / Disabled #6B6965
+ * Primary Pop:       Warm Ember #E47A4E (Container #2A1B14, OnEmber #101011)
+ * Moss Status:       Fresh Sage #7BC492 (Container #16271C)
+ * Brick Hazard:      Crisp Crimson #F2645A (Container #2E1516, OnBrick #101011)
  */
 internal object DarkPalette {
-    val Background = Color(0xFF1A1714)
-    val Surface = Color(0xFF24201C)
-    val SurfaceAlt = Color(0xFF2E2924)
-    val Border = Color(0xFF463F37)
-    val TextPrimary = Color(0xFFF5F1E8)
-    val TextSecondary = Color(0xFFB5AEA3)
-    val TextDisabled = Color(0xFF7A7369)
+    val Background = Color(0xFF0E0E0F)
+    val Surface = Color(0xFF171718)
+    val SurfaceAlt = Color(0xFF222224)
+    val Border = Color(0xFF2C2C2E)
+    val TextPrimary = Color(0xFFF4F3F0)
+    val TextSecondary = Color(0xFFA4A29D)
+    val TextDisabled = Color(0xFF6B6965)
 
-    val AccentAmber = Color(0xFFD9724E)
-    val AccentAmberContainer = Color(0xFF3A2218)
-    val OnAccent = Color(0xFF1A1714)
+    val AccentAmber = Color(0xFFE47A4E)
+    val AccentAmberContainer = Color(0xFF2A1B14)
+    val OnAccent = Color(0xFF101011)
 
-    val CharcoalAction = Color(0xFFF5F1E8)
-    val Moss = Color(0xFF9BB68D)
-    val MossContainer = Color(0xFF24301F)
+    val CharcoalAction = Color(0xFFF0EDE8)
+    val Moss = Color(0xFF7BC492)
+    val MossContainer = Color(0xFF16271C)
 
-    val VhfTeal = Color(0xFFB5AEA3)
-    val SignalGreen = Color(0xFFF5F1E8)
-    val StandbyOchre = Color(0xFFF5F1E8)
-    val EmergencyRed = Color(0xFFE56B55)
-    val EmergencyContainer = Color(0xFF3E1C18)
-    val OnEmergency = Color(0xFF1A1714)
-    val AccentViolet = Color(0xFFB5AEA3)
+    val VhfTeal = Color(0xFFA4A29D)
+    val SignalGreen = Color(0xFFF4F3F0)
+    val StandbyOchre = Color(0xFFF4F3F0)
+    val EmergencyRed = Color(0xFFF2645A)
+    val EmergencyContainer = Color(0xFF2E1516)
+    val OnEmergency = Color(0xFF101011)
+    val AccentViolet = Color(0xFFA4A29D)
 }
 
 // --- Roadside Paper Semantic Tokens ---

@@ -158,6 +158,10 @@ fun RvBottomNavigationBar(
         animationSpec = spring(dampingRatio = 0.78f, stiffness = 420f)
     )
 
+    val isDark = ThemeState.isDarkTheme
+    val dockSurface = if (isDark) PaperRaised else PaperSunken
+    val activeThumbColor = if (isDark) PaperSunken else PaperRaised
+
     CapChromeFontScale(maxScale = 1.3f) {
         Box(
             modifier = modifier
@@ -172,10 +176,10 @@ fun RvBottomNavigationBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .widthIn(max = 420.dp)
-                    .shadow(elevation = 8.dp, shape = CircleShape, clip = false)
+                    .shadow(elevation = 3.dp, shape = CircleShape, clip = false)
                     .clip(CircleShape)
-                    .background(CharcoalSurface)
-                    .border(1.dp, InkHairline.copy(alpha = 0.25f), CircleShape)
+                    .background(dockSurface)
+                    .border(1.dp, InkHairline, CircleShape)
                     .heightIn(min = 60.dp)
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 contentAlignment = Alignment.CenterStart
@@ -185,7 +189,7 @@ fun RvBottomNavigationBar(
 
                 if (selectedIndex >= 0) {
                     val travelProgress = abs(selectedIndex - animatedIndex).coerceIn(0f, 1f)
-                    val basePillWidth = 54.dp.coerceAtMost((tabWidth - 6.dp).coerceAtLeast(36.dp))
+                    val basePillWidth = 56.dp.coerceAtMost((tabWidth - 6.dp).coerceAtLeast(36.dp))
                     val pillWidth = (basePillWidth + (12.dp * travelProgress)).coerceAtMost(tabWidth)
                     val density = LocalDensity.current
 
@@ -198,9 +202,11 @@ fun RvBottomNavigationBar(
                                 IntOffset(x = xPx.roundToInt(), y = 0)
                             }
                             .width(pillWidth)
-                            .height(40.dp)
+                            .height(42.dp)
+                            .shadow(elevation = 2.dp, shape = CircleShape, clip = false)
                             .clip(CircleShape)
-                            .background(Pop)
+                            .background(activeThumbColor)
+                            .border(1.dp, InkHairline.copy(alpha = 0.85f), CircleShape)
                             .testTag("bottom_nav_active_pill")
                     )
                 }
@@ -252,7 +258,7 @@ private fun BottomNavTabItem(
     modifier: Modifier = Modifier
 ) {
     val iconTint by animateColorAsState(
-        targetValue = if (selected) PaperOnPop else PaperOnPop.copy(alpha = 0.65f),
+        targetValue = if (selected) Pop else InkSecondary,
         animationSpec = tween(durationMillis = 220)
     )
     val iconScale by animateFloatAsState(

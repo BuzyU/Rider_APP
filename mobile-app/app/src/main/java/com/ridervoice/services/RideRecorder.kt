@@ -22,25 +22,33 @@ data class RideSummary(
     val sessionId: String,
     val durationMinutes: Int,
     val distanceKm: Float,
-    val topSpeedKmh: Float
+    val topSpeedKmh: Float,
+    val roomName: String = ""
 )
 
 @Singleton
 class RideRecorder internal constructor(
     private val rideDao: RideDao,
     private val locationService: LocationService,
-    ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
+    ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
+    private val activeRideRepository: com.ridervoice.state.ActiveRideRepository? = null
 ) {
     @Inject
     constructor(
         rideDao: RideDao,
-        locationService: LocationService
-    ) : this(rideDao, locationService, Dispatchers.IO)
+        locationService: LocationService,
+        activeRideRepository: com.ridervoice.state.ActiveRideRepository
+    ) : this(rideDao, locationService, Dispatchers.IO, activeRideRepository)
 
     companion object {
         private const val TAG = "RideRecorder"
         private const val MIN_DISTANCE_METERS = 20.0
         private const val HIGH_SPEED_MPS = 36.1f
+        private val UUID_REGEX = Regex(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+        )
+
+        internal fun isUuidLike(value: String): Boolean = UUID_REGEX.matches(value.trim())
     }
 
     private val recorderScope = CoroutineScope(ioDispatcher + SupervisorJob())
@@ -48,7 +56,8 @@ class RideRecorder internal constructor(
     private var recordingJob: Job? = null
 
     private var currentSessionId: String? = null
-    private var currentRoomName: String? = null
+    private var currentRoomKey: String? = null
+    private var currentDisplayRoomName: String? = null
 
     private var lastLat = 0.0
     private var lastLng = 0.0
@@ -62,18 +71,50 @@ class RideRecorder internal constructor(
     private val _lastSummary = MutableStateFlow<RideSummary?>(null)
     val lastSummary: StateFlow<RideSummary?> = _lastSummary
 
+    private fun resolveDisplayRoomName(rawRoomKey: String): String {
+        val trimmedRaw = rawRoomKey.trim()
+        val active = activeRideRepository?.state?.value
+        if (active != null && (active.roomId == trimmedRaw || trimmedRaw.isBlank())) {
+            val activeName = active.displayName.trim()
+            if (activeName.isNotBlank() && !isUuidLike(activeName)) {
+                return activeName
+            }
+        }
+        val ended = activeRideRepository?.lastEnded?.value
+        if (ended != null) {
+            val endedName = ended.convoyName.trim()
+            if (endedName.isNotBlank() && !isUuidLike(endedName)) {
+                return endedName
+            }
+        }
+        return trimmedRaw.ifBlank { "Ride" }
+    }
+
     fun startRecording(roomName: String) {
-        if (recordingJob != null && currentRoomName == roomName) {
-            Log.d(TAG, "Continuing existing ride session $currentSessionId across transport transition for room=$roomName")
+        val resolvedName = resolveDisplayRoomName(roomName)
+        if (recordingJob != null && currentRoomKey == roomName) {
+            val existingSid = currentSessionId
+            val previousName = currentDisplayRoomName
+            if (existingSid != null && resolvedName != previousName && !isUuidLike(resolvedName)) {
+                currentDisplayRoomName = resolvedName
+                recorderScope.launch {
+                    val existing = rideDao.getSessionById(existingSid) ?: return@launch
+                    if (existing.roomName.isBlank() || isUuidLike(existing.roomName)) {
+                        rideDao.updateSession(existing.copy(roomName = resolvedName))
+                    }
+                }
+            }
+            Log.d(TAG, "Continuing existing ride session $currentSessionId across transport transition for room=$resolvedName")
             return
         }
-        if (recordingJob != null && currentRoomName != roomName) {
+        if (recordingJob != null && currentRoomKey != roomName) {
             stopRecording()
         }
 
         val sessionId = UUID.randomUUID().toString()
         currentSessionId = sessionId
-        currentRoomName = roomName
+        currentRoomKey = roomName
+        currentDisplayRoomName = resolvedName
         lastLat = 0.0
         lastLng = 0.0
         totalDistanceMeters = 0f
@@ -83,11 +124,11 @@ class RideRecorder internal constructor(
         recorderScope.launch {
             val session = RideSessionEntity(
                 id        = sessionId,
-                roomName  = roomName,
+                roomName  = resolvedName,
                 startTime = System.currentTimeMillis()
             )
             rideDao.insertSession(session)
-            Log.i(TAG, "✅ Ride recording started: $sessionId")
+            Log.i(TAG, "✅ Ride recording started: $sessionId ($resolvedName)")
         }
 
         recordingJob = locationService.currentLocation
@@ -161,15 +202,24 @@ class RideRecorder internal constructor(
         recordingJob = null
 
         val sid = currentSessionId ?: return
+        val rawKey = currentRoomKey
         currentSessionId = null
+        currentRoomKey = null
+        currentDisplayRoomName = null
 
         recorderScope.launch {
             flushWaypoints()
 
             val existing = rideDao.getSessionById(sid) ?: return@launch
             val endTime = System.currentTimeMillis()
+            val finalRoomName = if (existing.roomName.isBlank() || isUuidLike(existing.roomName)) {
+                resolveDisplayRoomName(rawKey ?: existing.roomName)
+            } else {
+                existing.roomName
+            }
             rideDao.updateSession(
                 existing.copy(
+                    roomName             = finalRoomName,
                     endTime              = endTime,
                     totalDistanceMeters  = totalDistanceMeters,
                     isSynced             = false
@@ -181,10 +231,44 @@ class RideRecorder internal constructor(
                 sessionId       = sid,
                 durationMinutes = (((endTime - existing.startTime) / 60000L).toInt()).coerceAtLeast(0),
                 distanceKm      = totalDistanceMeters / 1000f,
-                topSpeedKmh     = maxSpeedMps * 3.6f
+                topSpeedKmh     = maxSpeedMps * 3.6f,
+                roomName        = finalRoomName
             )
 
-            Log.i(TAG, "Ride recording stopped: $sid (${totalDistanceMeters / 1000f} km)")
+            Log.i(TAG, "Ride recording stopped: $sid ($finalRoomName, ${totalDistanceMeters / 1000f} km)")
+        }
+    }
+
+    fun saveSessionTitle(title: String?, fallbackRoomName: String? = null) {
+        val summary = _lastSummary.value
+        val sessionId = summary?.sessionId
+        if (sessionId == null) {
+            _lastSummary.value = null
+            return
+        }
+        val trimmedTitle = title?.trim().orEmpty()
+        val trimmedFallback = fallbackRoomName?.trim().orEmpty()
+        recorderScope.launch {
+            try {
+                val existing = rideDao.getSessionById(sessionId)
+                if (existing != null) {
+                    val resolvedName = when {
+                        trimmedTitle.isNotBlank() -> trimmedTitle
+                        trimmedFallback.isNotBlank() && !isUuidLike(trimmedFallback) -> trimmedFallback
+                        existing.roomName.isNotBlank() && !isUuidLike(existing.roomName) -> existing.roomName
+                        trimmedFallback.isNotBlank() -> trimmedFallback
+                        else -> existing.roomName
+                    }
+                    if (resolvedName.isNotBlank() && resolvedName != existing.roomName) {
+                        rideDao.updateSession(existing.copy(roomName = resolvedName, isSynced = false))
+                        Log.i(TAG, "Saved ride session title for $sessionId: $resolvedName")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update ride session title: ${e.message}")
+            } finally {
+                _lastSummary.value = null
+            }
         }
     }
 

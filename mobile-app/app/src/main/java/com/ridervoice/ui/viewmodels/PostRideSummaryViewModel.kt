@@ -21,11 +21,17 @@ class PostRideSummaryViewModel @Inject constructor(
     val latestMetric: SelfMetricSample? = networkDiagnosticsCollector.latestSelfMetric.value
     val sampleCount: Int = networkDiagnosticsCollector.sampleCount.value
     private val lastEnded = activeRideRepository.lastEnded.value
-    val convoyName: String = lastEnded?.convoyName ?: activeRideRepository.state.value?.displayName ?: "Ride"
+    val convoyName: String = lastEnded?.convoyName?.takeIf { it.isNotBlank() }
+        ?: activeRideRepository.state.value?.displayName?.takeIf { it.isNotBlank() }
+        ?: rideRecorder.lastSummary.value?.roomName?.takeIf { it.isNotBlank() }
+        ?: "Ride"
     val testNumber: Int = lastEnded?.testNumber ?: activeRideRepository.state.value?.testNumber ?: 1
 
-    fun save() {
-        rideRecorder.clearSummary()
+    fun save(rideTitle: String = "", privacy: String = "SQUAD") {
+        rideRecorder.saveSessionTitle(
+            title = rideTitle,
+            fallbackRoomName = convoyName
+        )
     }
 
     fun discard() {

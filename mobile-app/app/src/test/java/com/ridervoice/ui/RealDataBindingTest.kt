@@ -6,6 +6,10 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
+import org.junit.Assert.assertEquals
 import com.ridervoice.data.local.RideDao
 import com.ridervoice.data.local.entities.ConvoyEventEntity
 import com.ridervoice.data.local.entities.RawWaypointEntity
@@ -61,6 +65,7 @@ class RealDataBindingTest {
 
     @Test
     fun postRideSummary_rendersInjectedMetrics_andShowsDashForMissingPacketsLost() {
+        var savedTitle: String? = null
         composeRule.setContent {
             RiderVoiceTheme {
                 PostRideSummaryScreen(
@@ -70,7 +75,7 @@ class RealDataBindingTest {
                     convoyName = "Sahyadri Dawn",
                     sampleCount = 0,
                     lastMetric = null,
-                    onSaveToLogbook = {},
+                    onSaveToLogbook = { title, _ -> savedTitle = title },
                     onDiscard = {}
                 )
             }
@@ -86,6 +91,10 @@ class RealDataBindingTest {
         composeRule.onNodeWithTag("summary_diag_pkts_lost_value")
             .assertIsDisplayed()
             .assertTextEquals("--")
+
+        composeRule.onNodeWithTag("summary_ride_title_input").performScrollTo().performTextInput("Mulshi Dawn Run")
+        composeRule.onNodeWithTag("summary_save_button").performClick()
+        assertEquals("Mulshi Dawn Run", savedTitle)
     }
 
     @Test

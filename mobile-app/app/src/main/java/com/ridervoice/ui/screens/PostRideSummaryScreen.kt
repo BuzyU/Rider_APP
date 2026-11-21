@@ -37,7 +37,7 @@ fun PostRideSummaryScreen(
     testNumber: Int = 1,
     sampleCount: Int = 0,
     lastMetric: com.ridervoice.diagnostics.models.SelfMetricSample? = null,
-    onSaveToLogbook: (privacy: String) -> Unit,
+    onSaveToLogbook: (title: String, privacy: String) -> Unit,
     onDiscard: () -> Unit
 ) {
     var selectedPrivacy by remember { mutableStateOf("SQUAD") }
@@ -87,12 +87,13 @@ fun PostRideSummaryScreen(
                         Button(
                             onClick = {
                                 isSaving = true
-                                onSaveToLogbook(selectedPrivacy)
+                                onSaveToLogbook(rideTitle.trim(), selectedPrivacy)
                             },
                             enabled = !isSaving,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(54.dp),
+                                .height(54.dp)
+                                .testTag("summary_save_button"),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Pop,
                                 contentColor = PaperOnPop
@@ -296,7 +297,9 @@ fun PostRideSummaryScreen(
                 onValueChange = { rideTitle = it },
                 placeholder = { Text(stringResource(R.string.summary_title_placeholder), color = InkSecondary) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("summary_ride_title_input"),
                 shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     focusedBorderColor = Pop,

@@ -369,9 +369,8 @@ fun NavGraph(
                     testNumber      = vm.testNumber,
                     sampleCount     = vm.sampleCount,
                     lastMetric      = vm.latestMetric,
-                    onSaveToLogbook = {
-                        vm.save()
-                        navController.navigate(Routes.HOME) { popUpTo(0) { inclusive = true } }
+                    onSaveToLogbook = { rideTitle, privacy ->
+                        vm.save(rideTitle = rideTitle, privacy = privacy)
                     },
                     onDiscard = {
                         vm.discard()

@@ -408,7 +408,7 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(if (uiState.hasActiveRide) Moss else InkDisabled)
+                                    .background(if (uiState.hasActiveRide) Moss else InkSecondary)
                             )
                             Spacer(modifier = Modifier.width(7.dp))
                             Text(

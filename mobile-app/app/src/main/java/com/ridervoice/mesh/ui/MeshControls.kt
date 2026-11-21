@@ -89,7 +89,7 @@ fun MeshDiagnosticsDialog(
             Text(
                 text = stringResource(R.string.mesh_diag_title),
                 fontWeight = FontWeight.Bold,
-                color = MeshColors.TextPrimary
+                color = MeshColors.Ink
             )
         },
         text = {
@@ -136,14 +136,14 @@ fun MeshDiagnosticsDialog(
                         Text(
                             text = stringResource(R.string.mesh_selftest_bad_version_hint),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MeshColors.AlertRed
+                            color = MeshColors.Brick
                         )
                     } else if (snapshot.isolationWarningHint != null) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = stringResource(R.string.mesh_selftest_no_neighbours_hint),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MeshColors.AlertRed
+                            color = MeshColors.Brick
                         )
                     }
                 }
@@ -165,7 +165,7 @@ fun DiagRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(text = label, color = MeshColors.Slate, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-        Text(text = value, color = MeshColors.TextPrimary, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        Text(text = value, color = MeshColors.Ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -213,7 +213,7 @@ fun MeshPeerCard(
                 ) {
                     Text(
                         text = peer.name,
-                        color = MeshColors.TextPrimary,
+                        color = MeshColors.Ink,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -312,7 +312,7 @@ fun MeshTopBar(
                     text = sessionCode,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = MeshColors.TextPrimary,
+                    color = MeshColors.Ink,
                     fontFamily = FontFamily.Monospace
                 )
                 Text(
@@ -420,7 +420,7 @@ fun MeshBottomBar(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = stringResource(routeLabelRes),
-                            color = MeshColors.TextPrimary,
+                            color = MeshColors.Ink,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -520,7 +520,7 @@ fun MeshBottomBar(
                     Icon(
                         imageVector = if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
                         contentDescription = stringResource(R.string.mesh_cd_toggle_mic),
-                        tint = if (isMicEnabled) MeshColors.TextOnAccent else MeshColors.TextPrimary
+                        tint = if (isMicEnabled) MeshColors.TextOnAccent else MeshColors.Ink
                     )
                 }
 
@@ -536,7 +536,7 @@ fun MeshBottomBar(
                     Icon(
                         imageVector = if (isDeafened) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                         contentDescription = stringResource(R.string.mesh_cd_toggle_deafen),
-                        tint = if (isDeafened) MeshColors.TextOnBrick else MeshColors.TextPrimary
+                        tint = if (isDeafened) MeshColors.TextOnBrick else MeshColors.Ink
                     )
                 }
 
@@ -609,7 +609,7 @@ fun MeshHealthHeader(
                 Text(
                     text = stringResource(R.string.mesh_active_discovered, peerCount, discoveredCount),
                     fontSize = 14.sp,
-                    color = MeshColors.TextPrimary
+                    color = MeshColors.Ink
                 )
             }
             Surface(

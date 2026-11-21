@@ -18,7 +18,7 @@ import com.ridervoice.models.Participant
 import com.ridervoice.models.RiderLocation
 import com.ridervoice.ui.components.EmptyState
 import com.ridervoice.ui.components.ParticipantCard
-import com.ridervoice.ui.theme.TextSecondary
+import com.ridervoice.ui.theme.InkSecondary
 
 @Composable
 fun RiderList(
@@ -43,7 +43,7 @@ fun RiderList(
             Text(
                 text = stringResource(R.string.room_no_other_riders),
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+                color = InkSecondary
             )
         }
         return

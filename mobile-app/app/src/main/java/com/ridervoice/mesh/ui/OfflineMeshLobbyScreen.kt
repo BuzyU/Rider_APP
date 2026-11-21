@@ -79,13 +79,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
-private val GraphiteBase get() = MeshColors.LobbyBackground
+private val PaperSurface get() = MeshColors.LobbyBackground
 private val CardDark get() = MeshColors.LobbyCard
-private val NeonOrange get() = MeshColors.NeonOrange
+private val PopAccent get() = MeshColors.Pop
 private val ElectricGreen get() = MeshColors.ElectricGreen
-private val AlertRed get() = MeshColors.AlertRed
-private val TextPrimary get() = MeshColors.TextPrimary
-private val TextSecondary get() = MeshColors.TextSecondary
+private val BrickAlert get() = MeshColors.Brick
+private val InkPrimary get() = MeshColors.Ink
+private val InkMuted get() = MeshColors.InkSecondary
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -157,7 +157,7 @@ fun OfflineMeshLobbyScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(GraphiteBase)
+            .background(PaperSurface)
     ) {
         Column(
             modifier = Modifier
@@ -185,7 +185,7 @@ fun OfflineMeshLobbyScreen(
                     Icon(
                         imageVector = Icons.Default.ArrowBackIosNew,
                         contentDescription = stringResource(R.string.mesh_cd_back),
-                        tint = TextPrimary
+                        tint = InkPrimary
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
@@ -193,13 +193,13 @@ fun OfflineMeshLobbyScreen(
                     Text(
                         text = stringResource(R.string.mesh_lobby_header),
                         style = MaterialTheme.typography.labelSmall,
-                        color = NeonOrange,
+                        color = PopAccent,
                         letterSpacing = 1.5.sp
                     )
                     Text(
                         text = stringResource(R.string.mesh_lobby_title),
                         style = MaterialTheme.typography.titleLarge,
-                        color = TextPrimary,
+                        color = InkPrimary,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -208,13 +208,13 @@ fun OfflineMeshLobbyScreen(
             Text(
                 text = stringResource(R.string.mesh_lobby_description),
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary,
+                color = InkMuted,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
             if (audioFailure != null) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = AlertRed.copy(alpha = 0.2f)),
+                    colors = CardDefaults.cardColors(containerColor = BrickAlert.copy(alpha = 0.2f)),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -227,12 +227,12 @@ fun OfflineMeshLobbyScreen(
                         Icon(
                             imageVector = Icons.Default.ErrorOutline,
                             contentDescription = stringResource(R.string.mesh_cd_error),
-                            tint = AlertRed
+                            tint = BrickAlert
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.mesh_banner_audio_failed),
-                            color = AlertRed,
+                            color = BrickAlert,
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -272,7 +272,7 @@ fun OfflineMeshLobbyScreen(
                         TextButton(onClick = { viewModel.clearSavedBackup() }) {
                             Text(
                                 text = stringResource(R.string.mesh_backup_clear_action),
-                                color = NeonOrange,
+                                color = PopAccent,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -293,26 +293,26 @@ fun OfflineMeshLobbyScreen(
                     Text(
                         text = stringResource(R.string.mesh_network_setup_instructions_title),
                         style = MaterialTheme.typography.titleSmall,
-                        color = NeonOrange,
+                        color = PopAccent,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = stringResource(R.string.mesh_network_step_1),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextPrimary
+                        color = InkPrimary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.mesh_network_step_2),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextPrimary
+                        color = InkPrimary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.mesh_network_step_3),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextPrimary
+                        color = InkPrimary
                     )
                 }
             }
@@ -359,33 +359,33 @@ fun OfflineMeshLobbyScreen(
                     Text(
                         text = stringResource(R.string.mesh_selftest_link_state, selfTestState.linkStateText),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = InkMuted
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.mesh_selftest_local_addresses, effectiveIp ?: noneFallback, effectiveBcast),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = InkMuted
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.mesh_selftest_neighbours_heard, selfTestState.authenticatedNeighboursCount),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = InkMuted
                     )
                     if (selfTestState.authenticatedNeighboursCount == 0 && diagSnapshot.droppedBadVersion > 0) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = stringResource(R.string.mesh_selftest_bad_version_hint),
                             style = MaterialTheme.typography.bodySmall,
-                            color = AlertRed
+                            color = BrickAlert
                         )
                     } else if (selfTestState.isolationWarningHint != null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = stringResource(R.string.mesh_selftest_no_neighbours_hint),
                             style = MaterialTheme.typography.bodySmall,
-                            color = AlertRed
+                            color = BrickAlert
                         )
                     }
                 }
@@ -405,7 +405,7 @@ fun OfflineMeshLobbyScreen(
                     Text(
                         text = stringResource(R.string.mesh_use_as_ride_backup),
                         style = MaterialTheme.typography.titleSmall,
-                        color = TextPrimary,
+                        color = InkPrimary,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -422,12 +422,12 @@ fun OfflineMeshLobbyScreen(
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, NeonOrange.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                        .border(1.dp, PopAccent.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
                 ) {
                     Text(
                         text = stringResource(R.string.mesh_backup_setup_instructions),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary,
+                        color = InkMuted,
                         modifier = Modifier.padding(12.dp)
                     )
                 }
@@ -448,13 +448,13 @@ fun OfflineMeshLobbyScreen(
                         Icon(
                             imageVector = Icons.Default.WifiTethering,
                             contentDescription = null,
-                            tint = NeonOrange
+                            tint = PopAccent
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.mesh_lobby_create_title),
                             style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary,
+                            color = InkPrimary,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -463,7 +463,7 @@ fun OfflineMeshLobbyScreen(
                     Text(
                         text = stringResource(R.string.mesh_lobby_create_subtitle),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = InkMuted
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -477,7 +477,7 @@ fun OfflineMeshLobbyScreen(
                                 }
                             },
                             enabled = !isDerivingKey,
-                            colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
+                            colors = ButtonDefaults.buttonColors(containerColor = PopAccent),
                             shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -504,7 +504,7 @@ fun OfflineMeshLobbyScreen(
                             Text(
                                 text = stringResource(R.string.mesh_lobby_channel_code_header),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextSecondary,
+                                color = InkMuted,
                                 letterSpacing = 1.sp
                             )
                             Spacer(modifier = Modifier.height(4.dp))
@@ -541,9 +541,9 @@ fun OfflineMeshLobbyScreen(
                                 shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.mesh_cd_copy), tint = TextPrimary)
+                                Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.mesh_cd_copy), tint = InkPrimary)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(stringResource(R.string.mesh_lobby_copy_code), color = TextPrimary)
+                                Text(stringResource(R.string.mesh_lobby_copy_code), color = InkPrimary)
                             }
 
                             Button(
@@ -588,13 +588,13 @@ fun OfflineMeshLobbyScreen(
                         Icon(
                             imageVector = Icons.Default.GroupAdd,
                             contentDescription = null,
-                            tint = NeonOrange
+                            tint = PopAccent
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.mesh_lobby_join_title),
                             style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary,
+                            color = InkPrimary,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -603,7 +603,7 @@ fun OfflineMeshLobbyScreen(
                     Text(
                         text = stringResource(R.string.mesh_lobby_join_subtitle),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = InkMuted
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -626,9 +626,9 @@ fun OfflineMeshLobbyScreen(
                             onDone = { submitJoinCode() }
                         ),
                         colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = NeonOrange,
+                            focusedBorderColor = PopAccent,
                             unfocusedBorderColor = MeshColors.LobbyBorderUnfocused,
-                            textColor = TextPrimary
+                            textColor = InkPrimary
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -639,12 +639,12 @@ fun OfflineMeshLobbyScreen(
                             Icon(
                                 imageVector = Icons.Default.ErrorOutline,
                                 contentDescription = stringResource(R.string.mesh_cd_error),
-                                tint = AlertRed
+                                tint = BrickAlert
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = joinError ?: stringResource(R.string.mesh_invalid_code),
-                                color = AlertRed,
+                                color = BrickAlert,
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -655,7 +655,7 @@ fun OfflineMeshLobbyScreen(
                     Button(
                         onClick = { submitJoinCode() },
                         enabled = !isDerivingKey && joinCodeInput.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
+                        colors = ButtonDefaults.buttonColors(containerColor = PopAccent),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {

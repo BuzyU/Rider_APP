@@ -43,7 +43,13 @@ object MeshColors {
     val SlateLight: Color get() = Ink
     val Indigo: Color get() = InkSecondary
 
-    // Lobby & text tokens
+    // Semantic Roadside Paper tokens
+    val Ink: Color get() = com.ridervoice.ui.theme.Ink
+    val InkSecondary: Color get() = com.ridervoice.ui.theme.InkSecondary
+    val Pop: Color get() = com.ridervoice.ui.theme.Pop
+    val Brick: Color get() = com.ridervoice.ui.theme.Brick
+
+    // Lobby & text tokens (legacy aliases retained for compatibility)
     val NeonOrange: Color get() = Pop
     val ElectricGreen: Color get() = Pop
     val AlertRed: Color get() = Brick

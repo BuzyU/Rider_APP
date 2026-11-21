@@ -135,12 +135,12 @@ class MainActivity : ComponentActivity() {
                             try { java.io.File(filesDir, App.CRASH_FILE_NAME).delete() } catch (_: Exception) {}
                             crashReportText.value = null
                         },
-                        containerColor = DarkSlate,
+                        containerColor = PaperRaised,
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.Warning,
                                 contentDescription = null,
-                                tint = AlertRed,
+                                tint = Brick,
                                 modifier = Modifier.size(36.dp)
                             )
                         },
@@ -148,7 +148,7 @@ class MainActivity : ComponentActivity() {
                             Text(
                                 text = "DIAGNOSTIC CRASH REPORT",
                                 style = MaterialTheme.typography.titleMedium,
-                                color = AlertRed,
+                                color = Brick,
                                 fontWeight = FontWeight.Bold
                             )
                         },
@@ -162,14 +162,14 @@ class MainActivity : ComponentActivity() {
                                 Text(
                                     text = "RiderVoice captured an unexpected crash on the previous run. You can copy this diagnostic log to share with support:",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
+                                    color = InkSecondary
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 androidx.compose.foundation.text.selection.SelectionContainer {
                                     Text(
                                         text = report,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = TextPrimary,
+                                        color = Ink,
                                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                                         fontSize = 11.sp
                                     )
@@ -198,7 +198,7 @@ class MainActivity : ComponentActivity() {
                                     crashReportText.value = null
                                 }
                             ) {
-                                Text("DISMISS", color = TextPrimary)
+                                Text("DISMISS", color = Ink)
                             }
                         }
                     )
@@ -207,12 +207,12 @@ class MainActivity : ComponentActivity() {
                 if (showUpdateSuccessDialog.value) {
                     AlertDialog(
                         onDismissRequest = { showUpdateSuccessDialog.value = false },
-                        containerColor = DarkSlate,
+                        containerColor = PaperRaised,
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = TechGreen,
+                                tint = Moss,
                                 modifier = Modifier.size(36.dp)
                             )
                         },
@@ -220,7 +220,7 @@ class MainActivity : ComponentActivity() {
                             Text(
                                 text = "UPDATE COMPLETE",
                                 style = MaterialTheme.typography.titleMedium,
-                                color = TextPrimary,
+                                color = Ink,
                                 fontWeight = FontWeight.Bold
                             )
                         },
@@ -229,7 +229,7 @@ class MainActivity : ComponentActivity() {
                             Text(
                                 text = "RiderVoice has been successfully updated to v$cleanUpdatedVer.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary
+                                color = InkSecondary
                             )
                         },
                         confirmButton = {
@@ -256,12 +256,12 @@ class MainActivity : ComponentActivity() {
                 if (isUpdateRequired.value) {
                     AlertDialog(
                         onDismissRequest = {},
-                        containerColor = DarkSlate,
+                        containerColor = PaperRaised,
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.Warning,
                                 contentDescription = null,
-                                tint = NeonOrange,
+                                tint = Pop,
                                 modifier = Modifier.size(36.dp)
                             )
                         },
@@ -269,7 +269,7 @@ class MainActivity : ComponentActivity() {
                             Text(
                                 text = "Update required",
                                 style = MaterialTheme.typography.titleMedium,
-                                color = TextPrimary,
+                                color = Ink,
                                 fontWeight = FontWeight.Bold
                             )
                         },
@@ -277,7 +277,7 @@ class MainActivity : ComponentActivity() {
                             Text(
                                 text = "This version of RiderVoice is no longer supported. Please update to continue riding with your group.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary
+                                color = InkSecondary
                             )
                         },
                         confirmButton = {

@@ -48,7 +48,7 @@ fun UpdateDialog(
                     Text(
                         text = stringResource(R.string.update_checking_title),
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary,
+                        color = Ink,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -60,7 +60,7 @@ fun UpdateDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         CircularProgressIndicator(
-                            color = NeonOrange,
+                            color = Pop,
                             strokeWidth = 3.dp,
                             modifier = Modifier.size(28.dp)
                         )
@@ -68,7 +68,7 @@ fun UpdateDialog(
                         Text(
                             text = stringResource(R.string.update_checking_desc),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
+                            color = InkSecondary
                         )
                     }
                 },
@@ -86,7 +86,7 @@ fun UpdateDialog(
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = null,
-                        tint = TechGreen,
+                        tint = Moss,
                         modifier = Modifier.size(36.dp)
                     )
                 },
@@ -94,7 +94,7 @@ fun UpdateDialog(
                     Text(
                         text = stringResource(R.string.update_uptodate_title),
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary,
+                        color = Ink,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -109,25 +109,25 @@ fun UpdateDialog(
                         Text(
                             text = stringResource(R.string.update_uptodate_desc, cleanCurrent),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
+                            color = InkSecondary
                         )
                         val notes = uiState.releaseNotes
                         if (!notes.isNullOrBlank()) {
                             Text(
                                 text = stringResource(R.string.update_whats_new_version, cleanCurrent),
-                                color = NeonOrange,
+                                color = Pop,
                                 style = MaterialTheme.typography.labelSmall,
                                 letterSpacing = 1.sp
                             )
                             Surface(
-                                color = GraphiteBase,
+                                color = Paper,
                                 shape = RoundedCornerShape(6.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, InkHairline),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
                                     text = notes,
-                                    color = TextPrimary,
+                                    color = Ink,
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.padding(12.dp),
                                     lineHeight = 18.sp
@@ -139,9 +139,9 @@ fun UpdateDialog(
                 confirmButton = {
                     Button(
                         onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(containerColor = Gunmetal)
+                        colors = ButtonDefaults.buttonColors(containerColor = PaperSunken)
                     ) {
-                        Text(stringResource(R.string.action_ok), color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.action_ok), color = Ink, fontWeight = FontWeight.Bold)
                     }
                 }
             )
@@ -164,7 +164,7 @@ fun UpdateDialog(
                         Text(
                             text = stringResource(R.string.update_available_title),
                             style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary,
+                            color = Ink,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -178,9 +178,9 @@ fun UpdateDialog(
                     ) {
 
                         Surface(
-                            color = Gunmetal,
+                            color = PaperSunken,
                             shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, InkHairline),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -191,33 +191,33 @@ fun UpdateDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text(stringResource(R.string.update_current_label), color = TextSecondary, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
-                                    Text("v${uiState.currentVersion.removePrefix("v").removePrefix("V")}", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                    Text(stringResource(R.string.update_current_label), color = InkSecondary, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                                    Text("v${uiState.currentVersion.removePrefix("v").removePrefix("V")}", color = Ink, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 }
-                                Icon(Icons.Default.ArrowForward, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.ArrowForward, contentDescription = null, tint = InkSecondary, modifier = Modifier.size(20.dp))
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text(stringResource(R.string.update_newest_label, uiState.releaseInfo.formattedSize), color = TechGreen, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
-                                    Text("v$cleanVer", color = TechGreen, fontWeight = FontWeight.Black, fontSize = 17.sp)
+                                    Text(stringResource(R.string.update_newest_label, uiState.releaseInfo.formattedSize), color = Moss, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                                    Text("v$cleanVer", color = Moss, fontWeight = FontWeight.Black, fontSize = 17.sp)
                                 }
                             }
                         }
 
                         Text(
                             text = stringResource(R.string.update_whats_new),
-                            color = NeonOrange,
+                            color = Pop,
                             style = MaterialTheme.typography.labelSmall,
                             letterSpacing = 1.sp
                         )
 
                         Surface(
-                            color = GraphiteBase,
+                            color = Paper,
                             shape = RoundedCornerShape(6.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, InkHairline),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = uiState.releaseInfo.releaseNotes,
-                                color = TextPrimary,
+                                color = Ink,
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(12.dp),
                                 lineHeight = 18.sp
@@ -226,7 +226,7 @@ fun UpdateDialog(
 
                         Text(
                             text = stringResource(R.string.update_safety_note),
-                            color = TextSecondary,
+                            color = InkSecondary,
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 11.sp
                         )
@@ -242,7 +242,7 @@ fun UpdateDialog(
                 },
                 dismissButton = {
                     OutlinedButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.update_action_later), color = TextPrimary)
+                        Text(stringResource(R.string.update_action_later), color = Ink)
                     }
                 }
             )
@@ -258,7 +258,7 @@ fun UpdateDialog(
                     Text(
                         text = stringResource(R.string.update_confirm_title),
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary,
+                        color = Ink,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -267,12 +267,12 @@ fun UpdateDialog(
                         Text(
                             text = stringResource(R.string.update_confirm_body, cleanVer, uiState.releaseInfo.formattedSize),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextPrimary
+                            color = Ink
                         )
                         Text(
                             text = stringResource(R.string.update_confirm_storage_note),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = InkSecondary
                         )
                     }
                 },
@@ -286,7 +286,7 @@ fun UpdateDialog(
                 },
                 dismissButton = {
                     OutlinedButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.action_cancel), color = TextPrimary)
+                        Text(stringResource(R.string.action_cancel), color = Ink)
                     }
                 }
             )
@@ -303,13 +303,13 @@ fun UpdateDialog(
                         Text(
                             text = stringResource(R.string.update_downloading_badge),
                             style = MaterialTheme.typography.labelSmall,
-                            color = NeonOrange,
+                            color = Pop,
                             letterSpacing = 1.5.sp
                         )
                         Text(
                             text = stringResource(R.string.update_downloading_title),
                             style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary,
+                            color = Ink,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -322,14 +322,14 @@ fun UpdateDialog(
                         Text(
                             text = "${stringResource(R.string.app_name)} v$cleanVer",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = ElectricCyan,
+                            color = InkSecondary,
                             fontWeight = FontWeight.Bold
                         )
 
                         LinearProgressIndicator(
                             progress = (uiState.progressPercent / 100f).coerceIn(0f, 1f),
-                            color = NeonOrange,
-                            trackColor = Gunmetal,
+                            color = Pop,
+                            trackColor = PaperSunken,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp)
@@ -341,13 +341,13 @@ fun UpdateDialog(
                         ) {
                             Text(
                                 text = "${uiState.progressPercent}%",
-                                color = TextPrimary,
+                                color = Ink,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             )
                             Text(
                                 text = uiState.speedText,
-                                color = TechGreen,
+                                color = Moss,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             )
@@ -357,7 +357,7 @@ fun UpdateDialog(
                         val totalMb = "%.1f MB".format(uiState.totalBytes.toDouble() / (1024.0 * 1024.0))
                         Text(
                             text = stringResource(R.string.update_downloaded_progress, dlMb, totalMb),
-                            color = TextSecondary,
+                            color = InkSecondary,
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 11.sp
                         )
@@ -365,7 +365,7 @@ fun UpdateDialog(
                 },
                 confirmButton = {
                     TextButton(onClick = onCancelDownload) {
-                        Text(stringResource(R.string.update_cancel_download), color = AlertRed)
+                        Text(stringResource(R.string.update_cancel_download), color = Brick)
                     }
                 }
             )
@@ -380,7 +380,7 @@ fun UpdateDialog(
                     Text(
                         text = stringResource(R.string.update_verifying_title),
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary,
+                        color = Ink,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -392,7 +392,7 @@ fun UpdateDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         CircularProgressIndicator(
-                            color = ElectricCyan,
+                            color = InkSecondary,
                             strokeWidth = 3.dp,
                             modifier = Modifier.size(28.dp)
                         )
@@ -400,7 +400,7 @@ fun UpdateDialog(
                         Text(
                             text = stringResource(R.string.update_verifying_desc),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
+                            color = InkSecondary
                         )
                     }
                 },
@@ -418,7 +418,7 @@ fun UpdateDialog(
                     Icon(
                         imageVector = Icons.Default.DownloadDone,
                         contentDescription = null,
-                        tint = TechGreen,
+                        tint = Moss,
                         modifier = Modifier.size(36.dp)
                     )
                 },
@@ -426,7 +426,7 @@ fun UpdateDialog(
                     Text(
                         text = stringResource(R.string.update_download_complete_title),
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary,
+                        color = Ink,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -435,13 +435,13 @@ fun UpdateDialog(
                         Text(
                             text = stringResource(R.string.update_ready_install_line, cleanVer),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextPrimary,
+                            color = Ink,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = stringResource(R.string.update_install_prompt_hint),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = InkSecondary
                         )
                     }
                 },
@@ -455,7 +455,7 @@ fun UpdateDialog(
                 },
                 dismissButton = {
                     OutlinedButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.update_action_later), color = TextPrimary)
+                        Text(stringResource(R.string.update_action_later), color = Ink)
                     }
                 }
             )
@@ -470,7 +470,7 @@ fun UpdateDialog(
                     Icon(
                         imageVector = Icons.Default.Security,
                         contentDescription = null,
-                        tint = NeonOrange,
+                        tint = Pop,
                         modifier = Modifier.size(36.dp)
                     )
                 },
@@ -478,7 +478,7 @@ fun UpdateDialog(
                     Text(
                         text = stringResource(R.string.update_permission_title),
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary,
+                        color = Ink,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -487,12 +487,12 @@ fun UpdateDialog(
                         Text(
                             text = stringResource(R.string.update_permission_body),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextPrimary
+                            color = Ink
                         )
                         Text(
                             text = stringResource(R.string.update_permission_steps),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = InkSecondary
                         )
                     }
                 },
@@ -506,7 +506,7 @@ fun UpdateDialog(
                 },
                 dismissButton = {
                     OutlinedButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.action_cancel), color = TextPrimary)
+                        Text(stringResource(R.string.action_cancel), color = Ink)
                     }
                 }
             )
@@ -522,7 +522,7 @@ fun UpdateDialog(
                     Text(
                         text = stringResource(R.string.update_installer_launched_title),
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary,
+                        color = Ink,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -531,12 +531,12 @@ fun UpdateDialog(
                         Text(
                             text = stringResource(R.string.update_installer_launched_body, cleanVer),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextPrimary
+                            color = Ink
                         )
                         Text(
                             text = stringResource(R.string.update_installer_launched_hint),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = InkSecondary
                         )
                     }
                 },
@@ -550,7 +550,7 @@ fun UpdateDialog(
                 },
                 dismissButton = {
                     OutlinedButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.action_close), color = TextPrimary)
+                        Text(stringResource(R.string.action_close), color = Ink)
                     }
                 }
             )
@@ -565,7 +565,7 @@ fun UpdateDialog(
                     Icon(
                         imageVector = Icons.Default.ErrorOutline,
                         contentDescription = null,
-                        tint = AlertRed,
+                        tint = Brick,
                         modifier = Modifier.size(36.dp)
                     )
                 },
@@ -573,7 +573,7 @@ fun UpdateDialog(
                     Text(
                         text = stringResource(R.string.update_failed_title),
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary,
+                        color = Ink,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -582,13 +582,13 @@ fun UpdateDialog(
                         Text(
                             text = uiState.message,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
+                            color = InkSecondary
                         )
                         if (uiState.downloadUrl != null && onOpenBrowserDownload != null) {
                             Text(
                                 text = stringResource(R.string.update_error_browser_hint),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TechGreen
+                                color = Moss
                             )
                         }
                     }
@@ -601,8 +601,8 @@ fun UpdateDialog(
                         if (uiState.downloadUrl != null && onOpenBrowserDownload != null) {
                             OutlinedButton(
                                 onClick = { onOpenBrowserDownload(uiState.downloadUrl) },
-                                border = androidx.compose.foundation.BorderStroke(1.dp, NeonOrange),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonOrange)
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Pop),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Pop)
                             ) {
                                 Text(stringResource(R.string.update_action_browser), fontWeight = FontWeight.Bold)
                             }
@@ -617,9 +617,9 @@ fun UpdateDialog(
                         } else {
                             Button(
                                 onClick = onDismiss,
-                                colors = ButtonDefaults.buttonColors(containerColor = Gunmetal)
+                                colors = ButtonDefaults.buttonColors(containerColor = PaperSunken)
                             ) {
-                                Text(stringResource(R.string.action_close), color = TextPrimary)
+                                Text(stringResource(R.string.action_close), color = Ink)
                             }
                         }
                     }
@@ -627,7 +627,7 @@ fun UpdateDialog(
                 dismissButton = {
                     if (uiState.canRetry) {
                         OutlinedButton(onClick = onDismiss) {
-                            Text(stringResource(R.string.action_cancel), color = TextPrimary)
+                            Text(stringResource(R.string.action_cancel), color = Ink)
                         }
                     }
                 }

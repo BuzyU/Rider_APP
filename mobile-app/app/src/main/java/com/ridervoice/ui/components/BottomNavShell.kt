@@ -194,7 +194,7 @@ private fun BottomNavTabItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val iconTint = if (selected) Ink else InkDisabled
+    val iconTint = if (selected) Ink else InkSecondary
     val labelColor = if (selected) Ink else InkSecondary
 
     Column(

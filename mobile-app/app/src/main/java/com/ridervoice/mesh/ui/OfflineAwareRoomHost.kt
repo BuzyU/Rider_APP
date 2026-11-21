@@ -334,7 +334,7 @@ fun TacticalBanner(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = statusText,
-                        color = MeshColors.TextPrimary,
+                        color = MeshColors.Ink,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )

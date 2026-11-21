@@ -187,7 +187,7 @@ fun LobbyScreen(
                         Text(
                             text = effectiveDisplayName,
                             style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary,
+                            color = Ink,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
@@ -374,14 +374,14 @@ fun LobbyScreen(
                         Icon(
                             imageVector = Icons.Default.Warning,
                             contentDescription = null,
-                            tint = AlertRed,
+                            tint = Brick,
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(RvSpacing.md))
                         Text(
                             text = stringResource(R.string.lobby_failed_title),
                             style = MaterialTheme.typography.titleLarge,
-                            color = TextPrimary,
+                            color = Ink,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(RvSpacing.sm))
@@ -392,7 +392,7 @@ fun LobbyScreen(
                                 failed.reason.ifBlank { stringResource(R.string.lobby_failed_desc) }
                             },
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary,
+                            color = InkSecondary,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                         if (!failed.requestId.isNullOrBlank()) {
@@ -400,7 +400,7 @@ fun LobbyScreen(
                             Text(
                                 text = "Request ID: ${failed.requestId}",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextSecondary,
+                                color = InkSecondary,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
@@ -427,7 +427,7 @@ fun LobbyScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
+                        CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
                         Spacer(modifier = Modifier.height(RvSpacing.md))
                         val loadingText = if (loadState is LobbyLoadState.Retrying) {
                             val retrying = loadState as LobbyLoadState.Retrying
@@ -438,13 +438,13 @@ fun LobbyScreen(
                         Text(
                             text = loadingText,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
+                            color = InkSecondary
                         )
                         Spacer(modifier = Modifier.height(RvSpacing.lg))
                         TextButton(onClick = { showExitDialog = true }) {
                             Text(
                                 text = stringResource(R.string.action_leave),
-                                color = TextSecondary,
+                                color = InkSecondary,
                                 style = MaterialTheme.typography.labelMedium
                             )
                         }
@@ -465,9 +465,9 @@ fun LobbyScreen(
                     val failed = loadState as LobbyLoadState.Failed
                     item {
                         Surface(
-                            color = DarkSlate,
+                            color = PaperRaised,
                             shape = RoundedCornerShape(RvRadius.md),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Brick),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -478,14 +478,14 @@ fun LobbyScreen(
                                     Icon(
                                         imageVector = Icons.Default.Warning,
                                         contentDescription = null,
-                                        tint = AlertRed,
+                                        tint = Brick,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(RvSpacing.sm))
                                     Text(
                                         text = stringResource(R.string.lobby_failed_title),
                                         style = MaterialTheme.typography.titleSmall,
-                                        color = AlertRed,
+                                        color = Brick,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -496,13 +496,13 @@ fun LobbyScreen(
                                         failed.reason.ifBlank { stringResource(R.string.lobby_failed_desc) }
                                     },
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
+                                    color = InkSecondary
                                 )
                                 if (!failed.requestId.isNullOrBlank()) {
                                     Text(
                                         text = "Request ID: ${failed.requestId}",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = TextSecondary
+                                        color = InkSecondary
                                     )
                                 }
                                 Row(
@@ -523,7 +523,7 @@ fun LobbyScreen(
                                         onClick = { showExitDialog = true },
                                         modifier = Modifier.weight(1f).height(RvTouchTarget.min),
                                         shape = RoundedCornerShape(RvRadius.sm),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AlertRed)
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Brick)
                                     ) {
                                         Text(stringResource(R.string.action_leave))
                                     }
@@ -535,7 +535,7 @@ fun LobbyScreen(
                     // Shell initial connecting banner
                     item {
                         Surface(
-                            color = Gunmetal,
+                            color = PaperSunken,
                             shape = RoundedCornerShape(RvRadius.sm),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -545,7 +545,7 @@ fun LobbyScreen(
                             ) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(14.dp),
-                                    color = NeonOrange,
+                                    color = Pop,
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(modifier = Modifier.width(RvSpacing.sm))
@@ -557,7 +557,7 @@ fun LobbyScreen(
                                         stringResource(R.string.lobby_connecting)
                                     },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = WarningAmber
+                                    color = Pop
                                 )
                             }
                         }
@@ -566,7 +566,7 @@ fun LobbyScreen(
                     // Polling / Reconnecting banner
                     item {
                         Surface(
-                            color = Gunmetal,
+                            color = PaperSunken,
                             shape = RoundedCornerShape(RvRadius.sm),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -576,7 +576,7 @@ fun LobbyScreen(
                             ) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(12.dp),
-                                    color = WarningAmber,
+                                    color = Pop,
                                     strokeWidth = 1.5.dp
                                 )
                                 Spacer(modifier = Modifier.width(RvSpacing.sm))
@@ -588,7 +588,7 @@ fun LobbyScreen(
                                         stringResource(R.string.ride_status_reconnecting)
                                     },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = WarningAmber
+                                    color = Pop
                                 )
                             }
                         }
@@ -659,7 +659,7 @@ fun LobbyScreen(
                         Text(
                             text = stringResource(R.string.lobby_empty_joined),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
+                            color = InkSecondary
                         )
                     }
                 } else {
@@ -690,7 +690,7 @@ fun LobbyScreen(
                                         Icon(
                                             imageVector = Icons.Default.RemoveCircleOutline,
                                             contentDescription = stringResource(R.string.action_remove),
-                                            tint = AlertRed
+                                            tint = Brick
                                         )
                                     }
                                 }
@@ -723,7 +723,7 @@ fun LobbyScreen(
                                         Icon(
                                             imageVector = Icons.Default.Close,
                                             contentDescription = stringResource(R.string.cd_cancel_invite),
-                                            tint = TextSecondary
+                                            tint = InkSecondary
                                         )
                                     }
                                 }
@@ -739,7 +739,7 @@ fun LobbyScreen(
                         Text(
                             text = stringResource(R.string.lobby_section_declined_count, declined.size),
                             style = MaterialTheme.typography.titleMedium,
-                            color = TextSecondary,
+                            color = InkSecondary,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -895,7 +895,7 @@ fun OfflineConfigCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.lobby_offline_unavailable_device),
-                    color = AlertRed,
+                    color = Brick,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold
                 )

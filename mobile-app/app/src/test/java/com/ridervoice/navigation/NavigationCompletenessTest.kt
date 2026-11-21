@@ -1,6 +1,9 @@
 package com.ridervoice.navigation
 
 import android.app.Application
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
@@ -151,6 +154,49 @@ class NavigationCompletenessTest {
         composeRule.onNodeWithText("History").assertDoesNotExist()
         composeRule.onNodeWithText("My Squad").assertDoesNotExist()
         composeRule.onNodeWithText("Settings").assertDoesNotExist()
+    }
+
+    @Test
+    fun bottomNavigationBar_activePillSlidesSmoothlyBetweenTabs() {
+        var activeRoute by mutableStateOf(Routes.HOME)
+        composeRule.setContent {
+            RiderVoiceTheme {
+                RvBottomNavigationBar(
+                    currentRoute = activeRoute,
+                    onHomeClick = { activeRoute = Routes.HOME },
+                    onHistoryClick = { activeRoute = Routes.RIDE_STATS },
+                    onSquadClick = { activeRoute = Routes.SQUAD },
+                    onSettingsClick = { activeRoute = Routes.SETTINGS }
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        val pillAtHome = composeRule.onNodeWithTag("bottom_nav_active_pill", useUnmergedTree = true)
+            .assertIsDisplayed()
+            .getBoundsInRoot()
+        val homeTabBounds = composeRule.onNodeWithTag("bottom_nav_home").getBoundsInRoot()
+
+        activeRoute = Routes.SETTINGS
+        composeRule.waitForIdle()
+
+        val pillAtSettings = composeRule.onNodeWithTag("bottom_nav_active_pill", useUnmergedTree = true)
+            .assertIsDisplayed()
+            .getBoundsInRoot()
+        val settingsTabBounds = composeRule.onNodeWithTag("bottom_nav_settings").getBoundsInRoot()
+
+        assertTrue(
+            "Pill should start centered inside Dashboard tab: $pillAtHome vs $homeTabBounds",
+            pillAtHome.left >= homeTabBounds.left && pillAtHome.right <= homeTabBounds.right
+        )
+        assertTrue(
+            "Pill should slide to Settings tab: $pillAtSettings vs $settingsTabBounds",
+            pillAtSettings.left >= settingsTabBounds.left && pillAtSettings.right <= settingsTabBounds.right
+        )
+        assertTrue(
+            "Pill X position must move right when navigating from Dashboard to Settings",
+            pillAtSettings.left > pillAtHome.right
+        )
     }
 
     @Test

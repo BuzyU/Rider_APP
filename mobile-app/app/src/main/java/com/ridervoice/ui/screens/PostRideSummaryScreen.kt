@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -279,7 +280,11 @@ fun PostRideSummaryScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         StatBox(stringResource(R.string.summary_diag_avg_ping), "${lastMetric?.rttMs?.toInt() ?: "--"} ms")
-                        StatBox(stringResource(R.string.summary_diag_pkts_lost), "${lastMetric?.packetsLost ?: 0}")
+                        StatBox(
+                            label = stringResource(R.string.summary_diag_pkts_lost),
+                            value = lastMetric?.packetsLost?.toString() ?: "--",
+                            valueModifier = Modifier.testTag("summary_diag_pkts_lost_value")
+                        )
                         StatBox(stringResource(R.string.summary_diag_samples), "$sampleCount")
                     }
                 }
@@ -402,13 +407,18 @@ private fun SummaryBentoTile(
 }
 
 @Composable
-fun StatBox(label: String, value: String) {
+fun StatBox(
+    label: String,
+    value: String,
+    valueModifier: Modifier = Modifier
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
             color = Ink,
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            modifier = valueModifier
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(

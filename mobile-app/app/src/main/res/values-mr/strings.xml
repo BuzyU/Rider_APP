@@ -870,4 +870,5 @@
         <item quantity="other">व्हॉइसमध्ये %1$d रायडर्स</item>
     </plurals>
     <string name="action_continue">सुरू ठेवा</string>
+    <string name="route_preview_estimate">पूर्वावलोकन अंदाज</string>
 </resources>

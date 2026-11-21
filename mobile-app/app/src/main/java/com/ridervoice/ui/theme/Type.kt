@@ -2,49 +2,22 @@ package com.ridervoice.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.googlefonts.GoogleFont
-import androidx.compose.ui.text.googlefonts.Font
 import com.ridervoice.R
 
-val provider = GoogleFont.Provider(
-    providerAuthority = "com.google.android.gms.fonts",
-    providerPackage = "com.google.android.gms",
-    certificates = R.array.com_google_android_gms_fonts_certs
-)
-
-val fontManrope = GoogleFont("Manrope")
-val fontBarlowCondensed = GoogleFont("Barlow Condensed")
-val fontSpaceMono = GoogleFont("Space Mono")
-val fontInter = GoogleFont("Inter")
-
+/**
+ * Bundled Manrope font family (OFL 1.1; license in assets/licenses/MANROPE_OFL.txt).
+ * Loaded from local res/font static TTFs — works completely offline with no Play Services
+ * font provider. Non-Latin scripts (Devanagari for Hindi/Marathi) fall back to system fonts.
+ */
 val ManropeFamily = FontFamily(
-    Font(googleFont = fontManrope, fontProvider = provider, weight = FontWeight.Normal),
-    Font(googleFont = fontManrope, fontProvider = provider, weight = FontWeight.Medium),
-    Font(googleFont = fontManrope, fontProvider = provider, weight = FontWeight.SemiBold),
-    Font(googleFont = fontManrope, fontProvider = provider, weight = FontWeight.Bold),
-    Font(googleFont = fontManrope, fontProvider = provider, weight = FontWeight.ExtraBold)
-)
-
-val BarlowCondensedFamily = FontFamily(
-    Font(googleFont = fontBarlowCondensed, fontProvider = provider, weight = FontWeight.Black),
-    Font(googleFont = fontBarlowCondensed, fontProvider = provider, weight = FontWeight.ExtraBold),
-    Font(googleFont = fontBarlowCondensed, fontProvider = provider, weight = FontWeight.Bold)
-)
-
-val OrbitronFamily = ManropeFamily
-
-val SpaceMonoFamily = FontFamily(
-    Font(googleFont = fontSpaceMono, fontProvider = provider, weight = FontWeight.Bold),
-    Font(googleFont = fontSpaceMono, fontProvider = provider, weight = FontWeight.Normal)
-)
-
-val InterFamily = FontFamily(
-    Font(googleFont = fontInter, fontProvider = provider, weight = FontWeight.Normal),
-    Font(googleFont = fontInter, fontProvider = provider, weight = FontWeight.Medium),
-    Font(googleFont = fontInter, fontProvider = provider, weight = FontWeight.Bold)
+    Font(resId = R.font.manrope_regular, weight = FontWeight.Normal),
+    Font(resId = R.font.manrope_medium, weight = FontWeight.Medium),
+    Font(resId = R.font.manrope_semibold, weight = FontWeight.SemiBold),
+    Font(resId = R.font.manrope_bold, weight = FontWeight.Bold)
 )
 
 val Typography = Typography(

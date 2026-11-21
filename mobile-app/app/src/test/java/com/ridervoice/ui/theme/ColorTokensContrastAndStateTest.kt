@@ -92,7 +92,6 @@ class ColorTokensContrastAndStateTest {
             "ui/theme/Color.kt",
             "ui/theme/Theme.kt",
             "mesh/ui/MeshColors.kt",
-            "ui/components/ProfileDrawer.kt",
             "ui/screens/RoomScreen.kt",
             "ui/screens/room/AudioRouteSheet.kt",
             "ui/screens/room/AudioVuMeter.kt",

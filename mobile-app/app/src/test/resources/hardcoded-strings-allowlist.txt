@@ -54,5 +54,3 @@ ui/components/UpdateDialog.kt:v$cleanVer | Version prefix formatting
 ui/components/UpdateDialog.kt:${stringResource(R.string.app_name)} v$cleanVer | App name + version prefix formatting
 ui/screens/room/TalkControls.kt:SOS | Universal international emergency code
 ui/components/UiMessageMapper.kt:* | Pure non-Composable mapper covered by UiMessageMapperTest (English error codes)
-ui/components/ProfileDrawer.kt:* | Unused legacy drawer (removed in WP-U11)
-ui/components/VoiceControls.kt:* | Unused legacy component (removed in WP-U11)

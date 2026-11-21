@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -158,79 +159,84 @@ fun RvBottomNavigationBar(
     )
 
     CapChromeFontScale(maxScale = 1.3f) {
-        Surface(
-            color = PaperRaised,
+        Box(
             modifier = modifier
                 .fillMaxWidth()
-                .testTag("rv_bottom_nav_bar")
+                .background(Paper)
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 10.dp)
+                .testTag("rv_bottom_nav_bar"),
+            contentAlignment = Alignment.Center
         ) {
-            Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
-                Divider(color = InkHairline, thickness = 1.dp)
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 60.dp)
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    contentAlignment = Alignment.CenterStart
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 420.dp)
+                    .shadow(elevation = 8.dp, shape = CircleShape, clip = false)
+                    .clip(CircleShape)
+                    .background(CharcoalSurface)
+                    .border(1.dp, InkHairline.copy(alpha = 0.25f), CircleShape)
+                    .heightIn(min = 60.dp)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                val tabCount = 4
+                val tabWidth = maxWidth / tabCount
+
+                if (selectedIndex >= 0) {
+                    val travelProgress = abs(selectedIndex - animatedIndex).coerceIn(0f, 1f)
+                    val basePillWidth = 54.dp.coerceAtMost((tabWidth - 6.dp).coerceAtLeast(36.dp))
+                    val pillWidth = (basePillWidth + (12.dp * travelProgress)).coerceAtMost(tabWidth)
+                    val density = LocalDensity.current
+
+                    Box(
+                        modifier = Modifier
+                            .offset {
+                                val tabWidthPx = with(density) { tabWidth.toPx() }
+                                val pillWidthPx = with(density) { pillWidth.toPx() }
+                                val xPx = (tabWidthPx * animatedIndex) + ((tabWidthPx - pillWidthPx) / 2f)
+                                IntOffset(x = xPx.roundToInt(), y = 0)
+                            }
+                            .width(pillWidth)
+                            .height(40.dp)
+                            .clip(CircleShape)
+                            .background(Pop)
+                            .testTag("bottom_nav_active_pill")
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val tabCount = 4
-                    val tabWidth = maxWidth / tabCount
-
-                    if (selectedIndex >= 0) {
-                        val travelProgress = abs(selectedIndex - animatedIndex).coerceIn(0f, 1f)
-                        val basePillWidth = 56.dp.coerceAtMost((tabWidth - 4.dp).coerceAtLeast(36.dp))
-                        val pillWidth = (basePillWidth + (12.dp * travelProgress)).coerceAtMost(tabWidth)
-                        val density = LocalDensity.current
-
-                        Box(
-                            modifier = Modifier
-                                .offset {
-                                    val tabWidthPx = with(density) { tabWidth.toPx() }
-                                    val pillWidthPx = with(density) { pillWidth.toPx() }
-                                    val xPx = (tabWidthPx * animatedIndex) + ((tabWidthPx - pillWidthPx) / 2f)
-                                    IntOffset(x = xPx.roundToInt(), y = 0)
-                                }
-                                .width(pillWidth)
-                                .height(36.dp)
-                                .clip(RoundedCornerShape(RvRadius.pill))
-                                .background(PopContainer)
-                                .testTag("bottom_nav_active_pill")
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        BottomNavTabItem(
-                            label = stringResource(R.string.tab_dashboard),
-                            icon = Icons.Default.GridView,
-                            selected = currentRoute == Routes.HOME,
-                            onClick = onHomeClick,
-                            modifier = Modifier.weight(1f).testTag("bottom_nav_home")
-                        )
-                        BottomNavTabItem(
-                            label = stringResource(R.string.tab_history),
-                            icon = Icons.Default.History,
-                            selected = currentRoute == Routes.RIDE_STATS,
-                            onClick = onHistoryClick,
-                            modifier = Modifier.weight(1f).testTag("bottom_nav_history")
-                        )
-                        BottomNavTabItem(
-                            label = stringResource(R.string.tab_my_squad),
-                            icon = Icons.Default.Group,
-                            selected = currentRoute == Routes.SQUAD,
-                            onClick = onSquadClick,
-                            modifier = Modifier.weight(1f).testTag("bottom_nav_squad")
-                        )
-                        BottomNavTabItem(
-                            label = stringResource(R.string.nav_settings),
-                            icon = Icons.Default.Tune,
-                            selected = currentRoute == Routes.SETTINGS,
-                            onClick = onSettingsClick,
-                            modifier = Modifier.weight(1f).testTag("bottom_nav_settings")
-                        )
-                    }
+                    BottomNavTabItem(
+                        label = stringResource(R.string.tab_dashboard),
+                        icon = Icons.Default.GridView,
+                        selected = currentRoute == Routes.HOME,
+                        onClick = onHomeClick,
+                        modifier = Modifier.weight(1f).testTag("bottom_nav_home")
+                    )
+                    BottomNavTabItem(
+                        label = stringResource(R.string.tab_history),
+                        icon = Icons.Default.History,
+                        selected = currentRoute == Routes.RIDE_STATS,
+                        onClick = onHistoryClick,
+                        modifier = Modifier.weight(1f).testTag("bottom_nav_history")
+                    )
+                    BottomNavTabItem(
+                        label = stringResource(R.string.tab_my_squad),
+                        icon = Icons.Default.Group,
+                        selected = currentRoute == Routes.SQUAD,
+                        onClick = onSquadClick,
+                        modifier = Modifier.weight(1f).testTag("bottom_nav_squad")
+                    )
+                    BottomNavTabItem(
+                        label = stringResource(R.string.nav_settings),
+                        icon = Icons.Default.Tune,
+                        selected = currentRoute == Routes.SETTINGS,
+                        onClick = onSettingsClick,
+                        modifier = Modifier.weight(1f).testTag("bottom_nav_settings")
+                    )
                 }
             }
         }
@@ -246,7 +252,7 @@ private fun BottomNavTabItem(
     modifier: Modifier = Modifier
 ) {
     val iconTint by animateColorAsState(
-        targetValue = if (selected) Ink else InkSecondary,
+        targetValue = if (selected) PaperOnPop else PaperOnPop.copy(alpha = 0.65f),
         animationSpec = tween(durationMillis = 220)
     )
     val iconScale by animateFloatAsState(

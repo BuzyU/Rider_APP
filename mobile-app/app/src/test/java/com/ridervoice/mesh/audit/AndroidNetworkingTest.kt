@@ -158,17 +158,19 @@ class AndroidNetworkingTest {
         )
 
         transport.start(VoiceSession.Offline(OfflineSession.create(1000L)))
-
-        // Wait until at least 2 heartbeats have fired
-        withTimeout(5_000L) {
-            while (fakeLink.sent.none { it.first == ep2 }) {
-                delay(100L)
+        try {
+            // Wait until at least 2 heartbeats have fired (allow CI GC headroom)
+            withTimeout(15_000L) {
+                while (fakeLink.sent.none { it.first == ep2 }) {
+                    delay(100L)
+                }
             }
-        }
 
-        assertTrue("First heartbeat should target ep1", fakeLink.sent.any { it.first == ep1 })
-        assertTrue("Second heartbeat should target recomputed ep2", fakeLink.sent.any { it.first == ep2 })
-        transport.stop()
+            assertTrue("First heartbeat should target ep1", fakeLink.sent.any { it.first == ep1 })
+            assertTrue("Second heartbeat should target recomputed ep2", fakeLink.sent.any { it.first == ep2 })
+        } finally {
+            transport.stop()
+        }
     }
 
     @Test

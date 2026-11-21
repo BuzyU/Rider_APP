@@ -1,9 +1,9 @@
 package com.ridervoice.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,12 +15,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,18 +50,18 @@ fun PrimaryButton(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = RvTouchTarget.primary),
-        shape = RoundedCornerShape(RvRadius.md),
+        shape = RoundedCornerShape(18.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = NeonOrange,
-            contentColor = Color.White,
-            disabledContainerColor = Gunmetal,
-            disabledContentColor = TextSecondary
+            containerColor = Pop,
+            contentColor = PaperOnPop,
+            disabledContainerColor = PaperSunken,
+            disabledContentColor = InkSecondary
         )
     ) {
         if (loading) {
             CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                color = Color.White,
+                modifier = Modifier.size(22.dp),
+                color = PaperOnPop,
                 strokeWidth = 2.5.dp
             )
         } else {
@@ -101,13 +102,14 @@ fun SecondaryButton(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = RvTouchTarget.min),
-        shape = RoundedCornerShape(RvRadius.md),
+        shape = RoundedCornerShape(16.dp),
         border = ButtonDefaults.outlinedButtonBorder.copy(
-            brush = androidx.compose.ui.graphics.SolidColor(if (destructive) AlertRed else BorderColor)
+            brush = SolidColor(if (destructive) Brick else InkHairline)
         ),
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = if (destructive) AlertRed else TextPrimary,
-            disabledContentColor = TextSecondary
+            containerColor = if (destructive) BrickContainer.copy(alpha = 0.35f) else PaperRaised,
+            contentColor = if (destructive) Brick else Ink,
+            disabledContentColor = InkSecondary
         )
     ) {
         Row(
@@ -118,7 +120,7 @@ fun SecondaryButton(
                 Icon(
                     imageVector = leadingIcon,
                     contentDescription = null,
-                    tint = if (destructive) AlertRed else TextPrimary,
+                    tint = if (destructive) Brick else Ink,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(RvSpacing.sm))
@@ -137,27 +139,79 @@ fun StatusChip(
     status: String,
     modifier: Modifier = Modifier
 ) {
-    val (bgColor, textColor, label) = when (status.uppercase()) {
-        "HOST", "OWNER" -> Triple(AmberContainer, NeonOrange, "Host")
-        "JOINED", "ACCEPTED" -> Triple(TechGreen.copy(alpha = 0.15f), TechGreen, "Joined")
-        "INVITED", "PENDING" -> Triple(WarningAmber.copy(alpha = 0.15f), WarningAmber, "Invited")
-        "DECLINED" -> Triple(Gunmetal, TextSecondary, "Declined")
-        "LEFT" -> Triple(Gunmetal, TextSecondary, "Left")
-        else -> Triple(Gunmetal, TextSecondary, status)
+    val upper = status.uppercase()
+    val bgColor: Color
+    val textColor: Color
+    val label: String
+    val icon: ImageVector?
+
+    when (upper) {
+        "HOST", "OWNER" -> {
+            bgColor = PopContainer
+            textColor = Pop
+            label = "Host"
+            icon = Icons.Default.Star
+        }
+        "JOINED", "ACCEPTED", "READY" -> {
+            bgColor = PaperSunken
+            textColor = Ink
+            label = if (upper == "READY") "Ready" else "Joined"
+            icon = Icons.Default.Check
+        }
+        "INVITED", "PENDING" -> {
+            bgColor = PaperSunken
+            textColor = InkSecondary
+            label = "Invited"
+            icon = Icons.Default.Schedule
+        }
+        "DECLINED" -> {
+            bgColor = PaperSunken
+            textColor = InkSecondary
+            label = "Declined"
+            icon = Icons.Default.Close
+        }
+        "LEFT" -> {
+            bgColor = PaperSunken
+            textColor = InkSecondary
+            label = "Left"
+            icon = null
+        }
+        else -> {
+            bgColor = PaperSunken
+            textColor = InkSecondary
+            label = status
+            icon = null
+        }
     }
 
     Surface(
         color = bgColor,
         shape = RoundedCornerShape(RvRadius.pill),
+        border = BorderStroke(0.75.dp, if (textColor == Pop) Pop.copy(alpha = 0.45f) else InkHairline),
         modifier = modifier
     ) {
-        Text(
-            text = label,
-            color = textColor,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = RvSpacing.sm, vertical = RvSpacing.xs)
-        )
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = textColor,
+                    modifier = Modifier.size(12.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+            }
+            Text(
+                text = label,
+                color = textColor,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -170,7 +224,7 @@ fun RiderAvatar(
     size: Dp = 44.dp
 ) {
     val ringColor by animateColorAsState(
-        targetValue = if (isSpeaking) TechGreen else Color.Transparent,
+        targetValue = if (isSpeaking) Pop else Color.Transparent,
         label = "speakingRing"
     )
 
@@ -180,7 +234,7 @@ fun RiderAvatar(
             .border(2.dp, ringColor, CircleShape)
             .padding(2.dp)
             .clip(CircleShape)
-            .background(DarkSlate),
+            .background(PaperSunken),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -188,7 +242,7 @@ fun RiderAvatar(
             modifier = Modifier.testTag("rider_avatar_inner"),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = TextPrimary
+            color = Ink
         )
 
         if (isMuted) {
@@ -197,13 +251,14 @@ fun RiderAvatar(
                     .align(Alignment.BottomEnd)
                     .size(14.dp)
                     .clip(CircleShape)
-                    .background(Gunmetal),
+                    .background(PaperRaised)
+                    .border(0.75.dp, InkHairline, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.MicOff,
                     contentDescription = "Muted",
-                    tint = TextSecondary,
+                    tint = InkSecondary,
                     modifier = Modifier.size(10.dp)
                 )
             }
@@ -231,9 +286,10 @@ fun RiderRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(RvRadius.sm))
-            .background(DarkSlate)
-            .padding(horizontal = RvSpacing.md, vertical = RvSpacing.sm),
+            .clip(RoundedCornerShape(20.dp))
+            .background(PaperRaised)
+            .border(1.dp, InkHairline, RoundedCornerShape(20.dp))
+            .padding(horizontal = RvSpacing.md, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RiderAvatar(
@@ -253,7 +309,7 @@ fun RiderRow(
                         .testTag("rider_row_name"),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = Ink,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -267,7 +323,7 @@ fun RiderRow(
                     text = subtitle,
                     modifier = Modifier.testTag("rider_row_subtitle"),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
+                    color = InkSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -295,20 +351,22 @@ fun CodeCard(
     }
 
     Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(RvRadius.md),
-        colors = CardDefaults.cardColors(containerColor = DarkSlate)
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, InkHairline, RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = PaperRaised)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(RvSpacing.lg),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "RIDE CODE",
                 style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary,
+                color = InkSecondary,
                 letterSpacing = 1.sp
             )
 
@@ -316,10 +374,10 @@ fun CodeCard(
 
             Text(
                 text = formattedCode.uppercase(),
-                style = MaterialTheme.typography.displayLarge.copy(fontSize = 32.sp),
+                style = MaterialTheme.typography.displayLarge.copy(fontSize = 30.sp),
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
-                color = NeonOrange,
+                color = Ink,
                 textAlign = TextAlign.Center
             )
 
@@ -334,19 +392,19 @@ fun CodeCard(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = RvTouchTarget.min),
-                    shape = RoundedCornerShape(RvRadius.sm),
+                    shape = RoundedCornerShape(14.dp),
                     border = ButtonDefaults.outlinedButtonBorder.copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(BorderColor)
+                        brush = SolidColor(InkHairline)
                     )
                 ) {
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
                         contentDescription = "Copy code",
                         modifier = Modifier.size(18.dp),
-                        tint = TextPrimary
+                        tint = Ink
                     )
                     Spacer(modifier = Modifier.width(RvSpacing.xs))
-                    Text("Copy", color = TextPrimary)
+                    Text("Copy", color = Ink, fontWeight = FontWeight.SemiBold)
                 }
 
                 Button(
@@ -354,17 +412,20 @@ fun CodeCard(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = RvTouchTarget.min),
-                    shape = RoundedCornerShape(RvRadius.sm),
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CharcoalSurface,
+                        contentColor = PaperOnPop
+                    )
                 ) {
                     Icon(
                         imageVector = Icons.Default.Share,
                         contentDescription = "Share link",
                         modifier = Modifier.size(18.dp),
-                        tint = Color.White
+                        tint = PaperOnPop
                     )
                     Spacer(modifier = Modifier.width(RvSpacing.xs))
-                    Text("Share", color = Color.White)
+                    Text("Share", color = PaperOnPop, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -380,9 +441,11 @@ fun InfoCard(
     content: @Composable (() -> Unit)? = null
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, InkHairline, RoundedCornerShape(RvRadius.md)),
         shape = RoundedCornerShape(RvRadius.md),
-        colors = CardDefaults.cardColors(containerColor = DarkSlate)
+        colors = CardDefaults.cardColors(containerColor = PaperRaised)
     ) {
         Column(modifier = Modifier.padding(RvSpacing.md)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -390,7 +453,7 @@ fun InfoCard(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = NeonOrange,
+                        tint = Pop,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(RvSpacing.sm))
@@ -399,14 +462,14 @@ fun InfoCard(
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary,
+                        color = Ink,
                         fontWeight = FontWeight.Bold
                     )
                     if (!subtitle.isNullOrBlank()) {
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
+                            color = InkSecondary
                         )
                     }
                 }
@@ -426,8 +489,9 @@ fun InlineError(
     onRetry: (() -> Unit)? = null
 ) {
     Surface(
-        color = HazardContainer,
+        color = BrickContainer,
         shape = RoundedCornerShape(RvRadius.sm),
+        border = BorderStroke(1.dp, Brick),
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
@@ -437,19 +501,19 @@ fun InlineError(
             Icon(
                 imageVector = Icons.Default.Warning,
                 contentDescription = null,
-                tint = AlertRed,
+                tint = Brick,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(RvSpacing.sm))
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = AlertRed,
+                color = Brick,
                 modifier = Modifier.weight(1f)
             )
             if (onRetry != null) {
                 TextButton(onClick = onRetry) {
-                    Text("Retry", color = AlertRed, fontWeight = FontWeight.Bold)
+                    Text("Retry", color = Brick, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -475,7 +539,7 @@ fun EmptyState(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = TextSecondary,
+            tint = InkSecondary,
             modifier = Modifier.size(48.dp)
         )
         Spacer(modifier = Modifier.height(RvSpacing.md))
@@ -483,23 +547,23 @@ fun EmptyState(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = TextPrimary,
+            color = Ink,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(RvSpacing.xs))
         Text(
             text = body,
             style = MaterialTheme.typography.bodyMedium,
-            color = TextSecondary,
+            color = InkSecondary,
             textAlign = TextAlign.Center
         )
         if (actionText != null && onAction != null) {
             Spacer(modifier = Modifier.height(RvSpacing.md))
             Button(
                 onClick = onAction,
-                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                colors = ButtonDefaults.buttonColors(containerColor = Pop)
             ) {
-                Text(actionText, color = Color.White)
+                Text(actionText, color = PaperOnPop)
             }
         }
     }
@@ -515,7 +579,7 @@ fun LoadingSkeleton(
             .fillMaxWidth()
             .height(height)
             .clip(RoundedCornerShape(RvRadius.sm))
-            .background(Gunmetal.copy(alpha = 0.5f))
+            .background(PaperSunken)
     )
 }
 
@@ -531,36 +595,39 @@ fun ConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(24.dp),
         title = {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = if (destructive) AlertRed else TextPrimary
+                color = if (destructive) Brick else Ink
             )
         },
         text = {
             Text(
                 text = body,
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+                color = InkSecondary
             )
         },
         confirmButton = {
             Button(
                 onClick = onConfirm,
+                shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (destructive) AlertRed else NeonOrange
+                    containerColor = if (destructive) Brick else Pop,
+                    contentColor = if (destructive) PaperOnBrick else PaperOnPop
                 )
             ) {
-                Text(confirmLabel, color = Color.White)
+                Text(confirmLabel, color = if (destructive) PaperOnBrick else PaperOnPop, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(dismissLabel, color = TextPrimary)
+                Text(dismissLabel, color = Ink)
             }
         },
-        containerColor = DarkSlate
+        containerColor = PaperRaised
     )
 }

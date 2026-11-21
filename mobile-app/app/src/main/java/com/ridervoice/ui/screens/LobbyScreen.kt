@@ -6,10 +6,13 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -17,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -197,37 +201,31 @@ fun LobbyScreen(
                                 else -> "Waiting to start"
                             },
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (loadState is LobbyLoadState.Failed) AlertRed else WarningAmber
+                            color = if (loadState is LobbyLoadState.Failed) Brick else InkSecondary
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(
                         onClick = { showExitDialog = true },
-                        modifier = Modifier.size(RvTouchTarget.min)
+                        modifier = Modifier
+                            .padding(start = 8.dp, end = 4.dp)
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(PaperRaised)
+                            .border(1.dp, InkHairline, CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Leave Lobby",
-                            tint = TextPrimary
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { showExitDialog = true },
-                        modifier = Modifier.size(RvTouchTarget.min)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ExitToApp,
-                            contentDescription = "Leave",
-                            tint = AlertRed
+                            tint = Ink,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.smallTopAppBarColors(
-                    containerColor = GraphiteBase,
-                    titleContentColor = TextPrimary
+                    containerColor = Paper,
+                    titleContentColor = Ink
                 ),
                 windowInsets = WindowInsets.statusBars
             )
@@ -235,7 +233,7 @@ fun LobbyScreen(
         bottomBar = {
             if (!isFailedWithNoData) {
                 Surface(
-                    color = GraphiteBase,
+                    color = Paper,
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
@@ -323,9 +321,9 @@ fun LobbyScreen(
                             )
                         } else {
                             Surface(
-                                color = DarkSlate,
-                                shape = RoundedCornerShape(RvRadius.md),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen.copy(alpha = 0.4f)),
+                                color = MossContainer,
+                                shape = RoundedCornerShape(18.dp),
+                                border = BorderStroke(1.dp, Moss.copy(alpha = 0.4f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -334,7 +332,7 @@ fun LobbyScreen(
                                     horizontalArrangement = Arrangement.Center
                                 ) {
                                     CircularProgressIndicator(
-                                        color = TechGreen,
+                                        color = Moss,
                                         strokeWidth = 2.dp,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -342,7 +340,7 @@ fun LobbyScreen(
                                     Text(
                                         text = stringResource(R.string.lobby_waiting_host),
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = TechGreen,
+                                        color = Moss,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
@@ -357,7 +355,7 @@ fun LobbyScreen(
                 }
             }
         },
-        containerColor = GraphiteBase
+        containerColor = Paper
     ) { innerPadding ->
         if (status == null && activeRide == null) {
             if (loadState is LobbyLoadState.Failed) {
@@ -642,7 +640,7 @@ fun LobbyScreen(
                     Text(
                         text = "Joined (${accepted.size + 1})",
                         style = MaterialTheme.typography.titleMedium,
-                        color = TechGreen,
+                        color = Ink,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -708,7 +706,7 @@ fun LobbyScreen(
                         Text(
                             text = "Invited (${pending.size})",
                             style = MaterialTheme.typography.titleMedium,
-                            color = WarningAmber,
+                            color = InkSecondary,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -779,27 +777,41 @@ fun OfflineConfigCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        shape = RoundedCornerShape(12.dp)
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = PaperRaised),
+        border = BorderStroke(1.dp, InkHairline)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(18.dp)) {
             Text(
                 text = stringResource(R.string.mesh_title),
                 style = MaterialTheme.typography.titleMedium,
+                color = Ink,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Only host can toggle room-level offline switch
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stringResource(R.string.lobby_offline_host_switch_label), modifier = Modifier.weight(1f))
+                Text(
+                    stringResource(R.string.lobby_offline_host_switch_label),
+                    color = Ink,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f)
+                )
                 Switch(
                     checked = meshConfig?.offlineMeshEnabled == true,
                     onCheckedChange = { onToggleOffline(it) },
-                    enabled = isHost
+                    enabled = isHost,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = PaperOnPop,
+                        checkedTrackColor = Pop,
+                        uncheckedThumbColor = InkSecondary,
+                        uncheckedTrackColor = PaperSunken
+                    )
                 )
             }
 

@@ -5,10 +5,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.ridervoice.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -18,38 +16,40 @@ fun AddFriendDialog(
     onAddFriend: (handle: String) -> Unit
 ) {
     var friendHandle by remember { mutableStateOf("") }
-    val isDark = ThemeState.isDarkTheme
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(24.dp),
+        containerColor = PaperRaised,
         title = {
             Text(
-                text = "COMMISSION SQUAD RIDER",
-                color = TextPrimary,
+                text = "Add Rider to Squad",
+                color = Ink,
                 style = MaterialTheme.typography.titleMedium,
-                letterSpacing = 1.sp
+                fontWeight = FontWeight.Bold
             )
         },
         text = {
             Column {
                 Text(
-                    text = "Enter callsign (@handle) to link transceivers and add to your trusted squad.",
-                    color = TextSecondary,
+                    text = "Enter a rider's handle (@handle) to add them to your squad.",
+                    color = InkSecondary,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
                 OutlinedTextField(
                     value = friendHandle,
                     onValueChange = { friendHandle = it.trim().removePrefix("@") },
-                    placeholder = { Text("e.g. ApexPredator", color = TextSecondary.copy(alpha = 0.5f)) },
-                    leadingIcon = { Text("@", color = NeonOrange, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 12.dp)) },
+                    placeholder = { Text("e.g. ApexPredator", color = InkSecondary) },
+                    leadingIcon = { Text("@", color = Pop, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 12.dp)) },
                     colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = NeonOrange,
-                        unfocusedBorderColor = BorderColor,
-                        containerColor = Gunmetal,
-                        textColor = TextPrimary
+                        focusedBorderColor = Pop,
+                        unfocusedBorderColor = InkHairline,
+                        containerColor = PaperSunken.copy(alpha = 0.65f),
+                        textColor = Ink,
+                        cursorColor = Pop
                     ),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(14.dp),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -64,26 +64,21 @@ fun AddFriendDialog(
                     onDismiss()
                 },
                 enabled = friendHandle.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
-                shape = RoundedCornerShape(8.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = Pop),
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Text(
-                    "ADD TO SQUAD",
-                    color = if (isDark) GraphiteBase else Color.White,
+                    "Add to Squad",
+                    color = PaperOnPop,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.labelLarge
                 )
             }
         },
         dismissButton = {
-            OutlinedButton(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("CANCEL", color = TextPrimary)
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Ink)
             }
-        },
-        containerColor = DarkSlate,
-        shape = RoundedCornerShape(12.dp)
+        }
     )
 }

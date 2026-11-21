@@ -247,74 +247,82 @@ fun EmergencyAlertContent(
     } else {
         Modifier
             .fillMaxSize()
-            .background(LightPalette.Surface)
-            .border(8.dp, AlertRed)
+            .background(Paper)
+            .border(6.dp, Brick)
     }
 
     Box(modifier = bgModifier, contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    color = BrickContainer,
+                    shape = RoundedCornerShape(RvRadius.pill),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Brick.copy(alpha = 0.5f))
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = "Warning Hazard",
-                        tint = AlertRed,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "EMERGENCY BEACON",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = AlertRed,
-                        letterSpacing = 2.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Warning Hazard",
+                            tint = Brick,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "EMERGENCY BEACON",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Brick,
+                            letterSpacing = 1.sp
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = alertType.uppercase(),
+                    text = alertType,
                     style = MaterialTheme.typography.displayLarge,
-                    color = TextPrimary,
-                    fontSize = 32.sp
+                    color = Ink,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
                 )
 
                 Text(
-                    text = "CHANNEL: $roomName",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary
+                    text = "Channel: $roomName",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = InkSecondary
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Box(
-                modifier = Modifier.size(180.dp),
+                modifier = Modifier.size(190.dp),
                 contentAlignment = Alignment.Center
             ) {
                 val progress = if (isDispatched) 1f else (countdown.coerceIn(0, 15) / 15f)
-                val meterColor = AlertRed
-                val trackColor = if (isDark) Color(0xFF331010) else LightPalette.SurfaceAlt
+                val meterColor = Brick
+                val trackColor = if (isDark) Color(0xFF331010) else PaperSunken
 
                 Canvas(modifier = Modifier.fillMaxSize()) {
-
                     drawCircle(
                         color = trackColor,
                         style = Stroke(width = 10.dp.toPx())
                     )
-
                     drawArc(
                         color = meterColor,
                         startAngle = -90f,
@@ -329,25 +337,28 @@ fun EmergencyAlertContent(
                         Text(
                             text = "ALERT",
                             style = MaterialTheme.typography.displayLarge,
-                            color = AlertRed,
-                            fontSize = 36.sp
+                            color = Brick,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "SENT",
                             style = MaterialTheme.typography.labelLarge,
-                            color = TextPrimary
+                            color = Ink
                         )
                     } else {
                         Text(
                             text = "${countdown}s",
                             style = MaterialTheme.typography.displayLarge,
-                            color = AlertRed,
-                            fontSize = 48.sp
+                            color = Brick,
+                            fontSize = 50.sp,
+                            fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "AUTO-DISPATCH IN ${countdown}s",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary
+                            fontWeight = FontWeight.Bold,
+                            color = Brick
                         )
                     }
                 }
@@ -356,38 +367,37 @@ fun EmergencyAlertContent(
             Spacer(modifier = Modifier.height(16.dp))
 
             Surface(
-                color = if (isDark) DarkPalette.Surface else LightPalette.SurfaceAlt,
-                shape = RoundedCornerShape(8.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                color = PaperRaised,
+                shape = RoundedCornerShape(22.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, InkHairline),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val statusMessage = when {
-                        isCancelling -> "CANCELING DISTRESS BROADCAST..."
-                        isDispatching -> "TRANSMITTING DISTRESS TELEMETRY..."
-                        isDispatched -> dispatchStatus ?: "EMERGENCY BROADCAST ACTIVE"
-                        else -> "AUTO-BROADCAST IN ${countdown}s OR CANCEL BELOW"
+                        isCancelling -> "Canceling emergency broadcast..."
+                        isDispatching -> "Sending emergency alert..."
+                        isDispatched -> dispatchStatus ?: "Emergency broadcast active"
+                        else -> "Auto-broadcast in ${countdown}s or cancel below"
                     }
                     Text(
                         text = statusMessage,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isDispatched) AlertRed else NeonOrange,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (isDispatched) Brick else Pop,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "GPS COORDS & CONVOY LINK BROADCAST VIA CELLULAR/SAT",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary,
-                        fontSize = 11.sp
+                        text = "GPS coordinates & convoy alert sent to your squad.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = InkSecondary
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -400,24 +410,24 @@ fun EmergencyAlertContent(
                         enabled = !isDispatching && !isCancelling,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
+                            .height(54.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = AlertRed,
-                            contentColor = Color.White
+                            containerColor = Brick,
+                            contentColor = PaperOnBrick
                         ),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(18.dp)
                     ) {
                         if (isDispatching) {
                             CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(24.dp),
+                                color = PaperOnBrick,
+                                modifier = Modifier.size(22.dp),
                                 strokeWidth = 2.dp
                             )
                         } else {
                             Text(
-                                text = "SEND SOS IMMEDIATELY",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontSize = 16.sp
+                                text = "Send SOS Immediately",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -427,12 +437,12 @@ fun EmergencyAlertContent(
                     onClick = onCall911,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .height(54.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonOrange,
-                        contentColor = if (isDark) Color.Black else Color.White
+                        containerColor = Pop,
+                        contentColor = PaperOnPop
                     ),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(18.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Phone,
@@ -441,9 +451,9 @@ fun EmergencyAlertContent(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "CALL $emergencyNumber / EMERGENCY SERVICES",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontSize = 15.sp
+                        text = "Call $emergencyNumber / Emergency",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
@@ -455,31 +465,29 @@ fun EmergencyAlertContent(
                     enabled = !isCancelling,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(64.dp),
+                        .height(60.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isDark) DarkPalette.SurfaceAlt else LightPalette.TextPrimary,
-                        contentColor = Color.White
+                        containerColor = CharcoalSurface,
+                        contentColor = PaperOnPop
                     ),
-                    shape = RoundedCornerShape(8.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, BorderColor)
+                    shape = RoundedCornerShape(18.dp)
                 ) {
                     if (isCancelling) {
                         CircularProgressIndicator(
-                            color = Color.White,
-                            modifier = Modifier.size(24.dp),
+                            color = PaperOnPop,
+                            modifier = Modifier.size(22.dp),
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "CANCELING...",
-                            style = MaterialTheme.typography.labelLarge
+                            text = "Canceling...",
+                            style = MaterialTheme.typography.titleMedium
                         )
                     } else {
                         Text(
-                            text = "■ I'M OKAY (CANCEL EMERGENCY)",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black
+                            text = "I'm okay — Cancel emergency",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }

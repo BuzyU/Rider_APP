@@ -1,8 +1,10 @@
 package com.ridervoice.ui.screens
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -14,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -22,14 +23,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
-import android.content.Intent
-import android.net.Uri
-import com.ridervoice.ui.components.TacticalButton
+import com.ridervoice.ui.components.PrimaryButton
+import com.ridervoice.ui.components.SecondaryButton
 import com.ridervoice.ui.components.UpdateDialog
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AccountViewModel
@@ -52,51 +51,79 @@ fun AccountScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(GraphiteBase)
+            .background(Paper)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
+            // Editorial Top Bar (Circular Back + Title + Circular Edit & Settings)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBackClick) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(PaperRaised)
+                        .border(1.dp, InkHairline, CircleShape)
+                ) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBackIosNew,
+                        imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
-                        tint = TextPrimary
+                        tint = Ink,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(6.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "RIDER PROFILE",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NeonOrange,
-                        letterSpacing = 1.5.sp
-                    )
-                    Text(
-                        text = "RIDER ACCOUNT",
-                        color = TextPrimary,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                IconButton(onClick = { showEditDialog = true }) {
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Text(
+                    text = "Account",
+                    color = Ink,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+
+                IconButton(
+                    onClick = { showEditDialog = true },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(PopContainer)
+                        .border(1.dp, Pop.copy(alpha = 0.3f), CircleShape)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Edit Profile",
-                        tint = ElectricCyan
+                        tint = Pop,
+                        modifier = Modifier.size(19.dp)
                     )
                 }
-                IconButton(onClick = onNavigateToSettings) {
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(
+                    onClick = onNavigateToSettings,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(PaperRaised)
+                        .border(1.dp, InkHairline, CircleShape)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "Settings",
-                        tint = TextSecondary
+                        tint = Ink,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -104,38 +131,36 @@ fun AccountScreen(
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
-                        Spacer(modifier = Modifier.height(16.dp))
+                        CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
+                        Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text = "RETRIEVING OPERATOR DOSSIER...",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
-                            letterSpacing = 1.2.sp
+                            text = "Loading profile...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = InkSecondary
                         )
                     }
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-
                     uiState.errorMessage?.let { err ->
                         item {
                             Surface(
-                                color = AlertRed.copy(alpha = 0.15f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
-                                shape = RoundedCornerShape(8.dp),
+                                color = BrickContainer,
+                                border = BorderStroke(1.dp, Brick),
+                                shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(12.dp),
+                                    modifier = Modifier.padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = err, color = AlertRed, style = MaterialTheme.typography.bodySmall)
+                                    Icon(Icons.Default.Warning, contentDescription = null, tint = Brick)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(text = err, color = Brick, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
@@ -144,41 +169,43 @@ fun AccountScreen(
                     uiState.successMessage?.let { msg ->
                         item {
                             Surface(
-                                color = TechGreen.copy(alpha = 0.15f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, TechGreen),
-                                shape = RoundedCornerShape(8.dp),
+                                color = MossContainer,
+                                border = BorderStroke(1.dp, Moss.copy(alpha = 0.4f)),
+                                shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(12.dp),
+                                    modifier = Modifier.padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = TechGreen)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = msg, color = TechGreen, style = MaterialTheme.typography.bodySmall)
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Moss)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(text = msg, color = Moss, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
                     }
 
+                    // Profile Hero Bento Card
                     item {
                         Surface(
-                            color = DarkSlate,
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                            color = PaperRaised,
+                            shape = RoundedCornerShape(24.dp),
+                            border = BorderStroke(1.dp, InkHairline),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
-                                modifier = Modifier.padding(20.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(22.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-
                                 Box(
                                     modifier = Modifier
-                                        .size(96.dp)
+                                        .size(88.dp)
                                         .clip(CircleShape)
-                                        .background(Gunmetal)
-                                        .border(2.5.dp, ElectricCyan, CircleShape),
+                                        .background(CharcoalSurface)
+                                        .border(2.dp, InkHairline, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (!uiState.photoUrl.isNullOrBlank()) {
@@ -196,19 +223,17 @@ fun AccountScreen(
                                             val state = painter.state
                                             if (state is AsyncImagePainter.State.Loading) {
                                                 CircularProgressIndicator(
-                                                    color = ElectricCyan,
+                                                    color = PaperOnPop,
                                                     strokeWidth = 2.dp,
-                                                    modifier = Modifier.size(28.dp)
+                                                    modifier = Modifier.size(26.dp)
                                                 )
                                             } else if (state is AsyncImagePainter.State.Error) {
-
                                                 InitialAvatarText(initial = uiState.initialLetter)
                                             } else {
                                                 SubcomposeAsyncImageContent()
                                             }
                                         }
                                     } else {
-
                                         InitialAvatarText(initial = uiState.initialLetter)
                                     }
                                 }
@@ -216,46 +241,122 @@ fun AccountScreen(
                                 Spacer(modifier = Modifier.height(14.dp))
 
                                 Text(
-                                    text = uiState.displayName.ifBlank { "Rider Transceiver" },
+                                    text = uiState.displayName.ifBlank { "Rider" },
                                     style = MaterialTheme.typography.titleLarge,
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Black,
+                                    color = Ink,
+                                    fontWeight = FontWeight.Bold,
                                     fontSize = 22.sp
                                 )
 
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                                Surface(
-                                    color = Gunmetal,
-                                    shape = RoundedCornerShape(6.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = "@${uiState.handle.removePrefix("@")}",
-                                        color = TechGreen,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                        letterSpacing = 1.sp
+                                    Surface(
+                                        color = MossContainer,
+                                        shape = RoundedCornerShape(RvRadius.pill)
+                                    ) {
+                                        Text(
+                                            text = "@${uiState.handle.removePrefix("@")}",
+                                            color = Moss,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                                        )
+                                    }
+
+                                    Surface(
+                                        color = PaperSunken,
+                                        shape = RoundedCornerShape(RvRadius.pill),
+                                        border = BorderStroke(1.dp, InkHairline)
+                                    ) {
+                                        Text(
+                                            text = uiState.authProvider,
+                                            color = InkSecondary,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Profile Details Grouped Card
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "PROFILE DETAILS",
+                                color = InkSecondary,
+                                style = MaterialTheme.typography.labelSmall,
+                                letterSpacing = 0.9.sp,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                            Surface(
+                                color = PaperRaised,
+                                shape = RoundedCornerShape(22.dp),
+                                border = BorderStroke(1.dp, InkHairline),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    AccountInfoRow(
+                                        label = "Display Name",
+                                        value = uiState.displayName.ifBlank { "Not configured" },
+                                        icon = Icons.Default.Badge
+                                    )
+                                    Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
+                                    AccountInfoRow(
+                                        label = "Call-Sign Handle",
+                                        value = "@${uiState.handle.removePrefix("@")}",
+                                        icon = Icons.Default.AlternateEmail
+                                    )
+                                    Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
+                                    AccountInfoRow(
+                                        label = "Email Address",
+                                        value = uiState.email,
+                                        icon = Icons.Default.Email
+                                    )
+                                    Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
+                                    AccountInfoRow(
+                                        label = "Phone Number",
+                                        value = uiState.phone,
+                                        icon = Icons.Default.Phone
                                     )
                                 }
+                            }
+                        }
+                    }
 
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(7.dp)
-                                            .clip(CircleShape)
-                                            .background(if (uiState.authProvider == "Google") ElectricCyan else NeonOrange)
+                    // Motorcycle & Bio Grouped Card
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "MOTORCYCLE & BIO",
+                                color = InkSecondary,
+                                style = MaterialTheme.typography.labelSmall,
+                                letterSpacing = 0.9.sp,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                            Surface(
+                                color = PaperRaised,
+                                shape = RoundedCornerShape(22.dp),
+                                border = BorderStroke(1.dp, InkHairline),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    AccountInfoRow(
+                                        label = "Motorcycle",
+                                        value = uiState.bikeModel,
+                                        icon = Icons.Default.TwoWheeler
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "${uiState.authProvider.uppercase()} AUTHENTICATED",
-                                        color = TextSecondary,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontSize = 11.sp,
-                                        letterSpacing = 1.sp
+                                    Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
+                                    AccountInfoRow(
+                                        label = "Bio",
+                                        value = uiState.bio,
+                                        icon = Icons.Default.Notes
                                     )
                                 }
                             }
@@ -263,99 +364,24 @@ fun AccountScreen(
                     }
 
                     item {
-                        Text(
-                            text = "── IDENTIFICATION & COMMS ──",
-                            color = NeonOrange,
-                            style = MaterialTheme.typography.labelSmall,
-                            letterSpacing = 1.5.sp,
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    item {
-                        AccountInfoRow(
-                            label = "Display Name",
-                            value = uiState.displayName.ifBlank { "Not configured" },
-                            icon = Icons.Default.Badge
-                        )
-                    }
-
-                    item {
-                        AccountInfoRow(
-                            label = "Call-Sign Handle",
-                            value = "@${uiState.handle.removePrefix("@")}",
-                            icon = Icons.Default.AlternateEmail
-                        )
-                    }
-
-                    item {
-                        AccountInfoRow(
-                            label = "Email Address",
-                            value = uiState.email,
-                            icon = Icons.Default.Email
-                        )
-                    }
-
-                    item {
-                        AccountInfoRow(
-                            label = "Phone Number",
-                            value = uiState.phone,
-                            icon = Icons.Default.Phone
-                        )
-                    }
-
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "── EQUIPMENT & RIG ──",
-                            color = NeonOrange,
-                            style = MaterialTheme.typography.labelSmall,
-                            letterSpacing = 1.5.sp,
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    item {
-                        AccountInfoRow(
-                            label = "Motorcycle / Rig",
-                            value = uiState.bikeModel,
-                            icon = Icons.Default.TwoWheeler
-                        )
-                    }
-
-                    item {
-                        AccountInfoRow(
-                            label = "Tactical Notes / Bio",
-                            value = uiState.bio,
-                            icon = Icons.Default.Notes
-                        )
-                    }
-
-                    item {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        TacticalButton(
-                            text = "CALIBRATE PROFILE (EDIT DETAILS)",
+                        Spacer(modifier = Modifier.height(4.dp))
+                        PrimaryButton(
+                            text = "Edit Profile",
                             onClick = { showEditDialog = true },
-                            color = Gunmetal,
-                            textColor = ElectricCyan,
-                            isOutlined = true,
-                            modifier = Modifier.fillMaxWidth()
+                            leadingIcon = Icons.Default.Edit
                         )
                     }
 
                     item {
-                        TacticalButton(
-                            text = "CHECK FOR FIRMWARE UPDATES",
+                        SecondaryButton(
+                            text = "Check for Updates",
                             onClick = onCheckForUpdates,
-                            color = DarkSlate,
-                            textColor = NeonOrange,
-                            isOutlined = true,
-                            modifier = Modifier.fillMaxWidth()
+                            leadingIcon = Icons.Default.SystemUpdate
                         )
                     }
 
                     item {
-                        Spacer(modifier = Modifier.height(32.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
                     }
                 }
             }
@@ -401,10 +427,10 @@ fun AccountScreen(
 private fun InitialAvatarText(initial: String) {
     Text(
         text = initial,
-        color = ElectricCyan,
+        color = PaperOnPop,
         style = MaterialTheme.typography.displayMedium,
-        fontWeight = FontWeight.Black,
-        fontSize = 40.sp
+        fontWeight = FontWeight.Bold,
+        fontSize = 36.sp
     )
 }
 
@@ -414,43 +440,37 @@ private fun AccountInfoRow(
     value: String,
     icon: ImageVector
 ) {
-    Surface(
-        color = DarkSlate,
-        shape = RoundedCornerShape(10.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-        modifier = Modifier.fillMaxWidth()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(PaperSunken),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(Gunmetal),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(20.dp))
-            }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = label.uppercase(),
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 11.sp,
-                    letterSpacing = 0.8.sp
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = value,
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            Icon(icon, contentDescription = null, tint = Ink, modifier = Modifier.size(18.dp))
+        }
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                color = InkSecondary,
+                style = MaterialTheme.typography.bodySmall,
+                fontSize = 11.sp
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = value,
+                color = Ink,
+                style = MaterialTheme.typography.titleMedium,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
@@ -473,17 +493,26 @@ private fun EditProfileDialog(
     var bikeModel by remember { mutableStateOf(initialBikeModel) }
     var bio by remember { mutableStateOf(initialBio) }
 
+    val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
+        focusedBorderColor = Pop,
+        unfocusedBorderColor = InkHairline,
+        containerColor = PaperSunken.copy(alpha = 0.65f),
+        textColor = Ink,
+        cursorColor = Pop
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(24.dp),
+        containerColor = PaperRaised,
         title = {
             Text(
-                text = "CALIBRATE OPERATOR PROFILE",
+                text = "Edit Profile",
                 style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
+                color = Ink,
                 fontWeight = FontWeight.Bold
             )
         },
-        containerColor = DarkSlate,
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -494,12 +523,8 @@ private fun EditProfileDialog(
                     onValueChange = { displayName = it },
                     label = { Text("Display Name") },
                     singleLine = true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = NeonOrange,
-                        unfocusedBorderColor = BorderColor,
-                        containerColor = Gunmetal,
-                        textColor = TextPrimary
-                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -507,14 +532,10 @@ private fun EditProfileDialog(
                     value = handle,
                     onValueChange = { handle = it },
                     label = { Text("Call-Sign Handle") },
-                    leadingIcon = { Text("@", color = TechGreen, fontWeight = FontWeight.Bold) },
+                    leadingIcon = { Text("@", color = Pop, fontWeight = FontWeight.Bold) },
                     singleLine = true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = TechGreen,
-                        unfocusedBorderColor = BorderColor,
-                        containerColor = Gunmetal,
-                        textColor = TextPrimary
-                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -523,40 +544,28 @@ private fun EditProfileDialog(
                     onValueChange = { phone = it },
                     label = { Text("Phone Number") },
                     singleLine = true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = ElectricCyan,
-                        unfocusedBorderColor = BorderColor,
-                        containerColor = Gunmetal,
-                        textColor = TextPrimary
-                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 OutlinedTextField(
                     value = bikeModel,
                     onValueChange = { bikeModel = it },
-                    label = { Text("Motorcycle / Rig (e.g. Yamaha MT-07)") },
+                    label = { Text("Motorcycle (e.g. Yamaha MT-07)") },
                     singleLine = true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = ElectricCyan,
-                        unfocusedBorderColor = BorderColor,
-                        containerColor = Gunmetal,
-                        textColor = TextPrimary
-                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 OutlinedTextField(
                     value = bio,
                     onValueChange = { bio = it },
-                    label = { Text("Tactical Notes / Bio") },
+                    label = { Text("Bio") },
                     maxLines = 3,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = ElectricCyan,
-                        unfocusedBorderColor = BorderColor,
-                        containerColor = Gunmetal,
-                        textColor = TextPrimary
-                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -565,18 +574,19 @@ private fun EditProfileDialog(
             Button(
                 onClick = { onSave(displayName, handle, phone, bikeModel, bio) },
                 enabled = !isSaving,
-                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Pop)
             ) {
                 if (isSaving) {
-                    CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                    CircularProgressIndicator(color = PaperOnPop, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                 }
-                Text("SAVE DOSSIER", color = Color.Black, fontWeight = FontWeight.Bold)
+                Text("Save", color = PaperOnPop, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
-                Text("CANCEL", color = TextPrimary)
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Ink)
             }
         }
     )

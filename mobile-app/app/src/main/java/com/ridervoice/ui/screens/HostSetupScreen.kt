@@ -2,10 +2,9 @@ package com.ridervoice.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,8 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,7 +21,6 @@ import com.ridervoice.R
 import com.ridervoice.ui.components.*
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.HostSetupViewModel
-import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,12 +86,13 @@ fun HostSetupScreen(
     if (showLearnMoreSheet) {
         AlertDialog(
             onDismissRequest = { showLearnMoreSheet = false },
-            containerColor = DarkSlate,
+            shape = RoundedCornerShape(24.dp),
+            containerColor = PaperRaised,
             title = {
                 Text(
                     text = "Network test (beta)",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Ink,
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -103,20 +100,29 @@ fun HostSetupScreen(
                 Text(
                     text = "Enabling the network test helps the RiderVoice team improve audio reliability on motorcycles.\n\nOnly connection stats (bitrate, packet loss, jitter) and audio routing status are collected. We never record your audio content, and location tracking is separate and strictly optional.\n\nAt the end of your ride, an aggregated summary is sent to the engineering team.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
-                    lineHeight = 22.sp
+                    color = InkSecondary,
+                    lineHeight = 21.sp
                 )
             },
             confirmButton = {
                 Button(
                     onClick = { showLearnMoreSheet = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Pop)
                 ) {
-                    Text("Got it", color = Color.White)
+                    Text("Got it", color = PaperOnPop, fontWeight = FontWeight.Bold)
                 }
             }
         )
     }
+
+    val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
+        focusedBorderColor = Pop,
+        unfocusedBorderColor = InkHairline,
+        containerColor = PaperRaised,
+        textColor = Ink,
+        cursorColor = Pop
+    )
 
     RvScreen(
         title = stringResource(R.string.create_ride_title),
@@ -148,97 +154,85 @@ fun HostSetupScreen(
     ) {
         Spacer(modifier = Modifier.height(RvSpacing.sm))
 
+        Text(
+            text = "Name your convoy and optionally add route details before inviting riders.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = InkSecondary
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // 1. Ride Name (required, 3-40 chars)
         OutlinedTextField(
             value = convoyName,
             onValueChange = { convoyName = it.take(40) },
             label = { Text(stringResource(R.string.create_ride_name_label)) },
-            placeholder = { Text(stringResource(R.string.create_ride_name_placeholder)) },
+            placeholder = { Text(stringResource(R.string.create_ride_name_placeholder), color = InkSecondary) },
             supportingText = {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(stringResource(R.string.create_ride_name_helper), color = TextSecondary)
-                    Text("${convoyName.length}/40", color = TextSecondary)
+                    Text(stringResource(R.string.create_ride_name_helper), color = InkSecondary)
+                    Text("${convoyName.length}/40", color = InkSecondary)
                 }
             },
             isError = convoyName.isNotBlank() && !isNameValid,
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(RvRadius.sm),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = NeonOrange,
-                unfocusedBorderColor = BorderColor,
-                containerColor = DarkSlate,
-                textColor = TextPrimary
-            )
+            shape = RoundedCornerShape(16.dp),
+            colors = fieldColors
         )
 
-        Spacer(modifier = Modifier.height(RvSpacing.md))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // 2. Meet-up point (optional)
         OutlinedTextField(
             value = meetupPoint,
             onValueChange = { meetupPoint = it },
             label = { Text(stringResource(R.string.create_ride_meetup_label)) },
-            placeholder = { Text("e.g. Shell Petrol Pump, Hinjewadi") },
+            placeholder = { Text("e.g. Shell Petrol Pump, Hinjewadi", color = InkSecondary) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(RvRadius.sm),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = NeonOrange,
-                unfocusedBorderColor = BorderColor,
-                containerColor = DarkSlate,
-                textColor = TextPrimary
-            )
+            shape = RoundedCornerShape(16.dp),
+            colors = fieldColors
         )
 
-        Spacer(modifier = Modifier.height(RvSpacing.md))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // 3. Destination (optional)
         OutlinedTextField(
             value = destination,
             onValueChange = { destination = it },
             label = { Text(stringResource(R.string.create_ride_destination_label)) },
-            placeholder = { Text("e.g. Tiger Point, Lonavala") },
+            placeholder = { Text("e.g. Tiger Point, Lonavala", color = InkSecondary) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(RvRadius.sm),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = NeonOrange,
-                unfocusedBorderColor = BorderColor,
-                containerColor = DarkSlate,
-                textColor = TextPrimary
-            )
+            shape = RoundedCornerShape(16.dp),
+            colors = fieldColors
         )
 
-        Spacer(modifier = Modifier.height(RvSpacing.md))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // 4. Start (optional)
         OutlinedTextField(
             value = origin,
             onValueChange = { origin = it },
             label = { Text("Start point (optional)") },
-            placeholder = { Text("e.g. University Circle") },
+            placeholder = { Text("e.g. University Circle", color = InkSecondary) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(RvRadius.sm),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = NeonOrange,
-                unfocusedBorderColor = BorderColor,
-                containerColor = DarkSlate,
-                textColor = TextPrimary
-            )
+            shape = RoundedCornerShape(16.dp),
+            colors = fieldColors
         )
 
-        Spacer(modifier = Modifier.height(RvSpacing.md))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // 5. Collapsed "More options"
+        // 5. Collapsible "More options" Bento Card
         Surface(
-            color = DarkSlate,
-            shape = RoundedCornerShape(RvRadius.md),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+            color = PaperRaised,
+            shape = RoundedCornerShape(22.dp),
+            border = BorderStroke(1.dp, InkHairline),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(RvSpacing.md)) {
+            Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -250,26 +244,28 @@ fun HostSetupScreen(
                         Icon(
                             imageVector = Icons.Default.Tune,
                             contentDescription = null,
-                            tint = NeonOrange,
+                            tint = Pop,
                             modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(RvSpacing.sm))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = stringResource(R.string.create_ride_more_options),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            color = Ink
                         )
                     }
                     Icon(
                         imageVector = if (moreOptionsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                         contentDescription = null,
-                        tint = TextSecondary
+                        tint = InkSecondary
                     )
                 }
 
                 AnimatedVisibility(visible = moreOptionsExpanded) {
-                    Column(modifier = Modifier.padding(top = RvSpacing.md)) {
+                    Column(modifier = Modifier.padding(top = 14.dp)) {
+                        Divider(color = InkHairline)
+                        Spacer(modifier = Modifier.height(14.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -279,35 +275,35 @@ fun HostSetupScreen(
                                     text = stringResource(R.string.create_ride_diagnostics_title),
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
+                                    color = Ink
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = stringResource(R.string.create_ride_diagnostics_help),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
+                                    color = InkSecondary
                                 )
                                 TextButton(
                                     onClick = { showLearnMoreSheet = true },
                                     contentPadding = PaddingValues(0.dp)
                                 ) {
-                                    Text("Learn more", color = NeonOrange, style = MaterialTheme.typography.labelSmall)
+                                    Text("Learn more", color = Pop, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                 }
                             }
-                            Spacer(modifier = Modifier.width(RvSpacing.sm))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Switch(
                                 checked = diagnosticsEnabled,
                                 onCheckedChange = { diagnosticsEnabled = it },
                                 colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = NeonOrange,
-                                    uncheckedThumbColor = TextSecondary,
-                                    uncheckedTrackColor = Gunmetal
+                                    checkedThumbColor = PaperOnPop,
+                                    checkedTrackColor = Pop,
+                                    uncheckedThumbColor = InkSecondary,
+                                    uncheckedTrackColor = PaperSunken
                                 )
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(RvSpacing.md))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         SecondaryButton(
                             text = "Import planned route",
@@ -320,7 +316,7 @@ fun HostSetupScreen(
         }
 
         if (error != null) {
-            Spacer(modifier = Modifier.height(RvSpacing.md))
+            Spacer(modifier = Modifier.height(14.dp))
             InlineError(
                 message = error ?: "Failed to create ride",
                 onRetry = {

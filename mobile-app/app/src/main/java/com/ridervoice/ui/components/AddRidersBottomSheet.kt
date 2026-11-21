@@ -5,10 +5,12 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -16,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -34,7 +37,6 @@ fun AddRidersBottomSheet(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val isDark = ThemeState.isDarkTheme
     var selectedTab by remember { mutableStateOf(0) }
 
     val shareLink by lobbyViewModel.shareLink.collectAsState()
@@ -60,14 +62,14 @@ fun AddRidersBottomSheet(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.65f))
+                .background(Color.Black.copy(alpha = 0.45f))
                 .clickable { onDismiss() },
             contentAlignment = Alignment.BottomCenter
         ) {
             Surface(
-                color = GraphiteBase,
-                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                color = Paper,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                border = BorderStroke(1.dp, InkHairline),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(enabled = false) {}
@@ -77,7 +79,6 @@ fun AddRidersBottomSheet(
                         .fillMaxWidth()
                         .padding(bottom = 24.dp)
                 ) {
-
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -86,83 +87,80 @@ fun AddRidersBottomSheet(
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(36.dp)
+                                .width(38.dp)
                                 .height(4.dp)
-                                .background(BorderColor, RoundedCornerShape(2.dp))
+                                .background(InkHairline, RoundedCornerShape(RvRadius.pill))
                         )
                     }
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 6.dp),
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "DISPATCH REINFORCEMENTS",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = NeonOrange,
-                                letterSpacing = 1.5.sp
-                            )
-                            Text(
-                                text = "ADD CONVOY RIDERS",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = TextPrimary
-                            )
-                        }
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary)
+                        Text(
+                            text = "Add Riders",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Ink,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(PaperRaised)
+                                .border(1.dp, InkHairline, CircleShape)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Ink, modifier = Modifier.size(18.dp))
                         }
                     }
 
-                    TabRow(
-                        selectedTabIndex = selectedTab,
-                        containerColor = DarkSlate,
-                        contentColor = NeonOrange,
-                        divider = { Divider(color = BorderColor, thickness = 1.dp) },
+                    // Pill Segmented Tabs
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(RvRadius.pill))
+                            .background(PaperSunken)
+                            .border(1.dp, InkHairline, RoundedCornerShape(RvRadius.pill))
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Tab(
-                            selected = selectedTab == 0,
-                            onClick = { selectedTab = 0 },
-                            text = {
-                                Text(
-                                    "FROM SQUAD",
-                                    color = if (selectedTab == 0) NeonOrange else TextSecondary,
-                                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            },
-                            icon = {
-                                Icon(
-                                    Icons.Default.Group,
-                                    contentDescription = null,
-                                    tint = if (selectedTab == 0) NeonOrange else TextSecondary
-                                )
+                        listOf("From Squad" to Icons.Default.Group, "Share Link" to Icons.Default.Link).forEachIndexed { idx, (label, icon) ->
+                            val selected = selectedTab == idx
+                            Surface(
+                                color = if (selected) PaperRaised else Color.Transparent,
+                                shape = RoundedCornerShape(RvRadius.pill),
+                                border = if (selected) BorderStroke(1.dp, InkHairline) else null,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .defaultMinSize(minHeight = 42.dp)
+                                    .clickable { selectedTab = idx }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = if (selected) Pop else InkSecondary,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = label,
+                                        color = if (selected) Pop else InkSecondary,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                }
                             }
-                        )
-                        Tab(
-                            selected = selectedTab == 1,
-                            onClick = { selectedTab = 1 },
-                            text = {
-                                Text(
-                                    "SHARE LINK",
-                                    color = if (selectedTab == 1) NeonOrange else TextSecondary,
-                                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            },
-                            icon = {
-                                Icon(
-                                    Icons.Default.Link,
-                                    contentDescription = null,
-                                    tint = if (selectedTab == 1) NeonOrange else TextSecondary
-                                )
-                            }
-                        )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -173,48 +171,40 @@ fun AddRidersBottomSheet(
                             .heightIn(min = 320.dp, max = 500.dp)
                     ) {
                         if (selectedTab == 0) {
-
                             InviteFriendsContent(
                                 convoyName = convoyName,
                                 onInvitesSent = null,
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
-
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
                                 Surface(
-                                    color = DarkSlate,
-                                    shape = RoundedCornerShape(12.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                                    color = PaperRaised,
+                                    shape = RoundedCornerShape(22.dp),
+                                    border = BorderStroke(1.dp, InkHairline),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                Icons.Default.VpnKey,
-                                                contentDescription = null,
-                                                tint = ElectricCyan,
-                                                modifier = Modifier.size(20.dp)
-                                            )
+                                            Icon(Icons.Default.Link, contentDescription = null, tint = Pop, modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = "24-HOUR SECURE TOKEN LINK",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = ElectricCyan,
-                                                letterSpacing = 1.sp
+                                                text = "24-hour invite link",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Ink
                                             )
                                         }
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Spacer(modifier = Modifier.height(6.dp))
                                         Text(
-                                            text = "Send this deep-link to riders via WhatsApp, SMS, or Telegram. Tapping it tunes their transceivers directly into this convoy without needing a prior squad invite.",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = TextSecondary,
-                                            fontSize = 13.sp
+                                            text = "Share this link via WhatsApp, SMS, or Telegram so riders can join your convoy directly.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = InkSecondary
                                         )
                                     }
                                 }
@@ -227,12 +217,12 @@ fun AddRidersBottomSheet(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
+                                            CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
                                             Spacer(modifier = Modifier.height(12.dp))
                                             Text(
-                                                text = "GENERATING SECURE TOKEN...",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = TextSecondary
+                                                text = "Generating link...",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = InkSecondary
                                             )
                                         }
                                     }
@@ -240,9 +230,9 @@ fun AddRidersBottomSheet(
                                     val activeLink = shareLink ?: return@Surface
 
                                     Surface(
-                                        color = Gunmetal,
-                                        shape = RoundedCornerShape(8.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, NeonOrange.copy(alpha = 0.5f)),
+                                        color = PaperSunken,
+                                        shape = RoundedCornerShape(16.dp),
+                                        border = BorderStroke(1.dp, InkHairline),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
@@ -253,8 +243,8 @@ fun AddRidersBottomSheet(
                                         ) {
                                             Text(
                                                 text = activeLink,
-                                                color = TextPrimary,
-                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = Ink,
+                                                style = MaterialTheme.typography.bodySmall,
                                                 fontWeight = FontWeight.SemiBold,
                                                 modifier = Modifier.weight(1f)
                                             )
@@ -270,7 +260,7 @@ fun AddRidersBottomSheet(
                                                 Icon(
                                                     imageVector = if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy,
                                                     contentDescription = "Copy Link",
-                                                    tint = if (isCopied) TechGreen else NeonOrange
+                                                    tint = if (isCopied) Moss else Pop
                                                 )
                                             }
                                         }
@@ -288,21 +278,25 @@ fun AddRidersBottomSheet(
                                                 isCopied = true
                                                 Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_SHORT).show()
                                             },
-                                            shape = RoundedCornerShape(8.dp),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                                            modifier = Modifier.weight(1f)
+                                            shape = RoundedCornerShape(16.dp),
+                                            border = BorderStroke(1.dp, InkHairline),
+                                            colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperRaised),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(48.dp)
                                         ) {
                                             Icon(
                                                 Icons.Default.ContentCopy,
                                                 contentDescription = null,
-                                                tint = if (isCopied) TechGreen else TextPrimary,
-                                                modifier = Modifier.size(16.dp)
+                                                tint = if (isCopied) Moss else Ink,
+                                                modifier = Modifier.size(17.dp)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
-                                                text = if (isCopied) "COPIED" else "COPY LINK",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = TextPrimary
+                                                text = if (isCopied) "Copied" else "Copy link",
+                                                style = MaterialTheme.typography.labelLarge,
+                                                color = Ink,
+                                                fontWeight = FontWeight.SemiBold
                                             )
                                         }
 
@@ -318,47 +312,32 @@ fun AddRidersBottomSheet(
                                                 }
                                                 context.startActivity(Intent.createChooser(sendIntent, "Share Convoy Invite Link"))
                                             },
-                                            colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
-                                            shape = RoundedCornerShape(8.dp),
-                                            modifier = Modifier.weight(1f)
+                                            colors = ButtonDefaults.buttonColors(containerColor = Pop),
+                                            shape = RoundedCornerShape(16.dp),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(48.dp)
                                         ) {
                                             Icon(
                                                 Icons.Default.Share,
                                                 contentDescription = null,
-                                                tint = if (isDark) Color.Black else Color.White,
-                                                modifier = Modifier.size(16.dp)
+                                                tint = PaperOnPop,
+                                                modifier = Modifier.size(17.dp)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
-                                                text = "SHARE SHEET",
-                                                color = if (isDark) Color.Black else Color.White,
-                                                style = MaterialTheme.typography.labelSmall,
+                                                text = "Share",
+                                                color = PaperOnPop,
+                                                style = MaterialTheme.typography.labelLarge,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }
                                 } else {
-
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(
-                                            text = linkError ?: "Failed to generate link",
-                                            color = AlertRed,
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                        Spacer(modifier = Modifier.height(10.dp))
-                                        Button(
-                                            onClick = { lobbyViewModel.generateShareLink(convoyName) },
-                                            colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Text("RETRY LINK GENERATION", color = if (isDark) Color.Black else Color.White)
-                                        }
-                                    }
+                                    InlineError(
+                                        message = linkError ?: "Failed to generate link",
+                                        onRetry = { lobbyViewModel.generateShareLink(convoyName) }
+                                    )
                                 }
                             }
                         }

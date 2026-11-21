@@ -1,51 +1,54 @@
 package com.ridervoice.mesh.ui
 
 import androidx.compose.ui.graphics.Color
+import com.ridervoice.ui.theme.*
 
 /**
- * Centralized theme colors for Offline Mesh UI components.
- * Consolidates all hex color definitions into a single, maintainable design system.
+ * Centralized theme-aware Roadside Paper color tokens for Offline Mesh UI components.
+ * Delegates to the app's unified Roadside Paper Light / Warm Charcoal Dark palettes
+ * (zero blue, cyan, indigo, violet, or neon).
  */
 object MeshColors {
     // Surfaces and backgrounds
-    val BackgroundDark = Color(0xFF0F172A)
-    val SurfaceDark = Color(0xFF1E293B)
-    val SurfaceElevated = Color(0xFF334155)
-    val CardBackground = Color(0xF00F172A)
-    val LobbyBackground = Color(0xFF0F1012)
-    val LobbyCard = Color(0xFF181A1E)
-    val LobbyInput = Color(0xFF101214)
-    val LobbyBorder = Color(0xFF2C2F36)
-    val LobbyBorderUnfocused = Color(0xFF3E434D)
+    val BackgroundDark: Color get() = Paper
+    val SurfaceDark: Color get() = PaperRaised
+    val SurfaceElevated: Color get() = PaperSunken
+    val CardBackground: Color get() = PaperRaised
+    val LobbyBackground: Color get() = Paper
+    val LobbyCard: Color get() = PaperRaised
+    val LobbyInput: Color get() = PaperSunken
+    val LobbyBorder: Color get() = InkHairline
+    val LobbyBorderUnfocused: Color get() = InkHairline
 
-    // Status and state indicators
-    val Emerald = Color(0xFF10B981)
-    val EmeraldDark = Color(0xFF065F46)
-    val EmeraldLight = Color(0xFF6EE7B7)
-    val EmeraldActive = Color(0xFF047857)
+    // Status and state indicators (icon + Ink weight; Pop for active speaking/PTT; Brick for error/leave)
+    val Emerald: Color get() = Pop
+    val EmeraldDark: Color get() = PopContainer
+    val EmeraldLight: Color get() = Pop
+    val EmeraldActive: Color get() = Pop
 
-    val Amber = Color(0xFFF59E0B)
-    val AmberYellow = Color(0xFFFBBF24)
-    val AmberDark = Color(0xFF78350F)
-    val AmberLight = Color(0xFFFDE68A)
+    val Amber: Color get() = Pop
+    val AmberYellow: Color get() = InkSecondary
+    val AmberDark: Color get() = PopContainer
+    val AmberLight: Color get() = Ink
 
-    val Cyan = Color(0xFF38BDF8)
-    val Red = Color(0xFFEF4444)
-    val RedDark = Color(0xFF7F1D1D)
-    val RedCrimson = Color(0xFFDC2626)
-    val RedLight = Color(0xFFFCA5A5)
+    val Cyan: Color get() = Ink
+    val Red: Color get() = Brick
+    val RedDark: Color get() = BrickContainer
+    val RedCrimson: Color get() = Brick
+    val RedLight: Color get() = Brick
 
-    val Slate = Color(0xFF94A3B8)
-    val SlateDark = Color(0xFF475569)
-    val SlateMuted = Color(0xFF64748B)
-    val SlateLight = Color(0xFFF1F5F9)
-    val Indigo = Color(0xFFA5B4FC)
+    val Slate: Color get() = InkSecondary
+    val SlateDark: Color get() = InkHairline
+    val SlateMuted: Color get() = InkSecondary
+    val SlateLight: Color get() = Ink
+    val Indigo: Color get() = InkSecondary
 
-    // Lobby accents
-    val NeonOrange = Color(0xFFFF6D00)
-    val ElectricGreen = Color(0xFF00E676)
-    val AlertRed = Color(0xFFFF1744)
-    val TextPrimary = Color(0xFFEEEEEE)
-    val TextSecondary = Color(0xFF9E9E9E)
+    // Lobby & text tokens
+    val NeonOrange: Color get() = Pop
+    val ElectricGreen: Color get() = Pop
+    val AlertRed: Color get() = Brick
+    val TextPrimary: Color get() = Ink
+    val TextSecondary: Color get() = InkSecondary
+    val TextOnAccent: Color get() = PaperOnPop
+    val TextOnBrick: Color get() = PaperOnBrick
 }
-

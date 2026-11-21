@@ -14,19 +14,47 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkScheme = darkColorScheme(
-    primary = DarkPalette.AccentAmber, secondary = DarkPalette.VhfTeal, tertiary = DarkPalette.AccentViolet,
-    background = DarkPalette.Background, surface = DarkPalette.Surface,
-    onPrimary = DarkPalette.Background, onSecondary = DarkPalette.Background, onTertiary = DarkPalette.Background,
-    onBackground = DarkPalette.TextPrimary, onSurface = DarkPalette.TextPrimary,
-    error = DarkPalette.EmergencyRed, onError = DarkPalette.TextPrimary
+    primary = DarkPalette.AccentAmber,
+    onPrimary = DarkPalette.OnAccent,
+    primaryContainer = DarkPalette.AccentAmberContainer,
+    onPrimaryContainer = DarkPalette.AccentAmber,
+    secondary = DarkPalette.TextSecondary,
+    onSecondary = DarkPalette.Background,
+    tertiary = DarkPalette.TextSecondary,
+    onTertiary = DarkPalette.Background,
+    background = DarkPalette.Background,
+    onBackground = DarkPalette.TextPrimary,
+    surface = DarkPalette.Surface,
+    onSurface = DarkPalette.TextPrimary,
+    surfaceVariant = DarkPalette.SurfaceAlt,
+    onSurfaceVariant = DarkPalette.TextSecondary,
+    outline = DarkPalette.Border,
+    error = DarkPalette.EmergencyRed,
+    onError = DarkPalette.OnEmergency,
+    errorContainer = DarkPalette.EmergencyContainer,
+    onErrorContainer = DarkPalette.EmergencyRed
 )
 
 private val LightScheme = lightColorScheme(
-    primary = LightPalette.AccentAmber, secondary = LightPalette.VhfTeal, tertiary = LightPalette.AccentViolet,
-    background = LightPalette.Background, surface = LightPalette.Surface,
-    onPrimary = LightPalette.Surface, onSecondary = LightPalette.Surface, onTertiary = LightPalette.Surface,
-    onBackground = LightPalette.TextPrimary, onSurface = LightPalette.TextPrimary,
-    error = LightPalette.EmergencyRed, onError = LightPalette.Surface
+    primary = LightPalette.AccentAmber,
+    onPrimary = LightPalette.OnAccent,
+    primaryContainer = LightPalette.AccentAmberContainer,
+    onPrimaryContainer = LightPalette.AccentAmber,
+    secondary = LightPalette.TextSecondary,
+    onSecondary = LightPalette.Surface,
+    tertiary = LightPalette.TextSecondary,
+    onTertiary = LightPalette.Surface,
+    background = LightPalette.Background,
+    onBackground = LightPalette.TextPrimary,
+    surface = LightPalette.Surface,
+    onSurface = LightPalette.TextPrimary,
+    surfaceVariant = LightPalette.SurfaceAlt,
+    onSurfaceVariant = LightPalette.TextSecondary,
+    outline = LightPalette.Border,
+    error = LightPalette.EmergencyRed,
+    onError = LightPalette.OnEmergency,
+    errorContainer = LightPalette.EmergencyContainer,
+    onErrorContainer = LightPalette.EmergencyRed
 )
 
 private fun android.content.Context.findActivity(): Activity? {
@@ -43,7 +71,7 @@ fun RiderVoiceTheme(content: @Composable () -> Unit) {
     val isDark = ThemeState.isDarkTheme
     val target = if (isDark) DarkScheme else LightScheme
 
-    val animatedBg by animateColorAsState(target.background, tween(300), label = "bg")
+    val animatedBg by animateColorAsState(target.background, tween(250), label = "bg")
 
     val view = LocalView.current
     if (!view.isInEditMode) {

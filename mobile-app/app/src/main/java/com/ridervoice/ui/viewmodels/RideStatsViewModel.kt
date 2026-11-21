@@ -19,7 +19,8 @@ data class RideStatsState(
     val topSpeed: String = "0",
     val speedDataPoints: List<Float> = listOf(0f, 28f, 45f, 64f, 88f, 76f, 95f, 68f, 42f, 0f),
     val elevationDataPoints: List<Float> = listOf(620f, 680f, 740f, 890f, 1120f, 1340f, 1420f, 1280f, 950f, 650f),
-    val totalRidesCount: Int = 0
+    val totalRidesCount: Int = 0,
+    val sessions: List<com.ridervoice.data.local.entities.RideSessionEntity> = emptyList()
 )
 
 @HiltViewModel
@@ -33,6 +34,7 @@ class RideStatsViewModel @Inject constructor(
 
     data class ReplayData(
         val sessionId: String,
+        val session: com.ridervoice.data.local.entities.RideSessionEntity? = null,
         val waypoints: List<com.ridervoice.data.local.entities.RawWaypointEntity> = emptyList(),
         val events: List<com.ridervoice.data.local.entities.ConvoyEventEntity> = emptyList()
     )
@@ -50,9 +52,10 @@ class RideStatsViewModel @Inject constructor(
             } else {
                 requestedRideId
             }
+            val session = runCatching { rideDao.getSessionById(targetId) }.getOrNull()
             val wpts = runCatching { rideDao.getWaypointsForSession(targetId) }.getOrDefault(emptyList())
             val evts = runCatching { rideDao.getEventsForSession(targetId) }.getOrDefault(emptyList())
-            _replayData.value = ReplayData(sessionId = targetId, waypoints = wpts, events = evts)
+            _replayData.value = ReplayData(sessionId = targetId, session = session, waypoints = wpts, events = evts)
         }
     }
 
@@ -87,6 +90,7 @@ class RideStatsViewModel @Inject constructor(
                     avgSpeed = String.format(Locale.US, "%.0f", avgSpeedKmh),
                     topSpeed = topSpeedStr,
                     totalRidesCount = sessions.size,
+                    sessions = sessions,
                     speedDataPoints = emptyList()
                 )
             }

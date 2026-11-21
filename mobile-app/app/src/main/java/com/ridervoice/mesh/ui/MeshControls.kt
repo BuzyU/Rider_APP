@@ -89,7 +89,7 @@ fun MeshDiagnosticsDialog(
             Text(
                 text = stringResource(R.string.mesh_diag_title),
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = MeshColors.TextPrimary
             )
         },
         text = {
@@ -165,7 +165,7 @@ fun DiagRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(text = label, color = MeshColors.Slate, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-        Text(text = value, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        Text(text = value, color = MeshColors.TextPrimary, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -178,17 +178,17 @@ fun MeshPeerCard(
 ) {
     val borderColor = when {
         isSpeaking -> MeshColors.Emerald
-        peer.isOnline -> MeshColors.Cyan
+        peer.isOnline -> MeshColors.LobbyBorder
         else -> MeshColors.SlateDark
     }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = MeshColors.SurfaceDark),
-        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = if (isSpeaking) MeshColors.EmeraldDark else MeshColors.SurfaceDark),
+        shape = RoundedCornerShape(12.dp),
         modifier = modifier
             .testTag("mesh_peer_card_${peer.id}")
             .fillMaxWidth()
-            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+            .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
     ) {
         Row(
             modifier = Modifier
@@ -213,7 +213,7 @@ fun MeshPeerCard(
                 ) {
                     Text(
                         text = peer.name,
-                        color = Color.White,
+                        color = MeshColors.TextPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -312,7 +312,7 @@ fun MeshTopBar(
                     text = sessionCode,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
+                    color = MeshColors.TextPrimary,
                     fontFamily = FontFamily.Monospace
                 )
                 Text(
@@ -333,7 +333,7 @@ fun MeshTopBar(
                     ) {
                         Text(
                             text = stringResource(R.string.mesh_sos),
-                            color = Color.White,
+                            color = MeshColors.TextOnBrick,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
@@ -420,7 +420,7 @@ fun MeshBottomBar(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = stringResource(routeLabelRes),
-                            color = Color.White,
+                            color = MeshColors.TextPrimary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -491,7 +491,7 @@ fun MeshBottomBar(
                     ) {
                         Text(
                             text = if (isPttActive) stringResource(R.string.mesh_ptt_transmitting) else stringResource(R.string.mesh_ptt_button),
-                            color = if (isPttActive) MeshColors.EmeraldLight else MeshColors.SlateLight,
+                            color = if (isPttActive) MeshColors.TextOnAccent else MeshColors.SlateLight,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
@@ -520,7 +520,7 @@ fun MeshBottomBar(
                     Icon(
                         imageVector = if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
                         contentDescription = stringResource(R.string.mesh_cd_toggle_mic),
-                        tint = Color.White
+                        tint = if (isMicEnabled) MeshColors.TextOnAccent else MeshColors.TextPrimary
                     )
                 }
 
@@ -536,7 +536,7 @@ fun MeshBottomBar(
                     Icon(
                         imageVector = if (isDeafened) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                         contentDescription = stringResource(R.string.mesh_cd_toggle_deafen),
-                        tint = Color.White
+                        tint = if (isDeafened) MeshColors.TextOnBrick else MeshColors.TextPrimary
                     )
                 }
 
@@ -556,7 +556,7 @@ fun MeshBottomBar(
                     ) {
                         Text(
                             text = stringResource(R.string.mesh_leave),
-                            color = Color.White,
+                            color = MeshColors.TextOnBrick,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             maxLines = 1
@@ -609,7 +609,7 @@ fun MeshHealthHeader(
                 Text(
                     text = stringResource(R.string.mesh_active_discovered, peerCount, discoveredCount),
                     fontSize = 14.sp,
-                    color = Color.White
+                    color = MeshColors.TextPrimary
                 )
             }
             Surface(
@@ -640,7 +640,7 @@ fun MicPermissionCard(modifier: Modifier = Modifier) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
                 text = stringResource(R.string.mesh_mic_permission_needed),
-                color = Color.White,
+                color = MeshColors.RedLight,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold
             )

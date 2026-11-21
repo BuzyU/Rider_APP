@@ -2,6 +2,7 @@ package com.ridervoice.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -78,65 +79,88 @@ fun SosScreen(
     } else {
         Modifier
             .fillMaxSize()
-            .background(LightPalette.Surface)
-            .border(8.dp, AlertRed)
+            .background(Paper)
+            .border(6.dp, Brick)
     }
 
     Box(modifier = bgModifier) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 24.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(AlertRed))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "EMERGENCY BEACON ACTIVE",
-                        color = AlertRed,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp
-                    )
+                Surface(
+                    color = BrickContainer,
+                    shape = RoundedCornerShape(RvRadius.pill),
+                    border = BorderStroke(1.dp, Brick.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Brick)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "EMERGENCY BEACON",
+                            color = Brick,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.9.sp
+                        )
+                    }
                 }
-                IconButton(onClick = {
-                    isCancelled = true
-                    onCancelClick()
-                }) {
-                    Icon(Icons.Default.Close, contentDescription = "Close SOS", tint = TextSecondary)
+
+                IconButton(
+                    onClick = {
+                        isCancelled = true
+                        onCancelClick()
+                    },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(PaperRaised)
+                        .border(1.dp, InkHairline, CircleShape)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Close SOS", tint = Ink, modifier = Modifier.size(20.dp))
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "EMERGENCY ALERT",
-                color = AlertRed,
+                text = "Emergency Alert",
+                color = Brick,
                 style = MaterialTheme.typography.displayLarge,
-                fontSize = 32.sp
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Bold
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             when (state) {
                 is SosState.Sent -> {
-
                     Surface(
-                        color = if (isDark) DarkPalette.Surface else LightPalette.SurfaceAlt,
-                        shape = RoundedCornerShape(16.dp),
-                        border = androidx.compose.foundation.BorderStroke(2.dp, TechGreen),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                        color = MossContainer,
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.5.dp, Moss),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp)
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp),
@@ -145,20 +169,20 @@ fun SosScreen(
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Alert Sent",
-                                tint = TechGreen,
-                                modifier = Modifier.size(54.dp)
+                                tint = Moss,
+                                modifier = Modifier.size(52.dp)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = if (state.recipientsCount > 0) "Alert sent to ${state.recipientsCount} riders" else "EMERGENCY ALERT SENT",
+                                text = if (state.recipientsCount > 0) "Alert sent to ${state.recipientsCount} riders" else "Emergency alert sent",
                                 style = MaterialTheme.typography.titleMedium,
-                                color = TechGreen,
-                                letterSpacing = 1.sp
+                                fontWeight = FontWeight.Bold,
+                                color = Moss
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "Live GPS coordinates and emergency notification sent to your ride group.",
-                                color = TextSecondary,
+                                color = InkSecondary,
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center
                             )
@@ -168,27 +192,29 @@ fun SosScreen(
 
                 is SosState.NotSent -> {
                     Surface(
-                        color = if (isDark) Color(0xFF330808) else Color(0xFFFFEBEE),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(2.dp, AlertRed),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                        color = BrickContainer,
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.5.dp, Brick),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(20.dp),
+                            modifier = Modifier.padding(22.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(48.dp))
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = Brick, modifier = Modifier.size(46.dp))
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = "SOS NOT SENT",
+                                text = "SOS Not Sent",
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Black,
-                                color = AlertRed
+                                fontWeight = FontWeight.Bold,
+                                color = Brick
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "Call ${state.emergencyNumber} immediately.",
-                                color = if (isDark) Color.White else Color.Black,
+                                color = Ink,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.bodyLarge,
                                 textAlign = TextAlign.Center
@@ -199,15 +225,17 @@ fun SosScreen(
                                     val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${state.emergencyNumber}"))
                                     context.startActivity(dialIntent)
                                 },
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
-                                shape = RoundedCornerShape(8.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Brick),
+                                shape = RoundedCornerShape(16.dp)
                             ) {
-                                Icon(Icons.Default.Phone, contentDescription = null, tint = Color.White)
+                                Icon(Icons.Default.Phone, contentDescription = null, tint = PaperOnBrick)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "CALL ${state.emergencyNumber} NOW",
-                                    color = Color.White,
+                                    text = "Call ${state.emergencyNumber} Now",
+                                    color = PaperOnBrick,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -220,37 +248,42 @@ fun SosScreen(
                         modifier = Modifier.padding(vertical = 32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        CircularProgressIndicator(color = AlertRed, strokeWidth = 4.dp, modifier = Modifier.size(54.dp))
+                        CircularProgressIndicator(color = Brick, strokeWidth = 4.dp, modifier = Modifier.size(52.dp))
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "SENDING EMERGENCY ALERT...",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = AlertRed
+                            text = "Sending emergency alert...",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Brick
                         )
                     }
                 }
 
                 is SosState.Failed -> {
                     Surface(
-                        color = HazardContainer,
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, AlertRed),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                        color = BrickContainer,
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.5.dp, Brick),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(18.dp),
+                            modifier = Modifier.padding(20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(36.dp))
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = Brick, modifier = Modifier.size(36.dp))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "ALERT FAILED TO SEND",
+                                text = "Alert Failed to Send",
                                 style = MaterialTheme.typography.titleMedium,
-                                color = AlertRed
+                                fontWeight = FontWeight.Bold,
+                                color = Brick
                             )
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = state.message,
-                                color = TextSecondary,
+                                color = InkSecondary,
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center
                             )
@@ -259,57 +292,52 @@ fun SosScreen(
                 }
 
                 is SosState.Idle -> {
-
                     Box(
-                        modifier = Modifier.size(220.dp),
+                        modifier = Modifier.size(210.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        val progress = (countdown.coerceIn(0, 10) / 10f)
+                        val trackColor = if (isDark) Color(0xFF331010) else PaperSunken
+                        val meterColor = Brick
                         Canvas(modifier = Modifier.fillMaxSize()) {
-                            val trackColor = if (isDark) Color(0xFF331010) else LightPalette.SurfaceAlt
                             drawCircle(
                                 color = trackColor,
-                                style = Stroke(width = 8.dp.toPx())
+                                style = Stroke(width = 10.dp.toPx())
                             )
                             drawArc(
-                                color = AlertRed,
+                                color = meterColor,
                                 startAngle = -90f,
-                                sweepAngle = 360f,
+                                sweepAngle = 360f * progress,
                                 useCenter = false,
-                                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                                style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
                             )
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = "EMERGENCY BEACON",
-                                color = AlertRed,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = 11.sp
-                            )
-                            Text(
                                 text = "${countdown}s",
-                                color = AlertRed,
+                                color = Brick,
                                 style = MaterialTheme.typography.displayLarge,
-                                fontSize = 60.sp
+                                fontSize = 56.sp,
+                                fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = "AUTO-SENDING IN ${countdown}s",
-                                color = AlertRed,
+                                color = Brick,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontSize = 11.sp
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-
                 Button(
                     onClick = {
                         val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$emergencyNumber"))
@@ -317,23 +345,23 @@ fun SosScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .height(54.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonOrange,
-                        contentColor = if (isDark) Color.Black else Color.White
+                        containerColor = Pop,
+                        contentColor = PaperOnPop
                     ),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(18.dp)
                 ) {
-                    Icon(Icons.Default.Phone, contentDescription = "Call $emergencyNumber", modifier = Modifier.size(22.dp))
+                    Icon(Icons.Default.Phone, contentDescription = "Call $emergencyNumber", modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     val callLabel = if (emergencyInfo.isFallback) {
-                        "CALL $emergencyNumber (FALLBACK) / EMERGENCY"
+                        "Call $emergencyNumber (Emergency)"
                     } else {
-                        "CALL $emergencyNumber (${emergencyInfo.countryDisplay}) / EMERGENCY"
+                        "Call $emergencyNumber (${emergencyInfo.countryDisplay})"
                     }
                     Text(
                         text = callLabel,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -344,19 +372,17 @@ fun SosScreen(
                         onClick = triggerDispatchOnce,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed)
+                            .height(54.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Brick)
                     ) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White)
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = PaperOnBrick)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (state is SosState.Failed) "RETRY SOS BROADCAST" else "SEND SOS NOW",
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black
+                            text = if (state is SosState.Failed) "Retry SOS Broadcast" else "Send SOS Now",
+                            color = PaperOnBrick,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -368,24 +394,20 @@ fun SosScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(64.dp),
-                    shape = RoundedCornerShape(8.dp),
+                        .height(60.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isDark) DarkPalette.SurfaceAlt else LightPalette.TextPrimary,
-                        contentColor = Color.White
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, BorderColor)
+                        containerColor = CharcoalSurface,
+                        contentColor = PaperOnPop
+                    )
                 ) {
                     Text(
-                        text = if (state is SosState.Sent) "■ I'M SAFE NOW (DISARM ALERT)" else "■ I'M OKAY — CANCEL EMERGENCY",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Black
+                        text = if (state is SosState.Sent) "I'm safe now — Disarm alert" else "I'm okay — Cancel emergency",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

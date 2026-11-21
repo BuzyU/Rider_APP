@@ -1,10 +1,12 @@
 package com.ridervoice.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,12 +15,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.models.RideInvite
+import com.ridervoice.ui.components.ConfirmDialog
+import com.ridervoice.ui.components.InlineError
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.InvitesInboxViewModel
 
@@ -32,7 +36,6 @@ fun InvitesInboxScreen(
     val invites by viewModel.invites.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
-    val isDark = ThemeState.isDarkTheme
 
     var inviteToDecline by remember { mutableStateOf<RideInvite?>(null) }
     var processingInviteId by remember { mutableStateOf<String?>(null) }
@@ -42,175 +45,154 @@ fun InvitesInboxScreen(
     }
 
     inviteToDecline?.let { invite ->
-        AlertDialog(
-            onDismissRequest = { inviteToDecline = null },
-            title = {
-                Text(
-                    text = "DECLINE CONVOY INVITE?",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary
-                )
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to decline the invitation to '${invite.room.name}' from @${invite.inviter.handle}?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val target = invite
-                        inviteToDecline = null
-                        processingInviteId = target.id
-                        viewModel.respondToInvite(target, false) {
-                            processingInviteId = null
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AlertRed)
-                ) {
-                    Text("DECLINE INVITE", color = Color.White, fontWeight = FontWeight.Bold)
+        ConfirmDialog(
+            title = "Decline ride invite?",
+            body = "Are you sure you want to decline the invitation to '${invite.room.name}' from @${invite.inviter.handle}?",
+            confirmLabel = "Decline",
+            dismissLabel = "Cancel",
+            destructive = true,
+            onConfirm = {
+                val target = invite
+                inviteToDecline = null
+                processingInviteId = target.id
+                viewModel.respondToInvite(target, false) {
+                    processingInviteId = null
                 }
             },
-            dismissButton = {
-                OutlinedButton(onClick = { inviteToDecline = null }) {
-                    Text("CANCEL", color = TextPrimary)
-                }
-            },
-            containerColor = DarkSlate
+            onDismiss = { inviteToDecline = null }
         )
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(GraphiteBase)
+            .background(Paper)
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
-
+        // Editorial Top Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "RIDE INVITES",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NeonOrange,
-                    letterSpacing = 1.5.sp
-                )
-                Text(
-                    text = "PENDING INVITES",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = TextPrimary
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(PaperRaised)
+                    .border(1.dp, InkHairline, CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Ink,
+                    modifier = Modifier.size(20.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Text(
+                text = "Inbox",
+                style = MaterialTheme.typography.titleLarge,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Ink,
+                modifier = Modifier.weight(1f)
+            )
 
             IconButton(
                 onClick = { viewModel.loadInvites() },
                 modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(DarkSlate)
-                    .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(PaperRaised)
+                    .border(1.dp, InkHairline, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
                     contentDescription = "Refresh Invites",
-                    tint = TextSecondary,
+                    tint = Ink,
                     modifier = Modifier.size(20.dp)
                 )
             }
         }
 
         error?.let { err ->
-            Surface(
-                color = HazardContainer,
-                shape = RoundedCornerShape(8.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = AlertRed, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "DISPATCH INBOX ERROR: $err",
-                        color = AlertRed,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(onClick = { viewModel.loadInvites() }) {
-                        Text("RETRY", color = NeonOrange, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
+            InlineError(
+                message = err,
+                onRetry = { viewModel.loadInvites() },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+            )
         }
 
         if (isLoading && invites.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
+                CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
             }
         } else if (invites.isEmpty()) {
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(24.dp),
+                    .padding(horizontal = 20.dp, vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Surface(
-                    color = DarkSlate,
-                    shape = RoundedCornerShape(14.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                    color = PaperRaised,
+                    shape = RoundedCornerShape(24.dp),
+                    border = BorderStroke(1.dp, InkHairline),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp),
+                        modifier = Modifier.padding(28.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.MailOutline,
-                            contentDescription = null,
-                            tint = TextSecondary,
-                            modifier = Modifier.size(52.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(PaperSunken),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MailOutline,
+                                contentDescription = null,
+                                tint = InkSecondary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                         Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text = "NO PENDING CONVOY INVITES",
+                            text = "No pending invites",
                             style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary
+                            fontWeight = FontWeight.Bold,
+                            color = Ink
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "When ride leaders invite you to join a convoy, their transmissions will appear here.",
-                            color = TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium
+                            text = "When convoy leads invite you to join a ride, their invitations will appear here.",
+                            color = InkSecondary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(20.dp))
                         Button(
                             onClick = onHostRideClick,
-                            colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
-                            shape = RoundedCornerShape(8.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Pop),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.height(50.dp)
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = if (isDark) Color.Black else Color.White)
+                            Icon(Icons.Default.Add, contentDescription = null, tint = PaperOnPop)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "HOST YOUR OWN CONVOY",
-                                color = if (isDark) Color.Black else Color.White,
-                                style = MaterialTheme.typography.labelLarge
+                                text = "Create a ride",
+                                color = PaperOnPop,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -220,7 +202,7 @@ fun InvitesInboxScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(invites) { invite ->
                     val isProcessing = processingInviteId == invite.id
@@ -251,12 +233,10 @@ fun InviteCard(
     onAccept: () -> Unit,
     onDecline: () -> Unit
 ) {
-    val isDark = ThemeState.isDarkTheme
-
     Surface(
-        color = DarkSlate,
-        shape = RoundedCornerShape(14.dp),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, BorderColor),
+        color = PaperRaised,
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(1.dp, InkHairline),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
@@ -265,69 +245,93 @@ fun InviteCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(7.dp).clip(RoundedCornerShape(3.dp)).background(NeonOrange))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "CONVOY INVITATION",
-                        color = NeonOrange,
-                        style = MaterialTheme.typography.labelSmall,
-                        letterSpacing = 1.sp
-                    )
+                Surface(
+                    color = PopContainer,
+                    shape = RoundedCornerShape(RvRadius.pill)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Pop)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "RIDE INVITE",
+                            color = Pop,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.7.sp
+                        )
+                    }
                 }
+
                 Text(
-                    text = "FREQUENCY LOCK",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp
+                    text = "Pending",
+                    color = InkSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = invite.room.name.uppercase(),
-                color = TextPrimary,
+                text = invite.room.name,
+                color = Ink,
                 style = MaterialTheme.typography.titleLarge,
-                fontSize = 22.sp
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
             )
+
+            Spacer(modifier = Modifier.height(3.dp))
 
             Text(
-                text = "Transmitted by @${invite.inviter.handle}",
-                color = ElectricCyan,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold
+                text = "Invited by @${invite.inviter.handle}",
+                color = InkSecondary,
+                style = MaterialTheme.typography.bodyMedium
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-
                 OutlinedButton(
                     onClick = onDecline,
                     enabled = !isProcessing,
-                    shape = RoundedCornerShape(8.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed.copy(alpha = 0.8f)),
-                    modifier = Modifier.weight(1f).height(48.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Brick.copy(alpha = 0.7f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = BrickContainer.copy(alpha = 0.35f),
+                        contentColor = Brick
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Decline", tint = AlertRed, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Close, contentDescription = "Decline", tint = Brick, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("DECLINE", color = AlertRed, style = MaterialTheme.typography.labelLarge)
+                    Text("Decline", color = Brick, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 }
 
                 Button(
                     onClick = onAccept,
                     enabled = !isProcessing,
-                    colors = ButtonDefaults.buttonColors(containerColor = TechGreen),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.weight(1f).height(48.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = Pop),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
                 ) {
                     if (isProcessing) {
                         CircularProgressIndicator(
-                            color = if (isDark) Color.Black else Color.White,
+                            color = PaperOnPop,
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp
                         )
@@ -335,14 +339,15 @@ fun InviteCard(
                         Icon(
                             Icons.Default.Check,
                             contentDescription = "Accept",
-                            tint = if (isDark) Color.Black else Color.White,
+                            tint = PaperOnPop,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "ACCEPT",
-                            color = if (isDark) Color.Black else Color.White,
-                            style = MaterialTheme.typography.labelLarge
+                            text = "Accept",
+                            color = PaperOnPop,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }

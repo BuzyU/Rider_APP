@@ -32,17 +32,17 @@ fun TacticalButton(
             enabled = enabled,
             modifier = modifier
                 .fillMaxWidth()
-                .height(64.dp),
-            shape = RoundedCornerShape(12.dp),
+                .height(54.dp),
+            shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, color),
-            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
+            colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperRaised)
         ) {
             Text(
                 text = text,
                 color = textColor,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
+                letterSpacing = 0.4.sp
             )
         }
     } else {
@@ -51,16 +51,16 @@ fun TacticalButton(
             enabled = enabled,
             modifier = modifier
                 .fillMaxWidth()
-                .height(64.dp),
-            shape = RoundedCornerShape(12.dp),
+                .height(54.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = ButtonDefaults.buttonColors(containerColor = color)
         ) {
             Text(
                 text = text,
                 color = textColor,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
+                letterSpacing = 0.4.sp
             )
         }
     }

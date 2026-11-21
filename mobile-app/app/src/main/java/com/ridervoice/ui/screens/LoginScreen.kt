@@ -4,9 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,7 +23,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -117,475 +115,464 @@ fun LoginScreen(
         }
     }
 
+    val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
+        focusedBorderColor = Pop,
+        unfocusedBorderColor = InkHairline,
+        textColor = Ink,
+        cursorColor = Pop,
+        containerColor = PaperSunken.copy(alpha = 0.5f)
+    )
+
     Scaffold(
-        snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
-        },
-        containerColor = GraphiteBase
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        containerColor = Paper
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(GraphiteBase)
+                .background(Paper)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp, vertical = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Surface(
+                shape = RoundedCornerShape(RvRadius.pill),
+                color = PaperSunken,
+                border = BorderStroke(1.dp, InkHairline),
+                modifier = Modifier.padding(bottom = 12.dp)
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = Gunmetal,
-                    border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp, brush = Brush.linearGradient(listOf(BorderColor, BorderColor))),
-                    modifier = Modifier.padding(bottom = 12.dp)
-                ) {
-                    Text(
-                        text = "VHF / CB VOICE NETWORK",
-                        color = ElectricCyan,
-                        fontSize = 11.sp,
-                        fontFamily = SpaceMonoFamily,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
-
                 Text(
-                    text = "RIDERVOICE",
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.displayLarge,
-                    letterSpacing = 2.sp
-                )
-                Text(
-                    text = "STAY CONNECTED. RIDE UNITED.",
-                    color = TextSecondary,
-                    fontSize = 11.sp,
-                    fontFamily = SpaceMonoFamily,
+                    text = "GROUP VOICE INTERCOM",
+                    color = InkSecondary,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.5.sp,
-                    modifier = Modifier.padding(top = 4.dp)
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                 )
+            }
 
-                Spacer(modifier = Modifier.height(28.dp))
+            Text(
+                text = "RiderVoice",
+                color = Ink,
+                style = MaterialTheme.typography.displayLarge,
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Stay connected. Ride united.",
+                color = InkSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp)
+            )
 
-                AnimatedVisibility(
-                    visible = errorMessage != null,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    errorMessage?.let { msg ->
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = AlertRed.copy(alpha = 0.15f),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp, brush = Brush.linearGradient(listOf(AlertRed, AlertRed))),
+            Spacer(modifier = Modifier.height(24.dp))
+
+            AnimatedVisibility(
+                visible = errorMessage != null,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                errorMessage?.let { msg ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = BrickContainer,
+                        border = BorderStroke(1.dp, Brick),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp)
+                    ) {
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 16.dp)
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Error",
+                                tint = Brick,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = msg,
+                                color = Brick,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = { viewModel.clearError() },
+                                modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = "Error",
-                                    tint = AlertRed,
-                                    modifier = Modifier.size(20.dp)
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Dismiss error",
+                                    tint = Brick,
+                                    modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = msg,
-                                    color = AlertRed,
-                                    fontSize = 13.sp,
-                                    fontFamily = InterFamily,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                IconButton(
-                                    onClick = { viewModel.clearError() },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Dismiss error",
-                                        tint = AlertRed,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
                             }
                         }
                     }
                 }
+            }
 
-                if (!showForgotPassword) {
-
-                    Text(
-                        text = "COMMUNICATIONS CONSOLE LOGIN",
-                        color = NeonOrange,
-                        style = MaterialTheme.typography.titleLarge,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        text = "Tune in to access your squad frequencies.",
-                        color = TextSecondary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it.trim() },
-                        label = { Text("Email", color = TextSecondary) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Next
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                        ),
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = NeonOrange,
-                            unfocusedBorderColor = BorderColor,
-                            textColor = TextPrimary,
-                            cursorColor = NeonOrange,
-                            containerColor = Gunmetal
+            // Main Auth Bento Card
+            Surface(
+                color = PaperRaised,
+                shape = RoundedCornerShape(24.dp),
+                border = BorderStroke(1.dp, InkHairline),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (!showForgotPassword) {
+                        Text(
+                            text = "Sign in",
+                            color = Ink,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
                         )
-                    )
+                        Text(
+                            text = "Sign in to connect with your riding group.",
+                            color = InkSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 18.dp)
+                        )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { email = it.trim() },
+                            label = { Text("Email", color = InkSecondary) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Next
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                            ),
+                            colors = fieldColors
+                        )
 
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Password", color = TextSecondary) },
-                        singleLine = true,
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text("Password", color = InkSecondary) },
+                            singleLine = true,
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    focusManager.clearFocus()
+                                    if (email.isNotBlank() && password.isNotBlank()) {
+                                        viewModel.signInWithEmail(email, password)
+                                    }
+                                }
+                            ),
+                            trailingIcon = {
+                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                    Icon(
+                                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                        tint = InkSecondary
+                                    )
+                                }
+                            },
+                            colors = fieldColors
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 2.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    forgotEmail = email
+                                    showForgotPassword = true
+                                },
+                                modifier = Modifier.defaultMinSize(minHeight = 44.dp)
+                            ) {
+                                Text(
+                                    "Forgot password?",
+                                    color = Pop,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Button(
+                            onClick = {
                                 focusManager.clearFocus()
                                 if (email.isNotBlank() && password.isNotBlank()) {
                                     viewModel.signInWithEmail(email, password)
                                 }
-                            }
-                        ),
-                        trailingIcon = {
-                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                Icon(
-                                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                    tint = TextSecondary
+                            },
+                            enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Pop,
+                                contentColor = PaperOnPop,
+                                disabledContainerColor = PaperSunken,
+                                disabledContentColor = InkSecondary
+                            )
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    color = PaperOnPop,
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(
+                                    "Sign In",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
-                        },
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = NeonOrange,
-                            unfocusedBorderColor = BorderColor,
-                            textColor = TextPrimary,
-                            cursorColor = NeonOrange,
-                            containerColor = Gunmetal
-                        )
-                    )
+                        }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 18.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Divider(modifier = Modifier.weight(1f), color = InkHairline)
+                            Text(
+                                "  or continue with  ",
+                                color = InkSecondary,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontSize = 11.sp
+                            )
+                            Divider(modifier = Modifier.weight(1f), color = InkHairline)
+                        }
+
+                        OutlinedButton(
                             onClick = {
-                                forgotEmail = email
-                                showForgotPassword = true
+                                if (!isLoading) {
+                                    onGoogleSignInClick()
+                                    launchGoogleSignIn()
+                                }
                             },
-                            modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                        ) {
-                            Text(
-                                "Forgot Password?",
-                                color = NeonOrange,
-                                fontSize = 13.sp,
-                                fontFamily = InterFamily,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        onClick = {
-                            focusManager.clearFocus()
-                            if (email.isNotBlank() && password.isNotBlank()) {
-                                viewModel.signInWithEmail(email, password)
-                            }
-                        },
-                        enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = NeonOrange,
-                            disabledContainerColor = DarkSlate
-                        )
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = TextPrimary,
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                "SIGN IN TO TRANSCEIVER",
-                                color = if (ThemeState.isDarkTheme) GraphiteBase else androidx.compose.ui.graphics.Color.White,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                letterSpacing = 1.sp
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 18.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Divider(modifier = Modifier.weight(1f), color = BorderColor)
-                        Text(
-                            "  SECONDARY CHANNELS  ",
-                            color = TextSecondary,
-                            fontFamily = SpaceMonoFamily,
-                            fontSize = 10.sp,
-                            letterSpacing = 1.sp
-                        )
-                        Divider(modifier = Modifier.weight(1f), color = BorderColor)
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            if (!isLoading) {
-                                onGoogleSignInClick()
-                                launchGoogleSignIn()
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Gunmetal,
-                            contentColor = TextPrimary
-                        ),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp, brush = Brush.linearGradient(listOf(BorderColor, BorderColor)))
-                    ) {
-                        Text(
-                            text = "G   Continue with Google",
-                            fontFamily = InterFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onPhoneOtpClick,
                             modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            shape = RoundedCornerShape(8.dp),
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Gunmetal,
-                                contentColor = ElectricCyan
+                                containerColor = PaperSunken.copy(alpha = 0.55f),
+                                contentColor = Ink
                             ),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp, brush = Brush.linearGradient(listOf(BorderColor, BorderColor)))
+                            border = BorderStroke(1.dp, InkHairline)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Phone,
-                                contentDescription = "Phone OTP",
-                                tint = ElectricCyan,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Phone SMS",
-                                fontSize = 13.sp,
-                                fontFamily = InterFamily,
-                                fontWeight = FontWeight.SemiBold
+                                text = "G   Continue with Google",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
                             )
                         }
 
-                        OutlinedButton(
-                            onClick = { if (!isLoading) viewModel.signInAnonymously() },
-                            enabled = !isLoading,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Gunmetal,
-                                contentColor = TextPrimary
-                            ),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp, brush = Brush.linearGradient(listOf(BorderColor, BorderColor)))
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text(
-                                text = "Guest Rider",
-                                fontSize = 13.sp,
-                                fontFamily = InterFamily,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            OutlinedButton(
+                                onClick = onPhoneOtpClick,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = PaperSunken.copy(alpha = 0.55f),
+                                    contentColor = Ink
+                                ),
+                                border = BorderStroke(1.dp, InkHairline)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Phone,
+                                    contentDescription = "Phone OTP",
+                                    tint = Ink,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Phone SMS",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = { if (!isLoading) viewModel.signInAnonymously() },
+                                enabled = !isLoading,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = PaperSunken.copy(alpha = 0.55f),
+                                    contentColor = Ink
+                                ),
+                                border = BorderStroke(1.dp, InkHairline)
+                            ) {
+                                Text(
+                                    text = "Guest Rider",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 48.dp)
-                    ) {
+                    } else {
                         Text(
-                            "Need a callsign? ",
-                            color = TextSecondary,
-                            fontSize = 14.sp,
-                            fontFamily = InterFamily
+                            text = "Reset Password",
+                            color = Ink,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
                         )
-                        TextButton(
-                            onClick = onRegisterClick,
-                            modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                        ) {
-                            Text(
-                                "Register New Account",
-                                color = NeonOrange,
-                                fontSize = 14.sp,
-                                fontFamily = InterFamily,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                } else {
+                        Text(
+                            text = "Enter your registered email address to receive password reset instructions.",
+                            color = InkSecondary,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 6.dp, bottom = 18.dp)
+                        )
 
-                    Text(
-                        text = "RESET FREQUENCY KEY",
-                        color = TextPrimary,
-                        style = MaterialTheme.typography.titleLarge,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        text = "Enter your registered email address to receive password reset instructions.",
-                        color = TextSecondary,
-                        textAlign = TextAlign.Center,
-                        fontSize = 13.sp,
-                        fontFamily = InterFamily,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
-                    )
+                        OutlinedTextField(
+                            value = forgotEmail,
+                            onValueChange = { forgotEmail = it.trim() },
+                            label = { Text("Registered Email", color = InkSecondary) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    focusManager.clearFocus()
+                                    if (forgotEmail.isNotBlank()) viewModel.sendPasswordReset(forgotEmail)
+                                }
+                            ),
+                            colors = fieldColors
+                        )
 
-                    OutlinedTextField(
-                        value = forgotEmail,
-                        onValueChange = { forgotEmail = it.trim() },
-                        label = { Text("Registered Email", color = TextSecondary) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Email,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        Button(
+                            onClick = {
                                 focusManager.clearFocus()
                                 if (forgotEmail.isNotBlank()) viewModel.sendPasswordReset(forgotEmail)
-                            }
-                        ),
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = NeonOrange,
-                            unfocusedBorderColor = BorderColor,
-                            textColor = TextPrimary,
-                            cursorColor = NeonOrange,
-                            containerColor = Gunmetal
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Button(
-                        onClick = {
-                            focusManager.clearFocus()
-                            if (forgotEmail.isNotBlank()) viewModel.sendPasswordReset(forgotEmail)
-                        },
-                        enabled = !isLoading && forgotEmail.isNotBlank(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = TextPrimary,
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
+                            },
+                            enabled = !isLoading && forgotEmail.isNotBlank(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Pop,
+                                contentColor = PaperOnPop
                             )
-                        } else {
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    color = PaperOnPop,
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(
+                                    "Send Reset Link",
+                                    color = PaperOnPop,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        TextButton(
+                            onClick = { showForgotPassword = false },
+                            modifier = Modifier.defaultMinSize(minHeight = 44.dp)
+                        ) {
                             Text(
-                                "DISPATCH RESET LINK",
-                                color = if (ThemeState.isDarkTheme) GraphiteBase else androidx.compose.ui.graphics.Color.White,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
+                                "← Return to Sign In",
+                                color = InkSecondary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
+            if (!showForgotPassword) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(
+                        "New to RiderVoice? ",
+                        color = InkSecondary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                     TextButton(
-                        onClick = { showForgotPassword = false },
+                        onClick = onRegisterClick,
                         modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                     ) {
                         Text(
-                            "← Return to Sign In",
-                            color = TextSecondary,
-                            fontSize = 14.sp,
-                            fontFamily = InterFamily,
-                            fontWeight = FontWeight.SemiBold
+                            "Create Account",
+                            color = Pop,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Text(
-                    text = "By continuing, you agree to our\nTerms of Service and Privacy Policy",
-                    color = TextSecondary,
-                    fontSize = 11.sp,
-                    fontFamily = SpaceMonoFamily,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 16.sp
-                )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "By continuing, you agree to our\nTerms of Service and Privacy Policy",
+                color = InkSecondary,
+                style = MaterialTheme.typography.bodySmall,
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 16.sp
+            )
         }
     }
 }

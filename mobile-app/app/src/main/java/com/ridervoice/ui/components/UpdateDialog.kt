@@ -40,7 +40,8 @@ fun UpdateDialog(
         is UpdateUiState.Checking -> {
             AlertDialog(
                 onDismissRequest = {},
-                containerColor = DarkSlate,
+                containerColor = PaperRaised,
+                shape = RoundedCornerShape(24.dp),
                 title = {
                     Text(
                         text = "CHECKING FOR UPDATES",
@@ -77,7 +78,8 @@ fun UpdateDialog(
             val cleanCurrent = uiState.currentVersion.removePrefix("v").removePrefix("V")
             AlertDialog(
                 onDismissRequest = onDismiss,
-                containerColor = DarkSlate,
+                containerColor = PaperRaised,
+                shape = RoundedCornerShape(24.dp),
                 icon = {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
@@ -146,14 +148,15 @@ fun UpdateDialog(
         is UpdateUiState.UpdateAvailable -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                containerColor = DarkSlate,
+                containerColor = PaperRaised,
+                shape = RoundedCornerShape(24.dp),
                 title = {
                     Column {
                         Text(
-                            text = "FIRMWARE UPGRADE",
+                            text = "APP UPDATE",
                             style = MaterialTheme.typography.labelSmall,
-                            color = NeonOrange,
-                            letterSpacing = 1.5.sp
+                            color = Pop,
+                            letterSpacing = 1.sp
                         )
                         Text(
                             text = "NEW VERSION AVAILABLE",
@@ -229,9 +232,9 @@ fun UpdateDialog(
                 confirmButton = {
                     Button(
                         onClick = { onConfirmDownload(uiState.releaseInfo) },
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                        colors = ButtonDefaults.buttonColors(containerColor = Pop)
                     ) {
-                        Text("DOWNLOAD NOW", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text("Download Now", color = PaperOnPop, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
@@ -245,7 +248,8 @@ fun UpdateDialog(
         is UpdateUiState.ConfirmDownload -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                containerColor = DarkSlate,
+                containerColor = PaperRaised,
+                shape = RoundedCornerShape(24.dp),
                 title = {
                     Text(
                         text = "CONFIRM DOWNLOAD",
@@ -271,9 +275,9 @@ fun UpdateDialog(
                 confirmButton = {
                     Button(
                         onClick = { onStartDownload(uiState.releaseInfo) },
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                        colors = ButtonDefaults.buttonColors(containerColor = Pop)
                     ) {
-                        Text("DOWNLOAD", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text("Download", color = PaperOnPop, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
@@ -287,7 +291,8 @@ fun UpdateDialog(
         is UpdateUiState.Downloading -> {
             AlertDialog(
                 onDismissRequest = {},
-                containerColor = DarkSlate,
+                containerColor = PaperRaised,
+                shape = RoundedCornerShape(24.dp),
                 title = {
                     Column {
                         Text(
@@ -364,7 +369,8 @@ fun UpdateDialog(
         is UpdateUiState.Verifying -> {
             AlertDialog(
                 onDismissRequest = {},
-                containerColor = DarkSlate,
+                containerColor = PaperRaised,
+                shape = RoundedCornerShape(24.dp),
                 title = {
                     Text(
                         text = "INTEGRITY AUDIT",
@@ -400,7 +406,8 @@ fun UpdateDialog(
         is UpdateUiState.ReadyToInstall -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                containerColor = DarkSlate,
+                containerColor = PaperRaised,
+                shape = RoundedCornerShape(24.dp),
                 icon = {
                     Icon(
                         imageVector = Icons.Default.DownloadDone,
@@ -435,9 +442,9 @@ fun UpdateDialog(
                 confirmButton = {
                     Button(
                         onClick = { onInstallUpdate(uiState.apkFile, uiState.releaseInfo) },
-                        colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
+                        colors = ButtonDefaults.buttonColors(containerColor = Pop)
                     ) {
-                        Text("INSTALL UPDATE", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text("Install Update", color = PaperOnPop, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
@@ -451,7 +458,8 @@ fun UpdateDialog(
         is UpdateUiState.RequestUnknownSourcesPermission -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                containerColor = DarkSlate,
+                containerColor = PaperRaised,
+                shape = RoundedCornerShape(24.dp),
                 icon = {
                     Icon(
                         imageVector = Icons.Default.Security,
@@ -485,9 +493,9 @@ fun UpdateDialog(
                 confirmButton = {
                     Button(
                         onClick = { onOpenSettings() },
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                        colors = ButtonDefaults.buttonColors(containerColor = Pop)
                     ) {
-                        Text("OPEN SETTINGS", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text("Open Settings", color = PaperOnPop, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
@@ -501,7 +509,8 @@ fun UpdateDialog(
         is UpdateUiState.Installing -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                containerColor = DarkSlate,
+                containerColor = PaperRaised,
+                shape = RoundedCornerShape(24.dp),
                 title = {
                     Text(
                         text = "INSTALLER LAUNCHED",
@@ -527,9 +536,9 @@ fun UpdateDialog(
                 confirmButton = {
                     Button(
                         onClick = { onInstallUpdate(uiState.apkFile, uiState.releaseInfo) },
-                        colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
+                        colors = ButtonDefaults.buttonColors(containerColor = Pop)
                     ) {
-                        Text("RETRY INSTALLER", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text("Retry Installer", color = PaperOnPop, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
@@ -543,7 +552,8 @@ fun UpdateDialog(
         is UpdateUiState.Error -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                containerColor = DarkSlate,
+                containerColor = PaperRaised,
+                shape = RoundedCornerShape(24.dp),
                 icon = {
                     Icon(
                         imageVector = Icons.Default.ErrorOutline,
@@ -593,9 +603,9 @@ fun UpdateDialog(
                         if (uiState.canRetry) {
                             Button(
                                 onClick = onRetry,
-                                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                                colors = ButtonDefaults.buttonColors(containerColor = Pop)
                             ) {
-                                Text("RETRY", color = Color.Black, fontWeight = FontWeight.Bold)
+                                Text("Retry", color = PaperOnPop, fontWeight = FontWeight.Bold)
                             }
                         } else {
                             Button(

@@ -20,7 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -84,9 +83,9 @@ fun RideTopBar(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0x33FF3B30))
-                        .border(1.dp, Color(0xFFFF3B30), RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(BrickContainer)
+                        .border(1.dp, Brick, RoundedCornerShape(6.dp))
                         .clickable { onDiagnosticsClick() }
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
@@ -94,12 +93,12 @@ fun RideTopBar(
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFF3B30))
+                            .background(Brick)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = if (diagSampleCount > 0) "DIAG ($diagSampleCount)" else "REC",
-                        color = Color(0xFFFF3B30),
+                        color = Brick,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp,
@@ -120,7 +119,7 @@ fun RideTopBar(
         ) {
             Text(
                 text = rideName,
-                color = NeonOrange,
+                color = Ink,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -143,7 +142,7 @@ fun RideTopBar(
             }
             Text(
                 text = speakerText,
-                color = if (activeSpeaker != null) ElectricCyan else TextSecondary,
+                color = if (activeSpeaker != null) Pop else InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = if (activeSpeaker != null) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1,
@@ -185,15 +184,15 @@ fun RideTopBar(
                 modifier = Modifier
                     .requiredSize(48.dp)
                     .clip(CircleShape)
-                    .background(Gunmetal)
-                    .border(1.5.dp, AlertRed, CircleShape)
+                    .background(BrickContainer)
+                    .border(1.5.dp, Brick, CircleShape)
                     .semantics { contentDescription = "Leave Voice Call" }
                     .testTag("ride_topbar_leave_button")
             ) {
                 Icon(
                     imageVector = Icons.Default.CallEnd,
                     contentDescription = "Leave Ride",
-                    tint = AlertRed,
+                    tint = Brick,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -204,18 +203,18 @@ fun RideTopBar(
 @Composable
 fun ConnectionPill(state: ConnectionState) {
     val (color, label) = when (state) {
-        ConnectionState.CONNECTED    -> TechGreen    to "CONNECTED"
-        ConnectionState.CONNECTING   -> NeonOrange   to "CONNECTING"
-        ConnectionState.RECONNECTING -> NeonOrange   to "RECONNECTING"
-        ConnectionState.FAILED       -> AlertRed     to "NO SIGNAL"
-        ConnectionState.DISCONNECTED -> TextSecondary to "OFFLINE"
+        ConnectionState.CONNECTED    -> Ink          to "CONNECTED"
+        ConnectionState.CONNECTING   -> Pop          to "CONNECTING"
+        ConnectionState.RECONNECTING -> Pop          to "RECONNECTING"
+        ConnectionState.FAILED       -> Brick        to "NO SIGNAL"
+        ConnectionState.DISCONNECTED -> InkSecondary to "OFFLINE"
     }
 
     val pulse = rememberInfiniteTransition(label = "pulse")
     val alpha by pulse.animateFloat(
         initialValue = 1f,
-        targetValue = if (state == ConnectionState.CONNECTED) 0.4f else 1f,
-        animationSpec = infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Reverse),
+        targetValue = if (state == ConnectionState.CONNECTED) 0.45f else 1f,
+        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Reverse),
         label = "dot"
     )
 
@@ -255,9 +254,9 @@ fun AudioDeviceBadge(
 
     Column(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(DarkSlate)
-            .border(1.dp, if (isMismatch) AlertRed else BorderColor, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isMismatch) BrickContainer else PaperRaised)
+            .border(1.dp, if (isMismatch) Brick else InkHairline, RoundedCornerShape(12.dp))
             .padding(horizontal = 6.dp, vertical = 4.dp)
     ) {
         if (isMismatch) {
@@ -267,7 +266,7 @@ fun AudioDeviceBadge(
             ) {
                 Text(
                     text = "Headset inactive",
-                    color = AlertRed,
+                    color = Brick,
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
@@ -278,15 +277,15 @@ fun AudioDeviceBadge(
                     onClick = onRetry,
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 1.dp),
                     modifier = Modifier.height(18.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                    colors = ButtonDefaults.buttonColors(containerColor = Pop)
                 ) {
-                    Text("Retry", fontSize = 8.sp, color = Color.White)
+                    Text("Retry", fontSize = 8.sp, color = PaperOnPop)
                 }
             }
         } else if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f) {
             Text(
                 text = routedOutput.display(),
-                color = TextSecondary,
+                color = InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
                 maxLines = 1,
@@ -295,7 +294,7 @@ fun AudioDeviceBadge(
         } else {
             Text(
                 text = "Mic: ${routedInput.display()}",
-                color = TextSecondary,
+                color = InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
                 maxLines = 1,
@@ -303,7 +302,7 @@ fun AudioDeviceBadge(
             )
             Text(
                 text = "Audio: ${routedOutput.display()}",
-                color = TextSecondary,
+                color = InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
                 maxLines = 1,

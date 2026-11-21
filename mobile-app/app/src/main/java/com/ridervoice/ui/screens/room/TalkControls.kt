@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,9 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -56,7 +55,7 @@ fun TalkControls(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 76.dp),
+            .heightIn(min = RvTouchTarget.ptt),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -74,17 +73,17 @@ fun TalkControls(
                     .testTag("talk_controls_mic")
                     .border(
                         1.5.dp,
-                        if (isMicEnabled) ElectricCyan else BorderColor,
+                        if (isMicEnabled) Pop else InkHairline,
                         CircleShape
                     ),
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = if (isMicEnabled) DarkPalette.SurfaceAlt else Gunmetal
+                    containerColor = if (isMicEnabled) PopContainer else PaperSunken
                 )
             ) {
                 Icon(
                     imageVector = if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
                     contentDescription = if (isMicEnabled) "Microphone is on, tap to mute" else "Microphone muted, tap to turn on",
-                    tint = if (isMicEnabled) ElectricCyan else TextSecondary,
+                    tint = if (isMicEnabled) Pop else InkSecondary,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -92,7 +91,7 @@ fun TalkControls(
             Text(
                 text = if (isMicEnabled) "MIC ON" else "MUTED",
                 modifier = Modifier.testTag("talk_controls_mic_label"),
-                color = if (isMicEnabled) ElectricCyan else TextSecondary,
+                color = if (isMicEnabled) Pop else InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -116,17 +115,17 @@ fun TalkControls(
                     .testTag("talk_controls_deafen")
                     .border(
                         1.5.dp,
-                        if (isDeafened) AlertRed else BorderColor,
+                        if (isDeafened) Brick else InkHairline,
                         CircleShape
                     ),
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = if (isDeafened) DarkPalette.EmergencyContainer else Gunmetal
+                    containerColor = if (isDeafened) BrickContainer else PaperSunken
                 )
             ) {
                 Icon(
                     imageVector = if (isDeafened) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                     contentDescription = if (isDeafened) "Audio deafened, tap to hear" else "Tap to deafen audio",
-                    tint = if (isDeafened) AlertRed else TextSecondary,
+                    tint = if (isDeafened) Brick else InkSecondary,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -134,7 +133,7 @@ fun TalkControls(
             Text(
                 text = if (isDeafened) "DEAFENED" else "HEARING",
                 modifier = Modifier.testTag("talk_controls_deafen_label"),
-                color = if (isDeafened) AlertRed else TextSecondary,
+                color = if (isDeafened) Brick else InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
@@ -144,13 +143,13 @@ fun TalkControls(
             )
         }
 
-        // 3. PTT Capsule Button (72dp height, gloved-hand friendly)
+        // 3. PTT Capsule Button (76dp height, gloved-hand friendly)
         PttPerforatedButton(
             isPressed = isPttPressed,
             isVoxOpen = isVoxOpen,
             modifier = Modifier
                 .weight(1f)
-                .fillMaxHeight()
+                .heightIn(min = RvTouchTarget.ptt)
                 .padding(horizontal = 4.dp),
             onPressStart = onPttPressStart,
             onPressEnd = onPttPressEnd
@@ -167,9 +166,9 @@ fun TalkControls(
                 modifier = Modifier
                     .size(52.dp)
                     .testTag("talk_controls_sos")
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(HazardContainer)
-                    .border(2.dp, AlertRed, RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(BrickContainer)
+                    .border(2.dp, Brick, RoundedCornerShape(14.dp))
                     .clickable { onSosClick() }
                     .semantics { contentDescription = "Emergency SOS button" },
                 contentAlignment = Alignment.Center
@@ -177,7 +176,7 @@ fun TalkControls(
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = "SOS",
-                    tint = AlertRed,
+                    tint = Brick,
                     modifier = Modifier.size(26.dp)
                 )
             }
@@ -185,7 +184,7 @@ fun TalkControls(
             Text(
                 text = "SOS",
                 modifier = Modifier.testTag("talk_controls_sos_label"),
-                color = AlertRed,
+                color = Brick,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Black,
@@ -204,39 +203,39 @@ fun PttPerforatedButton(
     onPressStart: () -> Unit,
     onPressEnd: () -> Unit
 ) {
-    val isDark = ThemeState.isDarkTheme
     val isActive = isPressed || isVoxOpen
 
     val pulseTransition = rememberInfiniteTransition(label = "ptt")
     val pulseAlpha by pulseTransition.animateFloat(
         initialValue = 1f,
         targetValue = if (isActive) 0.55f else 1f,
-        animationSpec = infiniteRepeatable(tween(400, easing = LinearEasing), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween(450, easing = LinearEasing), RepeatMode.Reverse),
         label = "pttPulseAlpha"
     )
 
     val buttonBg = when {
-        isPressed -> if (isDark) AmberContainer else LightPalette.AccentAmber
-        isVoxOpen -> if (isDark) DarkPalette.SurfaceAlt else LightPalette.SurfaceAlt
-        else      -> if (isDark) DarkPalette.SurfaceAlt else LightPalette.Surface
+        isPressed -> Pop
+        isVoxOpen -> PopContainer
+        else      -> PaperSunken
     }
 
     val rimColor = when {
-        isPressed -> NeonOrange.copy(alpha = pulseAlpha)
-        isVoxOpen -> ElectricCyan.copy(alpha = pulseAlpha)
-        else      -> BorderColor
+        isPressed -> Pop.copy(alpha = pulseAlpha)
+        isVoxOpen -> Pop.copy(alpha = pulseAlpha)
+        else      -> InkHairline
     }
 
     val dotColor = when {
-        isPressed -> if (isDark) NeonOrange.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.6f)
-        else      -> if (isDark) Color(0xFF101316) else Color(0xFF5A626E).copy(alpha = 0.25f)
+        isPressed -> PaperOnPop.copy(alpha = 0.25f)
+        isVoxOpen -> Pop.copy(alpha = 0.2f)
+        else      -> InkSecondary.copy(alpha = 0.16f)
     }
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(buttonBg)
-            .border(2.dp, rimColor, RoundedCornerShape(18.dp))
+            .border(2.dp, rimColor, RoundedCornerShape(16.dp))
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
@@ -260,7 +259,7 @@ fun PttPerforatedButton(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val stepX = 14.dp.toPx()
             val stepY = 10.dp.toPx()
-            val dotRadius = 1.5.dp.toPx()
+            val dotRadius = 1.4.dp.toPx()
             val cols = (size.width / stepX).toInt()
             val rows = (size.height / stepY).toInt()
 
@@ -278,9 +277,9 @@ fun PttPerforatedButton(
         }
 
         Surface(
-            color = if (isPressed) NeonOrange else Gunmetal.copy(alpha = 0.9f),
-            shape = RoundedCornerShape(12.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, rimColor),
+            color = if (isPressed) Pop else PaperRaised.copy(alpha = 0.94f),
+            shape = RoundedCornerShape(10.dp),
+            border = BorderStroke(1.dp, rimColor),
             modifier = Modifier.widthIn(min = 64.dp)
         ) {
             Row(
@@ -291,7 +290,7 @@ fun PttPerforatedButton(
                 Icon(
                     imageVector = Icons.Default.Mic,
                     contentDescription = null,
-                    tint = if (isPressed) (if (isDark) Color.Black else Color.White) else (if (isActive) ElectricCyan else TextPrimary),
+                    tint = if (isPressed) PaperOnPop else (if (isVoxOpen) Pop else Ink),
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -301,7 +300,7 @@ fun PttPerforatedButton(
                         isVoxOpen -> "VOX ACTIVE"
                         else      -> "HOLD TO TALK"
                     },
-                    color = if (isPressed) (if (isDark) Color.Black else Color.White) else TextPrimary,
+                    color = if (isPressed) PaperOnPop else (if (isVoxOpen) Pop else Ink),
                     style = MaterialTheme.typography.labelLarge,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,

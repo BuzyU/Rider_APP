@@ -1,6 +1,6 @@
 package com.ridervoice.ui.screens
 
-import android.content.Intent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -15,13 +15,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.models.Friend
-import com.ridervoice.ui.components.TacticalButton
+import com.ridervoice.ui.components.InlineError
+import com.ridervoice.ui.components.PrimaryButton
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.InviteFriendsViewModel
 
@@ -37,31 +39,48 @@ fun InviteFriendsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(GraphiteBase)
+            .background(Paper)
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(PaperRaised)
+                    .border(1.dp, InkHairline, CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Ink,
+                    modifier = Modifier.size(20.dp)
+                )
             }
-            Spacer(modifier = Modifier.width(6.dp))
-            Column {
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "INVITE RIDERS",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NeonOrange,
-                    letterSpacing = 1.5.sp
+                    text = "Invite Riders",
+                    color = Ink,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = convoyName,
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.bodySmall,
+                    color = InkSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -85,8 +104,6 @@ fun InviteFriendsContent(
     onNavigateToSquad: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val isDark = ThemeState.isDarkTheme
-
     val friends by viewModel.friends.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
@@ -108,53 +125,33 @@ fun InviteFriendsContent(
         )
     }
 
-    Column(
-        modifier = modifier.fillMaxWidth()
-    ) {
-
+    Column(modifier = modifier.fillMaxWidth()) {
         error?.let { err ->
-            Surface(
-                color = HazardContainer,
-                shape = RoundedCornerShape(8.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Warning, contentDescription = "Error", tint = AlertRed, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "ERROR: $err",
-                        color = AlertRed,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(onClick = { viewModel.loadFriends() }) {
-                        Text("RETRY", color = NeonOrange, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
+            InlineError(
+                message = err,
+                onRetry = { viewModel.loadFriends() },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
         }
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             OutlinedButton(
                 onClick = { showAddFriendDialog = true },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(8.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                modifier = Modifier
+                    .weight(1f)
+                    .height(46.dp),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, InkHairline),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperRaised)
             ) {
-                Icon(Icons.Default.PersonAdd, contentDescription = "Add Rider", tint = NeonOrange, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.PersonAdd, contentDescription = "Add Rider", tint = Pop, modifier = Modifier.size(17.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("+ CALLSIGN", style = MaterialTheme.typography.labelSmall, color = TextPrimary)
+                Text("Add by handle", style = MaterialTheme.typography.labelMedium, color = Ink, fontWeight = FontWeight.SemiBold)
             }
 
             if (friends.isNotEmpty()) {
@@ -167,13 +164,16 @@ fun InviteFriendsContent(
                             }
                         }
                     },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, InkHairline),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperRaised)
                 ) {
-                    Icon(Icons.Default.GroupAdd, contentDescription = "Invite All", tint = ElectricCyan, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.GroupAdd, contentDescription = "Invite All", tint = Ink, modifier = Modifier.size(17.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("INVITE ALL", style = MaterialTheme.typography.labelSmall, color = TextPrimary)
+                    Text("Invite all", style = MaterialTheme.typography.labelMedium, color = Ink, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -182,18 +182,19 @@ fun InviteFriendsContent(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Filter squad by @handle", color = TextSecondary, style = MaterialTheme.typography.bodyMedium) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = TextSecondary) },
+                placeholder = { Text("Filter squad by @handle", color = InkSecondary, style = MaterialTheme.typography.bodyMedium) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = InkSecondary) },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = NeonOrange,
-                    unfocusedBorderColor = BorderColor,
-                    containerColor = DarkSlate,
-                    textColor = TextPrimary
+                    focusedBorderColor = Pop,
+                    unfocusedBorderColor = InkHairline,
+                    containerColor = PaperRaised,
+                    textColor = Ink,
+                    cursorColor = Pop
                 )
             )
         }
@@ -206,59 +207,69 @@ fun InviteFriendsContent(
         Box(modifier = Modifier.weight(1f)) {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = NeonOrange, strokeWidth = 3.dp)
+                    CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
                 }
             } else if (friends.isEmpty()) {
-
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp),
+                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Surface(
-                        color = DarkSlate,
-                        shape = RoundedCornerShape(14.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                        color = PaperRaised,
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, InkHairline),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.PersonSearch, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(48.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(CircleShape)
+                                    .background(PaperSunken),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.PersonSearch, contentDescription = null, tint = InkSecondary, modifier = Modifier.size(26.dp))
+                            }
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "NO SQUAD MEMBERS FOUND",
+                                text = "No squad members yet",
                                 style = MaterialTheme.typography.titleMedium,
-                                color = TextPrimary
+                                fontWeight = FontWeight.Bold,
+                                color = Ink
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "You haven't added friends to your squad yet. Commission riders by callsign to transmit invites directly.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextSecondary,
-                                modifier = Modifier.padding(horizontal = 8.dp)
+                                text = "Add riders by @handle so you can invite them directly to your convoy.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = InkSecondary,
+                                textAlign = TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
                                 onClick = { showAddFriendDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
-                                shape = RoundedCornerShape(8.dp)
+                                colors = ButtonDefaults.buttonColors(containerColor = Pop),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.height(48.dp)
                             ) {
-                                Icon(Icons.Default.PersonAdd, contentDescription = null, tint = if (isDark) Color.Black else Color.White)
+                                Icon(Icons.Default.PersonAdd, contentDescription = null, tint = PaperOnPop)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "ADD RIDER BY CALLSIGN",
-                                    color = if (isDark) Color.Black else Color.White,
-                                    style = MaterialTheme.typography.labelLarge
+                                    text = "Add rider by handle",
+                                    color = PaperOnPop,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                             if (onNavigateToSquad != null) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 TextButton(onClick = onNavigateToSquad) {
-                                    Text("MANAGE SQUAD ROSTER →", color = ElectricCyan, style = MaterialTheme.typography.labelMedium)
+                                    Text("Manage squad", color = Pop, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -288,20 +299,21 @@ fun InviteFriendsContent(
 
         if (onInvitesSent != null) {
             val buttonLabel = if (invitedIds.isNotEmpty()) {
-                "CONTINUE TO LOBBY (${invitedIds.size} INVITED)"
+                "Continue to lobby (${invitedIds.size} invited)"
             } else {
-                "CONTINUE TO LOBBY (SKIP INVITES)"
+                "Continue to lobby"
             }
 
-            TacticalButton(
-                text = buttonLabel,
-                onClick = onInvitesSent,
-                color = if (invitedIds.isNotEmpty()) TechGreen else NeonOrange,
-                textColor = if (isDark) Color.Black else Color.White,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
-            )
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                PrimaryButton(
+                    text = buttonLabel,
+                    onClick = onInvitesSent
+                )
+            }
         }
     }
 }
@@ -312,31 +324,36 @@ fun FriendInviteCard(
     isInvited: Boolean,
     onInviteClick: () -> Unit
 ) {
-    val isDark = ThemeState.isDarkTheme
+    val cleanHandle = friend.handle.removePrefix("@")
+    val subtitle = buildList {
+        add("@$cleanHandle")
+        friend.bikeModel?.takeIf { it.isNotBlank() }?.let { add(it) }
+    }.joinToString(" · ")
 
     Surface(
-        color = DarkSlate,
-        shape = RoundedCornerShape(10.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+        color = PaperRaised,
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, InkHairline),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
-                    .background(Gunmetal)
-                    .border(1.dp, BorderColor, CircleShape),
+                    .background(PaperSunken)
+                    .border(1.dp, InkHairline, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = friend.handle.take(2).uppercase(),
-                    color = ElectricCyan,
+                    text = cleanHandle.take(2).uppercase(),
+                    color = Ink,
                     style = MaterialTheme.typography.titleMedium,
-                    fontSize = 14.sp
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
@@ -344,46 +361,57 @@ fun FriendInviteCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = friend.displayName ?: "@${friend.handle}",
-                    color = TextPrimary,
+                    text = friend.displayName?.takeIf { it.isNotBlank() } ?: "@$cleanHandle",
+                    color = Ink,
                     style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "@${friend.handle} • ${friend.bikeModel ?: "Motorcycle"}",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontSize = 11.sp
+                    text = subtitle,
+                    color = InkSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
 
             Button(
                 onClick = onInviteClick,
                 enabled = !isInvited,
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(RvRadius.pill),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonOrange,
-                    disabledContainerColor = Gunmetal
+                    containerColor = Pop,
+                    contentColor = PaperOnPop,
+                    disabledContainerColor = MossContainer,
+                    disabledContentColor = Moss
                 ),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                modifier = Modifier.defaultMinSize(minHeight = 40.dp)
             ) {
                 if (isInvited) {
                     Icon(
                         Icons.Default.Check,
                         contentDescription = "Invited",
-                        tint = TechGreen,
-                        modifier = Modifier.size(16.dp)
+                        tint = Moss,
+                        modifier = Modifier.size(15.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "INVITED",
-                        color = TechGreen,
-                        style = MaterialTheme.typography.labelSmall
+                        text = "Invited",
+                        color = Moss,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
                     )
                 } else {
                     Text(
-                        text = "INVITE",
-                        color = if (isDark) Color.Black else Color.White,
+                        text = "Invite",
+                        color = PaperOnPop,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
                     )

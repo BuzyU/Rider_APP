@@ -2,8 +2,8 @@ package com.ridervoice.ui.screens
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
@@ -14,14 +14,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import com.ridervoice.ui.theme.*
 
 @Composable
@@ -35,7 +34,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
     )
 
     val scaleAnim by animateFloatAsState(
-        targetValue = if (startAnimation) 1f else 0.85f,
+        targetValue = if (startAnimation) 1f else 0.92f,
         animationSpec = tween(durationMillis = 800),
         label = "scale"
     )
@@ -48,7 +47,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(GraphiteBase),
+            .background(Paper),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -58,42 +57,37 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 .alpha(alphaAnim)
                 .scale(scaleAnim)
         ) {
-
             Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = Gunmetal,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                modifier = Modifier.padding(bottom = 16.dp)
+                shape = RoundedCornerShape(RvRadius.pill),
+                color = PaperSunken,
+                border = BorderStroke(1.dp, InkHairline),
+                modifier = Modifier.padding(bottom = 14.dp)
             ) {
                 Text(
-                    text = "HANDS-FREE GROUP VOICE FOR MOTORCYCLISTS",
-                    color = ElectricCyan,
-                    fontSize = 11.sp,
-                    fontFamily = SpaceMonoFamily,
+                    text = "GROUP VOICE INTERCOM",
+                    color = InkSecondary,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                    letterSpacing = 1.1.sp,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                 )
             }
 
             Text(
-                text = "RIDERVOICE",
-                color = TextPrimary,
-                fontSize = 44.sp,
-                fontFamily = BarlowCondensedFamily,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 3.sp
+                text = "RiderVoice",
+                color = Ink,
+                style = MaterialTheme.typography.displayLarge,
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "STAY CONNECTED. RIDE UNITED.",
-                color = NeonOrange,
-                fontSize = 13.sp,
-                fontFamily = SpaceMonoFamily,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp
+                text = "Stay connected. Ride united.",
+                color = Pop,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
             )
         }
 
@@ -105,22 +99,21 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 .alpha(alphaAnim)
         ) {
             Text(
-                text = "INITIALIZING RF HARDWARE & SENSORS...",
-                color = TextSecondary,
-                fontSize = 10.sp,
-                fontFamily = SpaceMonoFamily,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.5.sp
+                text = "Starting up...",
+                color = InkSecondary,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             LinearProgressIndicator(
-                color = NeonOrange,
-                trackColor = Gunmetal,
+                color = Pop,
+                trackColor = PaperSunken,
                 modifier = Modifier
-                    .width(220.dp)
+                    .width(200.dp)
                     .height(4.dp)
+                    .clip(RoundedCornerShape(RvRadius.pill))
                     .semantics {
                         contentDescription = "Initializing systems progress"
                     }

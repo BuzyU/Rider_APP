@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -77,13 +79,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
-private val GraphiteBase = MeshColors.LobbyBackground
-private val CardDark = MeshColors.LobbyCard
-private val NeonOrange = MeshColors.NeonOrange
-private val ElectricGreen = MeshColors.ElectricGreen
-private val AlertRed = MeshColors.AlertRed
-private val TextPrimary = MeshColors.TextPrimary
-private val TextSecondary = MeshColors.TextSecondary
+private val GraphiteBase get() = MeshColors.LobbyBackground
+private val CardDark get() = MeshColors.LobbyCard
+private val NeonOrange get() = MeshColors.NeonOrange
+private val ElectricGreen get() = MeshColors.ElectricGreen
+private val AlertRed get() = MeshColors.AlertRed
+private val TextPrimary get() = MeshColors.TextPrimary
+private val TextSecondary get() = MeshColors.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -172,7 +174,14 @@ fun OfflineMeshLobbyScreen(
                     .padding(bottom = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBackClick) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(CardDark)
+                        .border(1.dp, MeshColors.LobbyBorder, CircleShape)
+                ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBackIosNew,
                         contentDescription = stringResource(R.string.mesh_cd_back),
@@ -206,7 +215,7 @@ fun OfflineMeshLobbyScreen(
             if (audioFailure != null) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = AlertRed.copy(alpha = 0.2f)),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
@@ -235,10 +244,10 @@ fun OfflineMeshLobbyScreen(
             if (currentBackup != null) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = CardDark),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(22.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, ElectricGreen.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                        .border(1.dp, ElectricGreen.copy(alpha = 0.6f), RoundedCornerShape(22.dp))
                         .padding(bottom = 16.dp)
                 ) {
                     Row(
@@ -274,10 +283,10 @@ fun OfflineMeshLobbyScreen(
             // Numbered Setup Instructions Card
             Card(
                 colors = CardDefaults.cardColors(containerColor = CardDark),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(22.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(12.dp))
+                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(22.dp))
                     .padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -333,10 +342,10 @@ fun OfflineMeshLobbyScreen(
 
             Card(
                 colors = CardDefaults.cardColors(containerColor = CardDark),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(22.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(12.dp))
+                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(22.dp))
                     .padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -386,8 +395,8 @@ fun OfflineMeshLobbyScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(CardDark, RoundedCornerShape(12.dp))
-                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(12.dp))
+                    .background(CardDark, RoundedCornerShape(22.dp))
+                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(22.dp))
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -410,10 +419,10 @@ fun OfflineMeshLobbyScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Card(
                     colors = CardDefaults.cardColors(containerColor = CardDark),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, NeonOrange.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .border(1.dp, NeonOrange.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
                 ) {
                     Text(
                         text = stringResource(R.string.mesh_backup_setup_instructions),
@@ -429,10 +438,10 @@ fun OfflineMeshLobbyScreen(
             // Section 1: Create Session
             Card(
                 colors = CardDefaults.cardColors(containerColor = CardDark),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(22.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(12.dp))
+                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(22.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -469,17 +478,17 @@ fun OfflineMeshLobbyScreen(
                             },
                             enabled = !isDerivingKey,
                             colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             if (isDerivingKey) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
-                                    color = Color.Black,
+                                    color = MeshColors.TextOnAccent,
                                     strokeWidth = 2.dp
                                 )
                             } else {
-                                Text(stringResource(R.string.mesh_lobby_generate_code), color = Color.Black, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.mesh_lobby_generate_code), color = MeshColors.TextOnAccent, fontWeight = FontWeight.Bold)
                             }
                         }
                     } else {
@@ -488,7 +497,7 @@ fun OfflineMeshLobbyScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(MeshColors.LobbyInput, RoundedCornerShape(8.dp))
+                                .background(MeshColors.LobbyInput, RoundedCornerShape(16.dp))
                                 .padding(12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -529,7 +538,7 @@ fun OfflineMeshLobbyScreen(
                                     cm.setPrimaryClip(clip)
                                     Toast.makeText(context, context.getString(R.string.mesh_lobby_code_copied), Toast.LENGTH_SHORT).show()
                                 },
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.mesh_cd_copy), tint = TextPrimary)
@@ -549,7 +558,7 @@ fun OfflineMeshLobbyScreen(
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = ElectricGreen),
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.weight(1.5f)
                             ) {
                                 val createCtaText = if (useAsBackup) {
@@ -557,7 +566,7 @@ fun OfflineMeshLobbyScreen(
                                 } else {
                                     stringResource(R.string.mesh_lobby_enter_room)
                                 }
-                                Text(createCtaText, color = Color.Black, fontWeight = FontWeight.Bold)
+                                Text(createCtaText, color = MeshColors.TextOnAccent, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -569,10 +578,10 @@ fun OfflineMeshLobbyScreen(
             // Section 2: Join Session
             Card(
                 colors = CardDefaults.cardColors(containerColor = CardDark),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(22.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(12.dp))
+                    .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(22.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -647,13 +656,13 @@ fun OfflineMeshLobbyScreen(
                         onClick = { submitJoinCode() },
                         enabled = !isDerivingKey && joinCodeInput.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(containerColor = NeonOrange),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         if (isDerivingKey) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                color = Color.Black,
+                                color = MeshColors.TextOnAccent,
                                 strokeWidth = 2.dp
                             )
                         } else {
@@ -662,7 +671,7 @@ fun OfflineMeshLobbyScreen(
                             } else {
                                 stringResource(R.string.mesh_lobby_join_button)
                             }
-                            Text(joinCtaText, color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text(joinCtaText, color = MeshColors.TextOnAccent, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

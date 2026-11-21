@@ -235,9 +235,9 @@ class MainActivity : ComponentActivity() {
                         confirmButton = {
                             Button(
                                 onClick = { showUpdateSuccessDialog.value = false },
-                                colors = ButtonDefaults.buttonColors(containerColor = TechGreen)
+                                colors = ButtonDefaults.buttonColors(containerColor = Pop)
                             ) {
-                                Text("CONTINUE", color = Color.Black, fontWeight = FontWeight.Bold)
+                                Text("Continue", color = PaperOnPop, fontWeight = FontWeight.Bold)
                             }
                         }
                     )

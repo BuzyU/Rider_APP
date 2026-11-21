@@ -63,6 +63,7 @@ class RideInviteActivity : ComponentActivity() {
         val inviteId = intent.getStringExtra("inviteId") ?: ""
 
         setContent {
+            RiderVoiceTheme {
             var isJoining by remember { mutableStateOf(false) }
             var isDeclining by remember { mutableStateOf(false) }
             var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -71,9 +72,18 @@ class RideInviteActivity : ComponentActivity() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(GraphiteBase),
+                    .background(Paper)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(20.dp),
                 contentAlignment = Alignment.Center
             ) {
+                Surface(
+                    color = PaperRaised,
+                    shape = RoundedCornerShape(28.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, InkHairline),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -82,63 +92,56 @@ class RideInviteActivity : ComponentActivity() {
                 ) {
 
                     Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = Gunmetal,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        shape = RoundedCornerShape(RvRadius.pill),
+                        color = PopContainer,
+                        modifier = Modifier.padding(bottom = 14.dp)
                     ) {
                         Text(
-                            text = "INCOMING FREQUENCY DISPATCH",
-                            color = NeonOrange,
-                            fontSize = 11.sp,
-                            fontFamily = SpaceMonoFamily,
+                            text = "RIDE INVITATION",
+                            color = Pop,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.5.sp,
+                            letterSpacing = 0.9.sp,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
                     Text(
                         text = inviter,
-                        color = TextPrimary,
-                        fontSize = 36.sp,
-                        fontFamily = BarlowCondensedFamily,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 1.sp
+                        color = Ink,
+                        style = MaterialTheme.typography.displayLarge,
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.Bold
                     )
 
                     Text(
-                        text = "invited you to join a ride",
-                        color = TextSecondary,
-                        fontSize = 15.sp,
-                        fontFamily = InterFamily,
+                        text = "invited you to join a convoy",
+                        color = InkSecondary,
+                        style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
 
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Gunmetal,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                        shape = RoundedCornerShape(16.dp),
+                        color = PaperSunken,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, InkHairline),
                         modifier = Modifier.padding(vertical = 8.dp)
                     ) {
                         Text(
                             text = roomName,
-                            color = ElectricCyan,
-                            fontSize = 22.sp,
-                            fontFamily = SpaceMonoFamily,
+                            color = Ink,
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
                         )
                     }
 
                     errorMessage?.let { error ->
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = AlertRed.copy(alpha = 0.15f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, AlertRed),
+                            shape = RoundedCornerShape(14.dp),
+                            color = BrickContainer,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Brick),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -148,22 +151,21 @@ class RideInviteActivity : ComponentActivity() {
                                 Icon(
                                     imageVector = Icons.Default.Warning,
                                     contentDescription = "Error",
-                                    tint = AlertRed,
+                                    tint = Brick,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
                                     text = error,
-                                    color = AlertRed,
-                                    fontSize = 13.sp,
-                                    fontFamily = InterFamily,
+                                    color = Brick,
+                                    style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.weight(1f)
                                 )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(48.dp))
+                    Spacer(modifier = Modifier.height(28.dp))
 
                     Button(
                         onClick = {
@@ -171,7 +173,6 @@ class RideInviteActivity : ComponentActivity() {
                             errorMessage = null
                             scope.launch {
                                 try {
-
                                     val tokenRes = if (inviteId.isNotBlank()) {
                                         apiService.acceptRideInvite(inviteId)
                                     } else {
@@ -217,34 +218,32 @@ class RideInviteActivity : ComponentActivity() {
                         enabled = !isJoining && !isDeclining,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(72.dp),
+                            .height(58.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = TechGreen,
-                            disabledContainerColor = TechGreen.copy(alpha = 0.5f)
+                            containerColor = Pop,
+                            disabledContainerColor = PaperSunken
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(18.dp)
                     ) {
                         if (isJoining) {
                             CircularProgressIndicator(
-                                color = if (ThemeState.isDarkTheme) GraphiteBase else Color.White,
-                                modifier = Modifier.size(28.dp),
+                                color = PaperOnPop,
+                                modifier = Modifier.size(24.dp),
                                 strokeWidth = 3.dp
                             )
                         } else {
                             Text(
-                                "JOIN RIDE",
-                                color = if (ThemeState.isDarkTheme) GraphiteBase else Color.White,
-                                fontSize = 18.sp,
-                                fontFamily = BarlowCondensedFamily,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 1.sp
+                                "Join Ride",
+                                color = PaperOnPop,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    Button(
+                    OutlinedButton(
                         onClick = {
                             isDeclining = true
                             scope.launch {
@@ -259,32 +258,32 @@ class RideInviteActivity : ComponentActivity() {
                         enabled = !isJoining && !isDeclining,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(64.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Gunmetal,
-                            disabledContainerColor = Gunmetal.copy(alpha = 0.5f)
+                            .height(52.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = PaperRaised,
+                            contentColor = Ink
                         ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                        shape = RoundedCornerShape(12.dp)
+                        border = androidx.compose.foundation.BorderStroke(1.dp, InkHairline),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         if (isDeclining) {
                             CircularProgressIndicator(
-                                color = TextSecondary,
-                                modifier = Modifier.size(24.dp),
+                                color = InkSecondary,
+                                modifier = Modifier.size(22.dp),
                                 strokeWidth = 2.dp
                             )
                         } else {
                             Text(
-                                "DECLINE INVITE",
-                                color = TextSecondary,
-                                fontSize = 16.sp,
-                                fontFamily = BarlowCondensedFamily,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
+                                "Decline",
+                                color = InkSecondary,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
                 }
+                }
+            }
             }
         }
     }

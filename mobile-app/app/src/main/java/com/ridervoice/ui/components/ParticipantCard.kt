@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -24,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,12 +44,11 @@ fun ParticipantCard(
     distanceMeters: Float? = null,
     speedKmh: Float? = null
 ) {
-    val isDark = ThemeState.isDarkTheme
-    val alphaVal = if (isFaded || participant.isGhost) 0.55f else 1.0f
+    val alphaVal = if (isFaded || participant.isGhost) 0.58f else 1.0f
 
     val pulse = rememberInfiniteTransition(label = "speakerPulse")
     val pulseAlpha by pulse.animateFloat(
-        initialValue = 0.4f,
+        initialValue = 0.65f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(500, easing = LinearEasing), RepeatMode.Reverse),
         label = "pulseAlpha"
@@ -57,10 +56,9 @@ fun ParticipantCard(
 
     val cardBorderColor by animateColorAsState(
         targetValue = when {
-            isSpeaking -> ElectricCyan
-            participant.isGhost -> AlertRed.copy(alpha = 0.6f)
-            isCurrentUser -> ElectricCyan.copy(alpha = 0.4f)
-            else -> BorderColor
+            isSpeaking -> Pop
+            participant.isGhost -> Brick.copy(alpha = 0.7f)
+            else -> InkHairline
         },
         label = "borderColor"
     )
@@ -71,14 +69,10 @@ fun ParticipantCard(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .alpha(alphaVal)
-            .border(if (isSpeaking) 1.5.dp else 1.dp, cardBorderColor, RoundedCornerShape(12.dp)),
-        shape = RoundedCornerShape(12.dp),
+            .border(1.5.dp, cardBorderColor, RoundedCornerShape(20.dp)),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSpeaking) {
-                if (isDark) Color(0xFF14222D) else LightPalette.SurfaceAlt
-            } else {
-                DarkSlate
-            }
+            containerColor = if (isSpeaking) PopContainer else PaperRaised
         )
     ) {
         Row(
@@ -98,19 +92,18 @@ fun ParticipantCard(
                         .clip(CircleShape)
                         .background(
                             when {
-                                isSpeaking -> ElectricCyan.copy(alpha = pulseAlpha)
-                                participant.isGhost -> AlertRed.copy(alpha = 0.25f)
-                                isCurrentUser -> TechGreen.copy(alpha = 0.2f)
-                                else -> Gunmetal
+                                isSpeaking -> Pop.copy(alpha = pulseAlpha)
+                                participant.isGhost -> BrickContainer
+                                else -> PaperSunken
                             }
                         )
                         .border(
                             1.dp,
                             when {
-                                isSpeaking -> ElectricCyan
-                                participant.isGhost -> AlertRed
-                                isCurrentUser -> TechGreen
-                                else -> BorderColor
+                                isSpeaking -> Pop
+                                participant.isGhost -> Brick
+                                isCurrentUser -> Ink
+                                else -> InkHairline
                             },
                             CircleShape
                         ),
@@ -120,14 +113,14 @@ fun ParticipantCard(
                         Icon(
                             imageVector = Icons.Default.GraphicEq,
                             contentDescription = "Speaking",
-                            tint = if (isDark) Color.Black else Color.White,
+                            tint = PaperOnPop,
                             modifier = Modifier.size(20.dp)
                         )
                     } else if (participant.isGhost) {
                         Icon(
                             imageVector = Icons.Default.WifiOff,
                             contentDescription = "Ghost",
-                            tint = AlertRed,
+                            tint = Brick,
                             modifier = Modifier.size(18.dp)
                         )
                     } else {
@@ -139,7 +132,7 @@ fun ParticipantCard(
                         val initial = resolvedName.take(1).uppercase()
                         Text(
                             text = initial,
-                            color = if (isCurrentUser) TechGreen else TextPrimary,
+                            color = Ink,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -158,7 +151,7 @@ fun ParticipantCard(
 
                         Text(
                             text = name,
-                            color = TextPrimary,
+                            color = Ink,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             maxLines = 1,
@@ -171,13 +164,13 @@ fun ParticipantCard(
                         if (isCurrentUser) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Surface(
-                                color = TechGreen.copy(alpha = 0.15f),
+                                color = PaperSunken,
                                 shape = RoundedCornerShape(4.dp),
-                                border = androidx.compose.foundation.BorderStroke(0.5.dp, TechGreen)
+                                border = BorderStroke(0.75.dp, InkHairline)
                             ) {
                                 Text(
                                     text = "YOU",
-                                    color = TechGreen,
+                                    color = Ink,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Black,
                                     maxLines = 1,
@@ -189,13 +182,13 @@ fun ParticipantCard(
                         if (isHost) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Surface(
-                                color = NeonOrange.copy(alpha = 0.15f),
+                                color = PopContainer,
                                 shape = RoundedCornerShape(4.dp),
-                                border = androidx.compose.foundation.BorderStroke(0.5.dp, NeonOrange)
+                                border = BorderStroke(0.75.dp, Pop)
                             ) {
                                 Text(
                                     text = "HOST",
-                                    color = NeonOrange,
+                                    color = Pop,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Black,
                                     maxLines = 1,
@@ -213,8 +206,8 @@ fun ParticipantCard(
                     ) {
                         if (isSpeaking) {
                             Text(
-                                text = "TRANSMITTING LIVE",
-                                color = ElectricCyan,
+                                text = "Speaking",
+                                color = Pop,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
@@ -225,8 +218,8 @@ fun ParticipantCard(
                                 ((System.currentTimeMillis() - it) / 1000).coerceAtLeast(0)
                             }
                             Text(
-                                text = if (elapsedSec != null) "RECONNECTING (${elapsedSec}s)" else "RECONNECTING...",
-                                color = NeonOrange,
+                                text = if (elapsedSec != null) "Reconnecting (${elapsedSec}s)" else "Reconnecting...",
+                                color = Brick,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
@@ -234,8 +227,8 @@ fun ParticipantCard(
                             )
                         } else {
                             Text(
-                                text = "CONNECTED ON SQUAD NET",
-                                color = SuccessGreen,
+                                text = "Connected",
+                                color = InkSecondary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
@@ -257,7 +250,7 @@ fun ParticipantCard(
                             Icon(
                                 imageVector = Icons.Default.Navigation,
                                 contentDescription = "Distance",
-                                tint = ElectricCyan,
+                                tint = Ink,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
@@ -269,7 +262,7 @@ fun ParticipantCard(
                             Text(
                                 text = distStr,
                                 modifier = Modifier.testTag("participant_distance_${participant.identity}"),
-                                color = ElectricCyan,
+                                color = Ink,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
@@ -285,14 +278,14 @@ fun ParticipantCard(
                             Icon(
                                 imageVector = Icons.Default.Speed,
                                 contentDescription = "Speed",
-                                tint = TextSecondary,
+                                tint = InkSecondary,
                                 modifier = Modifier.size(11.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "${speedKmh.toInt()} km/h",
                                 modifier = Modifier.testTag("participant_speed_${participant.identity}"),
-                                color = TextSecondary,
+                                color = InkSecondary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,

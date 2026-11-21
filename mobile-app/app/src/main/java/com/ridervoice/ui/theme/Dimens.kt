@@ -13,7 +13,7 @@ object RvSpacing {
 
 object RvRadius {
     val sm = 8.dp
-    val md = 16.dp
+    val md = 12.dp
     val pill = 100.dp
 }
 
@@ -21,5 +21,5 @@ object RvTouchTarget {
     val min = 48.dp
     val primary = 56.dp
     val rideScreen = 56.dp
-    val ptt = 72.dp
+    val ptt = 76.dp
 }

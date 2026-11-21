@@ -1,21 +1,31 @@
 package com.ridervoice.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
+import com.ridervoice.ui.components.RvBottomNavigationBar
 import com.ridervoice.ui.screens.*
+import com.ridervoice.ui.theme.Paper
 import com.ridervoice.utils.OEMBatteryWarning
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavGraph(
     navController: NavHostController = rememberNavController(),
@@ -45,6 +55,57 @@ fun NavGraph(
         }
     }
 
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val showBottomBar = currentRoute in setOf(Routes.HOME, Routes.RIDE_STATS, Routes.SQUAD, Routes.SETTINGS)
+
+    Scaffold(
+        containerColor = Paper,
+        bottomBar = {
+            if (showBottomBar) {
+                RvBottomNavigationBar(
+                    currentRoute = currentRoute,
+                    onHomeClick = {
+                        if (currentRoute != Routes.HOME) {
+                            navController.navigate(Routes.HOME) {
+                                popUpTo(Routes.HOME) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    onHistoryClick = {
+                        if (currentRoute != Routes.RIDE_STATS) {
+                            navController.navigate(Routes.RIDE_STATS) {
+                                popUpTo(Routes.HOME) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    onSquadClick = {
+                        if (currentRoute != Routes.SQUAD) {
+                            navController.navigate(Routes.SQUAD) {
+                                popUpTo(Routes.HOME) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    onSettingsClick = {
+                        if (currentRoute != Routes.SETTINGS) {
+                            navController.navigate(Routes.SETTINGS) {
+                                popUpTo(Routes.HOME) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    ) { shellPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = shellPadding.calculateBottomPadding())
+        ) {
     NavHost(navController = navController, startDestination = Routes.SPLASH) {
 
         composable(Routes.SPLASH) {
@@ -378,6 +439,7 @@ fun NavGraph(
             }
             RideReplayScreen(
                 rideId = replay?.sessionId ?: rideId,
+                session = replay?.session,
                 waypoints = replay?.waypoints ?: emptyList(),
                 events = replay?.events ?: emptyList(),
                 onBack = { navController.popBackStack() }
@@ -463,6 +525,8 @@ fun NavGraph(
                     navController.popBackStack()
                 }
             )
+        }
+    }
         }
     }
 }

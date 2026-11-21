@@ -3,6 +3,7 @@ package com.ridervoice.ui.screens
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,7 +23,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +32,7 @@ import com.mapbox.geojson.Point
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.ridervoice.R
+import com.ridervoice.ui.components.PrimaryButton
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.NearbyRider
 import com.ridervoice.ui.viewmodels.RoutePlannerViewModel
@@ -56,7 +57,6 @@ fun RoutePlannerScreen(
 ) {
     val uiState = viewModel.uiState.collectAsState().value
     val context = LocalContext.current
-    val isDark = ThemeState.isDarkTheme
 
     val sharedPrefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
     var userCustomToken by remember {
@@ -82,62 +82,77 @@ fun RoutePlannerScreen(
     val preferences = listOf("Fastest", "Scenic", "Twisty", "Off-road")
     var showMenuDropdown by remember { mutableStateOf(false) }
 
-    // Update Mapbox options if valid token is available
     LaunchedEffect(effectiveToken, hasValidToken) {
         if (hasValidToken) {
             try {
                 com.mapbox.common.MapboxOptions.accessToken = effectiveToken
-            } catch (_: Throwable) {
-                // If native library throws, retain fallback
-            }
+            } catch (_: Throwable) {}
         }
     }
+
+    val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
+        focusedBorderColor = Pop,
+        unfocusedBorderColor = InkHairline,
+        containerColor = PaperRaised,
+        textColor = Ink,
+        cursorColor = Pop
+    )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(GraphiteBase)
+            .background(Paper)
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
-
-        // Top App Bar
+        // Editorial Top Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = TextPrimary)
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(PaperRaised)
+                    .border(1.dp, InkHairline, CircleShape)
+            ) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Ink, modifier = Modifier.size(20.dp))
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "WAYPOINT PLOTTER",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NeonOrange,
-                    letterSpacing = 1.5.sp
-                )
-                Text(
-                    text = "ROUTE PLANNER",
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleLarge
-                )
-            }
+
+            Text(
+                text = "Route Planner",
+                color = Ink,
+                style = MaterialTheme.typography.titleLarge,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
             Box {
-                IconButton(onClick = { showMenuDropdown = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Route Options", tint = TextPrimary)
+                IconButton(
+                    onClick = { showMenuDropdown = true },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(PaperRaised)
+                        .border(1.dp, InkHairline, CircleShape)
+                ) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Route Options", tint = Ink, modifier = Modifier.size(20.dp))
                 }
                 DropdownMenu(
                     expanded = showMenuDropdown,
                     onDismissRequest = { showMenuDropdown = false },
-                    modifier = Modifier.background(DarkSlate)
+                    modifier = Modifier.background(PaperRaised)
                 ) {
                     DropdownMenuItem(
                         text = {
                             Text(
                                 if (useRadarMode) "Switch to Mapbox View" else "Switch to Radar View",
-                                color = TextPrimary
+                                color = Ink
                             )
                         },
                         onClick = {
@@ -153,156 +168,145 @@ fun RoutePlannerScreen(
                             Icon(
                                 if (useRadarMode) Icons.Default.Map else Icons.Default.Layers,
                                 contentDescription = null,
-                                tint = ElectricCyan
+                                tint = Ink
                             )
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Configure Mapbox Key", color = TextPrimary) },
+                        text = { Text("Configure Mapbox Key", color = Ink) },
                         onClick = {
                             showMenuDropdown = false
                             inputTokenText = userCustomToken
                             showTokenDialog = true
                         },
-                        leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = NeonOrange) }
+                        leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = Pop) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Export GPX Track", color = TextPrimary) },
+                        text = { Text("Export GPX Track", color = Ink) },
                         onClick = {
                             showMenuDropdown = false
                             Toast.makeText(context, "Route exported as GPX to Downloads", Toast.LENGTH_SHORT).show()
                         },
-                        leadingIcon = { Icon(Icons.Default.Download, contentDescription = null, tint = ElectricCyan) }
+                        leadingIcon = { Icon(Icons.Default.Download, contentDescription = null, tint = Ink) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Invert Route (Swap)", color = TextPrimary) },
+                        text = { Text("Invert Route (Swap)", color = Ink) },
                         onClick = {
                             showMenuDropdown = false
                             viewModel.swapOriginAndDestination()
                         },
-                        leadingIcon = { Icon(Icons.Default.SwapVert, contentDescription = null, tint = NeonOrange) }
+                        leadingIcon = { Icon(Icons.Default.SwapVert, contentDescription = null, tint = Pop) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Clear Route", color = AlertRed) },
+                        text = { Text("Clear Route", color = Brick) },
                         onClick = {
                             showMenuDropdown = false
                             viewModel.clearRoute()
                         },
-                        leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null, tint = AlertRed) }
+                        leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null, tint = Brick) }
                     )
                 }
             }
         }
 
-        // Origin and Destination Inputs
-        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+        // Origin & Destination Inputs
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                OutlinedTextField(
+                    value = uiState.origin,
+                    onValueChange = { viewModel.updateOrigin(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Origin / Starting Point", color = InkSecondary) },
+                    leadingIcon = {
+                        IconButton(onClick = { viewModel.useCurrentLocation() }) {
+                            Icon(Icons.Default.MyLocation, contentDescription = "Use My GPS Location", tint = Moss)
+                        }
+                    },
+                    singleLine = true,
+                    colors = fieldColors,
+                    shape = RoundedCornerShape(16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = uiState.destination,
+                    onValueChange = { viewModel.updateDestination(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Destination", color = InkSecondary) },
+                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = "Destination", tint = Pop) },
+                    singleLine = true,
+                    colors = fieldColors,
+                    shape = RoundedCornerShape(16.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            IconButton(
+                onClick = { viewModel.swapOriginAndDestination() },
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(PaperRaised)
+                    .border(1.dp, InkHairline, CircleShape)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    OutlinedTextField(
-                        value = uiState.origin,
-                        onValueChange = { viewModel.updateOrigin(it) },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Origin / Starting Point", color = TextSecondary) },
-                        leadingIcon = {
-                            IconButton(onClick = { viewModel.useCurrentLocation() }) {
-                                Icon(Icons.Default.MyLocation, contentDescription = "Use My GPS Location", tint = ElectricCyan)
-                            }
-                        },
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = NeonOrange,
-                            unfocusedBorderColor = BorderColor,
-                            containerColor = DarkSlate,
-                            textColor = TextPrimary
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = uiState.destination,
-                        onValueChange = { viewModel.updateDestination(it) },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Destination / Mountain Pass", color = TextSecondary) },
-                        leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = "Destination", tint = NeonOrange) },
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = NeonOrange,
-                            unfocusedBorderColor = BorderColor,
-                            containerColor = DarkSlate,
-                            textColor = TextPrimary
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = { viewModel.swapOriginAndDestination() },
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(DarkSlate)
-                        .border(1.dp, BorderColor, CircleShape)
-                ) {
-                    Icon(Icons.Default.SwapVert, contentDescription = "Swap Origin and Destination", tint = NeonOrange)
-                }
+                Icon(Icons.Default.SwapVert, contentDescription = "Swap Origin and Destination", tint = Pop)
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Routing Characteristic Selector
-        Text(
-            text = "ROUTING CHARACTERISTIC",
-            color = TextSecondary,
-            style = MaterialTheme.typography.labelSmall,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(horizontal = 20.dp)
-        )
-        Spacer(modifier = Modifier.height(6.dp))
+        // Routing Preference Pills (matching History filter pills)
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 20.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(preferences) { pref ->
                 val isSelected = pref == selectedPreference
-                Button(
-                    onClick = { selectedPreference = pref },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSelected) NeonOrange else DarkSlate
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                Surface(
+                    color = if (isSelected) PopContainer else PaperSunken,
+                    shape = RoundedCornerShape(RvRadius.pill),
+                    border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.3f) else InkHairline),
+                    modifier = Modifier
+                        .defaultMinSize(minHeight = 38.dp)
+                        .clickable { selectedPreference = pref }
                 ) {
-                    Text(
-                        text = pref.uppercase(),
-                        color = if (isSelected) (if (isDark) Color.Black else Color.White) else TextSecondary,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Box(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = pref,
+                            color = if (isSelected) Pop else InkSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Interactive Map / Tactical Waypoint Radar Box
+        // Interactive Map / Offline Radar Canvas Card
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(horizontal = 20.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(DarkSlate)
-                .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(PaperSunken)
+                .border(1.dp, InkHairline, RoundedCornerShape(24.dp))
         ) {
             if (!useRadarMode && hasValidToken) {
-                // Live Mapbox Map with safe fallback
                 val mapViewportState = rememberMapViewportState {
                     setCameraOptions {
                         center(Point.fromLngLat(73.4069, 18.7481))
@@ -314,7 +318,6 @@ fun RoutePlannerScreen(
                     mapViewportState = mapViewportState
                 )
             } else {
-                // Crash-proof Tactical Radar Waypoint Plotter HUD
                 TacticalRadarCanvas(
                     nearbyRiders = uiState.nearbyRiders,
                     hasDestination = uiState.destination.isNotBlank(),
@@ -322,11 +325,11 @@ fun RoutePlannerScreen(
                 )
             }
 
-            // Top HUD Control Overlay Pill
+            // Mode Toggle Pill
             Surface(
-                color = DarkSlate.copy(alpha = 0.88f),
-                shape = RoundedCornerShape(8.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                color = PaperRaised.copy(alpha = 0.94f),
+                shape = RoundedCornerShape(RvRadius.pill),
+                border = BorderStroke(1.dp, InkHairline),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(10.dp)
@@ -348,69 +351,49 @@ fun RoutePlannerScreen(
                         modifier = Modifier
                             .size(7.dp)
                             .clip(CircleShape)
-                            .background(if (useRadarMode) ElectricCyan else NeonOrange)
+                            .background(if (useRadarMode) Moss else Pop)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (useRadarMode) "RADAR VIEW" else "MAPBOX SAT",
-                        color = TextPrimary,
+                        text = if (useRadarMode) "Offline Radar" else "Mapbox",
+                        color = Ink,
                         style = MaterialTheme.typography.labelSmall,
-                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(5.dp))
                     Icon(
                         Icons.Default.Layers,
                         contentDescription = "Switch Display Mode",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(13.dp)
+                        tint = InkSecondary,
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
-
-            // Bottom-Left Status Pill
-            Surface(
-                color = DarkSlate.copy(alpha = 0.85f),
-                shape = RoundedCornerShape(6.dp),
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, BorderColor),
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(10.dp)
-            ) {
-                Text(
-                    text = if (useRadarMode) "RANGE: 25 KM • OFFLINE SAFE" else "MAPBOX TILES ACTIVE",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 9.sp,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Nearby Active Squad Riders
+        // Nearby Riders (from ViewModel state)
         if (uiState.nearbyRiders.isNotEmpty()) {
             Text(
                 text = androidx.compose.ui.res.stringResource(R.string.route_nearby_riders_simulated).uppercase(),
-                color = TextSecondary,
+                color = InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
-                letterSpacing = 1.sp,
-                modifier = Modifier.padding(horizontal = 20.dp)
+                letterSpacing = 0.8.sp,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
             Spacer(modifier = Modifier.height(6.dp))
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(uiState.nearbyRiders) { rider ->
                     Surface(
-                        color = DarkSlate,
-                        shape = RoundedCornerShape(8.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                        modifier = Modifier
-                            .clickable { viewModel.setDestinationFromRider(rider) }
+                        color = PaperRaised,
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, InkHairline),
+                        modifier = Modifier.clickable { viewModel.setDestinationFromRider(rider) }
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -420,41 +403,41 @@ fun RoutePlannerScreen(
                                 modifier = Modifier
                                     .size(28.dp)
                                     .clip(CircleShape)
-                                    .background(Gunmetal),
+                                    .background(PaperSunken),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = rider.handle.take(1).uppercase(),
-                                    color = ElectricCyan,
-                                    style = MaterialTheme.typography.labelSmall
+                                    color = Ink,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text("@${rider.handle}", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontSize = 13.sp)
-                                Text("${rider.distanceKm} km away", color = NeonOrange, style = MaterialTheme.typography.labelSmall, fontSize = 9.sp)
+                                Text("@${rider.handle}", color = Ink, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                Text("${rider.distanceKm} km", color = Pop, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
                             }
                         }
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Route Statistics & Save Action
+        // Route Summary & Save Bento Card
         Surface(
-            color = DarkSlate,
-            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp)
+            color = PaperRaised,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            border = BorderStroke(1.dp, InkHairline),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.padding(18.dp)) {
                 Text(
                     text = uiState.routeName,
-                    color = NeonOrange,
+                    color = Ink,
                     style = MaterialTheme.typography.titleMedium,
-                    letterSpacing = 1.sp
+                    fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(
@@ -462,56 +445,43 @@ fun RoutePlannerScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text("${uiState.distanceKm} KM", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
-                        Text("DISTANCE", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text("${uiState.distanceKm} km", color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Distance", color = InkSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                     Column {
-                        Text(uiState.duration, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
-                        Text("EST DURATION", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text(uiState.duration, color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Est. duration", color = InkSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                     Column {
-                        Text("${uiState.elevationGain} M", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
-                        Text("ELEVATION GAIN", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text("${uiState.elevationGain} m", color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Elevation", color = InkSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                Button(
+                PrimaryButton(
+                    text = "Save Route",
+                    leadingIcon = Icons.Default.Save,
                     onClick = {
                         viewModel.saveRoute {
                             Toast.makeText(context, "Route '${uiState.routeName}' saved to logbook!", Toast.LENGTH_SHORT).show()
                             onBackClick()
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = null, tint = if (isDark) Color.Black else Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "SAVE ROUTE TO LOGBOOK",
-                        color = if (isDark) Color.Black else Color.White,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                }
+                    }
+                )
             }
         }
     }
 
-    // Mapbox Token Configuration Dialog
     if (showTokenDialog) {
         AlertDialog(
             onDismissRequest = { showTokenDialog = false },
-            containerColor = DarkSlate,
+            shape = RoundedCornerShape(24.dp),
+            containerColor = PaperRaised,
             title = {
                 Text(
-                    text = "MAPBOX ACCESS TOKEN",
-                    color = NeonOrange,
+                    text = "Mapbox Access Token",
+                    color = Ink,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -519,21 +489,18 @@ fun RoutePlannerScreen(
             text = {
                 Column {
                     Text(
-                        text = "To enable satellite and vector terrain tiles, enter your public Mapbox access token (pk.eyJ...). Alternatively, you can use the built-in Radar HUD which runs 100% offline without any API keys.",
-                        color = TextSecondary,
+                        text = "Enter your public Mapbox token (pk.eyJ...) to enable vector terrain tiles, or continue using the offline Radar view.",
+                        color = InkSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = inputTokenText,
                         onValueChange = { inputTokenText = it },
-                        placeholder = { Text("pk.eyJ...", color = TextSecondary) },
+                        placeholder = { Text("pk.eyJ...", color = InkSecondary) },
                         singleLine = true,
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = NeonOrange,
-                            unfocusedBorderColor = BorderColor,
-                            textColor = TextPrimary
-                        ),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = fieldColors,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -555,9 +522,10 @@ fun RoutePlannerScreen(
                             Toast.makeText(context, "Please enter a valid Mapbox public token starting with 'pk.'", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonOrange)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Pop)
                 ) {
-                    Text("ACTIVATE MAPBOX", color = if (isDark) Color.Black else Color.White, fontWeight = FontWeight.Bold)
+                    Text("Activate", color = PaperOnPop, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -567,18 +535,13 @@ fun RoutePlannerScreen(
                         useRadarMode = true
                     }
                 ) {
-                    Text("USE OFFLINE RADAR", color = ElectricCyan)
+                    Text("Use Offline Radar", color = Ink)
                 }
             }
         )
     }
 }
 
-/**
- * Crash-proof Tactical Radar Canvas rendering motorcycle navigation HUD,
- * concentric range rings, cardinal axes, radar sweep, current rider position,
- * nearby squad blips, and destination waypoint trajectory.
- */
 @Composable
 private fun TacticalRadarCanvas(
     nearbyRiders: List<NearbyRider>,
@@ -597,8 +560,8 @@ private fun TacticalRadarCanvas(
     )
 
     val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.3f,
+        initialValue = 0.85f,
+        targetValue = 1.25f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -606,42 +569,35 @@ private fun TacticalRadarCanvas(
         label = "PulseScale"
     )
 
+    val ringColor = InkHairline
+    val axisColor = InkSecondary.copy(alpha = 0.28f)
+    val popColor = Pop
+    val mossColor = Moss
+    val dotHalo = PaperRaised
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(GraphiteBase)
+            .background(PaperSunken)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
-            val maxRadius = (minOf(size.width, size.height) / 2f) * 0.90f
+            val maxRadius = (minOf(size.width, size.height) / 2f) * 0.88f
 
-            // Concentric Range Rings (5km, 10km, 15km, 25km)
-            val ringFractions = listOf(0.20f, 0.40f, 0.65f, 1.0f)
+            val ringFractions = listOf(0.25f, 0.50f, 0.75f, 1.0f)
             ringFractions.forEach { fraction ->
                 val ringRadius = maxRadius * fraction
                 drawCircle(
-                    color = BorderColor.copy(alpha = 0.45f),
+                    color = ringColor,
                     radius = ringRadius,
                     center = center,
-                    style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
+                    style = Stroke(width = 1.2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
                 )
             }
 
-            // Cardinal Axes (N-S and E-W crosshairs)
-            drawLine(
-                color = BorderColor.copy(alpha = 0.5f),
-                start = Offset(center.x, center.y - maxRadius),
-                end = Offset(center.x, center.y + maxRadius),
-                strokeWidth = 1.dp.toPx()
-            )
-            drawLine(
-                color = BorderColor.copy(alpha = 0.5f),
-                start = Offset(center.x - maxRadius, center.y),
-                end = Offset(center.x + maxRadius, center.y),
-                strokeWidth = 1.dp.toPx()
-            )
+            drawLine(axisColor, Offset(center.x, center.y - maxRadius), Offset(center.x, center.y + maxRadius), strokeWidth = 1.dp.toPx())
+            drawLine(axisColor, Offset(center.x - maxRadius, center.y), Offset(center.x + maxRadius, center.y), strokeWidth = 1.dp.toPx())
 
-            // Radar Sweep Beam
             val sweepRad = Math.toRadians(sweepAngle.toDouble())
             val sweepEnd = Offset(
                 x = center.x + (maxRadius * cos(sweepRad)).toFloat(),
@@ -649,7 +605,7 @@ private fun TacticalRadarCanvas(
             )
             drawLine(
                 brush = Brush.linearGradient(
-                    colors = listOf(ElectricCyan.copy(alpha = 0.8f), ElectricCyan.copy(alpha = 0.0f)),
+                    colors = listOf(mossColor.copy(alpha = 0.65f), mossColor.copy(alpha = 0.0f)),
                     start = center,
                     end = sweepEnd
                 ),
@@ -658,108 +614,59 @@ private fun TacticalRadarCanvas(
                 strokeWidth = 2.dp.toPx()
             )
 
-            // Destination Waypoint Trajectory (if set)
             if (hasDestination) {
                 val destAngleRad = Math.toRadians(40.0)
-                val destRadius = maxRadius * 0.82f
+                val destRadius = maxRadius * 0.80f
                 val destOffset = Offset(
                     x = center.x + (destRadius * cos(destAngleRad)).toFloat(),
                     y = center.y - (destRadius * sin(destAngleRad)).toFloat()
                 )
-
-                // Trajectory vector line
                 drawLine(
-                    color = NeonOrange.copy(alpha = 0.75f),
+                    color = popColor.copy(alpha = 0.75f),
                     start = center,
                     end = destOffset,
                     strokeWidth = 2.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f), 0f)
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f), 0f)
                 )
-
-                // Waypoint flag blip
-                drawCircle(
-                    color = NeonOrange,
-                    radius = 8.dp.toPx(),
-                    center = destOffset
-                )
-                drawCircle(
-                    color = Color.White,
-                    radius = 3.dp.toPx(),
-                    center = destOffset
-                )
+                drawCircle(color = dotHalo, radius = 8.dp.toPx(), center = destOffset)
+                drawCircle(color = popColor, radius = 5.5.dp.toPx(), center = destOffset)
             }
 
-            // Live Squad Riders Plotted Relative to Center
             val riderAngles = listOf(220.0, 310.0, 75.0, 140.0)
             nearbyRiders.forEachIndexed { index, rider ->
                 val distKm = rider.distanceKm.toDoubleOrNull() ?: (index * 3.0 + 2.0)
-                val distFraction = (distKm / 25.0).coerceIn(0.15, 0.95).toFloat()
+                val distFraction = (distKm / 25.0).coerceIn(0.15, 0.92).toFloat()
                 val angleDeg = riderAngles.getOrElse(index) { (index * 85.0) % 360.0 }
                 val angleRad = Math.toRadians(angleDeg)
-
                 val riderOffset = Offset(
                     x = center.x + (maxRadius * distFraction * cos(angleRad)).toFloat(),
                     y = center.y + (maxRadius * distFraction * sin(angleRad)).toFloat()
                 )
-
-                // Blip Outer Glow
-                drawCircle(
-                    color = ElectricCyan.copy(alpha = 0.35f),
-                    radius = 9.dp.toPx(),
-                    center = riderOffset
-                )
-                // Blip Core
-                drawCircle(
-                    color = ElectricCyan,
-                    radius = 4.5.dp.toPx(),
-                    center = riderOffset
-                )
+                drawCircle(color = mossColor.copy(alpha = 0.25f), radius = 9.dp.toPx(), center = riderOffset)
+                drawCircle(color = mossColor, radius = 4.5.dp.toPx(), center = riderOffset)
             }
 
-            // Rider Self Position (Center Pulse & Motorcycle Pointer)
-            drawCircle(
-                color = ElectricCyan.copy(alpha = 0.25f),
-                radius = 18.dp.toPx() * pulseScale,
-                center = center
-            )
-            drawCircle(
-                color = ElectricCyan,
-                radius = 6.dp.toPx(),
-                center = center
-            )
-            drawCircle(
-                color = Color.White,
-                radius = 2.5.dp.toPx(),
-                center = center
-            )
+            drawCircle(color = mossColor.copy(alpha = 0.2f), radius = 16.dp.toPx() * pulseScale, center = center)
+            drawCircle(color = dotHalo, radius = 7.dp.toPx(), center = center)
+            drawCircle(color = mossColor, radius = 5.dp.toPx(), center = center)
         }
 
-        // Radar Corner Legend
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(12.dp)
-        ) {
-            Text(
-                text = "GPS: 18.748° N, 73.407° E",
-                color = ElectricCyan,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "BEARING: 034° NE",
-                color = TextSecondary,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 8.sp
-            )
-            if (hasDestination && destinationLabel.isNotBlank()) {
+        // Only display real user-entered target destination (zero hardcoded fake GPS/bearing!)
+        if (hasDestination && destinationLabel.isNotBlank()) {
+            Surface(
+                color = PaperRaised.copy(alpha = 0.94f),
+                shape = RoundedCornerShape(RvRadius.pill),
+                border = BorderStroke(1.dp, InkHairline),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(10.dp)
+            ) {
                 Text(
-                    text = "TARGET: ${destinationLabel.take(20).uppercase()}",
-                    color = NeonOrange,
+                    text = destinationLabel.take(24),
+                    color = Pop,
                     style = MaterialTheme.typography.labelSmall,
-                    fontSize = 8.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                 )
             }
         }

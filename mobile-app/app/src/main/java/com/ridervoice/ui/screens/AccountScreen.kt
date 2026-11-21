@@ -61,36 +61,18 @@ fun AccountScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
-            // Editorial Top Bar (Circular Back + Title + Circular Edit & Settings)
+            // Editorial Top Bar (Title + Circular Edit & Settings)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = onBackClick,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(PaperRaised)
-                        .border(1.dp, InkHairline, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = stringResource(R.string.cd_back),
-                        tint = Ink,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
                 Text(
                     text = stringResource(R.string.nav_account),
                     color = Ink,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontSize = 20.sp,
+                    style = MaterialTheme.typography.displayLarge,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
@@ -371,14 +353,6 @@ fun AccountScreen(
                             text = stringResource(R.string.account_edit_profile),
                             onClick = { showEditDialog = true },
                             leadingIcon = Icons.Default.Edit
-                        )
-                    }
-
-                    item {
-                        SecondaryButton(
-                            text = stringResource(R.string.account_check_updates),
-                            onClick = onCheckForUpdates,
-                            leadingIcon = Icons.Default.SystemUpdate
                         )
                     }
 

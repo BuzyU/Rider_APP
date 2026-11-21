@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.ui.theme.*
 
 @Composable
@@ -82,14 +84,14 @@ fun TalkControls(
             ) {
                 Icon(
                     imageVector = if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
-                    contentDescription = if (isMicEnabled) "Microphone is on, tap to mute" else "Microphone muted, tap to turn on",
+                    contentDescription = if (isMicEnabled) stringResource(R.string.cd_mic_on_tap_mute) else stringResource(R.string.cd_mic_muted_tap_on),
                     tint = if (isMicEnabled) Pop else InkSecondary,
                     modifier = Modifier.size(24.dp)
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = if (isMicEnabled) "MIC ON" else "MUTED",
+                text = if (isMicEnabled) stringResource(R.string.talk_mic_on) else stringResource(R.string.talk_mic_muted),
                 modifier = Modifier.testTag("talk_controls_mic_label"),
                 color = if (isMicEnabled) Pop else InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
@@ -124,14 +126,14 @@ fun TalkControls(
             ) {
                 Icon(
                     imageVector = if (isDeafened) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                    contentDescription = if (isDeafened) "Audio deafened, tap to hear" else "Tap to deafen audio",
+                    contentDescription = if (isDeafened) stringResource(R.string.cd_deafened_tap_hear) else stringResource(R.string.cd_tap_to_deafen),
                     tint = if (isDeafened) Brick else InkSecondary,
                     modifier = Modifier.size(24.dp)
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = if (isDeafened) "DEAFENED" else "HEARING",
+                text = if (isDeafened) stringResource(R.string.talk_deafened) else stringResource(R.string.talk_hearing),
                 modifier = Modifier.testTag("talk_controls_deafen_label"),
                 color = if (isDeafened) Brick else InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
@@ -156,6 +158,7 @@ fun TalkControls(
         )
 
         // 4. Emergency SOS Button
+        val sosBtnCd = stringResource(R.string.cd_emergency_sos_button)
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
@@ -170,19 +173,19 @@ fun TalkControls(
                     .background(BrickContainer)
                     .border(2.dp, Brick, RoundedCornerShape(14.dp))
                     .clickable { onSosClick() }
-                    .semantics { contentDescription = "Emergency SOS button" },
+                    .semantics { contentDescription = sosBtnCd },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Warning,
-                    contentDescription = "SOS",
+                    contentDescription = stringResource(R.string.mesh_sos),
                     tint = Brick,
                     modifier = Modifier.size(26.dp)
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "SOS",
+                text = stringResource(R.string.mesh_sos),
                 modifier = Modifier.testTag("talk_controls_sos_label"),
                 color = Brick,
                 style = MaterialTheme.typography.labelSmall,
@@ -231,6 +234,8 @@ fun PttPerforatedButton(
         else      -> InkSecondary.copy(alpha = 0.16f)
     }
 
+    val pttBtnCd = stringResource(R.string.cd_ptt_button)
+    val pttActionLabel = stringResource(R.string.cd_ptt_action_label)
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
@@ -246,8 +251,8 @@ fun PttPerforatedButton(
                 )
             }
             .semantics {
-                contentDescription = "Push To Talk button"
-                onClick(label = "Push To Talk") {
+                contentDescription = pttBtnCd
+                onClick(label = pttActionLabel) {
                     onPressStart()
                     onPressEnd()
                     true
@@ -296,9 +301,9 @@ fun PttPerforatedButton(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = when {
-                        isPressed -> "TALKING"
-                        isVoxOpen -> "VOX ACTIVE"
-                        else      -> "HOLD TO TALK"
+                        isPressed -> stringResource(R.string.talk_ptt_talking)
+                        isVoxOpen -> stringResource(R.string.talk_ptt_vox_active)
+                        else      -> stringResource(R.string.talk_ptt_hold)
                     },
                     color = if (isPressed) PaperOnPop else (if (isVoxOpen) Pop else Ink),
                     style = MaterialTheme.typography.labelLarge,

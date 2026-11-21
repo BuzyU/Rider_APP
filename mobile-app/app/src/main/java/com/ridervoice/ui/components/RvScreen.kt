@@ -12,9 +12,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,7 +57,7 @@ fun RvScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.cd_back),
                                 tint = Ink,
                                 modifier = Modifier.size(20.dp)
                             )

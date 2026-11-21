@@ -14,6 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -21,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.ridervoice.R
 import com.ridervoice.models.Friend
 import com.ridervoice.ui.components.ConfirmDialog
 import com.ridervoice.ui.components.InlineError
@@ -51,10 +54,10 @@ fun SquadScreen(
 
     friendToRemove?.let { friend ->
         ConfirmDialog(
-            title = "Remove from squad?",
-            body = "Remove @${friend.handle} from your squad directory?",
-            confirmLabel = "Remove",
-            dismissLabel = "Cancel",
+            title = stringResource(R.string.squad_remove_title),
+            body = stringResource(R.string.squad_remove_body, friend.handle),
+            confirmLabel = stringResource(R.string.action_remove),
+            dismissLabel = stringResource(R.string.action_cancel),
             destructive = true,
             onConfirm = {
                 viewModel.removeFriend(friend.id)
@@ -80,7 +83,7 @@ fun SquadScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "My Squad",
+                text = stringResource(R.string.tab_my_squad),
                 color = Ink,
                 style = MaterialTheme.typography.displayLarge,
                 fontSize = 28.sp,
@@ -101,7 +104,7 @@ fun SquadScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh Squad",
+                        contentDescription = stringResource(R.string.cd_refresh_squad),
                         tint = Ink,
                         modifier = Modifier.size(20.dp)
                     )
@@ -117,7 +120,7 @@ fun SquadScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Add Rider",
+                        contentDescription = stringResource(R.string.cd_add_rider),
                         tint = Pop,
                         modifier = Modifier.size(22.dp)
                     )
@@ -132,18 +135,18 @@ fun SquadScreen(
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
                 Text(
-                    "Filter squad by @handle",
+                    stringResource(R.string.squad_filter_placeholder),
                     color = InkSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
             leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = "Search", tint = InkSecondary)
+                Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search), tint = InkSecondary)
             },
             trailingIcon = {
                 if (searchQuery.isNotBlank()) {
                     IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = InkSecondary)
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_clear), tint = InkSecondary)
                     }
                 }
             },
@@ -191,7 +194,7 @@ fun SquadScreen(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "Sign in to see your squad",
+                            text = stringResource(R.string.squad_sign_in_prompt),
                             color = Ink,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
@@ -229,7 +232,7 @@ fun SquadScreen(
             if (uiState.invites.isNotEmpty()) {
                 item {
                     Text(
-                        text = "INCOMING RIDE INVITES (${uiState.invites.size})",
+                        text = stringResource(R.string.squad_incoming_invites_header, uiState.invites.size),
                         color = Pop,
                         style = MaterialTheme.typography.labelSmall,
                         letterSpacing = 0.9.sp,
@@ -260,7 +263,7 @@ fun SquadScreen(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Invited by @${invite.inviter.handle}",
+                                    text = stringResource(R.string.invited_by_handle, invite.inviter.handle),
                                     color = InkSecondary,
                                     style = MaterialTheme.typography.bodySmall
                                 )
@@ -283,7 +286,7 @@ fun SquadScreen(
                                 modifier = Modifier.defaultMinSize(minHeight = 44.dp)
                             ) {
                                 Text(
-                                    text = "Join",
+                                    text = stringResource(R.string.action_join),
                                     style = MaterialTheme.typography.labelLarge,
                                     color = PaperOnPop,
                                     fontWeight = FontWeight.Bold
@@ -307,13 +310,13 @@ fun SquadScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "SQUAD MEMBERS",
+                        text = stringResource(R.string.squad_members_header),
                         color = InkSecondary,
                         style = MaterialTheme.typography.labelSmall,
                         letterSpacing = 0.9.sp
                     )
                     Text(
-                        text = if (filteredFriends.size == 1) "1 rider" else "${filteredFriends.size} riders",
+                        text = pluralStringResource(R.plurals.riders_count, filteredFriends.size, filteredFriends.size),
                         color = InkSecondary,
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium
@@ -363,7 +366,7 @@ fun SquadScreen(
                             if (searchQuery.isNotBlank()) {
                                 val cleanHandle = searchQuery.removePrefix("@").trim()
                                 Text(
-                                    text = "No rider matching \"$cleanHandle\"",
+                                    text = stringResource(R.string.squad_no_match_title, cleanHandle),
                                     color = Ink,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
@@ -371,7 +374,7 @@ fun SquadScreen(
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "Add @$cleanHandle directly to your squad by their handle.",
+                                    text = stringResource(R.string.squad_no_match_desc, cleanHandle),
                                     color = InkSecondary,
                                     style = MaterialTheme.typography.bodySmall,
                                     textAlign = TextAlign.Center
@@ -390,7 +393,7 @@ fun SquadScreen(
                                     modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                                 ) {
                                     Text(
-                                        text = "Add @$cleanHandle to Squad",
+                                        text = stringResource(R.string.squad_add_handle_btn, cleanHandle),
                                         color = PaperOnPop,
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.Bold
@@ -398,14 +401,14 @@ fun SquadScreen(
                                 }
                             } else {
                                 Text(
-                                    text = "No squad members yet",
+                                    text = stringResource(R.string.squad_empty_title),
                                     color = Ink,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "Tap the + button above to add riders by @handle and invite them to convoys.",
+                                    text = stringResource(R.string.squad_empty_desc),
                                     color = InkSecondary,
                                     style = MaterialTheme.typography.bodySmall,
                                     textAlign = TextAlign.Center
@@ -428,7 +431,7 @@ fun SquadScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Add Rider",
+                                        text = stringResource(R.string.cd_add_rider),
                                         color = PaperOnPop,
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.Bold
@@ -537,7 +540,7 @@ fun SquadMemberCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.PersonRemove,
-                    contentDescription = "Remove @$cleanHandle from squad",
+                    contentDescription = stringResource(R.string.cd_remove_from_squad, cleanHandle),
                     tint = InkSecondary,
                     modifier = Modifier.size(19.dp)
                 )

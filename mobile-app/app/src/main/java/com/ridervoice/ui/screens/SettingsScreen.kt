@@ -68,7 +68,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Settings",
+                    text = stringResource(R.string.nav_settings),
                     color = Ink,
                     style = MaterialTheme.typography.displayLarge,
                     fontSize = 28.sp,
@@ -85,7 +85,7 @@ fun SettingsScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Person,
-                        contentDescription = "Account",
+                        contentDescription = stringResource(R.string.nav_account),
                         tint = Ink,
                         modifier = Modifier.size(20.dp)
                     )
@@ -98,10 +98,10 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 item {
-                    SettingsGroupCard(title = "PROFILE") {
+                    SettingsGroupCard(title = stringResource(R.string.settings_section_profile)) {
                         SettingsRowValue(
-                            label = "My Profile",
-                            value = "View account",
+                            label = stringResource(R.string.profile_title),
+                            value = stringResource(R.string.settings_view_account),
                             icon = Icons.Default.AccountCircle,
                             onClick = onNavigateToAccount
                         )
@@ -109,32 +109,32 @@ fun SettingsScreen(
                 }
 
                 item {
-                    SettingsGroupCard(title = "DISPLAY & LANGUAGE") {
+                    SettingsGroupCard(title = stringResource(R.string.settings_section_display)) {
                         SettingsRowToggle(
-                            label = "Dark Mode",
+                            label = stringResource(R.string.settings_dark_mode),
                             icon = Icons.Default.DarkMode,
                             checked = settingsState.darkTheme,
                             onCheckedChange = { settingsViewModel.toggleDarkTheme() }
                         )
                         SettingsRowDivider()
                         SettingsRowValue(
-                            label = "Language",
+                            label = stringResource(R.string.settings_language),
                             value = when (settingsState.appLanguage) {
-                                "hi" -> "हिन्दी"
-                                "mr" -> "मराठी"
-                                "en" -> "English"
-                                else -> "System default"
+                                "hi" -> stringResource(R.string.language_hi)
+                                "mr" -> stringResource(R.string.language_mr)
+                                "en" -> stringResource(R.string.language_en)
+                                else -> stringResource(R.string.language_system)
                             },
                             icon = Icons.Default.Language,
                             onClick = {
-                                showOptionsDialog = "appLanguage" to listOf("System default", "English", "हिन्दी", "मराठी")
+                                showOptionsDialog = "appLanguage" to listOf("system", "en", "hi", "mr")
                             }
                         )
                     }
                 }
 
                 item {
-                    SettingsGroupCard(title = "AUDIO & VOICE") {
+                    SettingsGroupCard(title = stringResource(R.string.settings_section_audio_voice)) {
                         SettingsRowAction(
                             label = stringResource(R.string.settings_headset_setup_title),
                             subtitle = stringResource(R.string.settings_headset_setup_subtitle),
@@ -142,37 +142,42 @@ fun SettingsScreen(
                             onClick = onDeviceSetupClick
                         )
                         SettingsRowDivider()
+                        val voxDisplay = when (settingsState.voxSensitivity) {
+                            "Low" -> stringResource(R.string.settings_vox_low)
+                            "High" -> stringResource(R.string.settings_vox_high)
+                            else -> stringResource(R.string.settings_vox_medium)
+                        }
                         SettingsRowValue(
-                            label = "VOX Sensitivity",
-                            value = settingsState.voxSensitivity,
+                            label = stringResource(R.string.settings_vox_title),
+                            value = voxDisplay,
                             icon = Icons.Default.RecordVoiceOver,
                             onClick = { showOptionsDialog = "voxSensitivity" to listOf("Low", "Medium", "High") }
                         )
                         SettingsRowDivider()
                         SettingsRowToggle(
-                            label = "Noise Cancellation",
+                            label = stringResource(R.string.settings_noise_cancellation),
                             icon = Icons.Default.Hearing,
                             checked = settingsState.noiseCancellation,
                             onCheckedChange = { settingsViewModel.toggleNoiseCancellation() }
                         )
                         SettingsRowDivider()
                         SettingsRowToggle(
-                            label = "Hardware PTT (Helmet Button)",
+                            label = stringResource(R.string.settings_hardware_ptt),
                             icon = Icons.Default.Headset,
                             checked = settingsState.hardwarePtt,
                             onCheckedChange = { settingsViewModel.toggleHardwarePtt() }
                         )
                         SettingsRowDivider()
                         SettingsRowToggle(
-                            label = "Hybrid VOX + PTT Mode",
+                            label = stringResource(R.string.settings_hybrid_vox),
                             icon = Icons.Default.HeadsetMic,
                             checked = settingsState.hybridVox,
                             onCheckedChange = { settingsViewModel.toggleHybridVox() }
                         )
                         SettingsRowDivider()
                         SettingsRowToggle(
-                            label = "Voice activation (VOX)",
-                            subtitle = if (settingsState.openMic) "Voice gate active (hands-free)" else "Push-to-Talk only",
+                            label = stringResource(R.string.settings_voice_activation),
+                            subtitle = if (settingsState.openMic) stringResource(R.string.settings_open_mic_on) else stringResource(R.string.settings_open_mic_off),
                             icon = Icons.Default.Podcasts,
                             checked = settingsState.openMic,
                             onCheckedChange = { settingsViewModel.toggleOpenMic() }
@@ -184,22 +189,22 @@ fun SettingsScreen(
                     SettingsGroupCard(title = stringResource(R.string.mesh_settings_section_header).uppercase()) {
                         SettingsRowInfo(
                             label = stringResource(R.string.mesh_settings_title),
-                            subtitle = "Configured per ride in the waiting room",
+                            subtitle = stringResource(R.string.settings_mesh_lobby_note),
                             icon = Icons.Default.WifiTethering
                         )
                     }
                 }
 
                 item {
-                    SettingsGroupCard(title = "DIAGNOSTICS") {
+                    SettingsGroupCard(title = stringResource(R.string.settings_section_diagnostics)) {
                         SettingsRowToggle(
-                            label = "Share diagnostics when host enables it",
+                            label = stringResource(R.string.settings_share_diag_label),
                             icon = Icons.Default.NetworkCheck,
                             checked = settingsState.shareDiagnosticsWhenHostEnabled,
                             subtitle = if (settingsState.shareDiagnosticsWhenHostEnabled) {
-                                "Diagnostics shared only during diagnostics-enabled rides"
+                                stringResource(R.string.settings_share_diag_on)
                             } else {
-                                "Opted out: no diagnostics will be collected or shared"
+                                stringResource(R.string.settings_share_diag_off)
                             },
                             onCheckedChange = { settingsViewModel.toggleShareDiagnosticsWhenHostEnabled() }
                         )
@@ -212,19 +217,19 @@ fun SettingsScreen(
                         com.ridervoice.utils.EmergencyNumbers.resolve(ctx, settingsState.emergencyCountry)
                     }
                     val currentDisplay = when (settingsState.emergencyCountry) {
-                        "IN" -> "India (112)"
-                        "US" -> "United States (911)"
-                        "GB" -> "United Kingdom (999)"
-                        "AU" -> "Australia (000)"
-                        "JP" -> "Japan (119)"
-                        "CA" -> "Canada (911)"
-                        "OTHER" -> "Other / Global (112)"
-                        null, "" -> "Auto (${emergencyInfo.countryIso ?: "112"})"
+                        "IN" -> stringResource(R.string.settings_country_in)
+                        "US" -> stringResource(R.string.settings_country_us)
+                        "GB" -> stringResource(R.string.settings_country_gb)
+                        "AU" -> stringResource(R.string.settings_country_au)
+                        "JP" -> stringResource(R.string.settings_country_jp)
+                        "CA" -> stringResource(R.string.settings_country_ca)
+                        "OTHER" -> stringResource(R.string.settings_country_other)
+                        null, "" -> stringResource(R.string.settings_country_auto_fmt, emergencyInfo.countryIso ?: "112")
                         else -> "${settingsState.emergencyCountry} (${emergencyInfo.number})"
                     }
-                    SettingsGroupCard(title = "SAFETY & UPDATES") {
+                    SettingsGroupCard(title = stringResource(R.string.settings_section_safety_updates)) {
                         SettingsRowValue(
-                            label = "Emergency Country",
+                            label = stringResource(R.string.settings_emergency_country),
                             value = currentDisplay,
                             icon = Icons.Default.LocalHospital,
                             onClick = {
@@ -242,7 +247,7 @@ fun SettingsScreen(
                         )
                         SettingsRowDivider()
                         SettingsRowValue(
-                            label = "App Version",
+                            label = stringResource(R.string.settings_app_version),
                             value = "v${updateViewModel.currentVersionName.removePrefix("v").removePrefix("V")}",
                             icon = Icons.Default.SystemUpdate,
                             onClick = { updateViewModel.checkForUpdates() }
@@ -271,7 +276,7 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Sign Out", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(stringResource(R.string.action_sign_out), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
                 }
             }
@@ -298,10 +303,10 @@ fun SettingsScreen(
 
         if (showSignOutConfirmDialog) {
             ConfirmDialog(
-                title = "Sign out of RiderVoice?",
-                body = "You will disconnect from all background voice services and will need to sign back in.",
-                confirmLabel = "Sign Out",
-                dismissLabel = "Cancel",
+                title = stringResource(R.string.dialog_sign_out_title),
+                body = stringResource(R.string.dialog_sign_out_settings_body),
+                confirmLabel = stringResource(R.string.action_sign_out),
+                dismissLabel = stringResource(R.string.action_cancel),
                 destructive = true,
                 onConfirm = {
                     showSignOutConfirmDialog = false
@@ -316,12 +321,7 @@ fun SettingsScreen(
         showOptionsDialog?.let { (key, options) ->
             val currentValue = when (key) {
                 "voxSensitivity" -> settingsState.voxSensitivity
-                "appLanguage" -> when (settingsState.appLanguage) {
-                    "hi" -> "हिन्दी"
-                    "mr" -> "मराठी"
-                    "en" -> "English"
-                    else -> "System default"
-                }
+                "appLanguage" -> settingsState.appLanguage
                 "emergencyCountry" -> when (settingsState.emergencyCountry) {
                     "IN" -> "India (112)"
                     "US" -> "United States (911)"
@@ -342,9 +342,9 @@ fun SettingsScreen(
                 title = {
                     Text(
                         text = when (key) {
-                            "appLanguage" -> "Select Language"
-                            "emergencyCountry" -> "Emergency Country"
-                            else -> "VOX Sensitivity"
+                            "appLanguage" -> stringResource(R.string.settings_select_language)
+                            "emergencyCountry" -> stringResource(R.string.settings_emergency_country)
+                            else -> stringResource(R.string.settings_vox_title)
                         },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
@@ -355,6 +355,30 @@ fun SettingsScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         options.forEach { option ->
                             val isSelected = option == currentValue
+                            val optionLabel = when (key) {
+                                "appLanguage" -> when (option) {
+                                    "hi" -> stringResource(R.string.language_hi)
+                                    "mr" -> stringResource(R.string.language_mr)
+                                    "en" -> stringResource(R.string.language_en)
+                                    else -> stringResource(R.string.language_system)
+                                }
+                                "voxSensitivity" -> when (option) {
+                                    "Low" -> stringResource(R.string.settings_vox_low)
+                                    "High" -> stringResource(R.string.settings_vox_high)
+                                    else -> stringResource(R.string.settings_vox_medium)
+                                }
+                                "emergencyCountry" -> when (option) {
+                                    "India (112)" -> stringResource(R.string.settings_country_in)
+                                    "United States (911)" -> stringResource(R.string.settings_country_us)
+                                    "United Kingdom (999)" -> stringResource(R.string.settings_country_gb)
+                                    "Australia (000)" -> stringResource(R.string.settings_country_au)
+                                    "Japan (119)" -> stringResource(R.string.settings_country_jp)
+                                    "Canada (911)" -> stringResource(R.string.settings_country_ca)
+                                    "Other / Global (112)" -> stringResource(R.string.settings_country_other)
+                                    else -> stringResource(R.string.settings_country_auto_region)
+                                }
+                                else -> option
+                            }
                             Surface(
                                 color = if (isSelected) PopContainer else PaperSunken.copy(alpha = 0.5f),
                                 shape = RoundedCornerShape(14.dp),
@@ -366,13 +390,7 @@ fun SettingsScreen(
                                     .fillMaxWidth()
                                     .clickable {
                                         if (key == "appLanguage") {
-                                            val code = when (option) {
-                                                "हिन्दी" -> "hi"
-                                                "मराठी" -> "mr"
-                                                "English" -> "en"
-                                                else -> "system"
-                                            }
-                                            settingsViewModel.setAppLanguage(code)
+                                            settingsViewModel.setAppLanguage(option)
                                         } else {
                                             settingsViewModel.updateSettingValue(key, option)
                                         }
@@ -385,7 +403,7 @@ fun SettingsScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = option,
+                                        text = optionLabel,
                                         color = if (isSelected) Pop else Ink,
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
@@ -393,7 +411,7 @@ fun SettingsScreen(
                                     if (isSelected) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected",
+                                            contentDescription = stringResource(R.string.cd_selected),
                                             tint = Pop,
                                             modifier = Modifier.size(18.dp)
                                         )
@@ -405,7 +423,7 @@ fun SettingsScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = { showOptionsDialog = null }) {
-                        Text("Close", color = Ink, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.action_close), color = Ink, fontWeight = FontWeight.SemiBold)
                     }
                 }
             )
@@ -419,7 +437,7 @@ fun SettingsScreen(
                 containerColor = PaperRaised,
                 title = {
                     Text(
-                        text = "Network Diagnostics",
+                        text = stringResource(R.string.settings_diag_dialog_title),
                         color = Ink,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
@@ -427,15 +445,7 @@ fun SettingsScreen(
                 },
                 text = {
                     Text(
-                        text = "What is collected:\n" +
-                            "• Network stats: RTT latency, packet loss %, jitter, bitrates.\n" +
-                            "• Connection events: reconnects, health changes, mute state.\n" +
-                            "• Rider handles: handles in active ride (no contacts or tokens).\n" +
-                            "• Device health: battery level, thermal state, network type.\n" +
-                            "• Location: optional (default OFF).\n\n" +
-                            "Where it goes:\n" +
-                            "Uploaded over HTTPS to the developer diagnostics backend and emailed as an encrypted archive to aid debugging call drops.\n\n" +
-                            "Retention: All runs and batches are automatically purged after 30 days.",
+                        text = stringResource(R.string.settings_diag_dialog_body),
                         color = InkSecondary,
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 12.sp,
@@ -448,12 +458,12 @@ fun SettingsScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Pop),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Text("Agree & Enable", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.settings_diag_agree_enable), color = PaperOnPop, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { settingsViewModel.dismissDiagnosticDisclosure() }) {
-                        Text("Cancel", color = Ink)
+                        Text(stringResource(R.string.action_cancel), color = Ink)
                     }
                 }
             )

@@ -15,10 +15,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.models.InviteRespondRequest
 import com.ridervoice.models.JoinTokenRequest
 import com.ridervoice.models.RideSession
@@ -97,7 +99,7 @@ class RideInviteActivity : ComponentActivity() {
                         modifier = Modifier.padding(bottom = 14.dp)
                     ) {
                         Text(
-                            text = "RIDE INVITATION",
+                            text = stringResource(R.string.invite_activity_badge),
                             color = Pop,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
@@ -115,7 +117,7 @@ class RideInviteActivity : ComponentActivity() {
                     )
 
                     Text(
-                        text = "invited you to join a convoy",
+                        text = stringResource(R.string.invite_activity_subtitle),
                         color = InkSecondary,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -150,7 +152,7 @@ class RideInviteActivity : ComponentActivity() {
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Warning,
-                                    contentDescription = "Error",
+                                    contentDescription = stringResource(R.string.cd_error),
                                     tint = Brick,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -206,11 +208,11 @@ class RideInviteActivity : ComponentActivity() {
                                         }
                                         finish()
                                     } else {
-                                        errorMessage = "Could not accept invite (HTTP ${tokenRes.code()}). Please try again."
+                                        errorMessage = getString(R.string.invite_activity_accept_error, tokenRes.code())
                                         isJoining = false
                                     }
                                 } catch (e: Exception) {
-                                    errorMessage = "Failed to connect: ${e.localizedMessage ?: "Network error"}. Please retry."
+                                    errorMessage = getString(R.string.invite_activity_connect_error, e.localizedMessage ?: getString(R.string.error_network_generic))
                                     isJoining = false
                                 }
                             }
@@ -233,7 +235,7 @@ class RideInviteActivity : ComponentActivity() {
                             )
                         } else {
                             Text(
-                                "Join Ride",
+                                stringResource(R.string.join_room_title),
                                 color = PaperOnPop,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
@@ -274,7 +276,7 @@ class RideInviteActivity : ComponentActivity() {
                             )
                         } else {
                             Text(
-                                "Decline",
+                                stringResource(R.string.action_decline),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold

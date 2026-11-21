@@ -15,12 +15,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ridervoice.R
 import com.ridervoice.models.Friend
 import com.ridervoice.ui.components.InlineError
 import com.ridervoice.ui.components.PrimaryButton
@@ -59,7 +61,7 @@ fun InviteFriendsScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = Ink,
                     modifier = Modifier.size(20.dp)
                 )
@@ -67,7 +69,7 @@ fun InviteFriendsScreen(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Invite Riders",
+                    text = stringResource(R.string.invite_riders_title),
                     color = Ink,
                     style = MaterialTheme.typography.titleLarge,
                     fontSize = 20.sp,
@@ -149,9 +151,9 @@ fun InviteFriendsContent(
                 border = BorderStroke(1.dp, InkHairline),
                 colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperRaised)
             ) {
-                Icon(Icons.Default.PersonAdd, contentDescription = "Add Rider", tint = Pop, modifier = Modifier.size(17.dp))
+                Icon(Icons.Default.PersonAdd, contentDescription = stringResource(R.string.cd_add_rider), tint = Pop, modifier = Modifier.size(17.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Add by handle", style = MaterialTheme.typography.labelMedium, color = Ink, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.invite_add_by_handle), style = MaterialTheme.typography.labelMedium, color = Ink, fontWeight = FontWeight.SemiBold)
             }
 
             if (friends.isNotEmpty()) {
@@ -171,9 +173,9 @@ fun InviteFriendsContent(
                     border = BorderStroke(1.dp, InkHairline),
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperRaised)
                 ) {
-                    Icon(Icons.Default.GroupAdd, contentDescription = "Invite All", tint = Ink, modifier = Modifier.size(17.dp))
+                    Icon(Icons.Default.GroupAdd, contentDescription = stringResource(R.string.cd_invite_all), tint = Ink, modifier = Modifier.size(17.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Invite all", style = MaterialTheme.typography.labelMedium, color = Ink, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.invite_all_label), style = MaterialTheme.typography.labelMedium, color = Ink, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -182,8 +184,8 @@ fun InviteFriendsContent(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Filter squad by @handle", color = InkSecondary, style = MaterialTheme.typography.bodyMedium) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = InkSecondary) },
+                placeholder = { Text(stringResource(R.string.squad_filter_placeholder), color = InkSecondary, style = MaterialTheme.typography.bodyMedium) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search), tint = InkSecondary) },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -238,14 +240,14 @@ fun InviteFriendsContent(
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "No squad members yet",
+                                text = stringResource(R.string.squad_empty_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Ink
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Add riders by @handle so you can invite them directly to your convoy.",
+                                text = stringResource(R.string.invite_empty_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = InkSecondary,
                                 textAlign = TextAlign.Center
@@ -260,7 +262,7 @@ fun InviteFriendsContent(
                                 Icon(Icons.Default.PersonAdd, contentDescription = null, tint = PaperOnPop)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Add rider by handle",
+                                    text = stringResource(R.string.invite_add_rider_by_handle),
                                     color = PaperOnPop,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold
@@ -269,7 +271,7 @@ fun InviteFriendsContent(
                             if (onNavigateToSquad != null) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 TextButton(onClick = onNavigateToSquad) {
-                                    Text("Manage squad", color = Pop, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.invite_manage_squad), color = Pop, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -299,9 +301,9 @@ fun InviteFriendsContent(
 
         if (onInvitesSent != null) {
             val buttonLabel = if (invitedIds.isNotEmpty()) {
-                "Continue to lobby (${invitedIds.size} invited)"
+                stringResource(R.string.invite_continue_with_count, invitedIds.size)
             } else {
-                "Continue to lobby"
+                stringResource(R.string.device_continue_to_lobby)
             }
 
             Box(
@@ -397,20 +399,20 @@ fun FriendInviteCard(
                 if (isInvited) {
                     Icon(
                         Icons.Default.Check,
-                        contentDescription = "Invited",
+                        contentDescription = stringResource(R.string.lobby_section_invited),
                         tint = Moss,
                         modifier = Modifier.size(15.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Invited",
+                        text = stringResource(R.string.lobby_section_invited),
                         color = Moss,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
                     )
                 } else {
                     Text(
-                        text = "Invite",
+                        text = stringResource(R.string.action_invite),
                         color = PaperOnPop,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold

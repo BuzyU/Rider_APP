@@ -17,9 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.ui.components.ConfirmDialog
 import com.ridervoice.ui.theme.*
 import java.util.Locale
@@ -52,10 +54,10 @@ fun PostRideSummaryScreen(
 
     if (showDiscardConfirmDialog) {
         ConfirmDialog(
-            title = "Discard ride recording?",
-            body = "All recorded GPS waypoints and ride stats for this session will be permanently erased.",
-            confirmLabel = "Discard",
-            dismissLabel = "Keep recording",
+            title = stringResource(R.string.summary_discard_title),
+            body = stringResource(R.string.summary_discard_body),
+            confirmLabel = stringResource(R.string.action_discard),
+            dismissLabel = stringResource(R.string.summary_keep_recording),
             destructive = true,
             onConfirm = {
                 showDiscardConfirmDialog = false
@@ -103,12 +105,12 @@ fun PostRideSummaryScreen(
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Saving...", color = PaperOnPop, style = MaterialTheme.typography.labelLarge)
+                                Text(stringResource(R.string.summary_saving), color = PaperOnPop, style = MaterialTheme.typography.labelLarge)
                             } else {
                                 Icon(Icons.Default.BookmarkAdded, contentDescription = null, modifier = Modifier.size(19.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Save to Logbook",
+                                    text = stringResource(R.string.summary_save_to_logbook),
                                     color = PaperOnPop,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontSize = 15.sp
@@ -126,7 +128,7 @@ fun PostRideSummaryScreen(
                             ),
                             modifier = Modifier.height(54.dp)
                         ) {
-                            Icon(Icons.Default.DeleteOutline, contentDescription = "Discard", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.DeleteOutline, contentDescription = stringResource(R.string.action_discard), modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -158,7 +160,7 @@ fun PostRideSummaryScreen(
                         Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(Moss))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "COMPLETED",
+                            text = stringResource(R.string.summary_status_completed),
                             color = Moss,
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp
@@ -171,7 +173,7 @@ fun PostRideSummaryScreen(
                         shape = RoundedCornerShape(RvRadius.pill)
                     ) {
                         Text(
-                            text = "Test #$testNumber · $sampleCount samples",
+                            text = stringResource(R.string.summary_test_samples, testNumber, sampleCount),
                             color = InkSecondary,
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
@@ -184,14 +186,14 @@ fun PostRideSummaryScreen(
 
             Column {
                 Text(
-                    text = convoyName.ifBlank { "Ride Summary" },
+                    text = convoyName.ifBlank { stringResource(R.string.summary_ride_summary) },
                     color = Ink,
                     style = MaterialTheme.typography.displayLarge,
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Review your convoy telemetry and save to your logbook.",
+                    text = stringResource(R.string.summary_review_desc),
                     color = InkSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     fontSize = 13.sp
@@ -200,7 +202,7 @@ fun PostRideSummaryScreen(
 
             // 2x2 Convoy Telemetry Bento Grid (Matches Image 3)
             Text(
-                text = "CONVOY TELEMETRY",
+                text = stringResource(R.string.summary_section_telemetry),
                 color = InkSecondary,
                 style = MaterialTheme.typography.labelSmall
             )
@@ -210,14 +212,14 @@ fun PostRideSummaryScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 SummaryBentoTile(
-                    label = "DISTANCE",
+                    label = stringResource(R.string.summary_stat_distance),
                     value = String.format(Locale.US, "%.1f", distanceKm),
-                    unit = "km",
+                    unit = stringResource(R.string.unit_km),
                     icon = Icons.Default.Straighten,
                     modifier = Modifier.weight(1f)
                 )
                 SummaryBentoTile(
-                    label = "MOVING TIME",
+                    label = stringResource(R.string.summary_stat_moving_time),
                     value = durationFormatted,
                     unit = "",
                     icon = Icons.Default.Timer,
@@ -230,16 +232,16 @@ fun PostRideSummaryScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 SummaryBentoTile(
-                    label = "AVG SPEED",
+                    label = stringResource(R.string.summary_stat_avg_speed),
                     value = String.format(Locale.US, "%.0f", avgSpeedKmh),
-                    unit = "km/h",
+                    unit = stringResource(R.string.unit_kmh),
                     icon = Icons.Default.Speed,
                     modifier = Modifier.weight(1f)
                 )
                 SummaryBentoTile(
-                    label = "TOP SPEED",
+                    label = stringResource(R.string.summary_stat_top_speed),
                     value = String.format(Locale.US, "%.0f", topSpeed),
-                    unit = "km/h",
+                    unit = stringResource(R.string.unit_kmh),
                     icon = Icons.Default.Bolt,
                     modifier = Modifier.weight(1f)
                 )
@@ -259,24 +261,26 @@ fun PostRideSummaryScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "NETWORK DIAGNOSTICS",
+                            text = stringResource(R.string.summary_section_net_diag),
                             color = InkSecondary,
                             style = MaterialTheme.typography.labelSmall
                         )
-                        Text(
-                            text = lastMetric?.networkType ?: "CELL / WI-FI",
-                            color = Ink,
-                            style = MaterialTheme.typography.labelSmall
-                        )
+                        lastMetric?.networkType?.takeIf { it.isNotBlank() }?.let { netType ->
+                            Text(
+                                text = netType,
+                                color = Ink,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        StatBox("AVG PING", "${lastMetric?.rttMs?.toInt() ?: "--"} ms")
-                        StatBox("PKTS LOST", "${lastMetric?.packetsLost ?: 0}")
-                        StatBox("SAMPLES", "$sampleCount")
+                        StatBox(stringResource(R.string.summary_diag_avg_ping), "${lastMetric?.rttMs?.toInt() ?: "--"} ms")
+                        StatBox(stringResource(R.string.summary_diag_pkts_lost), "${lastMetric?.packetsLost ?: 0}")
+                        StatBox(stringResource(R.string.summary_diag_samples), "$sampleCount")
                     }
                 }
             }
@@ -285,7 +289,7 @@ fun PostRideSummaryScreen(
             OutlinedTextField(
                 value = rideTitle,
                 onValueChange = { rideTitle = it },
-                placeholder = { Text("Ride title (e.g. Lonavala Sunday Convoy)", color = InkSecondary) },
+                placeholder = { Text(stringResource(R.string.summary_title_placeholder), color = InkSecondary) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -300,7 +304,7 @@ fun PostRideSummaryScreen(
             OutlinedTextField(
                 value = rideNotes,
                 onValueChange = { rideNotes = it },
-                placeholder = { Text("Road & weather notes (optional)", color = InkSecondary) },
+                placeholder = { Text(stringResource(R.string.summary_notes_placeholder), color = InkSecondary) },
                 maxLines = 3,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -314,7 +318,7 @@ fun PostRideSummaryScreen(
 
             // Privacy Selector
             Text(
-                text = "LOGBOOK VISIBILITY",
+                text = stringResource(R.string.summary_section_visibility),
                 color = InkSecondary,
                 style = MaterialTheme.typography.labelSmall
             )
@@ -323,13 +327,13 @@ fun PostRideSummaryScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 PrivacyChip(
-                    label = "Squad Visible",
+                    label = stringResource(R.string.summary_privacy_squad),
                     isSelected = selectedPrivacy == "SQUAD",
                     modifier = Modifier.weight(1f)
                 ) { selectedPrivacy = "SQUAD" }
 
                 PrivacyChip(
-                    label = "Private Logbook",
+                    label = stringResource(R.string.summary_privacy_private),
                     isSelected = selectedPrivacy == "PRIVATE",
                     modifier = Modifier.weight(1f)
                 ) { selectedPrivacy = "PRIVATE" }

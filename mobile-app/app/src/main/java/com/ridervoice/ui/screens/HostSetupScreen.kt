@@ -69,10 +69,10 @@ fun HostSetupScreen(
 
     if (showDiscardDialog) {
         ConfirmDialog(
-            title = "Discard ride setup?",
-            body = "You have unsaved ride details. Discarding will clear all fields.",
-            confirmLabel = "Discard",
-            dismissLabel = "Keep editing",
+            title = stringResource(R.string.host_discard_title),
+            body = stringResource(R.string.host_discard_body),
+            confirmLabel = stringResource(R.string.action_discard),
+            dismissLabel = stringResource(R.string.host_keep_editing),
             onConfirm = {
                 showDiscardDialog = false
                 viewModel.clearPendingAttempt()
@@ -90,7 +90,7 @@ fun HostSetupScreen(
             containerColor = PaperRaised,
             title = {
                 Text(
-                    text = "Network test (beta)",
+                    text = stringResource(R.string.create_ride_diagnostics_title),
                     style = MaterialTheme.typography.titleMedium,
                     color = Ink,
                     fontWeight = FontWeight.Bold
@@ -98,7 +98,7 @@ fun HostSetupScreen(
             },
             text = {
                 Text(
-                    text = "Enabling the network test helps the RiderVoice team improve audio reliability on motorcycles.\n\nOnly connection stats (bitrate, packet loss, jitter) and audio routing status are collected. We never record your audio content, and location tracking is separate and strictly optional.\n\nAt the end of your ride, an aggregated summary is sent to the engineering team.",
+                    text = stringResource(R.string.host_diag_learn_more_body),
                     style = MaterialTheme.typography.bodyMedium,
                     color = InkSecondary,
                     lineHeight = 21.sp
@@ -110,7 +110,7 @@ fun HostSetupScreen(
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Pop)
                 ) {
-                    Text("Got it", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.action_got_it), color = PaperOnPop, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -155,7 +155,7 @@ fun HostSetupScreen(
         Spacer(modifier = Modifier.height(RvSpacing.sm))
 
         Text(
-            text = "Name your convoy and optionally add route details before inviting riders.",
+            text = stringResource(R.string.host_intro_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = InkSecondary
         )
@@ -188,7 +188,7 @@ fun HostSetupScreen(
             value = meetupPoint,
             onValueChange = { meetupPoint = it },
             label = { Text(stringResource(R.string.create_ride_meetup_label)) },
-            placeholder = { Text("e.g. Shell Petrol Pump, Hinjewadi", color = InkSecondary) },
+            placeholder = { Text(stringResource(R.string.host_meetup_placeholder), color = InkSecondary) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -202,7 +202,7 @@ fun HostSetupScreen(
             value = destination,
             onValueChange = { destination = it },
             label = { Text(stringResource(R.string.create_ride_destination_label)) },
-            placeholder = { Text("e.g. Tiger Point, Lonavala", color = InkSecondary) },
+            placeholder = { Text(stringResource(R.string.host_dest_placeholder), color = InkSecondary) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -215,8 +215,8 @@ fun HostSetupScreen(
         OutlinedTextField(
             value = origin,
             onValueChange = { origin = it },
-            label = { Text("Start point (optional)") },
-            placeholder = { Text("e.g. University Circle", color = InkSecondary) },
+            label = { Text(stringResource(R.string.host_start_label)) },
+            placeholder = { Text(stringResource(R.string.host_start_placeholder), color = InkSecondary) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -287,7 +287,7 @@ fun HostSetupScreen(
                                     onClick = { showLearnMoreSheet = true },
                                     contentPadding = PaddingValues(0.dp)
                                 ) {
-                                    Text("Learn more", color = Pop, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.action_learn_more), color = Pop, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                 }
                             }
                             Spacer(modifier = Modifier.width(8.dp))
@@ -306,7 +306,7 @@ fun HostSetupScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         SecondaryButton(
-                            text = "Import planned route",
+                            text = stringResource(R.string.host_import_route),
                             onClick = onImportRouteClick,
                             leadingIcon = Icons.Default.Map
                         )
@@ -318,7 +318,7 @@ fun HostSetupScreen(
         if (error != null) {
             Spacer(modifier = Modifier.height(14.dp))
             InlineError(
-                message = error ?: "Failed to create ride",
+                message = error ?: stringResource(R.string.host_create_failed),
                 onRetry = {
                     viewModel.createConvoy(
                         convoyName = convoyName.trim(),

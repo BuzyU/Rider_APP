@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.ui.theme.*
 
 @Composable
@@ -149,31 +151,31 @@ fun StatusChip(
         "HOST", "OWNER" -> {
             bgColor = PopContainer
             textColor = Pop
-            label = "Host"
+            label = stringResource(R.string.status_host)
             icon = Icons.Default.Star
         }
         "JOINED", "ACCEPTED", "READY" -> {
             bgColor = PaperSunken
             textColor = Ink
-            label = if (upper == "READY") "Ready" else "Joined"
+            label = if (upper == "READY") stringResource(R.string.status_ready) else stringResource(R.string.lobby_section_joined)
             icon = Icons.Default.Check
         }
         "INVITED", "PENDING" -> {
             bgColor = PaperSunken
             textColor = InkSecondary
-            label = "Invited"
+            label = stringResource(R.string.lobby_section_invited)
             icon = Icons.Default.Schedule
         }
         "DECLINED" -> {
             bgColor = PaperSunken
             textColor = InkSecondary
-            label = "Declined"
+            label = stringResource(R.string.lobby_section_declined)
             icon = Icons.Default.Close
         }
         "LEFT" -> {
             bgColor = PaperSunken
             textColor = InkSecondary
-            label = "Left"
+            label = stringResource(R.string.status_left)
             icon = null
         }
         else -> {
@@ -257,7 +259,7 @@ fun RiderAvatar(
             ) {
                 Icon(
                     imageVector = Icons.Default.MicOff,
-                    contentDescription = "Muted",
+                    contentDescription = stringResource(R.string.cd_muted),
                     tint = InkSecondary,
                     modifier = Modifier.size(10.dp)
                 )
@@ -364,7 +366,7 @@ fun CodeCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "RIDE CODE",
+                text = stringResource(R.string.label_ride_code),
                 style = MaterialTheme.typography.labelSmall,
                 color = InkSecondary,
                 letterSpacing = 1.sp
@@ -399,12 +401,12 @@ fun CodeCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
-                        contentDescription = "Copy code",
+                        contentDescription = stringResource(R.string.action_copy_code),
                         modifier = Modifier.size(18.dp),
                         tint = Ink
                     )
                     Spacer(modifier = Modifier.width(RvSpacing.xs))
-                    Text("Copy", color = Ink, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.action_copy), color = Ink, fontWeight = FontWeight.SemiBold)
                 }
 
                 Button(
@@ -420,12 +422,12 @@ fun CodeCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Share,
-                        contentDescription = "Share link",
+                        contentDescription = stringResource(R.string.action_share_link),
                         modifier = Modifier.size(18.dp),
                         tint = PaperOnPop
                     )
                     Spacer(modifier = Modifier.width(RvSpacing.xs))
-                    Text("Share", color = PaperOnPop, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.action_share), color = PaperOnPop, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -513,7 +515,7 @@ fun InlineError(
             )
             if (onRetry != null) {
                 TextButton(onClick = onRetry) {
-                    Text("Retry", color = Brick, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.action_retry), color = Brick, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -590,9 +592,10 @@ fun ConfirmDialog(
     confirmLabel: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    dismissLabel: String = "Cancel",
+    dismissLabel: String? = null,
     destructive: Boolean = false
 ) {
+    val resolvedDismissLabel = dismissLabel ?: stringResource(R.string.action_cancel)
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
@@ -625,7 +628,7 @@ fun ConfirmDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(dismissLabel, color = Ink)
+                Text(resolvedDismissLabel, color = Ink)
             }
         },
         containerColor = PaperRaised

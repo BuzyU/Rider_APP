@@ -27,11 +27,14 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.data.local.entities.ConvoyEventEntity
 import com.ridervoice.data.local.entities.RawWaypointEntity
 import com.ridervoice.data.local.entities.RideSessionEntity
@@ -103,8 +106,9 @@ fun RideReplayScreen(
         waypoints.maxOfOrNull { it.speedMps * 3.6f }?.takeIf { it > 0f }
     }
 
-    val rideTitle = remember(session) {
-        session?.roomName?.takeIf { it.isNotBlank() } ?: "Recorded Ride"
+    val defaultRideTitle = stringResource(R.string.replay_recorded_ride_default)
+    val rideTitle = remember(session, defaultRideTitle) {
+        session?.roomName?.takeIf { it.isNotBlank() } ?: defaultRideTitle
     }
 
     val dateSubtitle = remember(startTimeMs) {
@@ -167,14 +171,14 @@ fun RideReplayScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = Ink,
                     modifier = Modifier.size(20.dp)
                 )
             }
 
             Text(
-                text = "Ride Summary",
+                text = stringResource(R.string.summary_ride_summary),
                 style = MaterialTheme.typography.titleMedium,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
@@ -196,7 +200,7 @@ fun RideReplayScreen(
                         putExtra(Intent.EXTRA_TEXT, summaryLines.trim())
                         type = "text/plain"
                     }
-                    context.startActivity(Intent.createChooser(sendIntent, "Share Ride Summary"))
+                    context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.cd_share_ride_summary)))
                 },
                 modifier = Modifier
                     .size(44.dp)
@@ -206,7 +210,7 @@ fun RideReplayScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Share,
-                    contentDescription = "Share Ride Summary",
+                    contentDescription = stringResource(R.string.cd_share_ride_summary),
                     tint = Ink,
                     modifier = Modifier.size(19.dp)
                 )
@@ -243,7 +247,7 @@ fun RideReplayScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = if (isCompleted) "COMPLETED" else "IN PROGRESS",
+                                text = if (isCompleted) stringResource(R.string.summary_status_completed) else stringResource(R.string.summary_status_in_progress),
                                 color = if (isCompleted) Moss else Pop,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 11.sp,
@@ -271,7 +275,7 @@ fun RideReplayScreen(
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
                                 Text(
-                                    text = "Synced",
+                                    text = stringResource(R.string.replay_synced_badge),
                                     color = Ink,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 11.sp,
@@ -288,7 +292,7 @@ fun RideReplayScreen(
                             border = BorderStroke(1.dp, InkHairline)
                         ) {
                             Text(
-                                text = "${waypoints.size} GPS pts",
+                                text = stringResource(R.string.replay_gps_points_badge, waypoints.size),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 11.sp,
@@ -326,7 +330,7 @@ fun RideReplayScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "CONVOY TELEMETRY",
+                    text = stringResource(R.string.summary_section_telemetry),
                     color = InkSecondary,
                     style = MaterialTheme.typography.labelSmall,
                     letterSpacing = 0.9.sp
@@ -341,7 +345,7 @@ fun RideReplayScreen(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "GPS track logged",
+                            text = stringResource(R.string.replay_gps_track_logged),
                             color = InkSecondary,
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
@@ -358,15 +362,15 @@ fun RideReplayScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     ReplayTelemetryTile(
-                        label = "DISTANCE",
+                        label = stringResource(R.string.summary_stat_distance),
                         value = distanceText,
-                        unit = "km",
+                        unit = stringResource(R.string.unit_km),
                         icon = Icons.Default.Straighten,
                         accentColor = Pop,
                         modifier = Modifier.weight(1f)
                     )
                     ReplayTelemetryTile(
-                        label = "DURATION",
+                        label = stringResource(R.string.summary_stat_duration),
                         value = durationText,
                         unit = "",
                         icon = Icons.Default.Schedule,
@@ -380,17 +384,17 @@ fun RideReplayScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     ReplayTelemetryTile(
-                        label = "AVG SPEED",
+                        label = stringResource(R.string.summary_stat_avg_speed),
                         value = avgSpeedKmh?.let { String.format(Locale.US, "%.0f", it) } ?: "--",
-                        unit = if (avgSpeedKmh != null) "km/h" else "",
+                        unit = if (avgSpeedKmh != null) stringResource(R.string.unit_kmh) else "",
                         icon = Icons.Default.Speed,
                         accentColor = Ink,
                         modifier = Modifier.weight(1f)
                     )
                     ReplayTelemetryTile(
-                        label = "TOP SPEED",
+                        label = stringResource(R.string.summary_stat_top_speed),
                         value = topSpeedKmh?.let { String.format(Locale.US, "%.0f", it) } ?: "--",
-                        unit = if (topSpeedKmh != null) "km/h" else "",
+                        unit = if (topSpeedKmh != null) stringResource(R.string.unit_kmh) else "",
                         icon = Icons.Default.Bolt,
                         accentColor = Pop,
                         modifier = Modifier.weight(1f)
@@ -400,7 +404,7 @@ fun RideReplayScreen(
 
             // Section Header: Cartography & Route Replay
             Text(
-                text = "ROUTE REPLAY",
+                text = stringResource(R.string.replay_section_route),
                 color = InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 letterSpacing = 0.9.sp,
@@ -535,7 +539,7 @@ fun RideReplayScreen(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = if (isPlaying) "Playing" else "GPS Track",
+                                        text = if (isPlaying) stringResource(R.string.replay_status_playing) else stringResource(R.string.replay_status_gps_track),
                                         color = Ink,
                                         style = MaterialTheme.typography.labelSmall,
                                         fontSize = 11.sp,
@@ -558,13 +562,13 @@ fun RideReplayScreen(
                                     horizontalAlignment = Alignment.End
                                 ) {
                                     Text(
-                                        text = "${currentSpeedKmh.toInt()} km/h",
+                                        text = stringResource(R.string.speed_kmh_value, currentSpeedKmh.toInt()),
                                         color = Pop,
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "${String.format(Locale.US, "%.1f", currentTraveledKm)} km",
+                                        text = stringResource(R.string.distance_km_value, String.format(Locale.US, "%.1f", currentTraveledKm)),
                                         color = InkSecondary,
                                         style = MaterialTheme.typography.labelSmall,
                                         fontSize = 10.sp
@@ -583,13 +587,13 @@ fun RideReplayScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = "Speed profile",
+                                        text = stringResource(R.string.replay_speed_profile),
                                         color = InkSecondary,
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
-                                        text = "Peak ${maxSpeedPlot.toInt()} km/h",
+                                        text = stringResource(R.string.replay_peak_speed, maxSpeedPlot.toInt()),
                                         color = InkSecondary,
                                         style = MaterialTheme.typography.bodySmall
                                     )
@@ -652,7 +656,7 @@ fun RideReplayScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "Timeline",
+                                    text = stringResource(R.string.replay_timeline),
                                     color = InkSecondary,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.SemiBold
@@ -692,7 +696,7 @@ fun RideReplayScreen(
                                     .clip(CircleShape)
                                     .background(PaperSunken)
                             ) {
-                                Icon(Icons.Default.FastRewind, contentDescription = "Rewind", tint = Ink)
+                                Icon(Icons.Default.FastRewind, contentDescription = stringResource(R.string.cd_rewind), tint = Ink)
                             }
 
                             Spacer(modifier = Modifier.width(12.dp))
@@ -709,7 +713,7 @@ fun RideReplayScreen(
                             ) {
                                 Icon(
                                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isPlaying) "Pause" else "Play",
+                                    contentDescription = if (isPlaying) stringResource(R.string.cd_pause) else stringResource(R.string.cd_play),
                                     tint = PaperOnPop,
                                     modifier = Modifier.size(28.dp)
                                 )
@@ -724,7 +728,7 @@ fun RideReplayScreen(
                                     .clip(CircleShape)
                                     .background(PaperSunken)
                             ) {
-                                Icon(Icons.Default.FastForward, contentDescription = "Forward", tint = Ink)
+                                Icon(Icons.Default.FastForward, contentDescription = stringResource(R.string.cd_forward), tint = Ink)
                             }
 
                             Spacer(modifier = Modifier.width(16.dp))
@@ -781,14 +785,14 @@ fun RideReplayScreen(
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "No GPS track recorded",
+                            text = stringResource(R.string.replay_no_gps_title),
                             color = Ink,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Session totals are saved above, but no GPS route points were logged for this ride.",
+                            text = stringResource(R.string.replay_no_gps_desc),
                             color = InkSecondary,
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center
@@ -807,13 +811,13 @@ fun RideReplayScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "CONVOY EVENTS",
+                        text = stringResource(R.string.replay_section_events),
                         color = InkSecondary,
                         style = MaterialTheme.typography.labelSmall,
                         letterSpacing = 0.9.sp
                     )
                     Text(
-                        text = if (events.size == 1) "1 event logged" else "${events.size} events logged",
+                        text = pluralStringResource(R.plurals.events_logged_count, events.size, events.size),
                         color = InkSecondary,
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 12.sp

@@ -26,10 +26,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.SosState
 import kotlinx.coroutines.delay
@@ -116,7 +118,7 @@ fun SosScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "EMERGENCY BEACON",
+                            text = stringResource(R.string.sos_beacon_badge),
                             color = Brick,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
@@ -136,14 +138,14 @@ fun SosScreen(
                         .background(PaperRaised)
                         .border(1.dp, InkHairline, CircleShape)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Close SOS", tint = Ink, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close_sos), tint = Ink, modifier = Modifier.size(20.dp))
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Emergency Alert",
+                text = stringResource(R.string.sos_emergency_alert_title),
                 color = Brick,
                 style = MaterialTheme.typography.displayLarge,
                 fontSize = 30.sp,
@@ -168,20 +170,20 @@ fun SosScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Alert Sent",
+                                contentDescription = stringResource(R.string.cd_alert_sent),
                                 tint = Moss,
                                 modifier = Modifier.size(52.dp)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = if (state.recipientsCount > 0) "Alert sent to ${state.recipientsCount} riders" else "Emergency alert sent",
+                                text = if (state.recipientsCount > 0) stringResource(R.string.sos_alert_sent_count, state.recipientsCount) else stringResource(R.string.sos_alert_sent_generic),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Moss
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Live GPS coordinates and emergency notification sent to your ride group.",
+                                text = stringResource(R.string.sos_live_gps_sent_desc),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center
@@ -206,14 +208,14 @@ fun SosScreen(
                             Icon(Icons.Default.Warning, contentDescription = null, tint = Brick, modifier = Modifier.size(46.dp))
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = "SOS Not Sent",
+                                text = stringResource(R.string.sos_not_sent_title),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = Brick
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Call ${state.emergencyNumber} immediately.",
+                                text = stringResource(R.string.sos_call_immediately, state.emergencyNumber),
                                 color = Ink,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.bodyLarge,
@@ -234,7 +236,7 @@ fun SosScreen(
                                 Icon(Icons.Default.Phone, contentDescription = null, tint = PaperOnBrick)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Call ${state.emergencyNumber} Now",
+                                    text = stringResource(R.string.sos_call_now, state.emergencyNumber),
                                     color = PaperOnBrick,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -251,7 +253,7 @@ fun SosScreen(
                         CircularProgressIndicator(color = Brick, strokeWidth = 4.dp, modifier = Modifier.size(52.dp))
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Sending emergency alert...",
+                            text = stringResource(R.string.sos_sending_alert),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Brick
@@ -275,7 +277,7 @@ fun SosScreen(
                             Icon(Icons.Default.Warning, contentDescription = null, tint = Brick, modifier = Modifier.size(36.dp))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Alert Failed to Send",
+                                text = stringResource(R.string.sos_alert_failed_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Brick
@@ -322,7 +324,7 @@ fun SosScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "AUTO-SENDING IN ${countdown}s",
+                                text = stringResource(R.string.sos_auto_sending_in, countdown),
                                 color = Brick,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
@@ -352,12 +354,12 @@ fun SosScreen(
                     ),
                     shape = RoundedCornerShape(18.dp)
                 ) {
-                    Icon(Icons.Default.Phone, contentDescription = "Call $emergencyNumber", modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Phone, contentDescription = stringResource(R.string.cd_call_number, emergencyNumber), modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     val callLabel = if (emergencyInfo.isFallback) {
-                        "Call $emergencyNumber (Emergency)"
+                        stringResource(R.string.sos_call_fallback, emergencyNumber)
                     } else {
-                        "Call $emergencyNumber (${emergencyInfo.countryDisplay})"
+                        stringResource(R.string.sos_call_country, emergencyNumber, emergencyInfo.countryDisplay)
                     }
                     Text(
                         text = callLabel,
@@ -379,7 +381,7 @@ fun SosScreen(
                         Icon(Icons.Default.Warning, contentDescription = null, tint = PaperOnBrick)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (state is SosState.Failed) "Retry SOS Broadcast" else "Send SOS Now",
+                            text = if (state is SosState.Failed) stringResource(R.string.sos_retry_broadcast) else stringResource(R.string.sos_send_now_btn),
                             color = PaperOnBrick,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
@@ -402,7 +404,7 @@ fun SosScreen(
                     )
                 ) {
                     Text(
-                        text = if (state is SosState.Sent) "I'm safe now — Disarm alert" else "I'm okay — Cancel emergency",
+                        text = if (state is SosState.Sent) stringResource(R.string.sos_safe_disarm_btn) else stringResource(R.string.sos_cancel_emergency_btn),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )

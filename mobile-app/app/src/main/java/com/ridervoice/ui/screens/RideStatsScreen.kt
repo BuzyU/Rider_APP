@@ -25,11 +25,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ridervoice.R
 import com.ridervoice.data.local.entities.RideSessionEntity
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.RideStatsViewModel
@@ -48,8 +51,8 @@ fun RideStatsScreen(
     val uiState = viewModel.uiState.collectAsState().value
     val context = LocalContext.current
 
-    val filters = listOf("All rides", "This month", "Synced", "Longest")
-    var selectedFilter by remember { mutableStateOf("All rides") }
+    val filterKeys = listOf("all", "month", "synced", "longest")
+    var selectedFilter by remember { mutableStateOf("all") }
 
     val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
     val currentMonthKey = remember {
@@ -59,11 +62,11 @@ fun RideStatsScreen(
     val filteredSessions = remember(uiState.sessions, selectedFilter) {
         val monthFmt = SimpleDateFormat("MMMM yyyy", Locale.US)
         when (selectedFilter) {
-            "This month" -> uiState.sessions.filter {
+            "month" -> uiState.sessions.filter {
                 monthFmt.format(Date(it.startTime)).uppercase(Locale.US) == currentMonthKey
             }
-            "Synced" -> uiState.sessions.filter { it.isSynced }
-            "Longest" -> uiState.sessions.sortedByDescending { it.totalDistanceMeters }
+            "synced" -> uiState.sessions.filter { it.isSynced }
+            "longest" -> uiState.sessions.sortedByDescending { it.totalDistanceMeters }
             else -> uiState.sessions
         }
     }
@@ -101,7 +104,7 @@ fun RideStatsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "History",
+                text = stringResource(R.string.tab_history),
                 color = Ink,
                 style = MaterialTheme.typography.displayLarge,
                 fontSize = 28.sp,
@@ -122,7 +125,7 @@ fun RideStatsScreen(
                             )
                             type = "text/plain"
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share Ride Summary"))
+                        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.cd_share_ride_summary)))
                     },
                     modifier = Modifier
                         .size(RvTouchTarget.min)
@@ -132,7 +135,7 @@ fun RideStatsScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Share,
-                        contentDescription = "Share Ride Stats",
+                        contentDescription = stringResource(R.string.cd_share_ride_stats),
                         tint = Ink,
                         modifier = Modifier.size(20.dp)
                     )
@@ -146,22 +149,28 @@ fun RideStatsScreen(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(filters) { filter ->
-                val isSelected = filter == selectedFilter
+            items(filterKeys) { filterKey ->
+                val isSelected = filterKey == selectedFilter
+                val filterLabel = when (filterKey) {
+                    "month" -> stringResource(R.string.history_filter_month)
+                    "synced" -> stringResource(R.string.history_filter_synced)
+                    "longest" -> stringResource(R.string.history_filter_longest)
+                    else -> stringResource(R.string.history_filter_all)
+                }
                 Surface(
                     color = if (isSelected) PopContainer else PaperSunken,
                     shape = RoundedCornerShape(RvRadius.pill),
                     border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.25f) else InkHairline),
                     modifier = Modifier
                         .defaultMinSize(minHeight = 40.dp)
-                        .clickable { selectedFilter = filter }
+                        .clickable { selectedFilter = filterKey }
                 ) {
                     Box(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = filter,
+                            text = filterLabel,
                             color = if (isSelected) Pop else InkSecondary,
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 13.sp,
@@ -220,15 +229,21 @@ fun RideStatsScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
+                            val activeFilterLabel = when (selectedFilter) {
+                                "month" -> stringResource(R.string.history_filter_month)
+                                "synced" -> stringResource(R.string.history_filter_synced)
+                                "longest" -> stringResource(R.string.history_filter_longest)
+                                else -> stringResource(R.string.history_filter_all)
+                            }
                             Text(
-                                text = if (uiState.sessions.isEmpty()) "No rides logged yet" else "No rides match \"$selectedFilter\"",
+                                text = if (uiState.sessions.isEmpty()) stringResource(R.string.history_empty_title) else stringResource(R.string.history_empty_filter, activeFilterLabel),
                                 color = Ink,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Complete a convoy ride and your GPS tracks, distance, and speed stats will appear here automatically.",
+                                text = stringResource(R.string.history_empty_desc),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.bodySmall,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -253,7 +268,7 @@ fun RideStatsScreen(
                                 letterSpacing = 0.9.sp
                             )
                             Text(
-                                text = if (monthSessions.size == 1) "1 Convoy" else "${monthSessions.size} Convoys",
+                                text = pluralStringResource(R.plurals.convoys_count, monthSessions.size, monthSessions.size),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium
@@ -294,7 +309,7 @@ fun RideStatsScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Flag,
-                                contentDescription = "Field Journal",
+                                contentDescription = stringResource(R.string.history_field_journal),
                                 tint = Moss,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -302,14 +317,14 @@ fun RideStatsScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Field Journal",
+                                text = stringResource(R.string.history_field_journal),
                                 color = Ink,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Tap to open GPS route replay for your latest recorded convoy.",
+                                text = stringResource(R.string.history_field_journal_desc),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -374,7 +389,7 @@ private fun SeasonTotalsBentoCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "SEASON TOTALS · $year",
+                    text = stringResource(R.string.history_season_totals, year),
                     color = InkSecondary,
                     style = MaterialTheme.typography.labelSmall,
                     letterSpacing = 0.9.sp
@@ -395,7 +410,7 @@ private fun SeasonTotalsBentoCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Active Fleet",
+                            text = stringResource(R.string.history_active_fleet),
                             color = Moss,
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
@@ -411,9 +426,9 @@ private fun SeasonTotalsBentoCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                SeasonStatCol(value = "$ridesCount", label = "Rides", modifier = Modifier.weight(0.8f))
-                SeasonStatCol(value = totalDistanceKm, label = "km logged", modifier = Modifier.weight(1.1f))
-                SeasonStatCol(value = saddleTime, label = "Saddle time", modifier = Modifier.weight(1f))
+                SeasonStatCol(value = "$ridesCount", label = stringResource(R.string.history_stat_rides), modifier = Modifier.weight(0.8f))
+                SeasonStatCol(value = totalDistanceKm, label = stringResource(R.string.history_stat_km_logged), modifier = Modifier.weight(1.1f))
+                SeasonStatCol(value = saddleTime, label = stringResource(R.string.history_stat_saddle_time), modifier = Modifier.weight(1f))
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -425,13 +440,13 @@ private fun SeasonTotalsBentoCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Avg $avgSpeed km/h",
+                    text = stringResource(R.string.history_avg_speed, avgSpeed),
                     color = InkSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Top $topSpeed km/h",
+                    text = stringResource(R.string.history_top_speed, topSpeed),
                     color = InkSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold
@@ -569,7 +584,7 @@ private fun RideHistoryCard(
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
-                    contentDescription = "Open replay",
+                    contentDescription = stringResource(R.string.cd_open_replay),
                     tint = InkSecondary,
                     modifier = Modifier.size(18.dp)
                 )

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.ridervoice.R
 import com.ridervoice.navigation.Routes
 import com.ridervoice.ui.theme.*
 
@@ -77,28 +79,28 @@ fun RvBottomNavigationBar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     BottomNavTabItem(
-                        label = "Dashboard",
+                        label = stringResource(R.string.tab_dashboard),
                         icon = Icons.Default.GridView,
                         selected = currentRoute == Routes.HOME,
                         onClick = onHomeClick,
                         modifier = Modifier.weight(1f).testTag("bottom_nav_home")
                     )
                     BottomNavTabItem(
-                        label = "History",
+                        label = stringResource(R.string.tab_history),
                         icon = Icons.Default.History,
                         selected = currentRoute == Routes.RIDE_STATS,
                         onClick = onHistoryClick,
                         modifier = Modifier.weight(1f).testTag("bottom_nav_history")
                     )
                     BottomNavTabItem(
-                        label = "My Squad",
+                        label = stringResource(R.string.tab_my_squad),
                         icon = Icons.Default.Group,
                         selected = currentRoute == Routes.SQUAD,
                         onClick = onSquadClick,
                         modifier = Modifier.weight(1f).testTag("bottom_nav_squad")
                     )
                     BottomNavTabItem(
-                        label = "Settings",
+                        label = stringResource(R.string.nav_settings),
                         icon = Icons.Default.Tune,
                         selected = currentRoute == Routes.SETTINGS,
                         onClick = onSettingsClick,
@@ -224,7 +226,7 @@ fun MoreMenuBottomSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Rider Menu",
+                            text = stringResource(R.string.menu_rider_title),
                             style = MaterialTheme.typography.titleLarge,
                             fontSize = 20.sp,
                             color = Ink
@@ -235,7 +237,7 @@ fun MoreMenuBottomSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Close menu",
+                                contentDescription = stringResource(R.string.cd_close_menu),
                                 tint = InkSecondary
                             )
                         }
@@ -243,8 +245,8 @@ fun MoreMenuBottomSheet(
 
                     MoreSheetRow(
                         icon = Icons.Default.AccountCircle,
-                        title = "Account & Profile",
-                        subtitle = "Callsign, motorcycle & details",
+                        title = stringResource(R.string.menu_account_title),
+                        subtitle = stringResource(R.string.menu_account_subtitle),
                         onClick = {
                             onDismiss()
                             onAccountClick()
@@ -252,8 +254,8 @@ fun MoreMenuBottomSheet(
                     )
                     MoreSheetRow(
                         icon = Icons.Default.HeadsetMic,
-                        title = "Audio & Helmet Setup",
-                        subtitle = "Bluetooth intercom & mic routing",
+                        title = stringResource(R.string.menu_audio_title),
+                        subtitle = stringResource(R.string.menu_audio_subtitle),
                         onClick = {
                             onDismiss()
                             onDeviceSetupClick()
@@ -262,8 +264,8 @@ fun MoreMenuBottomSheet(
                     if (onRoutePlannerClick != null) {
                         MoreSheetRow(
                             icon = Icons.Default.Map,
-                            title = "Route Planner",
-                            subtitle = "Plan waypoints & offline radar",
+                            title = stringResource(R.string.route_planner_title),
+                            subtitle = stringResource(R.string.menu_route_planner_subtitle),
                             onClick = {
                                 onDismiss()
                                 onRoutePlannerClick()
@@ -273,8 +275,8 @@ fun MoreMenuBottomSheet(
                     if (onInvitesInboxClick != null) {
                         MoreSheetRow(
                             icon = Icons.Default.Mail,
-                            title = "Inbox",
-                            subtitle = "Pending group ride invitations",
+                            title = stringResource(R.string.menu_inbox_title),
+                            subtitle = stringResource(R.string.menu_inbox_subtitle),
                             onClick = {
                                 onDismiss()
                                 onInvitesInboxClick()
@@ -283,8 +285,8 @@ fun MoreMenuBottomSheet(
                     }
                     MoreSheetRow(
                         icon = Icons.Default.Tune,
-                        title = "Settings",
-                        subtitle = "Voice, language, display & updates",
+                        title = stringResource(R.string.nav_settings),
+                        subtitle = stringResource(R.string.menu_settings_subtitle),
                         onClick = {
                             onDismiss()
                             onSettingsClick()
@@ -297,7 +299,7 @@ fun MoreMenuBottomSheet(
 
                     MoreSheetRow(
                         icon = Icons.Default.Logout,
-                        title = "Sign Out",
+                        title = stringResource(R.string.action_sign_out),
                         subtitle = null,
                         destructive = true,
                         onClick = {

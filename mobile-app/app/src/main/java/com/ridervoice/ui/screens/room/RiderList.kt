@@ -11,7 +11,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.ridervoice.R
 import com.ridervoice.models.Participant
 import com.ridervoice.models.RiderLocation
 import com.ridervoice.ui.components.EmptyState
@@ -39,7 +41,7 @@ fun RiderList(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "No other riders connected yet",
+                text = stringResource(R.string.room_no_other_riders),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )

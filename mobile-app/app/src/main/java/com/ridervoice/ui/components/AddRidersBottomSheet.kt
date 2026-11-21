@@ -21,11 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.ridervoice.R
 import com.ridervoice.ui.screens.InviteFriendsContent
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.LobbyViewModel
@@ -100,7 +102,7 @@ fun AddRidersBottomSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Add Riders",
+                            text = stringResource(R.string.sheet_add_riders_title),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = Ink,
@@ -114,7 +116,7 @@ fun AddRidersBottomSheet(
                                 .background(PaperRaised)
                                 .border(1.dp, InkHairline, CircleShape)
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Ink, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close), tint = Ink, modifier = Modifier.size(18.dp))
                         }
                     }
 
@@ -129,7 +131,11 @@ fun AddRidersBottomSheet(
                             .padding(4.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        listOf("From Squad" to Icons.Default.Group, "Share Link" to Icons.Default.Link).forEachIndexed { idx, (label, icon) ->
+                        val tabItems = listOf(
+                            stringResource(R.string.sheet_tab_from_squad) to Icons.Default.Group,
+                            stringResource(R.string.sheet_tab_share_link) to Icons.Default.Link
+                        )
+                        tabItems.forEachIndexed { idx, (label, icon) ->
                             val selected = selectedTab == idx
                             Surface(
                                 color = if (selected) PaperRaised else Color.Transparent,
@@ -194,7 +200,7 @@ fun AddRidersBottomSheet(
                                             Icon(Icons.Default.Link, contentDescription = null, tint = Pop, modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = "24-hour invite link",
+                                                text = stringResource(R.string.sheet_invite_link_title),
                                                 style = MaterialTheme.typography.titleSmall,
                                                 fontWeight = FontWeight.Bold,
                                                 color = Ink
@@ -202,7 +208,7 @@ fun AddRidersBottomSheet(
                                         }
                                         Spacer(modifier = Modifier.height(6.dp))
                                         Text(
-                                            text = "Share this link via WhatsApp, SMS, or Telegram so riders can join your convoy directly.",
+                                            text = stringResource(R.string.sheet_invite_link_desc),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = InkSecondary
                                         )
@@ -220,7 +226,7 @@ fun AddRidersBottomSheet(
                                             CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
                                             Spacer(modifier = Modifier.height(12.dp))
                                             Text(
-                                                text = "Generating link...",
+                                                text = stringResource(R.string.sheet_generating_link),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = InkSecondary
                                             )
@@ -254,12 +260,12 @@ fun AddRidersBottomSheet(
                                                     val clip = ClipData.newPlainText("RiderVoice Convoy Link", activeLink)
                                                     clipboard.setPrimaryClip(clip)
                                                     isCopied = true
-                                                    Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, context.getString(R.string.toast_link_copied), Toast.LENGTH_SHORT).show()
                                                 }
                                             ) {
                                                 Icon(
                                                     imageVector = if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy,
-                                                    contentDescription = "Copy Link",
+                                                    contentDescription = stringResource(R.string.cd_copy_link),
                                                     tint = if (isCopied) Moss else Pop
                                                 )
                                             }
@@ -276,7 +282,7 @@ fun AddRidersBottomSheet(
                                                 val clip = ClipData.newPlainText("RiderVoice Convoy Link", activeLink)
                                                 clipboard.setPrimaryClip(clip)
                                                 isCopied = true
-                                                Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, context.getString(R.string.toast_link_copied), Toast.LENGTH_SHORT).show()
                                             },
                                             shape = RoundedCornerShape(16.dp),
                                             border = BorderStroke(1.dp, InkHairline),
@@ -293,7 +299,7 @@ fun AddRidersBottomSheet(
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
-                                                text = if (isCopied) "Copied" else "Copy link",
+                                                text = if (isCopied) stringResource(R.string.action_copied) else stringResource(R.string.action_copy_link),
                                                 style = MaterialTheme.typography.labelLarge,
                                                 color = Ink,
                                                 fontWeight = FontWeight.SemiBold
@@ -306,11 +312,11 @@ fun AddRidersBottomSheet(
                                                     action = Intent.ACTION_SEND
                                                     putExtra(
                                                         Intent.EXTRA_TEXT,
-                                                        "Join my RiderVoice convoy '$convoyName'!\n$activeLink"
+                                                        context.getString(R.string.share_convoy_invite_text, convoyName, activeLink)
                                                     )
                                                     type = "text/plain"
                                                 }
-                                                context.startActivity(Intent.createChooser(sendIntent, "Share Convoy Invite Link"))
+                                                context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.share_convoy_invite_chooser)))
                                             },
                                             colors = ButtonDefaults.buttonColors(containerColor = Pop),
                                             shape = RoundedCornerShape(16.dp),
@@ -326,7 +332,7 @@ fun AddRidersBottomSheet(
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
-                                                text = "Share",
+                                                text = stringResource(R.string.action_share),
                                                 color = PaperOnPop,
                                                 style = MaterialTheme.typography.labelLarge,
                                                 fontWeight = FontWeight.Bold
@@ -335,7 +341,7 @@ fun AddRidersBottomSheet(
                                     }
                                 } else {
                                     InlineError(
-                                        message = linkError ?: "Failed to generate link",
+                                        message = linkError ?: stringResource(R.string.error_generate_link_failed),
                                         onRetry = { lobbyViewModel.generateShareLink(convoyName) }
                                     )
                                 }

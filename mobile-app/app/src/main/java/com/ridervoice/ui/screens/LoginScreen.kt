@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -80,7 +81,7 @@ fun LoginScreen(
 
     LaunchedEffect(resetEmailSent) {
         if (resetEmailSent) {
-            snackbarHostState.showSnackbar("Password reset email sent! Check your inbox.")
+            snackbarHostState.showSnackbar(context.getString(R.string.auth_reset_email_sent))
             showForgotPassword = false
             viewModel.clearResetEmailSent()
         }
@@ -107,10 +108,12 @@ fun LoginScreen(
                 }
             } catch (e: NoCredentialException) {
                 snackbarHostState.showSnackbar(
-                    "No Google account found on this device. Please add a Google account in your device Settings."
+                    context.getString(R.string.auth_no_google_account)
                 )
             } catch (e: Exception) {
-                snackbarHostState.showSnackbar("Google sign-in failed: ${e.localizedMessage ?: "Unknown error"}")
+                snackbarHostState.showSnackbar(
+                    context.getString(R.string.auth_google_failed, e.localizedMessage ?: context.getString(R.string.error_unknown))
+                )
             }
         }
     }
@@ -148,7 +151,7 @@ fun LoginScreen(
                 modifier = Modifier.padding(bottom = 12.dp)
             ) {
                 Text(
-                    text = "GROUP VOICE INTERCOM",
+                    text = stringResource(R.string.splash_eyebrow_badge),
                     color = InkSecondary,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
@@ -158,14 +161,14 @@ fun LoginScreen(
             }
 
             Text(
-                text = "RiderVoice",
+                text = stringResource(R.string.app_name),
                 color = Ink,
                 style = MaterialTheme.typography.displayLarge,
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Stay connected. Ride united.",
+                text = stringResource(R.string.splash_legacy_tagline),
                 color = InkSecondary,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 4.dp)
@@ -195,7 +198,7 @@ fun LoginScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Warning,
-                                contentDescription = "Error",
+                                contentDescription = stringResource(R.string.cd_error),
                                 tint = Brick,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -212,7 +215,7 @@ fun LoginScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Dismiss error",
+                                    contentDescription = stringResource(R.string.cd_dismiss_error),
                                     tint = Brick,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -237,13 +240,13 @@ fun LoginScreen(
                 ) {
                     if (!showForgotPassword) {
                         Text(
-                            text = "Sign in",
+                            text = stringResource(R.string.auth_sign_in_title),
                             color = Ink,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Sign in to connect with your riding group.",
+                            text = stringResource(R.string.auth_sign_in_subtitle),
                             color = InkSecondary,
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(top = 4.dp, bottom = 18.dp)
@@ -252,7 +255,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it.trim() },
-                            label = { Text("Email", color = InkSecondary) },
+                            label = { Text(stringResource(R.string.auth_email_label), color = InkSecondary) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
@@ -271,7 +274,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
-                            label = { Text("Password", color = InkSecondary) },
+                            label = { Text(stringResource(R.string.auth_password_label), color = InkSecondary) },
                             singleLine = true,
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
@@ -292,7 +295,7 @@ fun LoginScreen(
                                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                     Icon(
                                         imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                        contentDescription = if (passwordVisible) stringResource(R.string.cd_hide_password) else stringResource(R.string.cd_show_password),
                                         tint = InkSecondary
                                     )
                                 }
@@ -314,7 +317,7 @@ fun LoginScreen(
                                 modifier = Modifier.defaultMinSize(minHeight = 44.dp)
                             ) {
                                 Text(
-                                    "Forgot password?",
+                                    stringResource(R.string.auth_forgot_password),
                                     color = Pop,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Bold
@@ -351,7 +354,7 @@ fun LoginScreen(
                                 )
                             } else {
                                 Text(
-                                    "Sign In",
+                                    stringResource(R.string.action_sign_in),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -366,7 +369,7 @@ fun LoginScreen(
                         ) {
                             Divider(modifier = Modifier.weight(1f), color = InkHairline)
                             Text(
-                                "  or continue with  ",
+                                stringResource(R.string.auth_or_continue_with),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontSize = 11.sp
@@ -392,7 +395,7 @@ fun LoginScreen(
                             border = BorderStroke(1.dp, InkHairline)
                         ) {
                             Text(
-                                text = "G   Continue with Google",
+                                text = stringResource(R.string.auth_continue_google),
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
                             )
@@ -418,13 +421,13 @@ fun LoginScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Phone,
-                                    contentDescription = "Phone OTP",
+                                    contentDescription = stringResource(R.string.cd_phone_otp),
                                     tint = Ink,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Phone SMS",
+                                    text = stringResource(R.string.auth_phone_sms),
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -444,7 +447,7 @@ fun LoginScreen(
                                 border = BorderStroke(1.dp, InkHairline)
                             ) {
                                 Text(
-                                    text = "Guest Rider",
+                                    text = stringResource(R.string.auth_guest_rider),
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -452,13 +455,13 @@ fun LoginScreen(
                         }
                     } else {
                         Text(
-                            text = "Reset Password",
+                            text = stringResource(R.string.auth_reset_password_title),
                             color = Ink,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Enter your registered email address to receive password reset instructions.",
+                            text = stringResource(R.string.auth_reset_password_desc),
                             color = InkSecondary,
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodySmall,
@@ -468,7 +471,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = forgotEmail,
                             onValueChange = { forgotEmail = it.trim() },
-                            label = { Text("Registered Email", color = InkSecondary) },
+                            label = { Text(stringResource(R.string.auth_registered_email), color = InkSecondary) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
@@ -510,7 +513,7 @@ fun LoginScreen(
                                 )
                             } else {
                                 Text(
-                                    "Send Reset Link",
+                                    stringResource(R.string.auth_send_reset_link),
                                     color = PaperOnPop,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold
@@ -525,7 +528,7 @@ fun LoginScreen(
                             modifier = Modifier.defaultMinSize(minHeight = 44.dp)
                         ) {
                             Text(
-                                "← Return to Sign In",
+                                stringResource(R.string.auth_return_to_sign_in),
                                 color = InkSecondary,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -545,7 +548,7 @@ fun LoginScreen(
                         .defaultMinSize(minHeight = 48.dp)
                 ) {
                     Text(
-                        "New to RiderVoice? ",
+                        stringResource(R.string.auth_new_to_app),
                         color = InkSecondary,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -554,7 +557,7 @@ fun LoginScreen(
                         modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                     ) {
                         Text(
-                            "Create Account",
+                            stringResource(R.string.action_create_account),
                             color = Pop,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold
@@ -566,7 +569,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "By continuing, you agree to our\nTerms of Service and Privacy Policy",
+                text = stringResource(R.string.auth_terms_login),
                 color = InkSecondary,
                 style = MaterialTheme.typography.bodySmall,
                 fontSize = 11.sp,

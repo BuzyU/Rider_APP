@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -88,10 +89,10 @@ fun HomeScreen(
 
     if (showLogoutConfirmDialog) {
         ConfirmDialog(
-            title = "Sign out of RiderVoice?",
-            body = "Are you sure you want to log out? You will need to sign in again to access your squad and group rides.",
-            confirmLabel = "Sign Out",
-            dismissLabel = "Cancel",
+            title = stringResource(R.string.dialog_sign_out_title),
+            body = stringResource(R.string.dialog_sign_out_home_body),
+            confirmLabel = stringResource(R.string.action_sign_out),
+            dismissLabel = stringResource(R.string.action_cancel),
             destructive = true,
             onConfirm = {
                 showLogoutConfirmDialog = false
@@ -126,7 +127,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Dashboard",
+                        text = stringResource(R.string.tab_dashboard),
                         color = Ink,
                         style = MaterialTheme.typography.displayLarge,
                         fontSize = 28.sp,
@@ -183,13 +184,13 @@ fun HomeScreen(
                     ) {
                         Icon(
                             Icons.Default.BatteryAlert,
-                            contentDescription = "Battery Warning",
+                            contentDescription = stringResource(R.string.cd_battery_warning),
                             tint = Pop,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Battery restrictions may mute background voice. Disable optimization for reliable audio.",
+                            text = stringResource(R.string.home_battery_warning_body),
                             color = Ink,
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.weight(1f)
@@ -200,7 +201,7 @@ fun HomeScreen(
                         ) {
                             Icon(
                                 Icons.Default.Close,
-                                contentDescription = "Dismiss",
+                                contentDescription = stringResource(R.string.cd_dismiss),
                                 tint = InkSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -220,7 +221,7 @@ fun HomeScreen(
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.hero_create_ride),
-                    contentDescription = "Create a ride",
+                    contentDescription = stringResource(R.string.home_create_ride_title),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -248,14 +249,14 @@ fun HomeScreen(
                 ) {
                     Column(modifier = Modifier.fillMaxWidth(0.76f)) {
                         Text(
-                            text = "CONVOY LEAD",
+                            text = stringResource(R.string.home_hero_eyebrow),
                             color = Color(0xE6FFFDF8),
                             style = MaterialTheme.typography.labelSmall,
                             letterSpacing = 1.1.sp
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Create a ride",
+                            text = stringResource(R.string.home_create_ride_title),
                             color = Color(0xFFFFFDF8),
                             style = MaterialTheme.typography.titleLarge,
                             fontSize = 25.sp,
@@ -263,7 +264,7 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Start a convoy and invite your squad",
+                            text = stringResource(R.string.home_create_ride_subtitle),
                             color = Color(0xE0FFFDF8),
                             style = MaterialTheme.typography.bodyMedium,
                             fontSize = 14.sp,
@@ -285,7 +286,7 @@ fun HomeScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ArrowForward,
-                                contentDescription = "Start creating ride",
+                                contentDescription = stringResource(R.string.cd_start_creating_ride),
                                 tint = Color(0xFF23201B),
                                 modifier = Modifier.size(22.dp)
                             )
@@ -324,7 +325,7 @@ fun HomeScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Login,
-                                contentDescription = "Join a ride",
+                                contentDescription = stringResource(R.string.action_join_ride),
                                 tint = PaperOnPop,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -332,14 +333,14 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(26.dp))
                         Column {
                             Text(
-                                text = "Join a ride",
+                                text = stringResource(R.string.action_join_ride),
                                 color = Ink,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Code or link",
+                                text = stringResource(R.string.home_join_subtitle),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -377,7 +378,7 @@ fun HomeScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.NotificationsNone,
-                                    contentDescription = "Inbox",
+                                    contentDescription = stringResource(R.string.menu_inbox_title),
                                     tint = Ink,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -392,14 +393,14 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(26.dp))
                         Column {
                             Text(
-                                text = "Inbox",
+                                text = stringResource(R.string.menu_inbox_title),
                                 color = Ink,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Ride invitations",
+                                text = stringResource(R.string.home_inbox_subtitle),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1,
@@ -443,7 +444,7 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.width(7.dp))
                             Text(
-                                text = if (uiState.hasActiveRide) "LIVE CONVOY" else "CONVOY STATUS",
+                                text = if (uiState.hasActiveRide) stringResource(R.string.home_live_convoy) else stringResource(R.string.home_convoy_status),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.labelSmall,
                                 letterSpacing = 0.9.sp
@@ -455,7 +456,7 @@ fun HomeScreen(
                                 shape = RoundedCornerShape(RvRadius.pill)
                             ) {
                                 Text(
-                                    text = "Audio Live",
+                                    text = stringResource(R.string.home_audio_live),
                                     color = Moss,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontSize = 11.sp,
@@ -469,7 +470,7 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = if (uiState.hasActiveRide) uiState.activeRideName else "No active convoy",
+                        text = if (uiState.hasActiveRide) uiState.activeRideName else stringResource(R.string.home_no_active_convoy),
                         color = Ink,
                         style = MaterialTheme.typography.titleLarge,
                         fontSize = 20.sp,
@@ -492,7 +493,7 @@ fun HomeScreen(
                             text = if (uiState.hasActiveRide) {
                                 uiState.activeRideSubtitle
                             } else {
-                                "Create a ride or join with a code to connect with your group."
+                                stringResource(R.string.home_no_active_convoy_desc)
                             },
                             color = InkSecondary,
                             style = MaterialTheme.typography.bodySmall,
@@ -548,7 +549,7 @@ fun HomeScreen(
                                 modifier = Modifier.defaultMinSize(minHeight = 44.dp)
                             ) {
                                 Text(
-                                    text = "Join Convoy",
+                                    text = stringResource(R.string.home_join_convoy),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontSize = 13.sp
                                 )
@@ -591,13 +592,13 @@ fun HomeScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Warning,
-                            contentDescription = "Emergency SOS",
+                            contentDescription = stringResource(R.string.sos_title),
                             tint = Brick,
                             modifier = Modifier.size(21.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "EMERGENCY SOS",
+                            text = stringResource(R.string.home_emergency_sos_upper),
                             color = Brick,
                             style = MaterialTheme.typography.labelLarge,
                             fontSize = 15.sp,

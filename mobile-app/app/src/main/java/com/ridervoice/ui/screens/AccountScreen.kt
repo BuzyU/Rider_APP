@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +28,7 @@ import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
+import com.ridervoice.R
 import com.ridervoice.ui.components.PrimaryButton
 import com.ridervoice.ui.components.SecondaryButton
 import com.ridervoice.ui.components.UpdateDialog
@@ -76,7 +78,7 @@ fun AccountScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.cd_back),
                         tint = Ink,
                         modifier = Modifier.size(20.dp)
                     )
@@ -85,7 +87,7 @@ fun AccountScreen(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    text = "Account",
+                    text = stringResource(R.string.nav_account),
                     color = Ink,
                     style = MaterialTheme.typography.titleLarge,
                     fontSize = 20.sp,
@@ -103,7 +105,7 @@ fun AccountScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Profile",
+                        contentDescription = stringResource(R.string.account_edit_profile),
                         tint = Pop,
                         modifier = Modifier.size(19.dp)
                     )
@@ -121,7 +123,7 @@ fun AccountScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings",
+                        contentDescription = stringResource(R.string.nav_settings),
                         tint = Ink,
                         modifier = Modifier.size(20.dp)
                     )
@@ -134,7 +136,7 @@ fun AccountScreen(
                         CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
                         Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text = "Loading profile...",
+                            text = stringResource(R.string.account_loading),
                             style = MaterialTheme.typography.bodyMedium,
                             color = InkSecondary
                         )
@@ -214,7 +216,7 @@ fun AccountScreen(
                                                 .data(uiState.photoUrl)
                                                 .crossfade(true)
                                                 .build(),
-                                            contentDescription = "User Profile Picture",
+                                            contentDescription = stringResource(R.string.cd_user_profile_picture),
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier
                                                 .fillMaxSize()
@@ -241,7 +243,7 @@ fun AccountScreen(
                                 Spacer(modifier = Modifier.height(14.dp))
 
                                 Text(
-                                    text = uiState.displayName.ifBlank { "Rider" },
+                                    text = uiState.displayName.ifBlank { stringResource(R.string.participant_rider_prefix) },
                                     style = MaterialTheme.typography.titleLarge,
                                     color = Ink,
                                     fontWeight = FontWeight.Bold,
@@ -289,7 +291,7 @@ fun AccountScreen(
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "PROFILE DETAILS",
+                                text = stringResource(R.string.account_section_details),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.labelSmall,
                                 letterSpacing = 0.9.sp,
@@ -303,25 +305,25 @@ fun AccountScreen(
                             ) {
                                 Column(modifier = Modifier.fillMaxWidth()) {
                                     AccountInfoRow(
-                                        label = "Display Name",
-                                        value = uiState.displayName.ifBlank { "Not configured" },
+                                        label = stringResource(R.string.account_display_name),
+                                        value = uiState.displayName.ifBlank { stringResource(R.string.account_not_configured) },
                                         icon = Icons.Default.Badge
                                     )
                                     Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
                                     AccountInfoRow(
-                                        label = "Call-Sign Handle",
+                                        label = stringResource(R.string.account_callsign_handle),
                                         value = "@${uiState.handle.removePrefix("@")}",
                                         icon = Icons.Default.AlternateEmail
                                     )
                                     Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
                                     AccountInfoRow(
-                                        label = "Email Address",
+                                        label = stringResource(R.string.account_email_address),
                                         value = uiState.email,
                                         icon = Icons.Default.Email
                                     )
                                     Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
                                     AccountInfoRow(
-                                        label = "Phone Number",
+                                        label = stringResource(R.string.account_phone_number),
                                         value = uiState.phone,
                                         icon = Icons.Default.Phone
                                     )
@@ -334,7 +336,7 @@ fun AccountScreen(
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "MOTORCYCLE & BIO",
+                                text = stringResource(R.string.account_section_bike_bio),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.labelSmall,
                                 letterSpacing = 0.9.sp,
@@ -348,13 +350,13 @@ fun AccountScreen(
                             ) {
                                 Column(modifier = Modifier.fillMaxWidth()) {
                                     AccountInfoRow(
-                                        label = "Motorcycle",
+                                        label = stringResource(R.string.account_motorcycle),
                                         value = uiState.bikeModel,
                                         icon = Icons.Default.TwoWheeler
                                     )
                                     Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
                                     AccountInfoRow(
-                                        label = "Bio",
+                                        label = stringResource(R.string.account_bio),
                                         value = uiState.bio,
                                         icon = Icons.Default.Notes
                                     )
@@ -366,7 +368,7 @@ fun AccountScreen(
                     item {
                         Spacer(modifier = Modifier.height(4.dp))
                         PrimaryButton(
-                            text = "Edit Profile",
+                            text = stringResource(R.string.account_edit_profile),
                             onClick = { showEditDialog = true },
                             leadingIcon = Icons.Default.Edit
                         )
@@ -374,7 +376,7 @@ fun AccountScreen(
 
                     item {
                         SecondaryButton(
-                            text = "Check for Updates",
+                            text = stringResource(R.string.account_check_updates),
                             onClick = onCheckForUpdates,
                             leadingIcon = Icons.Default.SystemUpdate
                         )
@@ -507,7 +509,7 @@ private fun EditProfileDialog(
         containerColor = PaperRaised,
         title = {
             Text(
-                text = "Edit Profile",
+                text = stringResource(R.string.account_edit_profile),
                 style = MaterialTheme.typography.titleMedium,
                 color = Ink,
                 fontWeight = FontWeight.Bold
@@ -521,7 +523,7 @@ private fun EditProfileDialog(
                 OutlinedTextField(
                     value = displayName,
                     onValueChange = { displayName = it },
-                    label = { Text("Display Name") },
+                    label = { Text(stringResource(R.string.account_display_name)) },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
                     colors = fieldColors,
@@ -531,7 +533,7 @@ private fun EditProfileDialog(
                 OutlinedTextField(
                     value = handle,
                     onValueChange = { handle = it },
-                    label = { Text("Call-Sign Handle") },
+                    label = { Text(stringResource(R.string.account_callsign_handle)) },
                     leadingIcon = { Text("@", color = Pop, fontWeight = FontWeight.Bold) },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
@@ -542,7 +544,7 @@ private fun EditProfileDialog(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
-                    label = { Text("Phone Number") },
+                    label = { Text(stringResource(R.string.account_phone_number)) },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
                     colors = fieldColors,
@@ -552,7 +554,7 @@ private fun EditProfileDialog(
                 OutlinedTextField(
                     value = bikeModel,
                     onValueChange = { bikeModel = it },
-                    label = { Text("Motorcycle (e.g. Yamaha MT-07)") },
+                    label = { Text(stringResource(R.string.account_motorcycle_hint)) },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
                     colors = fieldColors,
@@ -562,7 +564,7 @@ private fun EditProfileDialog(
                 OutlinedTextField(
                     value = bio,
                     onValueChange = { bio = it },
-                    label = { Text("Bio") },
+                    label = { Text(stringResource(R.string.account_bio)) },
                     maxLines = 3,
                     shape = RoundedCornerShape(14.dp),
                     colors = fieldColors,
@@ -581,12 +583,12 @@ private fun EditProfileDialog(
                     CircularProgressIndicator(color = PaperOnPop, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                 }
-                Text("Save", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.action_save), color = PaperOnPop, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Ink)
+                Text(stringResource(R.string.action_cancel), color = Ink)
             }
         }
     )

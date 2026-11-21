@@ -29,10 +29,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
+import com.ridervoice.R
 import com.ridervoice.models.CancelAlertRequest
 import com.ridervoice.models.SosAlertRequest
 import com.ridervoice.network.ApiService
@@ -206,6 +209,7 @@ fun EmergencyAlertContent(
     onTriggerDispatch: (String, (Boolean, String?) -> Unit) -> Unit,
     onCancelEmergency: (String, String?) -> Unit
 ) {
+    val context = LocalContext.current
     val isDark = ThemeState.isDarkTheme
     var countdown by rememberSaveable { mutableStateOf(15) }
     var hasAutoDispatched by rememberSaveable { mutableStateOf(false) }
@@ -221,7 +225,11 @@ fun EmergencyAlertContent(
             onTriggerDispatch(roomName) { success, err ->
                 isDispatching = false
                 isDispatched = true
-                dispatchStatus = if (success) "DISPATCHED TO SQUAD & CONVOY" else "FAILED: $err"
+                dispatchStatus = if (success) {
+                    context.getString(R.string.sos_dispatched_status)
+                } else {
+                    context.getString(R.string.sos_failed_prefix, err ?: context.getString(R.string.error_unknown))
+                }
             }
         }
     }
@@ -276,13 +284,13 @@ fun EmergencyAlertContent(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Warning,
-                            contentDescription = "Warning Hazard",
+                            contentDescription = stringResource(R.string.cd_warning_hazard),
                             tint = Brick,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "EMERGENCY BEACON",
+                            text = stringResource(R.string.sos_beacon_badge),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = Brick,
@@ -302,7 +310,7 @@ fun EmergencyAlertContent(
                 )
 
                 Text(
-                    text = "Channel: $roomName",
+                    text = stringResource(R.string.sos_channel_label, roomName),
                     style = MaterialTheme.typography.bodySmall,
                     color = InkSecondary
                 )
@@ -335,14 +343,14 @@ fun EmergencyAlertContent(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     if (isDispatched) {
                         Text(
-                            text = "ALERT",
+                            text = stringResource(R.string.sos_alert_upper),
                             style = MaterialTheme.typography.displayLarge,
                             color = Brick,
                             fontSize = 32.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "SENT",
+                            text = stringResource(R.string.sos_sent_upper),
                             style = MaterialTheme.typography.labelLarge,
                             color = Ink
                         )
@@ -355,7 +363,7 @@ fun EmergencyAlertContent(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "AUTO-DISPATCH IN ${countdown}s",
+                            text = stringResource(R.string.sos_auto_dispatch_in, countdown),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = Brick
@@ -377,10 +385,10 @@ fun EmergencyAlertContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val statusMessage = when {
-                        isCancelling -> "Canceling emergency broadcast..."
-                        isDispatching -> "Sending emergency alert..."
-                        isDispatched -> dispatchStatus ?: "Emergency broadcast active"
-                        else -> "Auto-broadcast in ${countdown}s or cancel below"
+                        isCancelling -> stringResource(R.string.sos_canceling_broadcast)
+                        isDispatching -> stringResource(R.string.sos_sending_alert)
+                        isDispatched -> dispatchStatus ?: stringResource(R.string.sos_broadcast_active)
+                        else -> stringResource(R.string.sos_auto_broadcast_hint, countdown)
                     }
                     Text(
                         text = statusMessage,
@@ -390,7 +398,7 @@ fun EmergencyAlertContent(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "GPS coordinates & convoy alert sent to your squad.",
+                        text = stringResource(R.string.sos_gps_sent_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = InkSecondary
                     )
@@ -425,7 +433,7 @@ fun EmergencyAlertContent(
                             )
                         } else {
                             Text(
-                                text = "Send SOS Immediately",
+                                text = stringResource(R.string.sos_send_immediately),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -446,12 +454,12 @@ fun EmergencyAlertContent(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Phone,
-                        contentDescription = "Call $emergencyNumber",
+                        contentDescription = stringResource(R.string.cd_call_number, emergencyNumber),
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Call $emergencyNumber / Emergency",
+                        text = stringResource(R.string.sos_call_emergency_slash, emergencyNumber),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -480,12 +488,12 @@ fun EmergencyAlertContent(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Canceling...",
+                            text = stringResource(R.string.sos_canceling),
                             style = MaterialTheme.typography.titleMedium
                         )
                     } else {
                         Text(
-                            text = "I'm okay — Cancel emergency",
+                            text = stringResource(R.string.sos_cancel_emergency_btn),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )

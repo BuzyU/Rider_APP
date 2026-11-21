@@ -11,11 +11,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.ridervoice.R
 import com.ridervoice.ui.components.InlineError
 import com.ridervoice.ui.components.PrimaryButton
 import com.ridervoice.ui.components.RvScreen
@@ -60,12 +62,12 @@ fun JoinRoomScreen(
     )
 
     RvScreen(
-        title = "Join a ride",
+        title = stringResource(R.string.action_join_ride),
         onBack = onBackClick,
         bottomBar = if (activeToken == null) {
             {
                 PrimaryButton(
-                    text = if (isTokenConnecting) "Connecting..." else "Join ride",
+                    text = if (isTokenConnecting) stringResource(R.string.join_connecting_short) else stringResource(R.string.join_button_label),
                     onClick = {
                         if (canJoin) {
                             viewModel.smartJoin(roomCode.trim(), userName.trim()) { resolvedRoom ->
@@ -95,14 +97,14 @@ fun JoinRoomScreen(
                         CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Connecting to ride...",
+                            text = stringResource(R.string.join_connecting),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Ink
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Verifying your invite link...",
+                            text = stringResource(R.string.join_verifying_link),
                             style = MaterialTheme.typography.bodyMedium,
                             color = InkSecondary
                         )
@@ -115,14 +117,14 @@ fun JoinRoomScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Could not join ride",
+                            text = stringResource(R.string.join_failed_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Brick
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = tokenError ?: "This join link may have expired or is invalid.",
+                            text = tokenError ?: stringResource(R.string.join_link_expired_hint),
                             style = MaterialTheme.typography.bodyMedium,
                             color = InkSecondary,
                             textAlign = TextAlign.Center
@@ -140,7 +142,7 @@ fun JoinRoomScreen(
                                     .weight(1f)
                                     .height(48.dp)
                             ) {
-                                Text("Enter code", color = Ink, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.join_action_enter_code), color = Ink, fontWeight = FontWeight.SemiBold)
                             }
                             Button(
                                 onClick = {
@@ -154,7 +156,7 @@ fun JoinRoomScreen(
                                     .weight(1f)
                                     .height(48.dp)
                             ) {
-                                Text("Retry", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.action_retry), color = PaperOnPop, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -164,7 +166,7 @@ fun JoinRoomScreen(
             Spacer(modifier = Modifier.height(RvSpacing.sm))
 
             Text(
-                text = "Enter the ride code or paste an invite link from your convoy lead.",
+                text = stringResource(R.string.join_intro_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = InkSecondary
             )
@@ -174,7 +176,7 @@ fun JoinRoomScreen(
             OutlinedTextField(
                 value = userName,
                 onValueChange = { userName = it },
-                label = { Text("Your Callsign / Name") },
+                label = { Text(stringResource(R.string.join_callsign_label)) },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = InkSecondary) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -187,13 +189,13 @@ fun JoinRoomScreen(
             OutlinedTextField(
                 value = roomCode,
                 onValueChange = { roomCode = it },
-                label = { Text("Ride Code or Invite Link") },
-                placeholder = { Text("e.g. LONAVALA-01 or paste link", color = InkSecondary) },
+                label = { Text(stringResource(R.string.join_code_or_link_label)) },
+                placeholder = { Text(stringResource(R.string.join_code_placeholder), color = InkSecondary) },
                 leadingIcon = { Icon(Icons.Default.MeetingRoom, contentDescription = null, tint = Pop) },
                 supportingText = {
                     if (roomCode.isBlank()) {
                         Text(
-                            "Enter a ride code, invite code, or invite URL",
+                            stringResource(R.string.join_code_helper),
                             color = InkSecondary,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -207,7 +209,7 @@ fun JoinRoomScreen(
 
             if (tokenError != null && activeToken == null) {
                 Spacer(modifier = Modifier.height(14.dp))
-                InlineError(message = tokenError ?: "Could not join ride")
+                InlineError(message = tokenError ?: stringResource(R.string.join_failed_title))
             }
 
             Spacer(modifier = Modifier.height(RvSpacing.xl))

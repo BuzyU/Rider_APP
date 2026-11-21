@@ -13,9 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.ui.theme.*
 import com.ridervoice.update.AppReleaseInfo
 import com.ridervoice.update.UpdateUiState
@@ -44,7 +46,7 @@ fun UpdateDialog(
                 shape = RoundedCornerShape(24.dp),
                 title = {
                     Text(
-                        text = "CHECKING FOR UPDATES",
+                        text = stringResource(R.string.update_checking_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -64,7 +66,7 @@ fun UpdateDialog(
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            text = "Querying official release channel...",
+                            text = stringResource(R.string.update_checking_desc),
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary
                         )
@@ -90,7 +92,7 @@ fun UpdateDialog(
                 },
                 title = {
                     Text(
-                        text = "UP TO DATE",
+                        text = stringResource(R.string.update_uptodate_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -105,14 +107,14 @@ fun UpdateDialog(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            text = "You are currently running the latest version of RiderVoice (v$cleanCurrent). No updates are required.",
+                            text = stringResource(R.string.update_uptodate_desc, cleanCurrent),
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary
                         )
                         val notes = uiState.releaseNotes
                         if (!notes.isNullOrBlank()) {
                             Text(
-                                text = "WHAT'S NEW IN v$cleanCurrent",
+                                text = stringResource(R.string.update_whats_new_version, cleanCurrent),
                                 color = NeonOrange,
                                 style = MaterialTheme.typography.labelSmall,
                                 letterSpacing = 1.sp
@@ -139,13 +141,14 @@ fun UpdateDialog(
                         onClick = onDismiss,
                         colors = ButtonDefaults.buttonColors(containerColor = Gunmetal)
                     ) {
-                        Text("OK", color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.action_ok), color = TextPrimary, fontWeight = FontWeight.Bold)
                     }
                 }
             )
         }
 
         is UpdateUiState.UpdateAvailable -> {
+            val cleanVer = uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")
             AlertDialog(
                 onDismissRequest = onDismiss,
                 containerColor = PaperRaised,
@@ -153,13 +156,13 @@ fun UpdateDialog(
                 title = {
                     Column {
                         Text(
-                            text = "APP UPDATE",
+                            text = stringResource(R.string.update_badge_app),
                             style = MaterialTheme.typography.labelSmall,
                             color = Pop,
                             letterSpacing = 1.sp
                         )
                         Text(
-                            text = "NEW VERSION AVAILABLE",
+                            text = stringResource(R.string.update_available_title),
                             style = MaterialTheme.typography.titleMedium,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
@@ -188,19 +191,19 @@ fun UpdateDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text("CURRENT", color = TextSecondary, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                                    Text(stringResource(R.string.update_current_label), color = TextSecondary, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
                                     Text("v${uiState.currentVersion.removePrefix("v").removePrefix("V")}", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 }
                                 Icon(Icons.Default.ArrowForward, contentDescription = null, tint = ElectricCyan, modifier = Modifier.size(20.dp))
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text("NEWEST (${uiState.releaseInfo.formattedSize})", color = TechGreen, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
-                                    Text("v${uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")}", color = TechGreen, fontWeight = FontWeight.Black, fontSize = 17.sp)
+                                    Text(stringResource(R.string.update_newest_label, uiState.releaseInfo.formattedSize), color = TechGreen, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                                    Text("v$cleanVer", color = TechGreen, fontWeight = FontWeight.Black, fontSize = 17.sp)
                                 }
                             }
                         }
 
                         Text(
-                            text = "WHAT'S NEW",
+                            text = stringResource(R.string.update_whats_new),
                             color = NeonOrange,
                             style = MaterialTheme.typography.labelSmall,
                             letterSpacing = 1.sp
@@ -222,7 +225,7 @@ fun UpdateDialog(
                         }
 
                         Text(
-                            text = "The update will be downloaded directly to your device and verified before installation.",
+                            text = stringResource(R.string.update_safety_note),
                             color = TextSecondary,
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 11.sp
@@ -234,25 +237,26 @@ fun UpdateDialog(
                         onClick = { onConfirmDownload(uiState.releaseInfo) },
                         colors = ButtonDefaults.buttonColors(containerColor = Pop)
                     ) {
-                        Text("Download Now", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.update_action_download_now), color = PaperOnPop, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = onDismiss) {
-                        Text("LATER", color = TextPrimary)
+                        Text(stringResource(R.string.update_action_later), color = TextPrimary)
                     }
                 }
             )
         }
 
         is UpdateUiState.ConfirmDownload -> {
+            val cleanVer = uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")
             AlertDialog(
                 onDismissRequest = onDismiss,
                 containerColor = PaperRaised,
                 shape = RoundedCornerShape(24.dp),
                 title = {
                     Text(
-                        text = "CONFIRM DOWNLOAD",
+                        text = stringResource(R.string.update_confirm_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -261,12 +265,12 @@ fun UpdateDialog(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = "Download RiderVoice v${uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")} (${uiState.releaseInfo.formattedSize})?",
+                            text = stringResource(R.string.update_confirm_body, cleanVer, uiState.releaseInfo.formattedSize),
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextPrimary
                         )
                         Text(
-                            text = "The APK will be streamed securely over HTTPS and stored in app-internal cache. Storage space has been verified.",
+                            text = stringResource(R.string.update_confirm_storage_note),
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -277,18 +281,19 @@ fun UpdateDialog(
                         onClick = { onStartDownload(uiState.releaseInfo) },
                         colors = ButtonDefaults.buttonColors(containerColor = Pop)
                     ) {
-                        Text("Download", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.action_download), color = PaperOnPop, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = onDismiss) {
-                        Text("CANCEL", color = TextPrimary)
+                        Text(stringResource(R.string.action_cancel), color = TextPrimary)
                     }
                 }
             )
         }
 
         is UpdateUiState.Downloading -> {
+            val cleanVer = uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")
             AlertDialog(
                 onDismissRequest = {},
                 containerColor = PaperRaised,
@@ -296,13 +301,13 @@ fun UpdateDialog(
                 title = {
                     Column {
                         Text(
-                            text = "OTA TRANSMISSION",
+                            text = stringResource(R.string.update_downloading_badge),
                             style = MaterialTheme.typography.labelSmall,
                             color = NeonOrange,
                             letterSpacing = 1.5.sp
                         )
                         Text(
-                            text = "DOWNLOADING UPDATE",
+                            text = stringResource(R.string.update_downloading_title),
                             style = MaterialTheme.typography.titleMedium,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
@@ -315,7 +320,7 @@ fun UpdateDialog(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "RiderVoice v${uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")}",
+                            text = "${stringResource(R.string.app_name)} v$cleanVer",
                             style = MaterialTheme.typography.bodyMedium,
                             color = ElectricCyan,
                             fontWeight = FontWeight.Bold
@@ -351,7 +356,7 @@ fun UpdateDialog(
                         val dlMb = "%.1f MB".format(uiState.downloadedBytes.toDouble() / (1024.0 * 1024.0))
                         val totalMb = "%.1f MB".format(uiState.totalBytes.toDouble() / (1024.0 * 1024.0))
                         Text(
-                            text = "Downloaded: $dlMb / $totalMb",
+                            text = stringResource(R.string.update_downloaded_progress, dlMb, totalMb),
                             color = TextSecondary,
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 11.sp
@@ -360,7 +365,7 @@ fun UpdateDialog(
                 },
                 confirmButton = {
                     TextButton(onClick = onCancelDownload) {
-                        Text("CANCEL DOWNLOAD", color = AlertRed)
+                        Text(stringResource(R.string.update_cancel_download), color = AlertRed)
                     }
                 }
             )
@@ -373,7 +378,7 @@ fun UpdateDialog(
                 shape = RoundedCornerShape(24.dp),
                 title = {
                     Text(
-                        text = "INTEGRITY AUDIT",
+                        text = stringResource(R.string.update_verifying_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -393,7 +398,7 @@ fun UpdateDialog(
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            text = "Verifying package signature and SHA-256 checksum...",
+                            text = stringResource(R.string.update_verifying_desc),
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary
                         )
@@ -404,6 +409,7 @@ fun UpdateDialog(
         }
 
         is UpdateUiState.ReadyToInstall -> {
+            val cleanVer = uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")
             AlertDialog(
                 onDismissRequest = onDismiss,
                 containerColor = PaperRaised,
@@ -418,7 +424,7 @@ fun UpdateDialog(
                 },
                 title = {
                     Text(
-                        text = "DOWNLOAD COMPLETE",
+                        text = stringResource(R.string.update_download_complete_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -427,13 +433,13 @@ fun UpdateDialog(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = "Ready to install RiderVoice v${uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")}.",
+                            text = stringResource(R.string.update_ready_install_line, cleanVer),
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Tapping 'Install Update' will launch Android's system package installer. Please confirm installation when prompted.",
+                            text = stringResource(R.string.update_install_prompt_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -444,12 +450,12 @@ fun UpdateDialog(
                         onClick = { onInstallUpdate(uiState.apkFile, uiState.releaseInfo) },
                         colors = ButtonDefaults.buttonColors(containerColor = Pop)
                     ) {
-                        Text("Install Update", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.update_action_install_now), color = PaperOnPop, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = onDismiss) {
-                        Text("LATER", color = TextPrimary)
+                        Text(stringResource(R.string.update_action_later), color = TextPrimary)
                     }
                 }
             )
@@ -470,7 +476,7 @@ fun UpdateDialog(
                 },
                 title = {
                     Text(
-                        text = "PERMISSION REQUIRED",
+                        text = stringResource(R.string.update_permission_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -479,12 +485,12 @@ fun UpdateDialog(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = "To install firmware updates directly, RiderVoice requires permission to install unknown apps.",
+                            text = stringResource(R.string.update_permission_body),
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextPrimary
                         )
                         Text(
-                            text = "Turn on 'Allow from this source', then come back. The update will install automatically.",
+                            text = stringResource(R.string.update_permission_steps),
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -495,25 +501,26 @@ fun UpdateDialog(
                         onClick = { onOpenSettings() },
                         colors = ButtonDefaults.buttonColors(containerColor = Pop)
                     ) {
-                        Text("Open Settings", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.action_open_settings), color = PaperOnPop, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = onDismiss) {
-                        Text("CANCEL", color = TextPrimary)
+                        Text(stringResource(R.string.action_cancel), color = TextPrimary)
                     }
                 }
             )
         }
 
         is UpdateUiState.Installing -> {
+            val cleanVer = uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")
             AlertDialog(
                 onDismissRequest = onDismiss,
                 containerColor = PaperRaised,
                 shape = RoundedCornerShape(24.dp),
                 title = {
                     Text(
-                        text = "INSTALLER LAUNCHED",
+                        text = stringResource(R.string.update_installer_launched_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -522,12 +529,12 @@ fun UpdateDialog(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = "Android's system package installer has been prompted to install v${uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")}.",
+                            text = stringResource(R.string.update_installer_launched_body, cleanVer),
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextPrimary
                         )
                         Text(
-                            text = "If the system installer prompt was dismissed or did not open, tap 'Retry Installer' below to prompt it again.",
+                            text = stringResource(R.string.update_installer_launched_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -538,12 +545,12 @@ fun UpdateDialog(
                         onClick = { onInstallUpdate(uiState.apkFile, uiState.releaseInfo) },
                         colors = ButtonDefaults.buttonColors(containerColor = Pop)
                     ) {
-                        Text("Retry Installer", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.update_retry_installer), color = PaperOnPop, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = onDismiss) {
-                        Text("CLOSE", color = TextPrimary)
+                        Text(stringResource(R.string.action_close), color = TextPrimary)
                     }
                 }
             )
@@ -564,7 +571,7 @@ fun UpdateDialog(
                 },
                 title = {
                     Text(
-                        text = "UPDATE SERVICE ERROR",
+                        text = stringResource(R.string.update_failed_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
@@ -579,7 +586,7 @@ fun UpdateDialog(
                         )
                         if (uiState.downloadUrl != null && onOpenBrowserDownload != null) {
                             Text(
-                                text = "If cellular data keeps aborting, you can tap BROWSER to download the APK directly via your browser.",
+                                text = stringResource(R.string.update_error_browser_hint),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TechGreen
                             )
@@ -597,7 +604,7 @@ fun UpdateDialog(
                                 border = androidx.compose.foundation.BorderStroke(1.dp, NeonOrange),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonOrange)
                             ) {
-                                Text("BROWSER", fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.update_action_browser), fontWeight = FontWeight.Bold)
                             }
                         }
                         if (uiState.canRetry) {
@@ -605,14 +612,14 @@ fun UpdateDialog(
                                 onClick = onRetry,
                                 colors = ButtonDefaults.buttonColors(containerColor = Pop)
                             ) {
-                                Text("Retry", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.action_retry), color = PaperOnPop, fontWeight = FontWeight.Bold)
                             }
                         } else {
                             Button(
                                 onClick = onDismiss,
                                 colors = ButtonDefaults.buttonColors(containerColor = Gunmetal)
                             ) {
-                                Text("CLOSE", color = TextPrimary)
+                                Text(stringResource(R.string.action_close), color = TextPrimary)
                             }
                         }
                     }
@@ -620,7 +627,7 @@ fun UpdateDialog(
                 dismissButton = {
                     if (uiState.canRetry) {
                         OutlinedButton(onClick = onDismiss) {
-                            Text("CANCEL", color = TextPrimary)
+                            Text(stringResource(R.string.action_cancel), color = TextPrimary)
                         }
                     }
                 }

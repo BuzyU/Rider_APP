@@ -16,11 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.ui.theme.*
 
 @Composable
@@ -64,7 +66,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 modifier = Modifier.padding(bottom = 14.dp)
             ) {
                 Text(
-                    text = "GROUP VOICE INTERCOM",
+                    text = stringResource(R.string.splash_eyebrow_badge),
                     color = InkSecondary,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
@@ -74,7 +76,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
             }
 
             Text(
-                text = "RiderVoice",
+                text = stringResource(R.string.app_name),
                 color = Ink,
                 style = MaterialTheme.typography.displayLarge,
                 fontSize = 40.sp,
@@ -84,7 +86,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Stay connected. Ride united.",
+                text = stringResource(R.string.splash_legacy_tagline),
                 color = Pop,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold
@@ -99,7 +101,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                 .alpha(alphaAnim)
         ) {
             Text(
-                text = "Starting up...",
+                text = stringResource(R.string.splash_starting_up),
                 color = InkSecondary,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium
@@ -107,6 +109,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            val progressCd = stringResource(R.string.cd_splash_progress)
             LinearProgressIndicator(
                 color = Pop,
                 trackColor = PaperSunken,
@@ -115,7 +118,7 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
                     .height(4.dp)
                     .clip(RoundedCornerShape(RvRadius.pill))
                     .semantics {
-                        contentDescription = "Initializing systems progress"
+                        contentDescription = progressCd
                     }
             )
         }

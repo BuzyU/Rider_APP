@@ -21,12 +21,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ridervoice.R
 import com.ridervoice.audio.AudioDevice
 import com.ridervoice.audio.RouterState
 import com.ridervoice.ui.components.PrimaryButton
@@ -85,14 +87,14 @@ fun DeviceSetupScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = Ink,
                     modifier = Modifier.size(20.dp)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Headset & Audio",
+                text = stringResource(R.string.device_setup_title),
                 color = Ink,
                 style = MaterialTheme.typography.titleLarge,
                 fontSize = 20.sp,
@@ -110,10 +112,10 @@ fun DeviceSetupScreen(
             // Hero Headset Status Bento Card
             item {
                 val (statusText, statusColor) = when (routerState) {
-                    RouterState.SCANNING -> "Searching for Bluetooth headset..." to InkSecondary
-                    RouterState.CONNECTING_BT -> "Connecting Bluetooth audio..." to Pop
-                    RouterState.FAILED -> "Bluetooth off or unpaired" to Brick
-                    else -> "Headset audio ready" to Moss
+                    RouterState.SCANNING -> stringResource(R.string.device_status_scanning) to InkSecondary
+                    RouterState.CONNECTING_BT -> stringResource(R.string.device_status_connecting) to Pop
+                    RouterState.FAILED -> stringResource(R.string.device_status_failed) to Brick
+                    else -> stringResource(R.string.device_status_ready) to Moss
                 }
 
                 Surface(
@@ -136,7 +138,7 @@ fun DeviceSetupScreen(
                                 SpinningRadar()
                                 Icon(
                                     imageVector = Icons.Default.BluetoothSearching,
-                                    contentDescription = "Scanning for Bluetooth headsets",
+                                    contentDescription = stringResource(R.string.cd_scanning_bt),
                                     tint = Pop,
                                     modifier = Modifier.size(40.dp)
                                 )
@@ -151,7 +153,7 @@ fun DeviceSetupScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.BluetoothDisabled,
-                                        contentDescription = "Bluetooth connection error",
+                                        contentDescription = stringResource(R.string.cd_bt_error),
                                         tint = Brick,
                                         modifier = Modifier.size(44.dp)
                                     )
@@ -167,7 +169,7 @@ fun DeviceSetupScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.HeadsetMic,
-                                        contentDescription = "Headset connected",
+                                        contentDescription = stringResource(R.string.cd_headset_connected),
                                         tint = Moss,
                                         modifier = Modifier.size(44.dp)
                                     )
@@ -187,7 +189,7 @@ fun DeviceSetupScreen(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = "Routing to ${activeDevice.displayName()}",
+                            text = stringResource(R.string.device_routing_to, activeDevice.displayName()),
                             color = InkSecondary,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -210,7 +212,7 @@ fun DeviceSetupScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = "Using phone audio, headset not active",
+                                        text = stringResource(R.string.device_mismatch_banner),
                                         color = Brick,
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold,
@@ -223,7 +225,7 @@ fun DeviceSetupScreen(
                                         shape = RoundedCornerShape(RvRadius.pill),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
-                                        Text("Retry", color = PaperOnPop, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text(stringResource(R.string.action_retry), color = PaperOnPop, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -241,13 +243,13 @@ fun DeviceSetupScreen(
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
-                                    text = "Mic: ${routedInput.display()}",
+                                    text = stringResource(R.string.device_mic_label, routedInput.display()),
                                     color = if (isMismatch) Brick else Ink,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    text = "Speaker: ${routedOutput.display()}",
+                                    text = stringResource(R.string.device_speaker_label, routedOutput.display()),
                                     color = if (isMismatch) Brick else Ink,
                                     style = MaterialTheme.typography.bodySmall,
                                     fontWeight = FontWeight.Medium
@@ -262,7 +264,7 @@ fun DeviceSetupScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "AUDIO OUTPUT",
+                        text = stringResource(R.string.device_section_output),
                         color = InkSecondary,
                         style = MaterialTheme.typography.labelSmall,
                         letterSpacing = 0.9.sp,
@@ -273,7 +275,7 @@ fun DeviceSetupScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         AudioRouteChip(
-                            label = "Bluetooth",
+                            label = stringResource(R.string.mesh_audio_route_bluetooth),
                             icon = Icons.Default.Bluetooth,
                             isSelected = selectedRouteType == "BLUETOOTH",
                             modifier = Modifier.weight(1f)
@@ -283,7 +285,7 @@ fun DeviceSetupScreen(
                         }
 
                         AudioRouteChip(
-                            label = "Speaker",
+                            label = stringResource(R.string.mesh_audio_route_speaker),
                             icon = Icons.Default.VolumeUp,
                             isSelected = selectedRouteType == "SPEAKER",
                             modifier = Modifier.weight(1f)
@@ -293,7 +295,7 @@ fun DeviceSetupScreen(
                         }
 
                         AudioRouteChip(
-                            label = "Wired",
+                            label = stringResource(R.string.device_route_wired_short),
                             icon = Icons.Default.Headset,
                             isSelected = selectedRouteType == "WIRED",
                             modifier = Modifier.weight(1f)
@@ -314,7 +316,7 @@ fun DeviceSetupScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "BLUETOOTH DEVICE",
+                            text = stringResource(R.string.device_section_bt),
                             color = InkSecondary,
                             style = MaterialTheme.typography.labelSmall,
                             letterSpacing = 0.9.sp,
@@ -326,7 +328,7 @@ fun DeviceSetupScreen(
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null, tint = Pop, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Rescan", color = Pop, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.device_action_rescan), color = Pop, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -359,7 +361,7 @@ fun DeviceSetupScreen(
 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = if (isBluetoothActive) activeDevice.displayName() else "No Bluetooth headset connected",
+                                    text = if (isBluetoothActive) activeDevice.displayName() else stringResource(R.string.device_no_bt_connected),
                                     color = Ink,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontSize = 15.sp,
@@ -367,9 +369,9 @@ fun DeviceSetupScreen(
                                 )
                                 Text(
                                     text = if (isBluetoothActive) {
-                                        "Connected for voice intercom (Mic + Audio)"
+                                        stringResource(R.string.device_bt_connected_desc)
                                     } else {
-                                        "Audio routed to ${activeDevice.displayName()}"
+                                        stringResource(R.string.device_audio_routed_to, activeDevice.displayName())
                                     },
                                     color = InkSecondary,
                                     style = MaterialTheme.typography.bodySmall
@@ -382,7 +384,7 @@ fun DeviceSetupScreen(
                                     shape = RoundedCornerShape(RvRadius.pill)
                                 ) {
                                     Text(
-                                        text = "Active",
+                                        text = stringResource(R.string.device_status_active),
                                         color = Moss,
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
@@ -397,7 +399,7 @@ fun DeviceSetupScreen(
 
             item {
                 SecondaryButton(
-                    text = "Open Bluetooth Settings",
+                    text = stringResource(R.string.device_open_bt_settings),
                     leadingIcon = Icons.Default.SettingsBluetooth,
                     onClick = {
                         try {
@@ -413,9 +415,9 @@ fun DeviceSetupScreen(
         }
 
         val buttonLabel = when {
-            convoyName == "GLOBAL" -> "Done"
-            isHost -> "Continue to lobby"
-            else -> "Ready to join convoy"
+            convoyName == "GLOBAL" -> stringResource(R.string.action_done)
+            isHost -> stringResource(R.string.device_continue_to_lobby)
+            else -> stringResource(R.string.device_ready_to_join)
         }
 
         Box(
@@ -508,10 +510,11 @@ fun SpinningRadar() {
     )
 
     val popColor = Pop
+    val scanningCd = stringResource(R.string.cd_scanning_bt)
     Canvas(
         modifier = Modifier
             .fillMaxSize()
-            .semantics { contentDescription = "Scanning for Bluetooth headsets" }
+            .semantics { contentDescription = scanningCd }
     ) {
         val center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
         val radius = (size.width / 2) * scale

@@ -15,11 +15,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ridervoice.R
 import com.ridervoice.models.RideInvite
 import com.ridervoice.ui.components.ConfirmDialog
 import com.ridervoice.ui.components.InlineError
@@ -46,10 +48,10 @@ fun InvitesInboxScreen(
 
     inviteToDecline?.let { invite ->
         ConfirmDialog(
-            title = "Decline ride invite?",
-            body = "Are you sure you want to decline the invitation to '${invite.room.name}' from @${invite.inviter.handle}?",
-            confirmLabel = "Decline",
-            dismissLabel = "Cancel",
+            title = stringResource(R.string.inbox_decline_title),
+            body = stringResource(R.string.inbox_decline_body, invite.room.name, invite.inviter.handle),
+            confirmLabel = stringResource(R.string.action_decline),
+            dismissLabel = stringResource(R.string.action_cancel),
             destructive = true,
             onConfirm = {
                 val target = invite
@@ -87,7 +89,7 @@ fun InvitesInboxScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = Ink,
                     modifier = Modifier.size(20.dp)
                 )
@@ -96,7 +98,7 @@ fun InvitesInboxScreen(
             Spacer(modifier = Modifier.width(12.dp))
 
             Text(
-                text = "Inbox",
+                text = stringResource(R.string.menu_inbox_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -114,7 +116,7 @@ fun InvitesInboxScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
-                    contentDescription = "Refresh Invites",
+                    contentDescription = stringResource(R.string.cd_refresh_invites),
                     tint = Ink,
                     modifier = Modifier.size(20.dp)
                 )
@@ -167,14 +169,14 @@ fun InvitesInboxScreen(
                         }
                         Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text = "No pending invites",
+                            text = stringResource(R.string.inbox_empty_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Ink
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "When convoy leads invite you to join a ride, their invitations will appear here.",
+                            text = stringResource(R.string.inbox_empty_desc),
                             color = InkSecondary,
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center
@@ -189,7 +191,7 @@ fun InvitesInboxScreen(
                             Icon(Icons.Default.Add, contentDescription = null, tint = PaperOnPop)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Create a ride",
+                                text = stringResource(R.string.home_create_ride_title),
                                 color = PaperOnPop,
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
@@ -261,7 +263,7 @@ fun InviteCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "RIDE INVITE",
+                            text = stringResource(R.string.inbox_card_badge),
                             color = Pop,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
@@ -271,7 +273,7 @@ fun InviteCard(
                 }
 
                 Text(
-                    text = "Pending",
+                    text = stringResource(R.string.inbox_status_pending),
                     color = InkSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium
@@ -291,7 +293,7 @@ fun InviteCard(
             Spacer(modifier = Modifier.height(3.dp))
 
             Text(
-                text = "Invited by @${invite.inviter.handle}",
+                text = stringResource(R.string.invited_by_handle, invite.inviter.handle),
                 color = InkSecondary,
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -315,9 +317,9 @@ fun InviteCard(
                         .weight(1f)
                         .height(48.dp)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Decline", tint = Brick, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_decline), tint = Brick, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Decline", color = Brick, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.action_decline), color = Brick, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 }
 
                 Button(
@@ -338,13 +340,13 @@ fun InviteCard(
                     } else {
                         Icon(
                             Icons.Default.Check,
-                            contentDescription = "Accept",
+                            contentDescription = stringResource(R.string.action_accept),
                             tint = PaperOnPop,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Accept",
+                            text = stringResource(R.string.action_accept),
                             color = PaperOnPop,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold

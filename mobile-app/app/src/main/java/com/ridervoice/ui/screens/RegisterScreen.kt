@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ridervoice.R
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
 
@@ -82,7 +84,7 @@ fun RegisterScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Create Account",
+                        text = stringResource(R.string.action_create_account),
                         color = Ink,
                         style = MaterialTheme.typography.titleLarge,
                         fontSize = 20.sp,
@@ -101,7 +103,7 @@ fun RegisterScreen(
                     ) {
                         Icon(
                             Icons.Default.ArrowBack,
-                            contentDescription = "Return to sign in",
+                            contentDescription = stringResource(R.string.cd_return_to_sign_in),
                             tint = Ink,
                             modifier = Modifier.size(20.dp)
                         )
@@ -124,7 +126,7 @@ fun RegisterScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Set up your rider profile to join group rides.",
+                text = stringResource(R.string.auth_register_subtitle),
                 color = InkSecondary,
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
@@ -153,7 +155,7 @@ fun RegisterScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Warning,
-                                contentDescription = "Registration error",
+                                contentDescription = stringResource(R.string.cd_registration_error),
                                 tint = Brick,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -170,7 +172,7 @@ fun RegisterScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Dismiss error",
+                                    contentDescription = stringResource(R.string.cd_dismiss_error),
                                     tint = Brick,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -195,8 +197,8 @@ fun RegisterScreen(
                     OutlinedTextField(
                         value = handle,
                         onValueChange = { handle = it.trim().removePrefix("@") },
-                        label = { Text("Rider Handle", color = InkSecondary) },
-                        placeholder = { Text("e.g. ApexPredator", color = InkSecondary) },
+                        label = { Text(stringResource(R.string.auth_rider_handle), color = InkSecondary) },
+                        placeholder = { Text(stringResource(R.string.dialog_add_rider_placeholder), color = InkSecondary) },
                         leadingIcon = { Text("@", color = Pop, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 12.dp)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -210,7 +212,7 @@ fun RegisterScreen(
                         ),
                         supportingText = {
                             Text(
-                                text = "Your callsign shown to riders in your convoy",
+                                text = stringResource(R.string.auth_callsign_helper),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -221,7 +223,7 @@ fun RegisterScreen(
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it.trim() },
-                        label = { Text("Email", color = InkSecondary) },
+                        label = { Text(stringResource(R.string.auth_email_label), color = InkSecondary) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
@@ -238,7 +240,7 @@ fun RegisterScreen(
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("Password", color = InkSecondary) },
+                        label = { Text(stringResource(R.string.auth_password_label), color = InkSecondary) },
                         singleLine = true,
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
@@ -254,7 +256,7 @@ fun RegisterScreen(
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                    contentDescription = if (passwordVisible) stringResource(R.string.cd_hide_password) else stringResource(R.string.cd_show_password),
                                     tint = InkSecondary
                                 )
                             }
@@ -262,7 +264,7 @@ fun RegisterScreen(
                         isError = password.isNotEmpty() && !passwordLongEnough,
                         supportingText = {
                             Text(
-                                text = if (password.isNotEmpty() && !passwordLongEnough) "Must be at least 6 characters" else "Minimum 6 characters",
+                                text = if (password.isNotEmpty() && !passwordLongEnough) stringResource(R.string.auth_password_min_error) else stringResource(R.string.auth_password_min_hint),
                                 color = if (password.isNotEmpty() && !passwordLongEnough) Brick else InkSecondary,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -273,7 +275,7 @@ fun RegisterScreen(
                     OutlinedTextField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
-                        label = { Text("Confirm Password", color = InkSecondary) },
+                        label = { Text(stringResource(R.string.auth_confirm_password), color = InkSecondary) },
                         singleLine = true,
                         visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
@@ -295,7 +297,7 @@ fun RegisterScreen(
                             IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                                 Icon(
                                     imageVector = if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = if (confirmPasswordVisible) "Hide confirm password" else "Show confirm password",
+                                    contentDescription = if (confirmPasswordVisible) stringResource(R.string.cd_hide_confirm_password) else stringResource(R.string.cd_show_confirm_password),
                                     tint = InkSecondary
                                 )
                             }
@@ -303,7 +305,7 @@ fun RegisterScreen(
                         isError = confirmPassword.isNotEmpty() && !passwordsMatch,
                         supportingText = {
                             if (confirmPassword.isNotEmpty() && !passwordsMatch) {
-                                Text("Passwords do not match", color = Brick, style = MaterialTheme.typography.bodySmall)
+                                Text(stringResource(R.string.auth_passwords_mismatch), color = Brick, style = MaterialTheme.typography.bodySmall)
                             }
                         },
                         colors = fieldColors
@@ -337,7 +339,7 @@ fun RegisterScreen(
                             )
                         } else {
                             Text(
-                                "Create Account",
+                                stringResource(R.string.action_create_account),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -356,7 +358,7 @@ fun RegisterScreen(
                     .defaultMinSize(minHeight = 48.dp)
             ) {
                 Text(
-                    "Already have an account? ",
+                    stringResource(R.string.auth_already_have_account),
                     color = InkSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -365,7 +367,7 @@ fun RegisterScreen(
                     modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                 ) {
                     Text(
-                        "Sign In",
+                        stringResource(R.string.action_sign_in),
                         color = Pop,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
@@ -376,7 +378,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "By creating an account, you agree to our\nTerms of Service and Privacy Policy",
+                text = stringResource(R.string.auth_terms_register),
                 color = InkSecondary,
                 style = MaterialTheme.typography.bodySmall,
                 fontSize = 11.sp,

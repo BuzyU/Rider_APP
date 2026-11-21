@@ -1,0 +1,58 @@
+# Explicit allowlist for HardcodedUiStringsGuardTest (WP-U2)
+# Format: <relative_path_from_ridervoice>:<exact_literal> | <reason>
+
+# Frozen files (cannot be modified per .github/scripts/mesh-commit-guard.sh)
+ui/screens/RoomScreen.kt:* | Frozen file per mesh-commit-guard.sh
+ui/screens/room/AudioRouteSheet.kt:* | Frozen file per mesh-commit-guard.sh
+ui/screens/room/AudioVuMeter.kt:* | Frozen file per mesh-commit-guard.sh
+ui/screens/room/DiagnosticsDialog.kt:* | Frozen file per mesh-commit-guard.sh
+ui/screens/room/LeaveRideDialog.kt:* | Frozen file per mesh-commit-guard.sh
+ui/screens/room/SosAlertBanner.kt:* | Frozen file per mesh-commit-guard.sh
+
+# Pure Compose animation labels (not user-visible)
+ui/components/ParticipantCard.kt:speakerPulse | Compose animation label (not user-visible)
+ui/components/ParticipantCard.kt:pulseAlpha | Compose animation label (not user-visible)
+ui/components/ParticipantCard.kt:borderColor | Compose animation label (not user-visible)
+ui/components/RvComponents.kt:speakingRing | Compose animation label (not user-visible)
+ui/screens/DeviceSetupScreen.kt:radar | Compose animation label (not user-visible)
+ui/screens/DeviceSetupScreen.kt:radarRotate | Compose animation label (not user-visible)
+ui/screens/DeviceSetupScreen.kt:radarScale | Compose animation label (not user-visible)
+ui/screens/DeviceSetupScreen.kt:radarAlpha | Compose animation label (not user-visible)
+ui/screens/RoutePlannerScreen.kt:RadarSweep | Compose animation label (not user-visible)
+ui/screens/RoutePlannerScreen.kt:SweepAngle | Compose animation label (not user-visible)
+ui/screens/RoutePlannerScreen.kt:PulseScale | Compose animation label (not user-visible)
+ui/screens/SplashScreen.kt:alpha | Compose animation label (not user-visible)
+ui/screens/SplashScreen.kt:scale | Compose animation label (not user-visible)
+ui/screens/room/RideTopBar.kt:pulse | Compose animation label (not user-visible)
+ui/screens/room/RideTopBar.kt:dot | Compose animation label (not user-visible)
+ui/screens/room/TalkControls.kt:ptt | Compose animation label (not user-visible)
+ui/screens/room/TalkControls.kt:pttPulseAlpha | Compose animation label (not user-visible)
+ui/theme/Theme.kt:bg | Compose animation label (not user-visible)
+
+# Format-only symbols, numbers, brand/prefix/debug tokens
+ui/components/AddFriendDialog.kt:@ | Handle prefix symbol
+ui/screens/AccountScreen.kt:@ | Handle prefix symbol
+ui/screens/AccountScreen.kt:@${uiState.handle.removePrefix( | Dynamic handle prefix formatting
+ui/screens/RegisterScreen.kt:@ | Handle prefix symbol
+ui/screens/HostSetupScreen.kt:${convoyName.length}/40 | Numeric character counter format
+ui/screens/LobbyScreen.kt:✓ | Status symbol
+ui/screens/LobbyScreen.kt:⚠ | Status symbol
+ui/screens/LobbyScreen.kt:— | Status symbol
+ui/screens/LobbyScreen.kt:Request ID: ${failed.requestId} | Debug support request identifier
+ui/screens/RideReplayScreen.kt:$index | Numeric milestone index
+ui/screens/RideReplayScreen.kt:${(timelineProgress * 100).toInt()}% | Numeric percentage format
+ui/screens/RideReplayScreen.kt:${playbackSpeed}x | Numeric playback speed multiplier
+ui/screens/RoutePlannerScreen.kt:@${rider.handle} | Dynamic rider handle format
+ui/screens/RoutePlannerScreen.kt:pk.eyJ... | Mapbox API token prefix syntax example
+ui/screens/SosScreen.kt:${countdown}s | Numeric countdown seconds format
+ui/screens/EmergencyAlertActivity.kt:${countdown}s | Numeric countdown seconds format
+ui/screens/LoginScreen.kt:RiderVoice | Brand wordmark
+ui/screens/SplashScreen.kt:RiderVoice | Brand wordmark
+ui/components/UpdateDialog.kt:${uiState.progressPercent}% | Numeric download percentage format
+ui/components/UpdateDialog.kt:v${uiState.currentVersion.removePrefix( | Version prefix formatting
+ui/components/UpdateDialog.kt:v$cleanVer | Version prefix formatting
+ui/components/UpdateDialog.kt:${stringResource(R.string.app_name)} v$cleanVer | App name + version prefix formatting
+ui/screens/room/TalkControls.kt:SOS | Universal international emergency code
+ui/components/UiMessageMapper.kt:* | Pure non-Composable mapper covered by UiMessageMapperTest (English error codes)
+ui/components/ProfileDrawer.kt:* | Unused legacy drawer (removed in WP-U11)
+ui/components/VoiceControls.kt:* | Unused legacy component (removed in WP-U11)

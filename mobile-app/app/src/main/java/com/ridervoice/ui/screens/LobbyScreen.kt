@@ -93,15 +93,15 @@ fun LobbyScreen(
     // Terminal state dialogs
     terminal?.let { term ->
         val (termTitle, termBody) = when (term) {
-            LobbyViewModel.Terminal.ENDED -> "Ride ended" to "The host ended this ride."
-            LobbyViewModel.Terminal.REMOVED -> "Removed from ride" to "You were removed from this ride."
-            LobbyViewModel.Terminal.NOT_FOUND -> "Ride not found" to "This ride no longer exists."
+            LobbyViewModel.Terminal.ENDED -> stringResource(R.string.lobby_term_ended_title) to stringResource(R.string.lobby_term_ended_body)
+            LobbyViewModel.Terminal.REMOVED -> stringResource(R.string.lobby_term_removed_title) to stringResource(R.string.lobby_term_removed_body)
+            LobbyViewModel.Terminal.NOT_FOUND -> stringResource(R.string.lobby_term_not_found_title) to stringResource(R.string.lobby_term_not_found_body)
         }
         ConfirmDialog(
             title = termTitle,
             body = termBody,
-            confirmLabel = "Go home",
-            dismissLabel = "Close",
+            confirmLabel = stringResource(R.string.action_go_home),
+            dismissLabel = stringResource(R.string.action_close),
             onConfirm = onBackClick,
             onDismiss = onBackClick
         )
@@ -110,10 +110,10 @@ fun LobbyScreen(
     if (showExitDialog) {
         val isHost = lobbyStatus?.isHost ?: activeRide?.isHost ?: true
         ConfirmDialog(
-            title = if (isHost) "Leave ride lobby?" else "Leave this ride?",
-            body = if (isHost) "Leaving the lobby will stop monitoring rider invitations. You can rejoin or start later." else "You will leave this ride lobby.",
-            confirmLabel = "Leave",
-            dismissLabel = "Stay",
+            title = if (isHost) stringResource(R.string.lobby_exit_host_title) else stringResource(R.string.action_leave_ride),
+            body = if (isHost) stringResource(R.string.lobby_exit_host_body) else stringResource(R.string.lobby_exit_rider_body),
+            confirmLabel = stringResource(R.string.action_leave),
+            dismissLabel = stringResource(R.string.action_stay),
             onConfirm = {
                 showExitDialog = false
                 val roomRef = lobbyStatus?.roomId ?: activeRide?.roomId ?: convoyName
@@ -130,8 +130,8 @@ fun LobbyScreen(
         ConfirmDialog(
             title = stringResource(R.string.lobby_start_alone_prompt),
             body = stringResource(R.string.lobby_start_alone_desc),
-            confirmLabel = "Start anyway",
-            dismissLabel = "Wait for riders",
+            confirmLabel = stringResource(R.string.lobby_start_anyway),
+            dismissLabel = stringResource(R.string.lobby_wait_for_riders),
             onConfirm = {
                 showStartAloneDialog = false
                 viewModel.startRide(convoyName, allowSolo = true, onStartSuccess = {
@@ -143,12 +143,12 @@ fun LobbyScreen(
     }
 
     riderToRemove?.let { rider ->
-        val name = rider.displayName ?: rider.handle ?: "rider"
+        val name = rider.displayName ?: rider.handle ?: stringResource(R.string.participant_rider_prefix)
         ConfirmDialog(
-            title = "Remove $name?",
-            body = "Are you sure you want to remove $name from this ride?",
-            confirmLabel = "Remove",
-            dismissLabel = "Cancel",
+            title = stringResource(R.string.lobby_remove_rider_title, name),
+            body = stringResource(R.string.lobby_remove_rider_body, name),
+            confirmLabel = stringResource(R.string.action_remove),
+            dismissLabel = stringResource(R.string.action_cancel),
             onConfirm = {
                 val uid = rider.id
                 riderToRemove = null
@@ -198,7 +198,7 @@ fun LobbyScreen(
                                     stringResource(R.string.lobby_retrying, r.attempt, r.maxAttempts)
                                 }
                                 status == null -> stringResource(R.string.lobby_connecting)
-                                else -> "Waiting to start"
+                                else -> stringResource(R.string.lobby_waiting_to_start)
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = if (loadState is LobbyLoadState.Failed) Brick else InkSecondary
@@ -217,7 +217,7 @@ fun LobbyScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Leave Lobby",
+                            contentDescription = stringResource(R.string.cd_leave_lobby),
                             tint = Ink,
                             modifier = Modifier.size(20.dp)
                         )
@@ -585,7 +585,7 @@ fun LobbyScreen(
                                         val retrying = loadState as LobbyLoadState.Retrying
                                         stringResource(R.string.lobby_retrying, retrying.attempt, retrying.maxAttempts)
                                     } else {
-                                        "Reconnecting..."
+                                        stringResource(R.string.ride_status_reconnecting)
                                     },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = WarningAmber
@@ -604,15 +604,15 @@ fun LobbyScreen(
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                                 val clip = ClipData.newPlainText("Ride Code", effectiveJoinCode)
                                 clipboard?.setPrimaryClip(clip)
-                                Toast.makeText(context, "Ride code copied", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.toast_ride_code_copied), Toast.LENGTH_SHORT).show()
                             },
                             onShare = {
                                 val sendIntent = Intent().apply {
                                     action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TEXT, "Join my ride '$effectiveDisplayName' on RiderVoice using code: $effectiveJoinCode\nhttps://ridervoice.app/j/$effectiveJoinCode")
+                                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_ride_code_text, effectiveDisplayName, effectiveJoinCode))
                                     type = "text/plain"
                                 }
-                                context.startActivity(Intent.createChooser(sendIntent, "Share ride code"))
+                                context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.share_ride_code_chooser)))
                             }
                         )
                     }
@@ -638,7 +638,7 @@ fun LobbyScreen(
                 // Section 1: Joined (n)
                 item {
                     Text(
-                        text = "Joined (${accepted.size + 1})",
+                        text = stringResource(R.string.lobby_section_joined_count, accepted.size + 1),
                         style = MaterialTheme.typography.titleMedium,
                         color = Ink,
                         fontWeight = FontWeight.Bold
@@ -648,9 +648,9 @@ fun LobbyScreen(
                 // Host row
                 item {
                     RiderRow(
-                        name = "You",
-                        subtitle = if (isHost) "Ride Host" else "Joined",
-                        status = if (isHost) "Host" else "Joined"
+                        name = stringResource(R.string.participant_you),
+                        subtitle = if (isHost) stringResource(R.string.lobby_ride_host_role) else stringResource(R.string.lobby_section_joined),
+                        status = if (isHost) "HOST" else "JOINED"
                     )
                 }
 
@@ -664,19 +664,19 @@ fun LobbyScreen(
                     }
                 } else {
                     items(accepted) { entry ->
-                        val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider"
-                        val presenceText = if (entry.isPresent) "Active" else "Away"
+                        val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: stringResource(R.string.participant_rider_prefix)
+                        val presenceText = if (entry.isPresent) stringResource(R.string.lobby_presence_active) else stringResource(R.string.lobby_presence_away)
                         val configText = when (entry.offlineConfigStatus) {
-                            "READY" -> "Offline Ready"
-                            "CONFIGURING" -> "Configuring..."
-                            "OPTED_OUT" -> "Offline Off"
-                            "TIMED_OUT" -> "Timed Out"
-                            "UNAVAILABLE", "UNAVAILABLE_DEVICE" -> "OFFLINE BACKUP UNAVAILABLE ON THIS DEVICE"
-                            "FAILED" -> "Setup Failed"
-                            else -> "Joined"
+                            "READY" -> stringResource(R.string.lobby_offline_status_ready)
+                            "CONFIGURING" -> stringResource(R.string.lobby_config_configuring)
+                            "OPTED_OUT" -> stringResource(R.string.lobby_config_offline_off)
+                            "TIMED_OUT" -> stringResource(R.string.lobby_offline_status_timed_out)
+                            "UNAVAILABLE", "UNAVAILABLE_DEVICE" -> stringResource(R.string.lobby_offline_unavailable_device)
+                            "FAILED" -> stringResource(R.string.lobby_config_setup_failed)
+                            else -> stringResource(R.string.lobby_section_joined)
                         }
                         val statusText = if (entry.isPresent && entry.offlineConfigStatus == "READY") {
-                            "Ready"
+                            "READY"
                         } else {
                             "$presenceText • $configText"
                         }
@@ -689,7 +689,7 @@ fun LobbyScreen(
                                     IconButton(onClick = { riderToRemove = entry.invitee }) {
                                         Icon(
                                             imageVector = Icons.Default.RemoveCircleOutline,
-                                            contentDescription = "Remove",
+                                            contentDescription = stringResource(R.string.action_remove),
                                             tint = AlertRed
                                         )
                                     }
@@ -704,7 +704,7 @@ fun LobbyScreen(
                     item {
                         Spacer(modifier = Modifier.height(RvSpacing.sm))
                         Text(
-                            text = "Invited (${pending.size})",
+                            text = stringResource(R.string.lobby_section_invited_count, pending.size),
                             style = MaterialTheme.typography.titleMedium,
                             color = InkSecondary,
                             fontWeight = FontWeight.Bold
@@ -712,17 +712,17 @@ fun LobbyScreen(
                     }
 
                     items(pending) { entry ->
-                        val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider"
+                        val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: stringResource(R.string.participant_rider_prefix)
                         RiderRow(
                             name = riderName,
                             subtitle = entry.invitee.bikeModel,
-                            status = "Invited",
+                            status = "INVITED",
                             trailing = if (isHost) {
                                 {
                                     IconButton(onClick = { riderToRemove = entry.invitee }) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
-                                            contentDescription = "Cancel invite",
+                                            contentDescription = stringResource(R.string.cd_cancel_invite),
                                             tint = TextSecondary
                                         )
                                     }
@@ -737,7 +737,7 @@ fun LobbyScreen(
                     item {
                         Spacer(modifier = Modifier.height(RvSpacing.sm))
                         Text(
-                            text = "Declined (${declined.size})",
+                            text = stringResource(R.string.lobby_section_declined_count, declined.size),
                             style = MaterialTheme.typography.titleMedium,
                             color = TextSecondary,
                             fontWeight = FontWeight.Bold
@@ -745,10 +745,10 @@ fun LobbyScreen(
                     }
 
                     items(declined) { entry ->
-                        val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: "Rider"
+                        val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: stringResource(R.string.participant_rider_prefix)
                         RiderRow(
                             name = riderName,
-                            status = "Declined"
+                            status = "DECLINED"
                         )
                     }
                 }
@@ -894,7 +894,7 @@ fun OfflineConfigCard(
             if (meshConfig?.status == com.ridervoice.mesh.offline.OfflineConfigStatus.UNAVAILABLE_DEVICE) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "OFFLINE BACKUP UNAVAILABLE ON THIS DEVICE",
+                    text = stringResource(R.string.lobby_offline_unavailable_device),
                     color = AlertRed,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold

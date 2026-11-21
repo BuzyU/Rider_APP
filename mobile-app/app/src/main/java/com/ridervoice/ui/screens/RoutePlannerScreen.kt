@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,8 +79,8 @@ fun RoutePlannerScreen(
     var showTokenDialog by remember { mutableStateOf(false) }
     var inputTokenText by remember { mutableStateOf(userCustomToken) }
 
-    var selectedPreference by remember { mutableStateOf("Scenic") }
-    val preferences = listOf("Fastest", "Scenic", "Twisty", "Off-road")
+    var selectedPreference by remember { mutableStateOf("scenic") }
+    val preferenceKeys = listOf("fastest", "scenic", "twisty", "offroad")
     var showMenuDropdown by remember { mutableStateOf(false) }
 
     LaunchedEffect(effectiveToken, hasValidToken) {
@@ -121,11 +122,11 @@ fun RoutePlannerScreen(
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
             ) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Ink, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.cd_back), tint = Ink, modifier = Modifier.size(20.dp))
             }
 
             Text(
-                text = "Route Planner",
+                text = stringResource(R.string.route_planner_title),
                 color = Ink,
                 style = MaterialTheme.typography.titleLarge,
                 fontSize = 20.sp,
@@ -141,7 +142,7 @@ fun RoutePlannerScreen(
                         .background(PaperRaised)
                         .border(1.dp, InkHairline, CircleShape)
                 ) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Route Options", tint = Ink, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.cd_route_options), tint = Ink, modifier = Modifier.size(20.dp))
                 }
                 DropdownMenu(
                     expanded = showMenuDropdown,
@@ -151,7 +152,7 @@ fun RoutePlannerScreen(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                if (useRadarMode) "Switch to Mapbox View" else "Switch to Radar View",
+                                if (useRadarMode) stringResource(R.string.route_switch_mapbox) else stringResource(R.string.route_switch_radar),
                                 color = Ink
                             )
                         },
@@ -173,7 +174,7 @@ fun RoutePlannerScreen(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Configure Mapbox Key", color = Ink) },
+                        text = { Text(stringResource(R.string.route_configure_mapbox), color = Ink) },
                         onClick = {
                             showMenuDropdown = false
                             inputTokenText = userCustomToken
@@ -182,15 +183,15 @@ fun RoutePlannerScreen(
                         leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = Pop) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Export GPX Track", color = Ink) },
+                        text = { Text(stringResource(R.string.route_export_gpx), color = Ink) },
                         onClick = {
                             showMenuDropdown = false
-                            Toast.makeText(context, "Route exported as GPX to Downloads", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.toast_gpx_exported), Toast.LENGTH_SHORT).show()
                         },
                         leadingIcon = { Icon(Icons.Default.Download, contentDescription = null, tint = Ink) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Invert Route (Swap)", color = Ink) },
+                        text = { Text(stringResource(R.string.route_invert_swap), color = Ink) },
                         onClick = {
                             showMenuDropdown = false
                             viewModel.swapOriginAndDestination()
@@ -198,7 +199,7 @@ fun RoutePlannerScreen(
                         leadingIcon = { Icon(Icons.Default.SwapVert, contentDescription = null, tint = Pop) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Clear Route", color = Brick) },
+                        text = { Text(stringResource(R.string.route_clear), color = Brick) },
                         onClick = {
                             showMenuDropdown = false
                             viewModel.clearRoute()
@@ -221,10 +222,10 @@ fun RoutePlannerScreen(
                     value = uiState.origin,
                     onValueChange = { viewModel.updateOrigin(it) },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Origin / Starting Point", color = InkSecondary) },
+                    placeholder = { Text(stringResource(R.string.route_origin_placeholder), color = InkSecondary) },
                     leadingIcon = {
                         IconButton(onClick = { viewModel.useCurrentLocation() }) {
-                            Icon(Icons.Default.MyLocation, contentDescription = "Use My GPS Location", tint = Moss)
+                            Icon(Icons.Default.MyLocation, contentDescription = stringResource(R.string.cd_use_my_gps), tint = Moss)
                         }
                     },
                     singleLine = true,
@@ -238,8 +239,8 @@ fun RoutePlannerScreen(
                     value = uiState.destination,
                     onValueChange = { viewModel.updateDestination(it) },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Destination", color = InkSecondary) },
-                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = "Destination", tint = Pop) },
+                    placeholder = { Text(stringResource(R.string.route_dest_short), color = InkSecondary) },
+                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = stringResource(R.string.route_dest_short), tint = Pop) },
                     singleLine = true,
                     colors = fieldColors,
                     shape = RoundedCornerShape(16.dp)
@@ -256,7 +257,7 @@ fun RoutePlannerScreen(
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
             ) {
-                Icon(Icons.Default.SwapVert, contentDescription = "Swap Origin and Destination", tint = Pop)
+                Icon(Icons.Default.SwapVert, contentDescription = stringResource(R.string.cd_swap_route), tint = Pop)
             }
         }
 
@@ -268,22 +269,28 @@ fun RoutePlannerScreen(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(preferences) { pref ->
-                val isSelected = pref == selectedPreference
+            items(preferenceKeys) { prefKey ->
+                val isSelected = prefKey == selectedPreference
+                val prefLabel = when (prefKey) {
+                    "fastest" -> stringResource(R.string.route_pref_fastest)
+                    "twisty" -> stringResource(R.string.route_pref_twisty)
+                    "offroad" -> stringResource(R.string.route_pref_offroad)
+                    else -> stringResource(R.string.route_pref_scenic)
+                }
                 Surface(
                     color = if (isSelected) PopContainer else PaperSunken,
                     shape = RoundedCornerShape(RvRadius.pill),
                     border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.3f) else InkHairline),
                     modifier = Modifier
                         .defaultMinSize(minHeight = 38.dp)
-                        .clickable { selectedPreference = pref }
+                        .clickable { selectedPreference = prefKey }
                 ) {
                     Box(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = pref,
+                            text = prefLabel,
                             color = if (isSelected) Pop else InkSecondary,
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 13.sp,
@@ -355,7 +362,7 @@ fun RoutePlannerScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (useRadarMode) "Offline Radar" else "Mapbox",
+                        text = if (useRadarMode) stringResource(R.string.route_mode_offline_radar) else stringResource(R.string.route_mode_mapbox),
                         color = Ink,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
@@ -363,7 +370,7 @@ fun RoutePlannerScreen(
                     Spacer(modifier = Modifier.width(5.dp))
                     Icon(
                         Icons.Default.Layers,
-                        contentDescription = "Switch Display Mode",
+                        contentDescription = stringResource(R.string.cd_switch_display_mode),
                         tint = InkSecondary,
                         modifier = Modifier.size(14.dp)
                     )
@@ -416,7 +423,7 @@ fun RoutePlannerScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text("@${rider.handle}", color = Ink, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                                Text("${rider.distanceKm} km", color = Pop, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                                Text(stringResource(R.string.distance_km_value, rider.distanceKm), color = Pop, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
                             }
                         }
                     }
@@ -445,26 +452,26 @@ fun RoutePlannerScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text("${uiState.distanceKm} km", color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("Distance", color = InkSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.distance_km_value, uiState.distanceKm), color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.route_stat_distance), color = InkSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                     Column {
                         Text(uiState.duration, color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("Est. duration", color = InkSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.route_stat_duration), color = InkSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                     Column {
-                        Text("${uiState.elevationGain} m", color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("Elevation", color = InkSecondary, style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.elevation_m_value, uiState.elevationGain), color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.route_stat_elevation), color = InkSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 Spacer(modifier = Modifier.height(14.dp))
 
                 PrimaryButton(
-                    text = "Save Route",
+                    text = stringResource(R.string.route_save_button),
                     leadingIcon = Icons.Default.Save,
                     onClick = {
                         viewModel.saveRoute {
-                            Toast.makeText(context, "Route '${uiState.routeName}' saved to logbook!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.toast_route_saved, uiState.routeName), Toast.LENGTH_SHORT).show()
                             onBackClick()
                         }
                     }
@@ -480,7 +487,7 @@ fun RoutePlannerScreen(
             containerColor = PaperRaised,
             title = {
                 Text(
-                    text = "Mapbox Access Token",
+                    text = stringResource(R.string.route_mapbox_dialog_title),
                     color = Ink,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
@@ -489,7 +496,7 @@ fun RoutePlannerScreen(
             text = {
                 Column {
                     Text(
-                        text = "Enter your public Mapbox token (pk.eyJ...) to enable vector terrain tiles, or continue using the offline Radar view.",
+                        text = stringResource(R.string.route_mapbox_dialog_desc),
                         color = InkSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -517,15 +524,15 @@ fun RoutePlannerScreen(
                             } catch (_: Throwable) {}
                             useRadarMode = false
                             showTokenDialog = false
-                            Toast.makeText(context, "Mapbox key saved & activated", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.toast_mapbox_saved), Toast.LENGTH_SHORT).show()
                         } else {
-                            Toast.makeText(context, "Please enter a valid Mapbox public token starting with 'pk.'", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.toast_mapbox_invalid), Toast.LENGTH_SHORT).show()
                         }
                     },
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Pop)
                 ) {
-                    Text("Activate", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.action_activate), color = PaperOnPop, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -535,7 +542,7 @@ fun RoutePlannerScreen(
                         useRadarMode = true
                     }
                 ) {
-                    Text("Use Offline Radar", color = Ink)
+                    Text(stringResource(R.string.route_use_offline_radar), color = Ink)
                 }
             }
         )

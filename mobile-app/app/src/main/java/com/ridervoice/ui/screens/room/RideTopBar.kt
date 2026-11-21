@@ -21,12 +21,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridervoice.R
 import com.ridervoice.audio.AudioDevice
 import com.ridervoice.audio.RoutedDeviceInfo
 import com.ridervoice.audio.RouterState
@@ -97,7 +100,7 @@ fun RideTopBar(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = if (diagSampleCount > 0) "DIAG ($diagSampleCount)" else "REC",
+                        text = if (diagSampleCount > 0) stringResource(R.string.room_diag_count, diagSampleCount) else stringResource(R.string.room_diag_rec),
                         color = Brick,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -128,17 +131,17 @@ fun RideTopBar(
             val speakerText = if (activeSpeaker != null) {
                 val spk = participants.find { it.identity == activeSpeaker }
                 val resolvedName = if (activeSpeaker == currentUid) {
-                    "You"
+                    stringResource(R.string.participant_you)
                 } else {
                     ParticipantNameResolver.resolve(activeSpeaker, spk?.displayName)
                 }
-                "$resolvedName is speaking"
+                stringResource(R.string.room_speaker_speaking, resolvedName)
             } else if (!isLargeFont) {
                 val count = participants.count { !it.isGhost }
-                if (count == 1) "1 rider in voice" else "$count riders in voice"
+                pluralStringResource(R.plurals.riders_in_voice_count, count, count)
             } else {
                 val count = participants.count { !it.isGhost }
-                "$count in voice"
+                stringResource(R.string.room_riders_in_voice_short, count)
             }
             Text(
                 text = speakerText,
@@ -179,6 +182,7 @@ fun RideTopBar(
 
             Spacer(modifier = Modifier.width(8.dp))
 
+            val leaveVoiceCd = stringResource(R.string.cd_leave_voice_call)
             IconButton(
                 onClick = onLeaveClick,
                 modifier = Modifier
@@ -186,12 +190,12 @@ fun RideTopBar(
                     .clip(CircleShape)
                     .background(BrickContainer)
                     .border(1.5.dp, Brick, CircleShape)
-                    .semantics { contentDescription = "Leave Voice Call" }
+                    .semantics { contentDescription = leaveVoiceCd }
                     .testTag("ride_topbar_leave_button")
             ) {
                 Icon(
                     imageVector = Icons.Default.CallEnd,
-                    contentDescription = "Leave Ride",
+                    contentDescription = stringResource(R.string.cd_leave_ride),
                     tint = Brick,
                     modifier = Modifier.size(22.dp)
                 )
@@ -203,11 +207,11 @@ fun RideTopBar(
 @Composable
 fun ConnectionPill(state: ConnectionState) {
     val (color, label) = when (state) {
-        ConnectionState.CONNECTED    -> Ink          to "CONNECTED"
-        ConnectionState.CONNECTING   -> Pop          to "CONNECTING"
-        ConnectionState.RECONNECTING -> Pop          to "RECONNECTING"
-        ConnectionState.FAILED       -> Brick        to "NO SIGNAL"
-        ConnectionState.DISCONNECTED -> InkSecondary to "OFFLINE"
+        ConnectionState.CONNECTED    -> Ink          to stringResource(R.string.room_conn_connected)
+        ConnectionState.CONNECTING   -> Pop          to stringResource(R.string.room_conn_connecting)
+        ConnectionState.RECONNECTING -> Pop          to stringResource(R.string.room_conn_reconnecting)
+        ConnectionState.FAILED       -> Brick        to stringResource(R.string.room_conn_no_signal)
+        ConnectionState.DISCONNECTED -> InkSecondary to stringResource(R.string.room_conn_offline)
     }
 
     val pulse = rememberInfiniteTransition(label = "pulse")
@@ -265,7 +269,7 @@ fun AudioDeviceBadge(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "Headset inactive",
+                    text = stringResource(R.string.room_headset_inactive),
                     color = Brick,
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.sp,
@@ -279,7 +283,7 @@ fun AudioDeviceBadge(
                     modifier = Modifier.height(18.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Pop)
                 ) {
-                    Text("Retry", fontSize = 8.sp, color = PaperOnPop)
+                    Text(stringResource(R.string.action_retry), fontSize = 8.sp, color = PaperOnPop)
                 }
             }
         } else if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f) {
@@ -293,7 +297,7 @@ fun AudioDeviceBadge(
             )
         } else {
             Text(
-                text = "Mic: ${routedInput.display()}",
+                text = stringResource(R.string.device_mic_label, routedInput.display()),
                 color = InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,
@@ -301,7 +305,7 @@ fun AudioDeviceBadge(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "Audio: ${routedOutput.display()}",
+                text = stringResource(R.string.device_audio_label, routedOutput.display()),
                 color = InkSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 9.sp,

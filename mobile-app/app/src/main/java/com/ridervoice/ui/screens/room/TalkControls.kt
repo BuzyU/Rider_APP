@@ -15,6 +15,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
@@ -62,6 +63,9 @@ fun TalkControls(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
+            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
+            .systemGestureExclusion()
             .heightIn(min = RvTouchTarget.ptt),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -238,6 +242,7 @@ fun PttPerforatedButton(
     val pttActionLabel = stringResource(R.string.cd_ptt_action_label)
     Box(
         modifier = modifier
+            .systemGestureExclusion()
             .clip(RoundedCornerShape(16.dp))
             .background(buttonBg)
             .then(

@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
@@ -384,6 +385,7 @@ fun MeshBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
+                .systemGestureExclusion()
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -462,6 +464,7 @@ fun MeshBottomBar(
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
                         .testTag("mesh_bottom_ptt")
+                        .systemGestureExclusion()
                         .weight(1.3f)
                         .heightIn(min = 56.dp)
                         .semantics {

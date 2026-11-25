@@ -3,6 +3,7 @@ package com.ridervoice.ui
 import android.app.Application
 import android.content.res.Configuration
 import android.provider.Settings
+import android.view.View
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +11,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -513,5 +518,83 @@ class UiLayoutMatrixTest {
         } finally {
             Settings.Global.putFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
         }
+    }
+
+    @Test
+    fun rideScreen_topBarAndTalkControls_respectSimulatedStatusAndNavInsets() {
+        var hostView: View? = null
+        var densityPx = 1f
+        composeRule.setContent {
+            hostView = LocalView.current
+            densityPx = LocalDensity.current.density
+            RiderVoiceTheme {
+                Box(modifier = Modifier.size(width = 360.dp, height = 640.dp)) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        RideTopBar(
+                            rideName = "Convoy Alpha",
+                            connectionState = ConnectionState.CONNECTED,
+                            activeSpeaker = null,
+                            currentUid = "rider-1",
+                            participants = sampleParticipants(4),
+                            activeDevice = AudioDevice.BluetoothSco("Cardo"),
+                            routerState = RouterState.ACTIVE,
+                            requestedDevice = AudioDevice.BluetoothSco("Cardo"),
+                            routedInput = RoutedDeviceInfo(typeName = "MIC", productName = "Phone"),
+                            routedOutput = RoutedDeviceInfo(typeName = "SPK", productName = "Speaker"),
+                            isCollectingDiag = false,
+                            diagSampleCount = 0,
+                            onAudioRouteClick = {},
+                            onDiagnosticsClick = {},
+                            onLeaveClick = {},
+                            onRescanAudio = {}
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        TalkControls(
+                            isMicEnabled = true,
+                            isDeafened = false,
+                            isPttPressed = false,
+                            isVoxOpen = false,
+                            onToggleMic = {},
+                            onToggleDeafen = {},
+                            onPttPressStart = {},
+                            onPttPressEnd = {},
+                            onSosClick = {},
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        val statusBarDp = 36f
+        val navBarDp = 48f
+        composeRule.runOnUiThread {
+            val view = hostView ?: error("Expected host view")
+            val insets = WindowInsetsCompat.Builder()
+                .setInsets(
+                    WindowInsetsCompat.Type.statusBars(),
+                    Insets.of(0, (statusBarDp * densityPx).toInt(), 0, 0)
+                )
+                .setInsets(
+                    WindowInsetsCompat.Type.navigationBars(),
+                    Insets.of(0, 0, 0, (navBarDp * densityPx).toInt())
+                )
+                .build()
+            ViewCompat.dispatchApplyWindowInsets(view, insets)
+        }
+        composeRule.waitForIdle()
+
+        val topBarBounds = composeRule.onNodeWithTag("ride_topbar_left").getBoundsInRoot()
+        val pttBounds = composeRule.onNodeWithTag("talk_controls_ptt").getBoundsInRoot()
+
+        assertTrue(
+            "RideTopBar content (${topBarBounds.top}) must be at or below status bar bottom ($statusBarDp.dp)",
+            topBarBounds.top >= (statusBarDp - 0.5f).dp
+        )
+        assertTrue(
+            "TalkControls PTT (${pttBounds.bottom}) must be at or above nav bar top (${640f - navBarDp}.dp)",
+            pttBounds.bottom <= (640f - navBarDp + 0.5f).dp
+        )
     }
 }

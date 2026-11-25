@@ -23,3 +23,7 @@ object RvTouchTarget {
     val rideScreen = 56.dp
     val ptt = 76.dp
 }
+
+object RvDimens {
+    val rideTopBarHeight = 64.dp
+}

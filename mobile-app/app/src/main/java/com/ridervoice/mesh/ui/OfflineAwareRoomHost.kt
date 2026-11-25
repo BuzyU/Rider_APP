@@ -43,6 +43,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ridervoice.R
 import com.ridervoice.mesh.OfflineMeshGate
+import com.ridervoice.ui.theme.RvDimens
 import com.ridervoice.mesh.switching.AutoSwitchState
 import com.ridervoice.mesh.switching.GroupConnectivityStatus
 import com.ridervoice.mesh.switching.MeshAutoSwitchManager
@@ -211,7 +212,7 @@ fun OfflineAwareRoomHost(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .statusBarsPadding()
-                        .padding(top = 64.dp)
+                        .padding(top = RvDimens.rideTopBarHeight)
                 )
             }
 
@@ -227,7 +228,7 @@ fun OfflineAwareRoomHost(
                         .fillMaxWidth()
                         .align(Alignment.TopCenter)
                         .statusBarsPadding()
-                        .padding(top = 64.dp, start = 12.dp, end = 12.dp, bottom = 6.dp)
+                        .padding(top = RvDimens.rideTopBarHeight, start = 12.dp, end = 12.dp, bottom = 6.dp)
                 )
             }
         }

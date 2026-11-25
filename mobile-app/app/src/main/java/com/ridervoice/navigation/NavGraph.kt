@@ -68,6 +68,7 @@ fun NavGraph(
 
     Scaffold(
         containerColor = Paper,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showBottomBar) {
                 RvBottomNavigationBar(

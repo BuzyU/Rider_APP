@@ -153,9 +153,11 @@ fun RvBottomNavigationBar(
         Routes.SETTINGS -> 3
         else -> -1
     }
+    val reduceMotion = rememberIsReduceMotionEnabled()
     val animatedIndex by animateFloatAsState(
         targetValue = if (selectedIndex >= 0) selectedIndex.toFloat() else 0f,
-        animationSpec = spring(dampingRatio = 0.78f, stiffness = 420f)
+        animationSpec = if (reduceMotion) tween(durationMillis = RvMotion.INSTANT)
+        else spring(dampingRatio = 0.95f, stiffness = 500f)
     )
 
     val isDark = ThemeState.isDarkTheme
@@ -257,17 +259,23 @@ private fun BottomNavTabItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val reduceMotion = rememberIsReduceMotionEnabled()
     val iconTint by animateColorAsState(
         targetValue = if (selected) Pop else InkSecondary,
-        animationSpec = tween(durationMillis = 220)
+        animationSpec = tween(
+            durationMillis = if (reduceMotion) RvMotion.INSTANT else RvMotion.STANDARD,
+            easing = RvMotion.Easing
+        )
     )
     val iconScale by animateFloatAsState(
         targetValue = if (selected) 1.08f else 1.0f,
-        animationSpec = spring(dampingRatio = 0.65f, stiffness = 500f)
+        animationSpec = if (reduceMotion) tween(durationMillis = RvMotion.INSTANT)
+        else spring(dampingRatio = 0.95f, stiffness = 500f)
     )
     val iconLiftDp by animateFloatAsState(
         targetValue = if (selected) -1f else 0f,
-        animationSpec = spring(dampingRatio = 0.72f, stiffness = 460f)
+        animationSpec = if (reduceMotion) tween(durationMillis = RvMotion.INSTANT)
+        else spring(dampingRatio = 0.95f, stiffness = 500f)
     )
     val interactionSource = remember { MutableInteractionSource() }
 

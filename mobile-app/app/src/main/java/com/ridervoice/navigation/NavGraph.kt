@@ -28,6 +28,7 @@ import com.ridervoice.ui.components.RvBottomNavigationBar
 import com.ridervoice.ui.components.shouldShowBottomBar
 import com.ridervoice.ui.screens.*
 import com.ridervoice.ui.theme.Paper
+import com.ridervoice.ui.theme.RvMotion
 import com.ridervoice.utils.OEMBatteryWarning
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,7 +113,39 @@ fun NavGraph(
                 .fillMaxSize()
                 .padding(bottom = shellPadding.calculateBottomPadding())
         ) {
-    NavHost(navController = navController, startDestination = Routes.SPLASH) {
+    val navContext = LocalContext.current
+    NavHost(
+        navController = navController,
+        startDestination = Routes.SPLASH,
+        enterTransition = {
+            RvMotion.enterTransition(
+                initialRoute = initialState.destination.route,
+                targetRoute = targetState.destination.route,
+                reduceMotion = RvMotion.isReduceMotionEnabled(navContext)
+            )
+        },
+        exitTransition = {
+            RvMotion.exitTransition(
+                initialRoute = initialState.destination.route,
+                targetRoute = targetState.destination.route,
+                reduceMotion = RvMotion.isReduceMotionEnabled(navContext)
+            )
+        },
+        popEnterTransition = {
+            RvMotion.popEnterTransition(
+                initialRoute = initialState.destination.route,
+                targetRoute = targetState.destination.route,
+                reduceMotion = RvMotion.isReduceMotionEnabled(navContext)
+            )
+        },
+        popExitTransition = {
+            RvMotion.popExitTransition(
+                initialRoute = initialState.destination.route,
+                targetRoute = targetState.destination.route,
+                reduceMotion = RvMotion.isReduceMotionEnabled(navContext)
+            )
+        }
+    ) {
 
         composable(Routes.SPLASH) {
             val splashCtx = LocalContext.current

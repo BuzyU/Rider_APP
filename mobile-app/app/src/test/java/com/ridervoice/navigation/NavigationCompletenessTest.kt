@@ -1,9 +1,13 @@
 package com.ridervoice.navigation
 
 import android.app.Application
+import android.provider.Settings
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.test.core.app.ApplicationProvider
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
@@ -19,7 +23,10 @@ import com.ridervoice.ui.components.RvBottomNavigationBar
 import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.components.shouldShowBottomBar
 import com.ridervoice.ui.theme.RiderVoiceTheme
+import com.ridervoice.ui.theme.RvMotion
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -255,5 +262,123 @@ class NavigationCompletenessTest {
             .assertHeightIsAtLeast(48.dp)
         avatar.performClick()
         assertTrue("Tapping TabProfileAvatar must invoke onClick", opened)
+    }
+
+    @Test
+    fun allNavGraphRoutes_haveExplicitRvMotionPolicy_andRespectReduceMotion() {
+        val root = locateJavaRoot()
+        val navGraphText = File(root, "navigation/NavGraph.kt").readText()
+        val routesText = File(root, "navigation/Routes.kt").readText()
+
+        // Every constant in Routes must exist in RvMotion.allRoutePolicies
+        val routeConstRegex = Regex("""const val\s+([A-Z0-9_]+)\s*=\s*"([^"]+)"""")
+        val definedRoutes = routeConstRegex.findAll(routesText)
+            .map { it.groupValues[1] to it.groupValues[2] }
+            .toList()
+        assertTrue("Expected defined routes in Routes.kt", definedRoutes.isNotEmpty())
+        for ((constName, routePattern) in definedRoutes) {
+            assertTrue(
+                "Routes.$constName ($routePattern) missing from RvMotion.allRoutePolicies",
+                RvMotion.allRoutePolicies.containsKey(routePattern)
+            )
+        }
+
+        // Every composable(...) in NavGraph.kt must resolve to an explicit policy in RvMotion.allRoutePolicies
+        val composableRouteRegex = Regex("""composable\(\s*(?:route\s*=\s*)?Routes\.([A-Z0-9_]+)""")
+        val navGraphConsts = composableRouteRegex.findAll(navGraphText)
+            .map { it.groupValues[1] }
+            .toSet()
+        val routeMap = definedRoutes.toMap()
+        assertTrue("Expected composable() routes in NavGraph.kt", navGraphConsts.isNotEmpty())
+        for (constName in navGraphConsts) {
+            val pattern = routeMap[constName]
+            assertTrue("NavGraph references unknown Routes.$constName", pattern != null)
+            assertTrue(
+                "NavGraph route Routes.$constName must be covered by RvMotion.allRoutePolicies",
+                RvMotion.allRoutePolicies.containsKey(pattern)
+            )
+        }
+
+        // NavHost in NavGraph.kt must wire all 4 transition lambdas to RvMotion
+        assertTrue(navGraphText.contains("enterTransition ="))
+        assertTrue(navGraphText.contains("exitTransition ="))
+        assertTrue(navGraphText.contains("popEnterTransition ="))
+        assertTrue(navGraphText.contains("popExitTransition ="))
+        assertTrue(navGraphText.contains("RvMotion.enterTransition"))
+
+        // Verify policies: Ride-critical -> None; Top-level -> None; Drill-down -> non-None slide+fade
+        val rideCritical = listOf(
+            Routes.ACTIVE_RIDE_HUD,
+            Routes.SOS,
+            Routes.OFFLINE_MESH_LOBBY,
+            Routes.OFFLINE_MESH_HUD
+        )
+        for (route in rideCritical) {
+            assertEquals(
+                EnterTransition.None,
+                RvMotion.enterTransition(Routes.HOME, route, reduceMotion = false)
+            )
+            assertEquals(
+                ExitTransition.None,
+                RvMotion.exitTransition(Routes.HOME, route, reduceMotion = false)
+            )
+            assertEquals(
+                EnterTransition.None,
+                RvMotion.popEnterTransition(route, Routes.HOME, reduceMotion = false)
+            )
+            assertEquals(
+                ExitTransition.None,
+                RvMotion.popExitTransition(route, Routes.HOME, reduceMotion = false)
+            )
+        }
+
+        val topLevel = listOf(Routes.HOME, Routes.SQUAD, Routes.ACCOUNT, Routes.SETTINGS, Routes.RIDE_STATS)
+        for (route in topLevel) {
+            assertEquals(
+                EnterTransition.None,
+                RvMotion.enterTransition(Routes.HOME, route, reduceMotion = false)
+            )
+        }
+
+        val drillDown = listOf(Routes.HOST_SETUP, Routes.LOBBY, Routes.POST_RIDE_SUMMARY, Routes.ROUTE_PLANNER)
+        for (route in drillDown) {
+            assertNotEquals(
+                "Drill-down route $route should animate when reduceMotion = false",
+                EnterTransition.None,
+                RvMotion.enterTransition(Routes.HOME, route, reduceMotion = false)
+            )
+            assertEquals(
+                "Drill-down route $route must become None when reduceMotion = true",
+                EnterTransition.None,
+                RvMotion.enterTransition(Routes.HOME, route, reduceMotion = true)
+            )
+            assertEquals(
+                ExitTransition.None,
+                RvMotion.exitTransition(Routes.HOME, route, reduceMotion = true)
+            )
+        }
+
+        // System Settings.Global.ANIMATOR_DURATION_SCALE == 0f turns reduceMotion on
+        val ctx = ApplicationProvider.getApplicationContext<Application>()
+        Settings.Global.putFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
+        try {
+            assertTrue(
+                "ANIMATOR_DURATION_SCALE == 0f must enable reduceMotion",
+                RvMotion.isReduceMotionEnabled(ctx)
+            )
+        } finally {
+            Settings.Global.putFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        }
+    }
+
+    @Test
+    fun bottomNavShell_usesNonOvershootingMotion() {
+        val shellText = File(locateJavaRoot(), "ui/components/BottomNavShell.kt").readText()
+        val dampingRegex = Regex("""dampingRatio\s*=\s*([0-9.]+)f""")
+        val ratios = dampingRegex.findAll(shellText).map { it.groupValues[1].toFloat() }.toList()
+        assertTrue("Expected spring damping ratios in BottomNavShell", ratios.isNotEmpty())
+        for (ratio in ratios) {
+            assertTrue("BottomNavShell spring dampingRatio=$ratio must be >= 0.9f", ratio >= 0.9f)
+        }
     }
 }

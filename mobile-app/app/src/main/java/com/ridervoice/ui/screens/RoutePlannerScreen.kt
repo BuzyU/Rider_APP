@@ -270,7 +270,7 @@ fun RoutePlannerScreen(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(preferenceKeys) { prefKey ->
+            items(preferenceKeys, key = { it }) { prefKey ->
                 val isSelected = prefKey == selectedPreference
                 val prefLabel = when (prefKey) {
                     "fastest" -> stringResource(R.string.route_pref_fastest)
@@ -396,7 +396,7 @@ fun RoutePlannerScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(uiState.nearbyRiders) { rider ->
+                items(uiState.nearbyRiders, key = { it.handle }) { rider ->
                     Surface(
                         color = PaperRaised,
                         shape = RoundedCornerShape(16.dp),

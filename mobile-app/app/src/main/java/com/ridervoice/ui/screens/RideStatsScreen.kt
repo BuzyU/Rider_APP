@@ -156,7 +156,7 @@ fun RideStatsScreen(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(filterKeys) { filterKey ->
+            items(filterKeys, key = { it }) { filterKey ->
                 val isSelected = filterKey == selectedFilter
                 val filterLabel = when (filterKey) {
                     "month" -> stringResource(R.string.history_filter_month)

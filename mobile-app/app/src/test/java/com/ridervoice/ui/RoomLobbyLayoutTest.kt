@@ -17,6 +17,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -475,7 +476,7 @@ class RoomLobbyLayoutTest {
                     Box(modifier = Modifier.size(width = 320.dp, height = 640.dp)) {
                         Column(modifier = Modifier.fillMaxSize()) {
                             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                items(peers) { p ->
+                                items(peers, key = { it.id }) { p ->
                                     MeshPeerCard(
                                         peer = p,
                                         isSpeaking = p.id == speakingPeerId,
@@ -536,5 +537,109 @@ class RoomLobbyLayoutTest {
         assertBoundsIdentical(audioBefore, audioBtn.getBoundsInRoot(), "MeshAudioRoute")
         assertBoundsIdentical(pttBefore, pttBtn.getBoundsInRoot(), "MeshPTT")
         assertBoundsIdentical(leaveBefore, leaveBtn.getBoundsInRoot(), "MeshLeave")
+    }
+
+    @Test
+    fun allLazyListItems_inUiAndMeshUi_provideExplicitKeys() {
+        val candidates = listOf(
+            java.io.File("src/main/java/com/ridervoice"),
+            java.io.File("app/src/main/java/com/ridervoice"),
+            java.io.File("mobile-app/app/src/main/java/com/ridervoice")
+        )
+        val root = candidates.firstOrNull { it.isDirectory } ?: error("Could not locate source root")
+        val itemsCallRegex = Regex("""\bitems(?:Indexed)?\s*\(""")
+        val violations = mutableListOf<String>()
+
+        for (sub in listOf("ui", "mesh/ui")) {
+            java.io.File(root, sub).walkTopDown()
+                .filter { it.isFile && it.extension == "kt" }
+                .forEach { file ->
+                    val lines = file.readLines()
+                    val rel = file.relativeTo(root).path.replace('\\', '/')
+                    lines.forEachIndexed { idx, line ->
+                        val trimmed = line.trim()
+                        if (trimmed.startsWith("//") || trimmed.startsWith("*")) return@forEachIndexed
+                        if (itemsCallRegex.containsMatchIn(line)) {
+                            val snippet = lines.subList(idx, minOf(idx + 5, lines.size)).joinToString(" ")
+                            if (!snippet.contains("key =") && !snippet.contains("key=")) {
+                                violations += "$rel:${idx + 1}: ${trimmed}"
+                            }
+                        }
+                    }
+                }
+        }
+
+        assertTrue(
+            "Found keyless LazyColumn/LazyRow items():\n${violations.joinToString("\n")}",
+            violations.isEmpty()
+        )
+    }
+
+    @Test
+    fun keyedLazyColumn_preservesItemStateOnPrepend_and_riderListOrderDoesNotJumpOnSpeakerChange() {
+        var nextSlotSeq = 0
+        var itemsList by mutableStateOf(listOf("alpha", "beta", "gamma"))
+        var activeSpeaker by mutableStateOf<String?>(null)
+        val participants = sampleParticipants(6)
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            RiderVoiceTheme {
+                Column(modifier = Modifier.size(width = 360.dp, height = 640.dp)) {
+                    LazyColumn(modifier = Modifier.height(140.dp)) {
+                        items(itemsList, key = { it }) { id ->
+                            val seq = remember { nextSlotSeq++ }
+                            androidx.compose.material3.Text(
+                                text = "${id}_seq$seq",
+                                modifier = Modifier.testTag("keyed_$id")
+                            )
+                        }
+                    }
+                    RiderList(
+                        participants = participants,
+                        currentUid = "rider-1",
+                        activeSpeaker = activeSpeaker,
+                        isCurrentUserTransmitting = false,
+                        isHost = true,
+                        remoteLocations = emptyMap(),
+                        currentLocation = null,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        val initialAlphaText = composeRule.onNodeWithTag("keyed_alpha").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsProperties.Text].joinToString("")
+        assertTrue("Expected alpha_seq0, got $initialAlphaText", initialAlphaText == "alpha_seq0")
+
+        val initialCardTops = participants.take(4).associate { p ->
+            p.identity to composeRule.onNodeWithTag("participant_card_${p.identity}").getBoundsInRoot().top
+        }
+
+        // Prepend a new item and toggle activeSpeaker to rider-3
+        itemsList = listOf("zero", "alpha", "beta", "gamma")
+        activeSpeaker = "rider-3"
+        composeRule.waitForIdle()
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("keyed_zero").assertIsDisplayed()
+        val afterAlphaText = composeRule.onNodeWithTag("keyed_alpha").fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsProperties.Text].joinToString("")
+        assertTrue(
+            "Keyed LazyColumn must preserve alpha's remembered slot state on prepend (got $afterAlphaText)",
+            afterAlphaText == initialAlphaText
+        )
+
+        // Verify no rider card swapped positions on activeSpeaker change
+        for ((id, topBefore) in initialCardTops) {
+            val topAfter = composeRule.onNodeWithTag("participant_card_$id").getBoundsInRoot().top
+            assertTrue(
+                "Rider $id reordered on speaker change: before=$topBefore after=$topAfter",
+                kotlin.math.abs(topBefore.value - topAfter.value) <= 0.5f
+            )
+        }
     }
 }

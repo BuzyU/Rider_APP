@@ -663,7 +663,7 @@ fun LobbyScreen(
                         )
                     }
                 } else {
-                    items(accepted) { entry ->
+                    items(accepted, key = { "accepted_${it.invitee.id}" }) { entry ->
                         val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: stringResource(R.string.participant_rider_prefix)
                         val presenceText = if (entry.isPresent) stringResource(R.string.lobby_presence_active) else stringResource(R.string.lobby_presence_away)
                         val configText = when (entry.offlineConfigStatus) {
@@ -711,7 +711,7 @@ fun LobbyScreen(
                         )
                     }
 
-                    items(pending) { entry ->
+                    items(pending, key = { "pending_${it.invitee.id}" }) { entry ->
                         val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: stringResource(R.string.participant_rider_prefix)
                         RiderRow(
                             name = riderName,
@@ -744,7 +744,7 @@ fun LobbyScreen(
                         )
                     }
 
-                    items(declined) { entry ->
+                    items(declined, key = { "declined_${it.invitee.id}" }) { entry ->
                         val riderName = entry.invitee.displayName ?: entry.invitee.handle ?: stringResource(R.string.participant_rider_prefix)
                         RiderRow(
                             name = riderName,

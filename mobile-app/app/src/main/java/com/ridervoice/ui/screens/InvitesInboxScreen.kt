@@ -206,7 +206,7 @@ fun InvitesInboxScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(invites) { invite ->
+                items(invites, key = { it.id }) { invite ->
                     val isProcessing = processingInviteId == invite.id
                     InviteCard(
                         invite = invite,

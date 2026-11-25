@@ -283,7 +283,7 @@ fun InviteFriendsContent(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(filteredFriends) { friend ->
+                    items(filteredFriends, key = { it.id }) { friend ->
                         FriendInviteCard(
                             friend = friend,
                             isInvited = invitedIds.contains(friend.id),

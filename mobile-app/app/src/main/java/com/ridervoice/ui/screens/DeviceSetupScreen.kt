@@ -113,9 +113,9 @@ fun DeviceSetupScreen(
             item {
                 val (statusText, statusColor) = when (routerState) {
                     RouterState.SCANNING -> stringResource(R.string.device_status_scanning) to InkSecondary
-                    RouterState.CONNECTING_BT -> stringResource(R.string.device_status_connecting) to Pop
+                    RouterState.CONNECTING_BT -> stringResource(R.string.device_status_connecting) to StatusWarn
                     RouterState.FAILED -> stringResource(R.string.device_status_failed) to Brick
-                    else -> stringResource(R.string.device_status_ready) to Moss
+                    else -> stringResource(R.string.device_status_ready) to StatusOk
                 }
 
                 Surface(

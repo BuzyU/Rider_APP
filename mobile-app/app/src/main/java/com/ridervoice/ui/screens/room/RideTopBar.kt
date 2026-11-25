@@ -226,9 +226,9 @@ fun RideTopBar(
 @Composable
 fun ConnectionPill(state: ConnectionState) {
     val (color, label) = when (state) {
-        ConnectionState.CONNECTED    -> Ink          to stringResource(R.string.room_conn_connected)
-        ConnectionState.CONNECTING   -> Pop          to stringResource(R.string.room_conn_connecting)
-        ConnectionState.RECONNECTING -> Pop          to stringResource(R.string.room_conn_reconnecting)
+        ConnectionState.CONNECTED    -> StatusOk     to stringResource(R.string.room_conn_connected)
+        ConnectionState.CONNECTING   -> StatusWarn   to stringResource(R.string.room_conn_connecting)
+        ConnectionState.RECONNECTING -> StatusWarn   to stringResource(R.string.room_conn_reconnecting)
         ConnectionState.FAILED       -> Brick        to stringResource(R.string.room_conn_no_signal)
         ConnectionState.DISCONNECTED -> InkSecondary to stringResource(R.string.room_conn_offline)
     }

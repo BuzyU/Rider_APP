@@ -176,9 +176,9 @@ fun HomeScreen(
                         .background(
                             Brush.horizontalGradient(
                                 colors = listOf(
-                                    Color(0xDE4A1E0E),
-                                    Color(0x9E3D1C10),
-                                    Color(0x4D1E1510)
+                                    HeroPhotoScrimTop,
+                                    HeroPhotoScrimMid,
+                                    HeroPhotoScrimBottom
                                 )
                             )
                         )
@@ -193,7 +193,7 @@ fun HomeScreen(
                     Column(modifier = Modifier.fillMaxWidth(0.76f)) {
                         Text(
                             text = stringResource(R.string.home_create_ride_title),
-                            color = Color(0xFFFFFDF8),
+                            color = HeroPhotoTextPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontSize = 25.sp,
                             fontWeight = FontWeight.Bold
@@ -201,7 +201,7 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = stringResource(R.string.home_create_ride_subtitle),
-                            color = Color(0xE0FFFDF8),
+                            color = HeroPhotoTextSecondary,
                             style = MaterialTheme.typography.bodyMedium,
                             fontSize = 14.sp,
                             lineHeight = 19.sp
@@ -217,13 +217,13 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(46.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFFFFDF8)),
+                                .background(HeroPhotoBadgeFill),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ArrowForward,
                                 contentDescription = stringResource(R.string.cd_start_creating_ride),
-                                tint = Color(0xFF23201B),
+                                tint = HeroPhotoBadgeIcon,
                                 modifier = Modifier.size(22.dp)
                             )
                         }

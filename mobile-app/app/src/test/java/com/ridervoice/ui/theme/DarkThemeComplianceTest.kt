@@ -82,7 +82,15 @@ class DarkThemeComplianceTest {
             "Dark Brick on Paper" to (DarkPalette.EmergencyRed to DarkPalette.Background),
             "Dark Brick on PaperRaised" to (DarkPalette.EmergencyRed to DarkPalette.Surface),
             "Dark Brick on BrickContainer" to (DarkPalette.EmergencyRed to DarkPalette.EmergencyContainer),
-            "Dark PaperOnBrick on Brick" to (DarkPalette.OnEmergency to DarkPalette.EmergencyRed)
+            "Dark PaperOnBrick on Brick" to (DarkPalette.OnEmergency to DarkPalette.EmergencyRed),
+            "Dark StatusOk on Paper" to (DarkPalette.StatusOk to DarkPalette.Background),
+            "Dark StatusOk on PaperRaised" to (DarkPalette.StatusOk to DarkPalette.Surface),
+            "Dark StatusOk on PaperSunken" to (DarkPalette.StatusOk to DarkPalette.SurfaceAlt),
+            "Dark StatusOk on StatusOkContainer" to (DarkPalette.StatusOk to DarkPalette.StatusOkContainer),
+            "Dark StatusWarn on Paper" to (DarkPalette.StatusWarn to DarkPalette.Background),
+            "Dark StatusWarn on PaperRaised" to (DarkPalette.StatusWarn to DarkPalette.Surface),
+            "Dark StatusWarn on PaperSunken" to (DarkPalette.StatusWarn to DarkPalette.SurfaceAlt),
+            "Dark StatusWarn on StatusWarnContainer" to (DarkPalette.StatusWarn to DarkPalette.StatusWarnContainer)
         )
 
         val failures = mutableListOf<String>()
@@ -141,6 +149,44 @@ class DarkThemeComplianceTest {
 
         assertTrue(
             "Found hardcoded colors that break dark/light theme symmetry:\n${violations.joinToString("\n")}",
+            violations.isEmpty()
+        )
+    }
+
+    @Test
+    fun nonFrozenUiHasNoRawHexColorLiterals() {
+        val candidates = listOf(
+            File("src/main/java/com/ridervoice"),
+            File("app/src/main/java/com/ridervoice"),
+            File("mobile-app/app/src/main/java/com/ridervoice")
+        )
+        val root = candidates.firstOrNull { it.isDirectory } ?: error("Cannot find com/ridervoice root")
+
+        // theme/, MeshColors.kt, and frozen online room files are explicitly excluded (frozen files are listed in Blocked)
+        val frozenOrAllowed = setOf(
+            "mesh/ui/MeshColors.kt",
+            "ui/screens/RoomScreen.kt",
+            "ui/screens/room/AudioVuMeter.kt",
+            "ui/screens/room/SosAlertBanner.kt"
+        )
+        val rawHexRegex = Regex("""Color\(0x[0-9A-Fa-f]+""")
+        val violations = mutableListOf<String>()
+
+        for (target in listOf(File(root, "ui"), File(root, "mesh/ui"))) {
+            target.walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { file ->
+                val rel = file.relativeTo(root).path.replace('\\', '/')
+                if (rel.startsWith("ui/theme/") || rel in frozenOrAllowed) return@forEach
+                file.readLines().forEachIndexed { idx, line ->
+                    val trimmed = line.trim()
+                    if (trimmed.startsWith("//") || trimmed.startsWith("*")) return@forEachIndexed
+                    if (rawHexRegex.containsMatchIn(line)) {
+                        violations += "$rel:${idx + 1}: ${trimmed}"
+                    }
+                }
+            }
+        }
+        assertTrue(
+            "Found raw Color(0x...) literals outside theme/MeshColors:\n${violations.joinToString("\n")}",
             violations.isEmpty()
         )
     }

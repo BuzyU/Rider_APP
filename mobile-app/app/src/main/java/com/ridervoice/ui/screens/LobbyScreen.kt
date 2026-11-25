@@ -545,7 +545,7 @@ fun LobbyScreen(
                             ) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(14.dp),
-                                    color = Pop,
+                                    color = StatusWarn,
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(modifier = Modifier.width(RvSpacing.sm))
@@ -557,7 +557,7 @@ fun LobbyScreen(
                                         stringResource(R.string.lobby_connecting)
                                     },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Pop
+                                    color = StatusWarn
                                 )
                             }
                         }
@@ -576,7 +576,7 @@ fun LobbyScreen(
                             ) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(12.dp),
-                                    color = Pop,
+                                    color = StatusWarn,
                                     strokeWidth = 1.5.dp
                                 )
                                 Spacer(modifier = Modifier.width(RvSpacing.sm))
@@ -588,7 +588,7 @@ fun LobbyScreen(
                                         stringResource(R.string.ride_status_reconnecting)
                                     },
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Pop
+                                    color = StatusWarn
                                 )
                             }
                         }

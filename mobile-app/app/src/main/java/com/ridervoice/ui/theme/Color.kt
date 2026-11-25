@@ -37,6 +37,10 @@ internal object LightPalette {
     val CharcoalAction = Color(0xFF2B2722)      // Dark anchored icon/action pill
     val Moss = Color(0xFF4E6145)                // Moss Status (6.08:1 on Bone)
     val MossContainer = Color(0xFFE1E8D9)       // Moss Pill Tint (5.43:1 with Moss)
+    val StatusOk = Moss
+    val StatusOkContainer = MossContainer
+    val StatusWarn = Color(0xFF7A5600)          // Warm Ochre Warn (5.90:1 on Bone)
+    val StatusWarnContainer = Color(0xFFF4E8C1) // Ochre Container (5.43:1 with StatusWarn)
 
     val VhfTeal = Color(0xFF6B645A)             // Neutralized to InkSecondary (zero blue/cyan)
     val SignalGreen = Color(0xFF23201B)         // Neutralized to Ink
@@ -71,6 +75,10 @@ internal object DarkPalette {
     val CharcoalAction = Color(0xFFF0EDE8)
     val Moss = Color(0xFF7BC492)
     val MossContainer = Color(0xFF16271C)
+    val StatusOk = Moss
+    val StatusOkContainer = MossContainer
+    val StatusWarn = Color(0xFFE6B44C)          // Warm Ochre Warn (10.10:1 on Obsidian)
+    val StatusWarnContainer = Color(0xFF2B210B) // Ochre Container (8.30:1 with StatusWarn)
 
     val VhfTeal = Color(0xFFA4A29D)
     val SignalGreen = Color(0xFFF4F3F0)
@@ -97,6 +105,19 @@ val PaperOnPop: Color get() = if (ThemeState.isDarkTheme) DarkPalette.OnAccent e
 val CharcoalSurface: Color get() = if (ThemeState.isDarkTheme) DarkPalette.CharcoalAction else LightPalette.CharcoalAction
 val Moss: Color get() = if (ThemeState.isDarkTheme) DarkPalette.Moss else LightPalette.Moss
 val MossContainer: Color get() = if (ThemeState.isDarkTheme) DarkPalette.MossContainer else LightPalette.MossContainer
+val StatusOk: Color get() = if (ThemeState.isDarkTheme) DarkPalette.StatusOk else LightPalette.StatusOk
+val StatusOkContainer: Color get() = if (ThemeState.isDarkTheme) DarkPalette.StatusOkContainer else LightPalette.StatusOkContainer
+val StatusWarn: Color get() = if (ThemeState.isDarkTheme) DarkPalette.StatusWarn else LightPalette.StatusWarn
+val StatusWarnContainer: Color get() = if (ThemeState.isDarkTheme) DarkPalette.StatusWarnContainer else LightPalette.StatusWarnContainer
+
+// --- Hero Photo Scrim & On-Photo Overlay Constants (HomeScreen hero image) ---
+val HeroPhotoScrimTop = Color(0xDE4A1E0E)
+val HeroPhotoScrimMid = Color(0x9E3D1C10)
+val HeroPhotoScrimBottom = Color(0x4D1E1510)
+val HeroPhotoTextPrimary = Color(0xFFFFFDF8)
+val HeroPhotoTextSecondary = Color(0xE0FFFDF8)
+val HeroPhotoBadgeFill = Color(0xFFFFFDF8)
+val HeroPhotoBadgeIcon = Color(0xFF23201B)
 
 val Brick: Color get() = if (ThemeState.isDarkTheme) DarkPalette.EmergencyRed else LightPalette.EmergencyRed
 val BrickContainer: Color get() = if (ThemeState.isDarkTheme) DarkPalette.EmergencyContainer else LightPalette.EmergencyContainer

@@ -187,7 +187,15 @@ class ColorTokensContrastAndStateTest {
             "Light Brick on Paper" to (LightPalette.EmergencyRed to LightPalette.Background),
             "Light Brick on PaperRaised" to (LightPalette.EmergencyRed to LightPalette.Surface),
             "Light Brick on BrickContainer" to (LightPalette.EmergencyRed to LightPalette.EmergencyContainer),
-            "Light PaperOnBrick on Brick" to (LightPalette.OnEmergency to LightPalette.EmergencyRed)
+            "Light PaperOnBrick on Brick" to (LightPalette.OnEmergency to LightPalette.EmergencyRed),
+            "Light StatusOk on Paper" to (LightPalette.StatusOk to LightPalette.Background),
+            "Light StatusOk on PaperRaised" to (LightPalette.StatusOk to LightPalette.Surface),
+            "Light StatusOk on PaperSunken" to (LightPalette.StatusOk to LightPalette.SurfaceAlt),
+            "Light StatusOk on StatusOkContainer" to (LightPalette.StatusOk to LightPalette.StatusOkContainer),
+            "Light StatusWarn on Paper" to (LightPalette.StatusWarn to LightPalette.Background),
+            "Light StatusWarn on PaperRaised" to (LightPalette.StatusWarn to LightPalette.Surface),
+            "Light StatusWarn on PaperSunken" to (LightPalette.StatusWarn to LightPalette.SurfaceAlt),
+            "Light StatusWarn on StatusWarnContainer" to (LightPalette.StatusWarn to LightPalette.StatusWarnContainer)
         )
         val failures = mutableListOf<String>()
         for ((name, pair) in pairs) {
@@ -215,7 +223,13 @@ class ColorTokensContrastAndStateTest {
             "Dark.SurfaceAlt" to DarkPalette.SurfaceAlt,
             "Dark.AccentAmber" to DarkPalette.AccentAmber,
             "Dark.Moss" to DarkPalette.Moss,
-            "Dark.EmergencyRed" to DarkPalette.EmergencyRed
+            "Dark.EmergencyRed" to DarkPalette.EmergencyRed,
+            "Light.StatusOk" to LightPalette.StatusOk,
+            "Light.StatusWarn" to LightPalette.StatusWarn,
+            "Light.StatusWarnContainer" to LightPalette.StatusWarnContainer,
+            "Dark.StatusOk" to DarkPalette.StatusOk,
+            "Dark.StatusWarn" to DarkPalette.StatusWarn,
+            "Dark.StatusWarnContainer" to DarkPalette.StatusWarnContainer
         )
         for ((name, color) in allPaletteColors) {
             val (h, s) = hueAndSat(color)

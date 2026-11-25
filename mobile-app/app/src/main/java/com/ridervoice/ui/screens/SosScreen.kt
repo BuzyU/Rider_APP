@@ -293,9 +293,9 @@ fun SosScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         val progress = (countdown.coerceIn(0, 10) / 10f)
-                        val trackColor = PaperSunken
-                        val meterColor = Brick
                         Canvas(modifier = Modifier.fillMaxSize()) {
+                            val trackColor = PaperSunken
+                            val meterColor = Brick
                             drawCircle(
                                 color = trackColor,
                                 style = Stroke(width = 10.dp.toPx())

@@ -440,18 +440,17 @@ fun RideReplayScreen(
                                 .background(PaperSunken)
                                 .border(1.dp, InkHairline, RoundedCornerShape(18.dp))
                         ) {
-                            val gridColor = InkHairline
-                            val inactiveTrackColor = InkSecondary.copy(alpha = 0.3f)
-                            val activeTrackColor = Pop
-                            val haloColor = PaperRaised
-                            val startColor = Ink
-                            val endColor = Moss
-
                             Canvas(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(24.dp)
                             ) {
+                                val gridColor = InkHairline
+                                val inactiveTrackColor = InkSecondary.copy(alpha = 0.3f)
+                                val activeTrackColor = Pop
+                                val haloColor = PaperRaised
+                                val startColor = Ink
+                                val endColor = Moss
                                 val w = size.width
                                 val h = size.height
 
@@ -605,10 +604,6 @@ fun RideReplayScreen(
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
-                                val popColor = Pop
-                                val fillTop = Pop.copy(alpha = 0.22f)
-                                val fillBottom = Color.Transparent
-                                val cursorColor = Ink
                                 Canvas(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -617,6 +612,10 @@ fun RideReplayScreen(
                                         .background(PaperSunken.copy(alpha = 0.6f))
                                         .padding(horizontal = 6.dp, vertical = 8.dp)
                                 ) {
+                                    val popColor = Pop
+                                    val fillTop = Pop.copy(alpha = 0.22f)
+                                    val fillBottom = Color.Transparent
+                                    val cursorColor = Ink
                                     val w = size.width
                                     val h = size.height
                                     val strokePath = Path()

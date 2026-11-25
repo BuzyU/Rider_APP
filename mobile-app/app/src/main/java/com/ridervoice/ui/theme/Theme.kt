@@ -1,17 +1,16 @@
 package com.ridervoice.ui.theme
 
 import android.app.Activity
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
+import android.graphics.Color as AndroidColor
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
 
 private val DarkScheme = darkColorScheme(
     primary = DarkPalette.AccentAmber,
@@ -71,18 +70,19 @@ fun RiderVoiceTheme(content: @Composable () -> Unit) {
     val isDark = ThemeState.isDarkTheme
     val target = if (isDark) DarkScheme else LightScheme
 
-    val animatedBg by animateColorAsState(target.background, tween(250), label = "bg")
-
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val activity = view.context.findActivity() ?: return@SideEffect
-            val window = activity.window
-            window.statusBarColor = animatedBg.toArgb()
-            window.navigationBarColor = animatedBg.toArgb()
-            val controller = WindowCompat.getInsetsController(window, view)
-            controller.isAppearanceLightStatusBars = !isDark
-            controller.isAppearanceLightNavigationBars = !isDark
+            val activity = view.context.findActivity() as? ComponentActivity ?: return@SideEffect
+            val barStyle = if (isDark) {
+                SystemBarStyle.dark(AndroidColor.TRANSPARENT)
+            } else {
+                SystemBarStyle.light(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT)
+            }
+            activity.enableEdgeToEdge(
+                statusBarStyle = barStyle,
+                navigationBarStyle = barStyle
+            )
         }
     }
 

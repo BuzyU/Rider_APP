@@ -232,12 +232,6 @@ fun PttPerforatedButton(
 
     val staticRimColor = if (isActive) Pop else InkHairline
 
-    val dotColor = when {
-        isPressed -> PaperOnPop.copy(alpha = 0.25f)
-        isVoxOpen -> Pop.copy(alpha = 0.2f)
-        else      -> InkSecondary.copy(alpha = 0.16f)
-    }
-
     val pttBtnCd = stringResource(R.string.cd_ptt_button)
     val pttActionLabel = stringResource(R.string.cd_ptt_action_label)
     Box(
@@ -279,6 +273,11 @@ fun PttPerforatedButton(
             )
         }
         Canvas(modifier = Modifier.matchParentSize()) {
+            val dotColor = when {
+                isPressed -> PaperOnPop.copy(alpha = 0.25f)
+                isVoxOpen -> Pop.copy(alpha = 0.2f)
+                else      -> InkSecondary.copy(alpha = 0.16f)
+            }
             val stepX = 14.dp.toPx()
             val stepY = 10.dp.toPx()
             val dotRadius = 1.4.dp.toPx()

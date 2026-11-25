@@ -359,7 +359,6 @@ private fun SeasonTotalsBentoCard(
     avgSpeed: String,
     topSpeed: String
 ) {
-    val hairline = InkHairline
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -369,6 +368,7 @@ private fun SeasonTotalsBentoCard(
     ) {
         // Subtle cartographic contour waves in the bottom-right corner
         Canvas(modifier = Modifier.matchParentSize()) {
+            val hairline = InkHairline
             val w = size.width
             val h = size.height
             for (i in 0..2) {
@@ -558,8 +558,6 @@ private fun RideHistoryCard(
 
 @Composable
 private fun MiniRouteThumbnail(seed: Int) {
-    val lineColor = Ink
-    val popColor = Pop
     val variant = kotlin.math.abs(seed) % 3
 
     Box(
@@ -571,6 +569,8 @@ private fun MiniRouteThumbnail(seed: Int) {
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+            val lineColor = Ink
+            val popColor = Pop
             val w = size.width
             val h = size.height
             val start = Offset(w * 0.14f, h * 0.84f)

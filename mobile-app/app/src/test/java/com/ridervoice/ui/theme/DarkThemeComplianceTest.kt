@@ -1,11 +1,19 @@
 package com.ridervoice.ui.theme
 
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.Canvas as AndroidCanvas
+import android.view.View
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -253,5 +261,55 @@ class DarkThemeComplianceTest {
         composeRule.onNodeWithTag("talk_controls_ptt").assertIsDisplayed()
         composeRule.onNodeWithTag("rv_bottom_nav_bar").assertIsDisplayed()
         composeRule.onNodeWithText("Night Ride").assertIsDisplayed()
+    }
+
+    @Test
+    fun themePlumbing_removesAnimatedBgAndWindowBarColorWrites_andCanvasUpdatesMidComposition() {
+        val candidates = listOf(
+            File("src/main/java/com/ridervoice/ui/theme/Theme.kt"),
+            File("app/src/main/java/com/ridervoice/ui/theme/Theme.kt"),
+            File("mobile-app/app/src/main/java/com/ridervoice/ui/theme/Theme.kt")
+        )
+        val themeText = candidates.firstOrNull { it.isFile }?.readText()
+            ?: error("Could not locate Theme.kt")
+
+        assertTrue("Theme.kt must not use animateColorAsState", !themeText.contains("animateColorAsState"))
+        assertTrue("Theme.kt must not assign window.statusBarColor", !themeText.contains("window.statusBarColor"))
+        assertTrue("Theme.kt must not assign window.navigationBarColor", !themeText.contains("window.navigationBarColor"))
+        assertTrue("Theme.kt must call enableEdgeToEdge", themeText.contains("enableEdgeToEdge("))
+
+        ThemeState.set(false)
+        var drawnPopColor: Color? = null
+        var schemeBg: Color? = null
+        var hostView: View? = null
+
+        composeRule.setContent {
+            hostView = LocalView.current
+            RiderVoiceTheme {
+                schemeBg = MaterialTheme.colorScheme.background
+                Canvas(modifier = Modifier.size(32.dp)) {
+                    drawnPopColor = Pop
+                    drawCircle(color = Pop)
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.runOnUiThread {
+            val view = hostView ?: error("Expected hostView")
+            val bmp = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+            view.draw(AndroidCanvas(bmp))
+        }
+        assertEquals(LightPalette.Background, schemeBg)
+        assertEquals(LightPalette.AccentAmber, drawnPopColor)
+
+        ThemeState.set(true)
+        composeRule.waitForIdle()
+        composeRule.runOnUiThread {
+            val view = hostView ?: error("Expected hostView")
+            val bmp = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+            view.draw(AndroidCanvas(bmp))
+        }
+        assertEquals(DarkPalette.Background, schemeBg)
+        assertEquals(DarkPalette.AccentAmber, drawnPopColor)
     }
 }

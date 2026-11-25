@@ -433,7 +433,6 @@ private fun PendingSectionDashedDivider(
     onClearRejected: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dashColor = InkHairline
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -453,6 +452,7 @@ private fun PendingSectionDashedDivider(
                 .weight(1f)
                 .height(2.dp)
         ) {
+            val dashColor = InkHairline
             drawLine(
                 color = dashColor,
                 start = Offset(0f, size.height / 2f),

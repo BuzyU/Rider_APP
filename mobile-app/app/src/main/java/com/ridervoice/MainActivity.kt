@@ -69,7 +69,17 @@ class MainActivity : ComponentActivity() {
 
         permissionLauncher.launch(PermissionManager.requiredPermissions)
 
-        com.ridervoice.ui.theme.ThemeState.set(securePreferences.getBoolean("dark_theme_enabled", false))
+        val initialDarkTheme = securePreferences.getBoolean("dark_theme_enabled", false)
+        com.ridervoice.ui.theme.ThemeState.set(initialDarkTheme)
+        val initialBarStyle = if (initialDarkTheme) {
+            androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        } else {
+            androidx.activity.SystemBarStyle.light(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            )
+        }
+        enableEdgeToEdge(statusBarStyle = initialBarStyle, navigationBarStyle = initialBarStyle)
 
         if (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
             lifecycleScope.launch {

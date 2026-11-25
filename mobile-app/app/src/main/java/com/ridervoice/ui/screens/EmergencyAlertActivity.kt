@@ -317,10 +317,10 @@ fun EmergencyAlertContent(
                 contentAlignment = Alignment.Center
             ) {
                 val progress = if (isDispatched) 1f else (countdown.coerceIn(0, 15) / 15f)
-                val meterColor = Brick
-                val trackColor = PaperSunken
 
                 Canvas(modifier = Modifier.fillMaxSize()) {
+                    val meterColor = Brick
+                    val trackColor = PaperSunken
                     drawCircle(
                         color = trackColor,
                         style = Stroke(width = 10.dp.toPx())

@@ -24,7 +24,13 @@ import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,8 +39,13 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -60,6 +71,24 @@ fun TalkControls(
     onSosClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    KeepRideScreenOnEffect()
+
+    val haptic = LocalHapticFeedback.current
+    val hapticEnabled by rememberUpdatedState(RideErgonomicsSettings.hapticFeedbackEnabled)
+    var seenInitialVox by remember { mutableStateOf(false) }
+    var prevVoxOpen by remember { mutableStateOf(isVoxOpen) }
+    LaunchedEffect(isVoxOpen) {
+        if (!seenInitialVox) {
+            seenInitialVox = true
+            prevVoxOpen = isVoxOpen
+        } else if (isVoxOpen != prevVoxOpen) {
+            prevVoxOpen = isVoxOpen
+            if (hapticEnabled && !isPttPressed) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+        }
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -231,6 +260,30 @@ fun PttPerforatedButton(
 
     val pttBtnCd = stringResource(R.string.cd_ptt_button)
     val pttActionLabel = stringResource(R.string.cd_ptt_action_label)
+    val currentOnPressStart by rememberUpdatedState(onPressStart)
+    val currentOnPressEnd by rememberUpdatedState(onPressEnd)
+    val haptic = LocalHapticFeedback.current
+    val currentHapticEnabled by rememberUpdatedState(RideErgonomicsSettings.hapticFeedbackEnabled)
+    var isHoldingGesture by remember { mutableStateOf(false) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && isHoldingGesture) {
+                isHoldingGesture = false
+                currentOnPressEnd()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (isHoldingGesture) {
+                isHoldingGesture = false
+                currentOnPressEnd()
+            }
+        }
+    }
+
     Box(
         modifier = modifier
             .systemGestureExclusion()
@@ -246,17 +299,30 @@ fun PttPerforatedButton(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
-                        onPressStart()
-                        tryAwaitRelease()
-                        onPressEnd()
+                        isHoldingGesture = true
+                        if (currentHapticEnabled) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                        currentOnPressStart()
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            if (isHoldingGesture) {
+                                isHoldingGesture = false
+                                if (currentHapticEnabled) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                                currentOnPressEnd()
+                            }
+                        }
                     }
                 )
             }
             .semantics {
                 contentDescription = pttBtnCd
                 onClick(label = pttActionLabel) {
-                    onPressStart()
-                    onPressEnd()
+                    currentOnPressStart()
+                    currentOnPressEnd()
                     true
                 }
             }

@@ -19,6 +19,8 @@ data class AppSettingsState(
     // Headset / PTT settings (migrated from raw headset_prefs → SecurePreferences)
     val hardwarePtt: Boolean = true,
     val hybridVox: Boolean = true,
+    val hapticFeedbackEnabled: Boolean = true,
+    val keepScreenOnDuringRide: Boolean = true,
     val networkDiagnostics: Boolean = false,
     val shareDiagnosticsWhenHostEnabled: Boolean = true,
     val appLanguage: String = "system",
@@ -40,6 +42,10 @@ class SettingsViewModel @Inject constructor(
     val showDiagnosticDisclosure: StateFlow<Boolean> = _showDiagnosticDisclosure.asStateFlow()
 
     private fun loadInitialState(): AppSettingsState {
+        val haptic = securePrefs.isHapticFeedbackEnabled()
+        val keepScreenOn = securePrefs.isKeepScreenOnDuringRide()
+        com.ridervoice.ui.theme.RideErgonomicsSettings.setHapticFeedbackEnabled(haptic)
+        com.ridervoice.ui.theme.RideErgonomicsSettings.setKeepScreenOnDuringRide(keepScreenOn)
         return AppSettingsState(
             darkTheme = securePrefs.getBoolean("dark_theme_enabled", false),
             noiseCancellation = securePrefs.getBoolean("settings_noise_cancellation", true),
@@ -49,6 +55,8 @@ class SettingsViewModel @Inject constructor(
             voxSensitivity = securePrefs.getString("settings_vox_sensitivity", "Medium"),
             hardwarePtt = securePrefs.getBoolean("settings_hardware_ptt", true),
             hybridVox = securePrefs.getBoolean("settings_hybrid_vox", true),
+            hapticFeedbackEnabled = haptic,
+            keepScreenOnDuringRide = keepScreenOn,
             networkDiagnostics = securePrefs.isNetworkDiagnosticsEnabled(),
             shareDiagnosticsWhenHostEnabled = securePrefs.isShareDiagnosticsWhenHostEnabled(),
             appLanguage = securePrefs.getAppLanguage(),
@@ -106,6 +114,20 @@ class SettingsViewModel @Inject constructor(
         val current = _settingsState.value.hybridVox
         _settingsState.value = _settingsState.value.copy(hybridVox = !current)
         securePrefs.saveBoolean("settings_hybrid_vox", !current)
+    }
+
+    fun toggleHapticFeedback() {
+        val newValue = !_settingsState.value.hapticFeedbackEnabled
+        _settingsState.value = _settingsState.value.copy(hapticFeedbackEnabled = newValue)
+        securePrefs.setHapticFeedbackEnabled(newValue)
+        com.ridervoice.ui.theme.RideErgonomicsSettings.setHapticFeedbackEnabled(newValue)
+    }
+
+    fun toggleKeepScreenOnDuringRide() {
+        val newValue = !_settingsState.value.keepScreenOnDuringRide
+        _settingsState.value = _settingsState.value.copy(keepScreenOnDuringRide = newValue)
+        securePrefs.setKeepScreenOnDuringRide(newValue)
+        com.ridervoice.ui.theme.RideErgonomicsSettings.setKeepScreenOnDuringRide(newValue)
     }
 
     fun toggleNetworkDiagnostics() {

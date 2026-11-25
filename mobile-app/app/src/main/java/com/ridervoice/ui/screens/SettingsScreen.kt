@@ -106,6 +106,14 @@ fun SettingsScreen(
                             onCheckedChange = { settingsViewModel.toggleDarkTheme() }
                         )
                         SettingsRowDivider()
+                        SettingsRowToggle(
+                            label = stringResource(R.string.settings_keep_screen_on),
+                            subtitle = stringResource(R.string.settings_keep_screen_on_desc),
+                            icon = Icons.Default.LightMode,
+                            checked = settingsState.keepScreenOnDuringRide,
+                            onCheckedChange = { settingsViewModel.toggleKeepScreenOnDuringRide() }
+                        )
+                        SettingsRowDivider()
                         SettingsRowValue(
                             label = stringResource(R.string.settings_language),
                             value = when (settingsState.appLanguage) {
@@ -170,6 +178,14 @@ fun SettingsScreen(
                             icon = Icons.Default.Podcasts,
                             checked = settingsState.openMic,
                             onCheckedChange = { settingsViewModel.toggleOpenMic() }
+                        )
+                        SettingsRowDivider()
+                        SettingsRowToggle(
+                            label = stringResource(R.string.settings_haptic_feedback),
+                            subtitle = stringResource(R.string.settings_haptic_feedback_desc),
+                            icon = Icons.Default.Vibration,
+                            checked = settingsState.hapticFeedbackEnabled,
+                            onCheckedChange = { settingsViewModel.toggleHapticFeedback() }
                         )
                     }
                 }

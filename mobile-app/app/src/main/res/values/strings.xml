@@ -915,5 +915,9 @@
     <string name="perm_rationale_body">RiderVoice requires Microphone and Bluetooth permissions to enable helmet intercom and wireless PTT functionality. Please grant them in Settings.</string>
     <string name="perm_open_settings">Open Settings</string>
     <string name="perm_continue_anyway">Continue Anyway</string>
+    <string name="settings_haptic_feedback">Haptic feedback</string>
+    <string name="settings_haptic_feedback_desc">Vibrate on push-to-talk and VOX transitions</string>
+    <string name="settings_keep_screen_on">Keep screen on during ride</string>
+    <string name="settings_keep_screen_on_desc">Prevent screen timeout while in an active ride</string>
 </resources>
 

@@ -327,6 +327,7 @@ fun NavGraph(
                 navArgument("userName") { type = NavType.StringType }
             )
         ) { back ->
+            com.ridervoice.ui.theme.KeepRideScreenOnEffect()
             val rawRoomName = back.arguments?.getString("roomName") ?: ""
             val rawUserName = back.arguments?.getString("userName") ?: ""
             val roomName = try { android.net.Uri.decode(rawRoomName) } catch (e: Exception) { rawRoomName }
@@ -521,6 +522,7 @@ fun NavGraph(
                 }
                 return@composable
             }
+            com.ridervoice.ui.theme.KeepRideScreenOnEffect()
             val viewModel: com.ridervoice.mesh.ui.OfflineMeshViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             val session by viewModel.activeSession.collectAsState()
             val s = session ?: run {

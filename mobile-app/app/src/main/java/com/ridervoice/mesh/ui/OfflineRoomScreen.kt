@@ -46,6 +46,7 @@ fun OfflineRoomScreen(
     modifier: Modifier = Modifier,
     diagnosticsRepo: MeshDiagnosticsRepository? = null
 ) {
+    com.ridervoice.ui.theme.KeepRideScreenOnEffect()
     val transportState by transport.state.collectAsState()
     val peers by transport.participants.collectAsState()
     val activeSpeakers by transport.activeSpeakers.collectAsState()

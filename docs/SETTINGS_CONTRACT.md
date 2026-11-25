@@ -23,6 +23,8 @@ This document provides the authoritative contract for all persistent settings in
 | **Offline Mesh Intercom** | `offline_mesh_enabled` | `false` | `true`, `false` | `MeshRuntimeSettings`, `OfflineMeshGate`, `MeshSettingsViewModel`, `OfflineMeshLobbyScreen`, `MeshForegroundService` | **Live** | Wi-Fi / Hotspot active | **No** (Preserved across logout) | `OfflineMeshGateTest`, `MeshSettingsViewModelTest` |
 | **Auto Fallback to Mesh** | `auto_fallback_enabled` | `false` | `true`, `false` | `MeshRuntimeSettings`, `AutomaticSwitchStateMachine`, `MeshSettingsViewModel`, `MeshAutoSwitchManager` | **Live** | `offline_mesh_enabled == true` && Wi-Fi hardware present | **No** (Preserved across logout) | `MeshSettingsViewModelTest`, `FailedHandoffBackoffTest` |
 | **Warm Standby Discovery** | `warm_standby_enabled` | `false` | `true`, `false` | `MeshRuntimeSettings`, `OfflineMeshGate`, `VoiceSessionCoordinator`, `MeshAutoSwitchManager` | **Live** | `offline_mesh_enabled == true` | **No** (Preserved across logout) | `MeshSettingsViewModelTest` |
+| **Haptic Feedback** | `haptic_feedback_enabled` | `true` | `true`, `false` | `RideErgonomicsSettings`, `TalkControls`, `MeshControls` | **Live** | None | **No** (Preserved across logout) | `RideErgonomicsTest` |
+| **Keep Screen On During Ride** | `keep_screen_on_during_ride` | `true` | `true`, `false` | `RideErgonomicsSettings`, `KeepRideScreenOnEffect`, `TalkControls`, `OfflineRoomScreen` | **Live** | Active ride composable | **No** (Preserved across logout) | `RideErgonomicsTest` |
 
 ## Removed Decorative Controls
 

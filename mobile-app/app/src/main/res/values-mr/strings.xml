@@ -915,4 +915,8 @@
     <string name="perm_rationale_body">हेल्मेट इंटरकॉम आणि वायरलेस PTT साठी RiderVoice ला मायक्रोफोन आणि ब्लूटूथ परवानग्यांची आवश्यकता आहे. कृपया सेटिंग्जमध्ये परवानगी द्या.</string>
     <string name="perm_open_settings">सेटिंग्ज उघडा</string>
     <string name="perm_continue_anyway">तरीही पुढे जा</string>
+    <string name="settings_haptic_feedback">हॅप्टिक फीडबॅक</string>
+    <string name="settings_haptic_feedback_desc">पुश-टू-टॉक आणि VOX बदलांवर कंपन</string>
+    <string name="settings_keep_screen_on">राइड दरम्यान स्क्रीन सुरू ठेवा</string>
+    <string name="settings_keep_screen_on_desc">सक्रिय राइड दरम्यान स्क्रीन बंद होणे टाळा</string>
 </resources>

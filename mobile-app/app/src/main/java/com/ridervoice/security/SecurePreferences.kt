@@ -25,6 +25,8 @@ open class SecurePreferences(private val context: Context? = null) {
         const val KEY_DIAGNOSTICS_CONSENT_SHOWN = "diagnostics_consent_shown"
         const val KEY_APP_LANGUAGE = "app_language"
         const val KEY_EMERGENCY_COUNTRY = "emergency_country"
+        const val KEY_HAPTIC_FEEDBACK_ENABLED = "haptic_feedback_enabled"
+        const val KEY_KEEP_SCREEN_ON_DURING_RIDE = "keep_screen_on_during_ride"
 
         private fun createSafePreferences(context: Context): SharedPreferences {
             return try {
@@ -93,14 +95,21 @@ open class SecurePreferences(private val context: Context? = null) {
     open fun clear() {
         val lang = getAppLanguage()
         val emergencyCountry = getEmergencyCountry()
+        val hapticEnabled = isHapticFeedbackEnabled()
+        val keepScreenOn = isKeepScreenOnDuringRide()
         val p = prefs ?: run {
             memoryStore.clear()
             memoryStore[KEY_APP_LANGUAGE] = lang
+            memoryStore[KEY_HAPTIC_FEEDBACK_ENABLED] = hapticEnabled
+            memoryStore[KEY_KEEP_SCREEN_ON_DURING_RIDE] = keepScreenOn
             if (emergencyCountry != null) memoryStore[KEY_EMERGENCY_COUNTRY] = emergencyCountry
             return
         }
         runCatching {
-            val editor = p.edit().clear().putString(KEY_APP_LANGUAGE, lang)
+            val editor = p.edit().clear()
+                .putString(KEY_APP_LANGUAGE, lang)
+                .putBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, hapticEnabled)
+                .putBoolean(KEY_KEEP_SCREEN_ON_DURING_RIDE, keepScreenOn)
             if (emergencyCountry != null) editor.putString(KEY_EMERGENCY_COUNTRY, emergencyCountry)
             editor.apply()
         }
@@ -281,6 +290,22 @@ open class SecurePreferences(private val context: Context? = null) {
 
     fun setDiagnosticsConsentShown(shown: Boolean) {
         saveBoolean(KEY_DIAGNOSTICS_CONSENT_SHOWN, shown)
+    }
+
+    fun isHapticFeedbackEnabled(): Boolean {
+        return getBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, true)
+    }
+
+    fun setHapticFeedbackEnabled(enabled: Boolean) {
+        saveBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, enabled)
+    }
+
+    fun isKeepScreenOnDuringRide(): Boolean {
+        return getBoolean(KEY_KEEP_SCREEN_ON_DURING_RIDE, true)
+    }
+
+    fun setKeepScreenOnDuringRide(enabled: Boolean) {
+        saveBoolean(KEY_KEEP_SCREEN_ON_DURING_RIDE, enabled)
     }
 
     open fun registerListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {

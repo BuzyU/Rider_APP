@@ -71,6 +71,12 @@ class MainActivity : ComponentActivity() {
 
         val initialDarkTheme = securePreferences.getBoolean("dark_theme_enabled", false)
         com.ridervoice.ui.theme.ThemeState.set(initialDarkTheme)
+        com.ridervoice.ui.theme.RideErgonomicsSettings.setHapticFeedbackEnabled(
+            securePreferences.isHapticFeedbackEnabled()
+        )
+        com.ridervoice.ui.theme.RideErgonomicsSettings.setKeepScreenOnDuringRide(
+            securePreferences.isKeepScreenOnDuringRide()
+        )
         val initialBarStyle = if (initialDarkTheme) {
             androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         } else {

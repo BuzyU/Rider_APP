@@ -34,6 +34,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.ridervoice.ui.theme.RideErgonomicsSettings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Headset
@@ -371,8 +380,38 @@ fun MeshBottomBar(
     modifier: Modifier = Modifier
 ) {
     val currentOnPttPressChange by rememberUpdatedState(onPttPressChange)
-    DisposableEffect(Unit) {
+    val haptic = LocalHapticFeedback.current
+    val currentHapticEnabled by rememberUpdatedState(RideErgonomicsSettings.hapticFeedbackEnabled)
+    var isHoldingGesture by remember { mutableStateOf(false) }
+
+    var seenInitialVox by remember { mutableStateOf(false) }
+    var prevVoxEnabled by remember { mutableStateOf(isVoxEnabled) }
+    LaunchedEffect(isVoxEnabled) {
+        if (!seenInitialVox) {
+            seenInitialVox = true
+            prevVoxEnabled = isVoxEnabled
+        } else if (isVoxEnabled != prevVoxEnabled) {
+            prevVoxEnabled = isVoxEnabled
+            if (currentHapticEnabled && !isPttActive) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP && isHoldingGesture) {
+                isHoldingGesture = false
+                currentOnPttPressChange(false)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (isHoldingGesture) {
+                isHoldingGesture = false
+            }
             currentOnPttPressChange(false)
         }
     }
@@ -479,11 +518,21 @@ fun MeshBottomBar(
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onPress = {
+                                    isHoldingGesture = true
+                                    if (currentHapticEnabled) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
                                     try {
                                         currentOnPttPressChange(true)
                                         tryAwaitRelease()
                                     } finally {
-                                        currentOnPttPressChange(false)
+                                        if (isHoldingGesture) {
+                                            isHoldingGesture = false
+                                            if (currentHapticEnabled) {
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            }
+                                            currentOnPttPressChange(false)
+                                        }
                                     }
                                 }
                             )

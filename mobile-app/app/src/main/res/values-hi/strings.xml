@@ -897,4 +897,22 @@
     <string name="squad_request_sent_incoming">आपके स्क्वाड में जुड़ने का अनुरोध</string>
     <string name="notif_squad_request_title">नया स्क्वाड अनुरोध</string>
     <string name="notif_squad_request_desc">@%1$s आपके स्क्वाड में जुड़ना चाहता है।</string>
+    <string name="lobby_request_id">अनुरोध ID: %1$s</string>
+    <string name="lobby_ride_code_label">राइड कोड</string>
+    <string name="sheet_convoy_link_clip_label">RiderVoice राइड लिंक</string>
+    <string name="crash_dialog_title">डायग्नोस्टिक क्रैश रिपोर्ट</string>
+    <string name="crash_dialog_body">पिछली बार RiderVoice में एक अनपेक्षित क्रैश हुआ था। आप सहायता के लिए यह लॉग कॉपी कर सकते हैं:</string>
+    <string name="crash_clip_label">RiderVoice क्रैश लॉग</string>
+    <string name="crash_copied_toast">क्रैश लॉग क्लिपबोर्ड पर कॉपी किया गया</string>
+    <string name="crash_copy_button">रिपोर्ट कॉपी करें</string>
+    <string name="action_dismiss">बंद करें</string>
+    <string name="update_complete_title">अपडेट पूर्ण</string>
+    <string name="update_complete_body">RiderVoice सफलतापूर्वक v%1$s पर अपडेट हो गया है।</string>
+    <string name="update_required_title">अपडेट आवश्यक है</string>
+    <string name="update_required_body">RiderVoice का यह संस्करण अब समर्थित नहीं है। अपनी राइड जारी रखने के लिए कृपया अपडेट करें।</string>
+    <string name="update_required_button">ऐप अपडेट करें</string>
+    <string name="perm_rationale_title">अनुमतियाँ आवश्यक</string>
+    <string name="perm_rationale_body">हेलमेट इंटरकॉम और वायरलेस PTT के लिए RiderVoice को माइक्रोफ़ोन और ब्लूटूथ अनुमतियों की आवश्यकता है। कृपया इन्हें सेटिंग्स में अनुमति दें।</string>
+    <string name="perm_open_settings">सेटिंग्स खोलें</string>
+    <string name="perm_continue_anyway">फिर भी जारी रखें</string>
 </resources>

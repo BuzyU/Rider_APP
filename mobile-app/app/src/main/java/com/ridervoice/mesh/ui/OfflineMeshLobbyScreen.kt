@@ -177,7 +177,7 @@ fun OfflineMeshLobbyScreen(
                 IconButton(
                     onClick = onBackClick,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .background(CardDark)
                         .border(1.dp, MeshColors.LobbyBorder, CircleShape)

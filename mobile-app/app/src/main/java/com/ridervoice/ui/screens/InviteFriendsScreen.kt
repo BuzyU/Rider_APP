@@ -54,7 +54,7 @@ fun InviteFriendsScreen(
             IconButton(
                 onClick = onBackClick,
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
@@ -71,8 +71,7 @@ fun InviteFriendsScreen(
                 Text(
                     text = stringResource(R.string.invite_riders_title),
                     color = Ink,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontSize = 20.sp,
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -146,7 +145,7 @@ fun InviteFriendsContent(
                 onClick = { showAddFriendDialog = true },
                 modifier = Modifier
                     .weight(1f)
-                    .height(46.dp),
+                    .height(48.dp),
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.dp, InkHairline),
                 colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperRaised)
@@ -168,7 +167,7 @@ fun InviteFriendsContent(
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .height(46.dp),
+                        .height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     border = BorderStroke(1.dp, InkHairline),
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperRaised)
@@ -353,8 +352,7 @@ fun FriendInviteCard(
                 Text(
                     text = cleanHandle.take(2).uppercase(),
                     color = Ink,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -365,8 +363,7 @@ fun FriendInviteCard(
                 Text(
                     text = friend.displayName?.takeIf { it.isNotBlank() } ?: "@$cleanHandle",
                     color = Ink,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -375,7 +372,6 @@ fun FriendInviteCard(
                     text = subtitle,
                     color = InkSecondary,
                     style = MaterialTheme.typography.bodySmall,
-                    fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -394,7 +390,7 @@ fun FriendInviteCard(
                     disabledContentColor = Moss
                 ),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                modifier = Modifier.defaultMinSize(minHeight = 40.dp)
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp)
             ) {
                 if (isInvited) {
                     Icon(

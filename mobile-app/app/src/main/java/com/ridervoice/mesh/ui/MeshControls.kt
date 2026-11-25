@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.ui
 
+import com.ridervoice.ui.theme.RvTypography
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -165,8 +166,8 @@ fun DiagRow(label: String, value: String) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, color = MeshColors.Slate, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-        Text(text = value, color = MeshColors.Ink, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        Text(text = label, color = MeshColors.Slate, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+        Text(text = value, color = MeshColors.Ink, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -215,7 +216,7 @@ fun MeshPeerCard(
                     Text(
                         text = peer.name,
                         color = MeshColors.Ink,
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -234,7 +235,7 @@ fun MeshPeerCard(
                             text = stringResource(R.string.mesh_speaking),
                             modifier = Modifier.testTag("mesh_peer_speaking_${peer.id}"),
                             color = MeshColors.Emerald,
-                            fontSize = 10.sp,
+                            style = RvTypography.microBadge,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
                             maxLines = 1,
@@ -265,14 +266,14 @@ fun MeshPeerCard(
                     Text(
                         text = routeInfo,
                         color = if (peer.isDirect) MeshColors.Cyan else MeshColors.AmberYellow,
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace
                     )
                     val ageSec = (peer.routeAgeMs / 1000).coerceAtLeast(0)
                     Text(
                         text = stringResource(R.string.mesh_route_age, ageSec),
                         color = MeshColors.SlateMuted,
-                        fontSize = 10.sp,
+                        style = RvTypography.microBadge,
                         fontFamily = FontFamily.Monospace
                     )
                 }
@@ -311,14 +312,14 @@ fun MeshTopBar(
             Column(modifier = Modifier.weight(1f, fill = false)) {
                 Text(
                     text = sessionCode,
-                    fontSize = 18.sp,
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold,
                     color = MeshColors.Ink,
                     fontFamily = FontFamily.Monospace
                 )
                 Text(
                     text = stringResource(R.string.mesh_status_summary, stateText, peerCount),
-                    fontSize = 11.sp,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MeshColors.Slate,
                     fontFamily = FontFamily.Monospace
                 )
@@ -336,7 +337,7 @@ fun MeshTopBar(
                             text = stringResource(R.string.mesh_sos),
                             color = MeshColors.TextOnBrick,
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }
@@ -423,7 +424,7 @@ fun MeshBottomBar(
                         Text(
                             text = stringResource(routeLabelRes),
                             color = MeshColors.Ink,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -448,7 +449,7 @@ fun MeshBottomBar(
                         Text(
                             text = if (isVoxEnabled) stringResource(R.string.mesh_vox_on) else stringResource(R.string.mesh_vox_off),
                             color = if (isVoxEnabled) MeshColors.EmeraldLight else MeshColors.Slate,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
                             maxLines = 1,
@@ -495,7 +496,7 @@ fun MeshBottomBar(
                         Text(
                             text = if (isPttActive) stringResource(R.string.mesh_ptt_transmitting) else stringResource(R.string.mesh_ptt_button),
                             color = if (isPttActive) MeshColors.TextOnAccent else MeshColors.SlateLight,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
                             maxLines = 1,
@@ -561,7 +562,7 @@ fun MeshBottomBar(
                             text = stringResource(R.string.mesh_leave),
                             color = MeshColors.TextOnBrick,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1
                         )
                     }
@@ -602,7 +603,7 @@ fun MeshHealthHeader(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = stringResource(R.string.mesh_title),
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MeshColors.Cyan,
                         fontFamily = FontFamily.Monospace
@@ -611,7 +612,7 @@ fun MeshHealthHeader(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = stringResource(R.string.mesh_active_discovered, peerCount, discoveredCount),
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MeshColors.Ink
                 )
             }
@@ -621,7 +622,7 @@ fun MeshHealthHeader(
             ) {
                 Text(
                     text = stringResource(R.string.mesh_max_hops, maxHops),
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MeshColors.Indigo,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -644,7 +645,7 @@ fun MicPermissionCard(modifier: Modifier = Modifier) {
             Text(
                 text = stringResource(R.string.mesh_mic_permission_needed),
                 color = MeshColors.RedLight,
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(4.dp))
@@ -673,7 +674,7 @@ fun MicBusyCard(modifier: Modifier = Modifier) {
         Text(
             text = stringResource(R.string.mesh_mic_busy),
             color = MeshColors.AmberLight,
-            fontSize = 13.sp,
+            style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(12.dp)
         )
     }
@@ -789,7 +790,7 @@ fun MeshActiveOverlay(
 
                 Text(
                     text = stringResource(R.string.mesh_peers_header),
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
                     color = MeshColors.Slate,
                     modifier = Modifier.padding(vertical = 4.dp),
@@ -811,7 +812,7 @@ fun MeshActiveOverlay(
                         Text(
                             text = searchingText,
                             color = MeshColors.SlateMuted,
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }

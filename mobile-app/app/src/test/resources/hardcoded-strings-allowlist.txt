@@ -38,7 +38,6 @@ ui/screens/HostSetupScreen.kt:${convoyName.length}/40 | Numeric character counte
 ui/screens/LobbyScreen.kt:✓ | Status symbol
 ui/screens/LobbyScreen.kt:⚠ | Status symbol
 ui/screens/LobbyScreen.kt:— | Status symbol
-ui/screens/LobbyScreen.kt:Request ID: ${failed.requestId} | Debug support request identifier
 ui/screens/RideReplayScreen.kt:$index | Numeric milestone index
 ui/screens/RideReplayScreen.kt:${(timelineProgress * 100).toInt()}% | Numeric percentage format
 ui/screens/RideReplayScreen.kt:${playbackSpeed}x | Numeric playback speed multiplier

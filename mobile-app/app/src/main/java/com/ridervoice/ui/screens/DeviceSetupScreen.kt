@@ -80,7 +80,7 @@ fun DeviceSetupScreen(
             IconButton(
                 onClick = onBackClick,
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
@@ -96,8 +96,7 @@ fun DeviceSetupScreen(
             Text(
                 text = stringResource(R.string.device_setup_title),
                 color = Ink,
-                style = MaterialTheme.typography.titleLarge,
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -225,7 +224,7 @@ fun DeviceSetupScreen(
                                         shape = RoundedCornerShape(RvRadius.pill),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
-                                        Text(stringResource(R.string.action_retry), color = PaperOnPop, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text(stringResource(R.string.action_retry), color = PaperOnPop, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -363,8 +362,7 @@ fun DeviceSetupScreen(
                                 Text(
                                     text = if (isBluetoothActive) activeDevice.displayName() else stringResource(R.string.device_no_bt_connected),
                                     color = Ink,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontSize = 15.sp,
+                                    style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
@@ -449,7 +447,7 @@ fun AudioRouteChip(
         shape = RoundedCornerShape(RvRadius.pill),
         border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.35f) else InkHairline),
         modifier = modifier
-            .defaultMinSize(minHeight = 44.dp)
+            .defaultMinSize(minHeight = 48.dp)
             .clickable { onClick() }
     ) {
         Row(
@@ -468,7 +466,6 @@ fun AudioRouteChip(
                 text = label,
                 color = if (isSelected) Pop else InkSecondary,
                 style = MaterialTheme.typography.bodySmall,
-                fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             )
         }

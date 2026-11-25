@@ -82,7 +82,7 @@ fun InvitesInboxScreen(
             IconButton(
                 onClick = onBackClick,
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
@@ -99,8 +99,7 @@ fun InvitesInboxScreen(
 
             Text(
                 text = stringResource(R.string.menu_inbox_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Ink,
                 modifier = Modifier.weight(1f)
@@ -109,7 +108,7 @@ fun InvitesInboxScreen(
             IconButton(
                 onClick = { viewModel.loadInvites() },
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
@@ -285,8 +284,7 @@ fun InviteCard(
             Text(
                 text = invite.room.name,
                 color = Ink,
-                style = MaterialTheme.typography.titleLarge,
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
 

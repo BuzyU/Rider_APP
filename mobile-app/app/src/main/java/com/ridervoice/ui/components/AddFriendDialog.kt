@@ -94,8 +94,7 @@ fun AddFriendDialog(
 
                         Text(
                             text = stringResource(R.string.dialog_add_rider_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontSize = 18.sp,
+                            style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = Ink,
                             modifier = Modifier.weight(1f)
@@ -103,7 +102,7 @@ fun AddFriendDialog(
 
                         IconButton(
                             onClick = onDismiss,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
@@ -142,7 +141,7 @@ fun AddFriendDialog(
                                     text = "@",
                                     color = Moss,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
+                                    style = MaterialTheme.typography.titleMedium,
                                     modifier = Modifier.padding(start = 10.dp)
                                 )
                             },
@@ -154,7 +153,7 @@ fun AddFriendDialog(
                                                 query = ""
                                                 onSearchQueryChange?.invoke("", true)
                                             },
-                                            modifier = Modifier.size(40.dp)
+                                            modifier = Modifier.size(48.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Close,
@@ -377,8 +376,7 @@ private fun RiderLookupResultCard(
                 Text(
                     text = title,
                     color = Ink,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -389,7 +387,6 @@ private fun RiderLookupResultCard(
                         text = subtitle,
                         color = InkSecondary,
                         style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -421,8 +418,7 @@ private fun RiderLookupResultCard(
                                 text = stringResource(R.string.squad_already_member),
                                 color = Moss,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -440,7 +436,6 @@ private fun RiderLookupResultCard(
                             color = InkSecondary,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }
@@ -457,7 +452,6 @@ private fun RiderLookupResultCard(
                             color = InkSecondary,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }
@@ -468,7 +462,7 @@ private fun RiderLookupResultCard(
                         onClick = onAcceptIncoming,
                         enabled = !isSending,
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(MossContainer)
                             .border(1.dp, Moss.copy(alpha = 0.45f), CircleShape)
@@ -496,7 +490,7 @@ private fun RiderLookupResultCard(
                         onClick = onSendRequest,
                         enabled = !isSending,
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(MossContainer)
                             .border(1.dp, Moss.copy(alpha = 0.45f), CircleShape)

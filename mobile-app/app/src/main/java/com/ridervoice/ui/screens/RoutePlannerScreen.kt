@@ -118,7 +118,7 @@ fun RoutePlannerScreen(
             IconButton(
                 onClick = onBackClick,
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
@@ -129,8 +129,7 @@ fun RoutePlannerScreen(
             Text(
                 text = stringResource(R.string.route_planner_title),
                 color = Ink,
-                style = MaterialTheme.typography.titleLarge,
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
 
@@ -253,7 +252,7 @@ fun RoutePlannerScreen(
             IconButton(
                 onClick = { viewModel.swapOriginAndDestination() },
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
@@ -283,7 +282,7 @@ fun RoutePlannerScreen(
                     shape = RoundedCornerShape(RvRadius.pill),
                     border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.3f) else InkHairline),
                     modifier = Modifier
-                        .defaultMinSize(minHeight = 38.dp)
+                        .defaultMinSize(minHeight = 48.dp)
                         .clickable { selectedPreference = prefKey }
                 ) {
                     Box(
@@ -293,8 +292,7 @@ fun RoutePlannerScreen(
                         Text(
                             text = prefLabel,
                             color = if (isSelected) Pop else InkSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         )
                     }
@@ -424,7 +422,7 @@ fun RoutePlannerScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text("@${rider.handle}", color = Ink, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                                Text(stringResource(R.string.distance_km_value, rider.distanceKm), color = Pop, style = MaterialTheme.typography.labelSmall, fontSize = 10.sp)
+                                Text(stringResource(R.string.distance_km_value, rider.distanceKm), color = Pop, style = RvTypography.microBadge)
                             }
                         }
                     }

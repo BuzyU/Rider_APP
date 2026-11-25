@@ -73,13 +73,23 @@ class TypographyAndFontsTest {
     fun typographyUsesSingleBundledManropeFamily_andNoGoogleFontsProvider() {
         val styles = listOf(
             Typography.displayLarge,
+            Typography.displayMedium,
+            Typography.displaySmall,
+            Typography.headlineLarge,
+            Typography.headlineMedium,
+            Typography.headlineSmall,
             Typography.titleLarge,
             Typography.titleMedium,
+            Typography.titleSmall,
             Typography.labelLarge,
+            Typography.labelMedium,
             Typography.labelSmall,
             Typography.bodyLarge,
             Typography.bodyMedium,
-            Typography.bodySmall
+            Typography.bodySmall,
+            RvTypography.displayHero,
+            RvTypography.displayMetric,
+            RvTypography.microBadge
         )
         val families = styles.map { it.fontFamily }.toSet()
         assertEquals("Typography must use exactly one FontFamily (ManropeFamily)", setOf(ManropeFamily), families)
@@ -229,5 +239,42 @@ class TypographyAndFontsTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun nonFrozenUiHasNoRawFontSizeOverridesOutsideTypeKt() {
+        val appDir = locateAppModuleDir()
+        val javaRoot = File(appDir, "src/main/java/com/ridervoice")
+        val frozen = setOf(
+            "ui/theme/Type.kt",
+            "ui/screens/RoomScreen.kt",
+            "ui/screens/room/AudioRouteSheet.kt",
+            "ui/screens/room/AudioVuMeter.kt",
+            "ui/screens/room/DiagnosticsDialog.kt",
+            "ui/screens/room/LeaveRideDialog.kt",
+            "ui/screens/room/SosAlertBanner.kt"
+        )
+        val rawFontSizeRegex = Regex("""\bfontSize\s*=\s*[0-9.]+""")
+        val violations = mutableListOf<String>()
+
+        for (sub in listOf("ui", "mesh/ui")) {
+            File(javaRoot, sub).walkTopDown()
+                .filter { it.isFile && it.extension == "kt" }
+                .forEach { file ->
+                    val rel = file.relativeTo(javaRoot).path.replace('\\', '/')
+                    if (rel in frozen) return@forEach
+                    file.readLines().forEachIndexed { idx, line ->
+                        val trimmed = line.trim()
+                        if (trimmed.startsWith("//") || trimmed.startsWith("*")) return@forEachIndexed
+                        if (rawFontSizeRegex.containsMatchIn(line)) {
+                            violations += "$rel:${idx + 1}: $trimmed"
+                        }
+                    }
+                }
+        }
+        assertTrue(
+            "Found raw fontSize overrides outside Type.kt:\n${violations.joinToString("\n")}",
+            violations.isEmpty()
+        )
     }
 }

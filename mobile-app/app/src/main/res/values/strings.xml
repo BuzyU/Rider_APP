@@ -897,5 +897,23 @@
     <string name="squad_request_sent_incoming">Requested to join your squad</string>
     <string name="notif_squad_request_title">New Squad Request</string>
     <string name="notif_squad_request_desc">@%1$s wants to join your squad.</string>
+    <string name="lobby_request_id">Request ID: %1$s</string>
+    <string name="lobby_ride_code_label">Ride Code</string>
+    <string name="sheet_convoy_link_clip_label">RiderVoice Convoy Link</string>
+    <string name="crash_dialog_title">DIAGNOSTIC CRASH REPORT</string>
+    <string name="crash_dialog_body">RiderVoice captured an unexpected crash on the previous run. You can copy this diagnostic log to share with support:</string>
+    <string name="crash_clip_label">RiderVoice Crash Log</string>
+    <string name="crash_copied_toast">Crash log copied to clipboard</string>
+    <string name="crash_copy_button">COPY REPORT</string>
+    <string name="action_dismiss">DISMISS</string>
+    <string name="update_complete_title">UPDATE COMPLETE</string>
+    <string name="update_complete_body">RiderVoice has been successfully updated to v%1$s.</string>
+    <string name="update_required_title">Update required</string>
+    <string name="update_required_body">This version of RiderVoice is no longer supported. Please update to continue riding with your group.</string>
+    <string name="update_required_button">Update app</string>
+    <string name="perm_rationale_title">Permissions Required</string>
+    <string name="perm_rationale_body">RiderVoice requires Microphone and Bluetooth permissions to enable helmet intercom and wireless PTT functionality. Please grant them in Settings.</string>
+    <string name="perm_open_settings">Open Settings</string>
+    <string name="perm_continue_anyway">Continue Anyway</string>
 </resources>
 

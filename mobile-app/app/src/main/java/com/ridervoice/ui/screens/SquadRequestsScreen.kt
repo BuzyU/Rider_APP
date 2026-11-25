@@ -101,8 +101,7 @@ fun SquadRequestsScreen(
 
                 Text(
                     text = stringResource(R.string.squad_requests_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontSize = 22.sp,
+                    style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
                     color = Ink,
                     modifier = Modifier.weight(1f)
@@ -272,8 +271,7 @@ private fun IncomingSquadRequestCard(
                 Text(
                     text = initials,
                     color = Ink,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -284,8 +282,7 @@ private fun IncomingSquadRequestCard(
                 Text(
                     text = title,
                     color = Ink,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -295,7 +292,6 @@ private fun IncomingSquadRequestCard(
                     text = subtitle.ifBlank { stringResource(R.string.squad_request_sent_incoming) },
                     color = InkSecondary,
                     style = MaterialTheme.typography.bodySmall,
-                    fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -319,7 +315,7 @@ private fun IncomingSquadRequestCard(
                     IconButton(
                         onClick = onDecline,
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(BrickContainer.copy(alpha = 0.65f))
                             .border(1.dp, Brick.copy(alpha = 0.35f), CircleShape)
@@ -336,7 +332,7 @@ private fun IncomingSquadRequestCard(
                     IconButton(
                         onClick = onAccept,
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(MossContainer)
                             .border(1.dp, Moss.copy(alpha = 0.45f), CircleShape)

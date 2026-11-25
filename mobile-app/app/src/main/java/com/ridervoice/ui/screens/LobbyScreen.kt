@@ -398,7 +398,7 @@ fun LobbyScreen(
                         if (!failed.requestId.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(RvSpacing.xs))
                             Text(
-                                text = "Request ID: ${failed.requestId}",
+                                text = stringResource(R.string.lobby_request_id, failed.requestId),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = InkSecondary,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -500,7 +500,7 @@ fun LobbyScreen(
                                 )
                                 if (!failed.requestId.isNullOrBlank()) {
                                     Text(
-                                        text = "Request ID: ${failed.requestId}",
+                                        text = stringResource(R.string.lobby_request_id, failed.requestId),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = InkSecondary
                                     )
@@ -602,7 +602,7 @@ fun LobbyScreen(
                             code = effectiveJoinCode,
                             onCopy = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                                val clip = ClipData.newPlainText("Ride Code", effectiveJoinCode)
+                                val clip = ClipData.newPlainText(context.getString(R.string.lobby_ride_code_label), effectiveJoinCode)
                                 clipboard?.setPrimaryClip(clip)
                                 Toast.makeText(context, context.getString(R.string.toast_ride_code_copied), Toast.LENGTH_SHORT).show()
                             },

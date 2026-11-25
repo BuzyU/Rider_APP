@@ -124,8 +124,7 @@ fun SquadScreen(
                     Text(
                         text = stringResource(R.string.tab_my_squad),
                         color = Ink,
-                        style = MaterialTheme.typography.displayLarge,
-                        fontSize = 28.sp,
+                        style = MaterialTheme.typography.displayMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -375,9 +374,8 @@ fun SquadScreen(
                     Text(
                         text = stringResource(R.string.squad_requests_title),
                         color = PaperOnPop,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
                     )
                     Box(
                         modifier = Modifier
@@ -391,7 +389,6 @@ fun SquadScreen(
                             text = uiState.incomingRequests.size.toString(),
                             color = PaperOnPop,
                             style = MaterialTheme.typography.labelSmall,
-                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -470,7 +467,7 @@ private fun PendingSectionDashedDivider(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable(onClick = onClearRejected)
+                    .defaultMinSize(minHeight = 48.dp).clickable(onClick = onClearRejected)
                     .padding(horizontal = 6.dp, vertical = 4.dp)
                     .testTag("squad_clear_rejected_btn")
             )
@@ -517,7 +514,7 @@ private fun SentSquadRequestCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(PaperSunken)
                     .border(1.dp, InkHairline, CircleShape),
@@ -526,8 +523,7 @@ private fun SentSquadRequestCard(
                 Text(
                     text = initials,
                     color = InkSecondary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -538,8 +534,7 @@ private fun SentSquadRequestCard(
                 Text(
                     text = title,
                     color = Ink,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -550,7 +545,6 @@ private fun SentSquadRequestCard(
                         text = subtitle,
                         color = InkSecondary,
                         style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -570,7 +564,6 @@ private fun SentSquadRequestCard(
                         color = Brick,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
                 }
@@ -580,7 +573,7 @@ private fun SentSquadRequestCard(
                 IconButton(
                     onClick = onRemoveRejected,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .background(BrickContainer.copy(alpha = 0.45f))
                         .testTag("sent_request_remove_${request.id}")
@@ -613,8 +606,7 @@ private fun SentSquadRequestCard(
                             text = stringResource(R.string.squad_status_pending),
                             color = InkSecondary,
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -660,7 +652,7 @@ fun SquadMemberCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(PaperSunken)
                     .border(1.dp, InkHairline, CircleShape),
@@ -669,8 +661,7 @@ fun SquadMemberCard(
                 Text(
                     text = initials,
                     color = Ink,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -681,8 +672,7 @@ fun SquadMemberCard(
                 Text(
                     text = title,
                     color = Ink,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -693,7 +683,6 @@ fun SquadMemberCard(
                         text = subtitle,
                         color = InkSecondary,
                         style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -703,7 +692,7 @@ fun SquadMemberCard(
             IconButton(
                 onClick = onRemoveClick,
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(BrickContainer.copy(alpha = 0.4f))
                     .testTag("squad_remove_$cleanHandle")

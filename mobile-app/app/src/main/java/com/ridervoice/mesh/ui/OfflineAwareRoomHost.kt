@@ -1,5 +1,7 @@
 package com.ridervoice.mesh.ui
 
+import androidx.compose.material3.MaterialTheme
+import com.ridervoice.ui.theme.RvTypography
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -267,7 +269,7 @@ private fun OfflineBackupChip(
             Text(
                 text = text,
                 color = MeshColors.AmberYellow,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -336,7 +338,7 @@ fun TacticalBanner(
                     Text(
                         text = statusText,
                         color = MeshColors.Ink,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -359,7 +361,7 @@ fun TacticalBanner(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = stringResource(R.string.mesh_banner_view_mesh),
-                            fontSize = 10.sp,
+                            style = RvTypography.microBadge,
                             color = MeshColors.Cyan,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.SemiBold
@@ -378,13 +380,13 @@ fun TacticalBanner(
                 Text(
                     text = groupBadgeText,
                     color = if (groupStatus == GroupConnectivityStatus.MIXED) MeshColors.AmberYellow else MeshColors.Slate,
-                    fontSize = 11.sp
+                    style = MaterialTheme.typography.labelSmall
                 )
                 if (state == AutoSwitchState.OFFLINE_ACTIVE) {
                     Text(
                         text = stringResource(R.string.mesh_tactical_summary, peerCount, maxHops),
                         color = MeshColors.Indigo,
-                        fontSize = 10.sp,
+                        style = RvTypography.microBadge,
                         fontFamily = FontFamily.Monospace
                     )
                 }

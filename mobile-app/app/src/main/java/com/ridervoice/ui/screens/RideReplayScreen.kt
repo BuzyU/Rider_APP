@@ -167,7 +167,7 @@ fun RideReplayScreen(
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
@@ -182,8 +182,7 @@ fun RideReplayScreen(
 
             Text(
                 text = stringResource(R.string.summary_ride_summary),
-                style = MaterialTheme.typography.titleMedium,
-                fontSize = 17.sp,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = Ink
             )
@@ -206,7 +205,7 @@ fun RideReplayScreen(
                     context.startActivity(Intent.createChooser(sendIntent, context.getString(R.string.cd_share_ride_summary)))
                 },
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
@@ -253,7 +252,6 @@ fun RideReplayScreen(
                                 text = if (isCompleted) stringResource(R.string.summary_status_completed) else stringResource(R.string.summary_status_in_progress),
                                 color = if (isCompleted) Moss else Pop,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.6.sp
                             )
@@ -281,7 +279,6 @@ fun RideReplayScreen(
                                     text = stringResource(R.string.replay_synced_badge),
                                     color = Ink,
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -298,7 +295,6 @@ fun RideReplayScreen(
                                 text = stringResource(R.string.replay_gps_points_badge, waypoints.size),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                             )
@@ -313,8 +309,7 @@ fun RideReplayScreen(
                 Text(
                     text = rideTitle,
                     color = Ink,
-                    style = MaterialTheme.typography.displayLarge,
-                    fontSize = 26.sp,
+                    style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -324,8 +319,7 @@ fun RideReplayScreen(
                     Text(
                         text = dateSubtitle,
                         color = InkSecondary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontSize = 13.sp
+                        style = MaterialTheme.typography.titleSmall
                     )
                 }
             }
@@ -354,8 +348,7 @@ fun RideReplayScreen(
                         Text(
                             text = stringResource(R.string.replay_gps_track_logged),
                             color = InkSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -548,7 +541,6 @@ fun RideReplayScreen(
                                         text = if (isPlaying) stringResource(R.string.replay_status_playing) else stringResource(R.string.replay_status_gps_track),
                                         color = Ink,
                                         style = MaterialTheme.typography.labelSmall,
-                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
@@ -576,8 +568,7 @@ fun RideReplayScreen(
                                     Text(
                                         text = stringResource(R.string.distance_km_value, String.format(Locale.US, "%.1f", currentTraveledKm)),
                                         color = InkSecondary,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontSize = 10.sp
+                                        style = RvTypography.microBadge
                                     )
                                 }
                             }
@@ -698,7 +689,7 @@ fun RideReplayScreen(
                             IconButton(
                                 onClick = { timelineProgress = (timelineProgress - 0.1f).coerceAtLeast(0f) },
                                 modifier = Modifier
-                                    .size(44.dp)
+                                    .size(48.dp)
                                     .clip(CircleShape)
                                     .background(PaperSunken)
                             ) {
@@ -730,7 +721,7 @@ fun RideReplayScreen(
                             IconButton(
                                 onClick = { timelineProgress = (timelineProgress + 0.1f).coerceAtMost(1f) },
                                 modifier = Modifier
-                                    .size(44.dp)
+                                    .size(48.dp)
                                     .clip(CircleShape)
                                     .background(PaperSunken)
                             ) {
@@ -744,7 +735,7 @@ fun RideReplayScreen(
                                 shape = RoundedCornerShape(RvRadius.pill),
                                 border = BorderStroke(1.dp, InkHairline),
                                 modifier = Modifier
-                                    .defaultMinSize(minHeight = 40.dp)
+                                    .defaultMinSize(minHeight = 48.dp)
                                     .clickable {
                                         playbackSpeed = when (playbackSpeed) {
                                             1 -> 2
@@ -825,8 +816,7 @@ fun RideReplayScreen(
                     Text(
                         text = pluralStringResource(R.plurals.events_logged_count, events.size, events.size),
                         color = InkSecondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
 
@@ -875,8 +865,7 @@ private fun ReplayTelemetryTile(
                 Text(
                     text = label,
                     color = InkSecondary,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp,
+                    style = RvTypography.microBadge,
                     letterSpacing = 0.8.sp
                 )
                 Icon(
@@ -891,8 +880,7 @@ private fun ReplayTelemetryTile(
                 Text(
                     text = value,
                     color = Ink,
-                    style = MaterialTheme.typography.displayLarge,
-                    fontSize = 24.sp,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -991,8 +979,7 @@ private fun ConvoyEventMilestoneCard(
                     Text(
                         text = timeLabel,
                         color = InkSecondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
 
@@ -1005,8 +992,7 @@ private fun ConvoyEventMilestoneCard(
                     Text(
                         text = detail,
                         color = InkSecondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }

@@ -86,8 +86,7 @@ fun RegisterScreen(
                     Text(
                         text = stringResource(R.string.action_create_account),
                         color = Ink,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontSize = 20.sp,
+                        style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -168,7 +167,7 @@ fun RegisterScreen(
                             )
                             IconButton(
                                 onClick = { viewModel.clearError() },
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
@@ -380,8 +379,7 @@ fun RegisterScreen(
             Text(
                 text = stringResource(R.string.auth_terms_register),
                 color = InkSecondary,
-                style = MaterialTheme.typography.bodySmall,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 textAlign = TextAlign.Center,
                 lineHeight = 16.sp
             )

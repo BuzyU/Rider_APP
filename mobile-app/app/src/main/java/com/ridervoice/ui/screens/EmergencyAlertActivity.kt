@@ -297,9 +297,8 @@ fun EmergencyAlertContent(
 
                 Text(
                     text = alertType,
-                    style = MaterialTheme.typography.displayLarge,
+                    style = MaterialTheme.typography.displayMedium,
                     color = Ink,
-                    fontSize = 28.sp,
                     fontWeight = FontWeight.Bold
                 )
 
@@ -340,7 +339,6 @@ fun EmergencyAlertContent(
                             text = stringResource(R.string.sos_alert_upper),
                             style = MaterialTheme.typography.displayLarge,
                             color = Brick,
-                            fontSize = 32.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
@@ -351,9 +349,8 @@ fun EmergencyAlertContent(
                     } else {
                         Text(
                             text = "${countdown}s",
-                            style = MaterialTheme.typography.displayLarge,
+                            style = RvTypography.displayHero,
                             color = Brick,
-                            fontSize = 50.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(

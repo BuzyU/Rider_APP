@@ -72,8 +72,7 @@ fun SettingsScreen(
                     Text(
                         text = stringResource(R.string.nav_settings),
                         color = Ink,
-                        style = MaterialTheme.typography.displayLarge,
-                        fontSize = 28.sp,
+                        style = MaterialTheme.typography.displayMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -266,7 +265,7 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.action_sign_out), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(stringResource(R.string.action_sign_out), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
                     }
                 }
             }
@@ -438,7 +437,6 @@ fun SettingsScreen(
                         text = stringResource(R.string.settings_diag_dialog_body),
                         color = InkSecondary,
                         style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp,
                         lineHeight = 17.sp
                     )
                 },
@@ -523,8 +521,7 @@ private fun SettingsRowValue(
         Text(
             text = label,
             color = Ink,
-            style = MaterialTheme.typography.titleMedium,
-            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f)
         )
@@ -575,16 +572,14 @@ private fun SettingsRowAction(
             Text(
                 text = label,
                 color = Ink,
-                style = MaterialTheme.typography.titleMedium,
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
                     color = InkSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 12.sp
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
@@ -623,15 +618,13 @@ private fun SettingsRowInfo(
             Text(
                 text = label,
                 color = Ink,
-                style = MaterialTheme.typography.titleMedium,
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = subtitle,
                 color = InkSecondary,
-                style = MaterialTheme.typography.bodySmall,
-                fontSize = 12.sp
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }
@@ -668,16 +661,14 @@ private fun SettingsRowToggle(
             Text(
                 text = label,
                 color = Ink,
-                style = MaterialTheme.typography.titleMedium,
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
                     color = InkSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 12.sp
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }

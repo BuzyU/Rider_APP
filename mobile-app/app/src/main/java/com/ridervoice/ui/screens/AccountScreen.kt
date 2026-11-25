@@ -71,8 +71,7 @@ fun AccountScreen(
                 Text(
                     text = stringResource(R.string.nav_account),
                     color = Ink,
-                    style = MaterialTheme.typography.displayLarge,
-                    fontSize = 28.sp,
+                    style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
@@ -80,7 +79,7 @@ fun AccountScreen(
                 IconButton(
                     onClick = { showEditDialog = true },
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .background(PopContainer)
                         .border(1.dp, Pop.copy(alpha = 0.3f), CircleShape)
@@ -98,7 +97,7 @@ fun AccountScreen(
                 IconButton(
                     onClick = onNavigateToSettings,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .background(PaperRaised)
                         .border(1.dp, InkHairline, CircleShape)
@@ -226,10 +225,9 @@ fun AccountScreen(
 
                                 Text(
                                     text = uiState.displayName.ifBlank { stringResource(R.string.participant_rider_prefix) },
-                                    style = MaterialTheme.typography.titleLarge,
+                                    style = MaterialTheme.typography.headlineLarge,
                                     color = Ink,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 22.sp
+                                    fontWeight = FontWeight.Bold
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -404,9 +402,8 @@ private fun InitialAvatarText(initial: String) {
     Text(
         text = initial,
         color = PaperOnPop,
-        style = MaterialTheme.typography.displayMedium,
-        fontWeight = FontWeight.Bold,
-        fontSize = 36.sp
+        style = RvTypography.displayMetric,
+        fontWeight = FontWeight.Bold
     )
 }
 
@@ -436,15 +433,13 @@ private fun AccountInfoRow(
             Text(
                 text = label,
                 color = InkSecondary,
-                style = MaterialTheme.typography.bodySmall,
-                fontSize = 11.sp
+                style = MaterialTheme.typography.labelSmall
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = value,
                 color = Ink,
-                style = MaterialTheme.typography.titleMedium,
-                fontSize = 15.sp,
+                style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold
             )
         }

@@ -372,8 +372,7 @@ fun MoreMenuBottomSheet(
                     ) {
                         Text(
                             text = stringResource(R.string.menu_rider_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontSize = 20.sp,
+                            style = MaterialTheme.typography.headlineMedium,
                             color = Ink
                         )
                         IconButton(
@@ -507,8 +506,7 @@ private fun MoreSheetRow(
                 Text(
                     text = title,
                     color = contentTint,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

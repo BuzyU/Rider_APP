@@ -112,7 +112,6 @@ class RideInviteActivity : ComponentActivity() {
                         text = inviter,
                         color = Ink,
                         style = MaterialTheme.typography.displayLarge,
-                        fontSize = 30.sp,
                         fontWeight = FontWeight.Bold
                     )
 

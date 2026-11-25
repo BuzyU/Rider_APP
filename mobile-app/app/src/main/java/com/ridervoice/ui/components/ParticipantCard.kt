@@ -136,7 +136,7 @@ fun ParticipantCard(
                             text = initial,
                             color = Ink,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
+                            style = MaterialTheme.typography.bodyLarge
                         )
                     }
                 }
@@ -155,7 +155,7 @@ fun ParticipantCard(
                             text = name,
                             color = Ink,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
@@ -173,7 +173,7 @@ fun ParticipantCard(
                                 Text(
                                     text = stringResource(R.string.badge_you_upper),
                                     color = Ink,
-                                    fontSize = 9.sp,
+                                    style = RvTypography.microBadge,
                                     fontWeight = FontWeight.Black,
                                     maxLines = 1,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
@@ -191,7 +191,7 @@ fun ParticipantCard(
                                 Text(
                                     text = stringResource(R.string.badge_host_upper),
                                     color = Pop,
-                                    fontSize = 9.sp,
+                                    style = RvTypography.microBadge,
                                     fontWeight = FontWeight.Black,
                                     maxLines = 1,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
@@ -210,7 +210,7 @@ fun ParticipantCard(
                             Text(
                                 text = stringResource(R.string.mesh_speaking),
                                 color = Pop,
-                                fontSize = 11.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -226,7 +226,7 @@ fun ParticipantCard(
                                     stringResource(R.string.ride_status_reconnecting)
                                 },
                                 color = Brick,
-                                fontSize = 11.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -235,7 +235,7 @@ fun ParticipantCard(
                             Text(
                                 text = stringResource(R.string.ride_status_connected),
                                 color = InkSecondary,
-                                fontSize = 11.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -269,7 +269,7 @@ fun ParticipantCard(
                                 text = distStr,
                                 modifier = Modifier.testTag("participant_distance_${participant.identity}"),
                                 color = Ink,
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 softWrap = false,
@@ -292,7 +292,7 @@ fun ParticipantCard(
                                 text = stringResource(R.string.speed_kmh_value, speedKmh.toInt()),
                                 modifier = Modifier.testTag("participant_speed_${participant.identity}"),
                                 color = InkSecondary,
-                                fontSize = 11.sp,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 softWrap = false,

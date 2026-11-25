@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.ui
 
+import androidx.compose.material3.MaterialTheme
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -157,7 +158,7 @@ fun OfflineRoomScreen(
 
             Text(
                 text = stringResource(R.string.mesh_peers_header),
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold,
                 color = MeshColors.Slate,
                 modifier = Modifier.padding(vertical = 4.dp),
@@ -176,7 +177,7 @@ fun OfflineRoomScreen(
                     Text(
                         text = stringResource(R.string.mesh_peers_searching, sessionCode),
                         color = MeshColors.SlateMuted,
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }

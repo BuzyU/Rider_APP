@@ -156,7 +156,7 @@ class MainActivity : ComponentActivity() {
                         },
                         title = {
                             Text(
-                                text = "DIAGNOSTIC CRASH REPORT",
+                                text = androidx.compose.ui.res.stringResource(R.string.crash_dialog_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Brick,
                                 fontWeight = FontWeight.Bold
@@ -170,7 +170,7 @@ class MainActivity : ComponentActivity() {
                                     .verticalScroll(androidx.compose.foundation.rememberScrollState())
                             ) {
                                 Text(
-                                    text = "RiderVoice captured an unexpected crash on the previous run. You can copy this diagnostic log to share with support:",
+                                    text = androidx.compose.ui.res.stringResource(R.string.crash_dialog_body),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = InkSecondary
                                 )
@@ -178,10 +178,10 @@ class MainActivity : ComponentActivity() {
                                 androidx.compose.foundation.text.selection.SelectionContainer {
                                     Text(
                                         text = report,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Ink,
-                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                        fontSize = 11.sp
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                        ),
+                                        color = Ink
                                     )
                                 }
                             }
@@ -190,15 +190,15 @@ class MainActivity : ComponentActivity() {
                             Button(
                                 onClick = {
                                     val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                                    val clip = android.content.ClipData.newPlainText("RiderVoice Crash Log", report)
+                                    val clip = android.content.ClipData.newPlainText(getString(R.string.crash_clip_label), report)
                                     clipboard?.setPrimaryClip(clip)
-                                    android.widget.Toast.makeText(this@MainActivity, "Crash log copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(this@MainActivity, getString(R.string.crash_copied_toast), android.widget.Toast.LENGTH_SHORT).show()
                                     try { java.io.File(filesDir, App.CRASH_FILE_NAME).delete() } catch (_: Exception) {}
                                     crashReportText.value = null
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Brick)
                             ) {
-                                Text("COPY REPORT", color = PaperOnBrick, fontWeight = FontWeight.Bold)
+                                Text(androidx.compose.ui.res.stringResource(R.string.crash_copy_button), color = PaperOnBrick, fontWeight = FontWeight.Bold)
                             }
                         },
                         dismissButton = {
@@ -208,7 +208,7 @@ class MainActivity : ComponentActivity() {
                                     crashReportText.value = null
                                 }
                             ) {
-                                Text("DISMISS", color = Ink)
+                                Text(androidx.compose.ui.res.stringResource(R.string.action_dismiss), color = Ink)
                             }
                         }
                     )
@@ -228,7 +228,7 @@ class MainActivity : ComponentActivity() {
                         },
                         title = {
                             Text(
-                                text = "UPDATE COMPLETE",
+                                text = androidx.compose.ui.res.stringResource(R.string.update_complete_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Ink,
                                 fontWeight = FontWeight.Bold
@@ -237,7 +237,7 @@ class MainActivity : ComponentActivity() {
                         text = {
                             val cleanUpdatedVer = updatedVersionName.value.removePrefix("v").removePrefix("V")
                             Text(
-                                text = "RiderVoice has been successfully updated to v$cleanUpdatedVer.",
+                                text = androidx.compose.ui.res.stringResource(R.string.update_complete_body, cleanUpdatedVer),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = InkSecondary
                             )
@@ -277,7 +277,7 @@ class MainActivity : ComponentActivity() {
                         },
                         title = {
                             Text(
-                                text = "Update required",
+                                text = androidx.compose.ui.res.stringResource(R.string.update_required_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Ink,
                                 fontWeight = FontWeight.Bold
@@ -285,7 +285,7 @@ class MainActivity : ComponentActivity() {
                         },
                         text = {
                             Text(
-                                text = "This version of RiderVoice is no longer supported. Please update to continue riding with your group.",
+                                text = androidx.compose.ui.res.stringResource(R.string.update_required_body),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = InkSecondary
                             )
@@ -298,7 +298,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Pop)
                             ) {
-                                Text("Update app", color = PaperOnPop, fontWeight = FontWeight.Bold)
+                                Text(androidx.compose.ui.res.stringResource(R.string.update_required_button), color = PaperOnPop, fontWeight = FontWeight.Bold)
                             }
                         }
                     )
@@ -307,9 +307,9 @@ class MainActivity : ComponentActivity() {
                 if (showPermissionRationale.value) {
                     AlertDialog(
                         onDismissRequest = { showPermissionRationale.value = false },
-                        title = { Text("Permissions Required") },
+                        title = { Text(androidx.compose.ui.res.stringResource(R.string.perm_rationale_title)) },
                         text = {
-                            Text("RiderVoice requires Microphone and Bluetooth permissions to enable helmet intercom and wireless PTT functionality. Please grant them in Settings.")
+                            Text(androidx.compose.ui.res.stringResource(R.string.perm_rationale_body))
                         },
                         confirmButton = {
                             Button(onClick = {
@@ -319,12 +319,12 @@ class MainActivity : ComponentActivity() {
                                 }
                                 startActivity(intent)
                             }) {
-                                Text("Open Settings")
+                                Text(androidx.compose.ui.res.stringResource(R.string.perm_open_settings))
                             }
                         },
                         dismissButton = {
                             TextButton(onClick = { showPermissionRationale.value = false }) {
-                                Text("Continue Anyway")
+                                Text(androidx.compose.ui.res.stringResource(R.string.perm_continue_anyway))
                             }
                         }
                     )

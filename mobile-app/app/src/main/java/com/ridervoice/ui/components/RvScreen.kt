@@ -38,8 +38,7 @@ fun RvScreen(
                 title = {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontSize = 20.sp,
+                        style = MaterialTheme.typography.headlineMedium,
                         color = Ink,
                         fontWeight = FontWeight.Bold
                     )

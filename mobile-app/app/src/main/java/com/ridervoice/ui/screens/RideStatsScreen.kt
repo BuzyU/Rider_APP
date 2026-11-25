@@ -109,8 +109,7 @@ fun RideStatsScreen(
                 Text(
                     text = stringResource(R.string.tab_history),
                     color = Ink,
-                    style = MaterialTheme.typography.displayLarge,
-                    fontSize = 28.sp,
+                    style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -169,7 +168,7 @@ fun RideStatsScreen(
                     shape = RoundedCornerShape(RvRadius.pill),
                     border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.25f) else InkHairline),
                     modifier = Modifier
-                        .defaultMinSize(minHeight = 40.dp)
+                        .defaultMinSize(minHeight = 48.dp)
                         .clickable { selectedFilter = filterKey }
                 ) {
                     Box(
@@ -179,8 +178,7 @@ fun RideStatsScreen(
                         Text(
                             text = filterLabel,
                             color = if (isSelected) Pop else InkSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         )
                     }
@@ -326,8 +324,7 @@ fun RideStatsScreen(
                             Text(
                                 text = stringResource(R.string.history_field_journal),
                                 color = Ink,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
@@ -419,8 +416,7 @@ private fun SeasonTotalsBentoCard(
                         Text(
                             text = stringResource(R.string.history_active_fleet),
                             color = Moss,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -469,8 +465,7 @@ private fun SeasonStatCol(value: String, label: String, modifier: Modifier = Mod
         Text(
             text = value,
             color = Ink,
-            style = MaterialTheme.typography.displayLarge,
-            fontSize = 26.sp,
+            style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -478,8 +473,7 @@ private fun SeasonStatCol(value: String, label: String, modifier: Modifier = Mod
         Text(
             text = label,
             color = InkSecondary,
-            style = MaterialTheme.typography.bodySmall,
-            fontSize = 12.sp
+            style = MaterialTheme.typography.bodySmall
         )
     }
 }
@@ -526,8 +520,7 @@ private fun RideHistoryCard(
                 Text(
                     text = displayTitle,
                     color = Ink,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -537,7 +530,6 @@ private fun RideHistoryCard(
                     text = dateLabel,
                     color = InkSecondary,
                     style = MaterialTheme.typography.bodySmall,
-                    fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

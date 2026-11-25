@@ -78,8 +78,7 @@ fun SplashScreen(
             Text(
                 text = stringResource(R.string.app_name),
                 color = Ink,
-                style = MaterialTheme.typography.displayLarge,
-                fontSize = 40.sp,
+                style = RvTypography.displayMetric,
                 fontWeight = FontWeight.Bold
             )
         }

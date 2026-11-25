@@ -376,7 +376,7 @@ fun CodeCard(
 
             Text(
                 text = formattedCode.uppercase(),
-                style = MaterialTheme.typography.displayLarge.copy(fontSize = 30.sp),
+                style = MaterialTheme.typography.displayLarge,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
                 color = Ink,

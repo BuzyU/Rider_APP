@@ -111,7 +111,7 @@ fun AddRidersBottomSheet(
                         IconButton(
                             onClick = onDismiss,
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(48.dp)
                                 .clip(CircleShape)
                                 .background(PaperRaised)
                                 .border(1.dp, InkHairline, CircleShape)
@@ -143,7 +143,7 @@ fun AddRidersBottomSheet(
                                 border = if (selected) BorderStroke(1.dp, InkHairline) else null,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .defaultMinSize(minHeight = 42.dp)
+                                    .defaultMinSize(minHeight = 48.dp)
                                     .clickable { selectedTab = idx }
                             ) {
                                 Row(
@@ -257,7 +257,7 @@ fun AddRidersBottomSheet(
                                             IconButton(
                                                 onClick = {
                                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                    val clip = ClipData.newPlainText("RiderVoice Convoy Link", activeLink)
+                                                    val clip = ClipData.newPlainText(context.getString(R.string.sheet_convoy_link_clip_label), activeLink)
                                                     clipboard.setPrimaryClip(clip)
                                                     isCopied = true
                                                     Toast.makeText(context, context.getString(R.string.toast_link_copied), Toast.LENGTH_SHORT).show()
@@ -279,7 +279,7 @@ fun AddRidersBottomSheet(
                                         OutlinedButton(
                                             onClick = {
                                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                val clip = ClipData.newPlainText("RiderVoice Convoy Link", activeLink)
+                                                val clip = ClipData.newPlainText(context.getString(R.string.sheet_convoy_link_clip_label), activeLink)
                                                 clipboard.setPrimaryClip(clip)
                                                 isCopied = true
                                                 Toast.makeText(context, context.getString(R.string.toast_link_copied), Toast.LENGTH_SHORT).show()

@@ -209,7 +209,7 @@ fun RideTopBar(
                     Text(
                         text = if (diagSampleCount > 0) stringResource(R.string.room_diag_count, diagSampleCount) else stringResource(R.string.room_diag_rec),
                         color = Brick,
-                        fontSize = 11.sp,
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.2.sp,
                         maxLines = 1,
@@ -252,9 +252,8 @@ fun ConnectionPill(state: ConnectionState) {
         Text(
             text = label,
             color = color,
-            style = MaterialTheme.typography.labelSmall,
+            style = RvTypography.microBadge,
             fontWeight = FontWeight.Bold,
-            fontSize = 10.sp,
             letterSpacing = 0.1.sp,
             maxLines = 1,
             softWrap = false,
@@ -310,8 +309,7 @@ fun AudioDeviceBadge(
                 Text(
                     text = stringResource(R.string.room_headset_inactive),
                     color = Brick,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 9.sp,
+                    style = RvTypography.microBadge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -319,18 +317,17 @@ fun AudioDeviceBadge(
                 Button(
                     onClick = onRetry,
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 1.dp),
-                    modifier = Modifier.height(18.dp),
+                    modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Pop)
                 ) {
-                    Text(stringResource(R.string.action_retry), fontSize = 8.sp, color = PaperOnPop)
+                    Text(stringResource(R.string.action_retry), style = RvTypography.microBadge, color = PaperOnPop)
                 }
             }
         } else if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f) {
             Text(
                 text = routedOutput.display(),
                 color = InkSecondary,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 9.sp,
+                style = RvTypography.microBadge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -338,16 +335,14 @@ fun AudioDeviceBadge(
             Text(
                 text = stringResource(R.string.device_mic_label, routedInput.display()),
                 color = InkSecondary,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 9.sp,
+                style = RvTypography.microBadge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = stringResource(R.string.device_audio_label, routedOutput.display()),
                 color = InkSecondary,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 9.sp,
+                style = RvTypography.microBadge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

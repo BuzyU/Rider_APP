@@ -98,8 +98,7 @@ fun HomeScreen(
                     Text(
                         text = stringResource(R.string.tab_dashboard),
                         color = Ink,
-                        style = MaterialTheme.typography.displayLarge,
-                        fontSize = 28.sp,
+                        style = MaterialTheme.typography.displayMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -140,7 +139,7 @@ fun HomeScreen(
                         )
                         IconButton(
                             onClick = { showBatteryWarning = false },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 Icons.Default.Close,
@@ -194,8 +193,7 @@ fun HomeScreen(
                         Text(
                             text = stringResource(R.string.home_create_ride_title),
                             color = HeroPhotoTextPrimary,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontSize = 25.sp,
+                            style = MaterialTheme.typography.displaySmall,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -203,7 +201,6 @@ fun HomeScreen(
                             text = stringResource(R.string.home_create_ride_subtitle),
                             color = HeroPhotoTextSecondary,
                             style = MaterialTheme.typography.bodyMedium,
-                            fontSize = 14.sp,
                             lineHeight = 19.sp
                         )
                     }
@@ -394,8 +391,7 @@ fun HomeScreen(
                                 Text(
                                     text = stringResource(R.string.home_audio_live),
                                     color = Moss,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontSize = 11.sp,
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
                                 )
@@ -408,8 +404,7 @@ fun HomeScreen(
                     Text(
                         text = if (uiState.hasActiveRide) uiState.activeRideName else stringResource(R.string.home_no_active_convoy),
                         color = Ink,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontSize = 20.sp,
+                        style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
 
@@ -432,8 +427,7 @@ fun HomeScreen(
                                 stringResource(R.string.home_no_active_convoy_desc)
                             },
                             color = InkSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontSize = 13.sp
+                            style = MaterialTheme.typography.titleSmall
                         )
                     }
 
@@ -486,8 +480,7 @@ fun HomeScreen(
                             ) {
                                 Text(
                                     text = stringResource(R.string.home_join_convoy),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontSize = 13.sp
+                                    style = MaterialTheme.typography.titleSmall
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Icon(
@@ -536,8 +529,7 @@ fun HomeScreen(
                         Text(
                             text = stringResource(R.string.home_emergency_sos_upper),
                             color = Brick,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontSize = 15.sp,
+                            style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 1.sp
                         )

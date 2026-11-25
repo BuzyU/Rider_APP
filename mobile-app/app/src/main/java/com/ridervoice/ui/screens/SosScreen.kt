@@ -142,7 +142,6 @@ fun SosScreen(
                 text = stringResource(R.string.sos_emergency_alert_title),
                 color = Brick,
                 style = MaterialTheme.typography.displayLarge,
-                fontSize = 30.sp,
                 fontWeight = FontWeight.Bold
             )
 
@@ -313,8 +312,7 @@ fun SosScreen(
                             Text(
                                 text = "${countdown}s",
                                 color = Brick,
-                                style = MaterialTheme.typography.displayLarge,
-                                fontSize = 56.sp,
+                                style = RvTypography.displayHero,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
@@ -357,8 +355,7 @@ fun SosScreen(
                     }
                     Text(
                         text = callLabel,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontSize = 15.sp,
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }

@@ -107,7 +107,7 @@ fun UpdateDialog(
                         Text(
                             text = stringResource(R.string.action_ok),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
+                            style = MaterialTheme.typography.bodyLarge
                         )
                     }
                 }
@@ -214,14 +214,13 @@ fun UpdateDialog(
                                 Text(
                                     text = stringResource(R.string.update_current_label),
                                     color = InkSecondary,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 11.sp
+                                    style = MaterialTheme.typography.labelSmall
                                 )
                                 Text(
                                     text = curLabel,
                                     color = Ink,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
+                                    style = MaterialTheme.typography.bodyLarge
                                 )
                             }
                             Icon(
@@ -234,14 +233,13 @@ fun UpdateDialog(
                                 Text(
                                     text = stringResource(R.string.update_newest_label, uiState.releaseInfo.formattedSize),
                                     color = Moss,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 11.sp
+                                    style = MaterialTheme.typography.labelSmall
                                 )
                                 Text(
                                     text = nextLabel,
                                     color = Moss,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
+                                    style = MaterialTheme.typography.titleMedium
                                 )
                             }
                         }
@@ -261,7 +259,6 @@ fun UpdateDialog(
                         text = stringResource(R.string.update_safety_note),
                         color = InkSecondary,
                         style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp,
                         lineHeight = 17.sp
                     )
                 }
@@ -388,13 +385,13 @@ fun UpdateDialog(
                             text = if (hasKnownTotal) "${uiState.progressPercent}%" else dlMb,
                             color = Ink,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
                             text = uiState.speedText,
                             color = Moss,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            style = MaterialTheme.typography.titleSmall
                         )
                     }
 
@@ -405,8 +402,7 @@ fun UpdateDialog(
                             stringResource(R.string.update_downloaded_unknown_total, dlMb)
                         },
                         color = InkSecondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 12.sp
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
@@ -771,8 +767,7 @@ private fun UpdateDialogShell(
                             ) {
                                 Text(
                                     text = title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontSize = 18.sp,
+                                    style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = Ink,
                                     maxLines = 1,
@@ -790,7 +785,6 @@ private fun UpdateDialogShell(
                                             color = Ink,
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp,
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                         )
                                     }
@@ -969,7 +963,6 @@ private fun ReleaseNoteCategoryCard(section: ReleaseNoteSection) {
                         text = stringResource(labelRes),
                         color = Ink,
                         style = MaterialTheme.typography.titleSmall,
-                        fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -984,7 +977,6 @@ private fun ReleaseNoteCategoryCard(section: ReleaseNoteSection) {
                         color = InkSecondary,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                     )
                 }
@@ -1007,8 +999,7 @@ private fun ReleaseNoteCategoryCard(section: ReleaseNoteSection) {
                         Text(
                             text = item,
                             color = Ink,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontSize = 13.5.sp,
+                            style = MaterialTheme.typography.titleSmall,
                             lineHeight = 20.sp,
                             modifier = Modifier.weight(1f)
                         )

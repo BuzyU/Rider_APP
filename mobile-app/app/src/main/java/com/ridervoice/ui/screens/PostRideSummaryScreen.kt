@@ -114,8 +114,7 @@ fun PostRideSummaryScreen(
                                 Text(
                                     text = stringResource(R.string.summary_save_to_logbook),
                                     color = PaperOnPop,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontSize = 15.sp
+                                    style = MaterialTheme.typography.bodyLarge
                                 )
                             }
                         }
@@ -164,8 +163,7 @@ fun PostRideSummaryScreen(
                         Text(
                             text = stringResource(R.string.summary_status_completed),
                             color = Moss,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 10.sp
+                            style = RvTypography.microBadge
                         )
                     }
                 }
@@ -177,8 +175,7 @@ fun PostRideSummaryScreen(
                         Text(
                             text = stringResource(R.string.summary_test_samples, testNumber, sampleCount),
                             color = InkSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         )
@@ -190,15 +187,13 @@ fun PostRideSummaryScreen(
                 Text(
                     text = convoyName.ifBlank { stringResource(R.string.summary_ride_summary) },
                     color = Ink,
-                    style = MaterialTheme.typography.displayLarge,
-                    fontSize = 26.sp,
+                    style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = stringResource(R.string.summary_review_desc),
                     color = InkSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 13.sp
+                    style = MaterialTheme.typography.titleSmall
                 )
             }
 
@@ -375,8 +370,7 @@ private fun SummaryBentoTile(
                 Text(
                     text = label,
                     color = InkSecondary,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp
+                    style = RvTypography.microBadge
                 )
                 Icon(
                     imageVector = icon,
@@ -390,8 +384,7 @@ private fun SummaryBentoTile(
                 Text(
                     text = value,
                     color = Ink,
-                    style = MaterialTheme.typography.displayLarge,
-                    fontSize = 26.sp,
+                    style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold
                 )
                 if (unit.isNotEmpty()) {
@@ -427,8 +420,7 @@ fun StatBox(
         Text(
             text = label,
             color = InkSecondary,
-            style = MaterialTheme.typography.labelSmall,
-            fontSize = 10.sp
+            style = RvTypography.microBadge
         )
     }
 }
@@ -445,7 +437,7 @@ fun PrivacyChip(
         shape = RoundedCornerShape(RvRadius.pill),
         border = BorderStroke(1.dp, if (isSelected) Pop else InkHairline),
         modifier = modifier
-            .defaultMinSize(minHeight = 44.dp)
+            .defaultMinSize(minHeight = 48.dp)
             .clickable { onClick() }
     ) {
         Box(

@@ -147,8 +147,7 @@ fun LoginScreen(
             Text(
                 text = stringResource(R.string.app_name),
                 color = Ink,
-                style = MaterialTheme.typography.displayLarge,
-                fontSize = 36.sp,
+                style = RvTypography.displayMetric,
                 fontWeight = FontWeight.Bold
             )
             Text(
@@ -195,7 +194,7 @@ fun LoginScreen(
                             )
                             IconButton(
                                 onClick = { viewModel.clearError() },
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
@@ -298,7 +297,7 @@ fun LoginScreen(
                                     forgotEmail = email
                                     showForgotPassword = true
                                 },
-                                modifier = Modifier.defaultMinSize(minHeight = 44.dp)
+                                modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                             ) {
                                 Text(
                                     stringResource(R.string.auth_forgot_password),
@@ -355,8 +354,7 @@ fun LoginScreen(
                             Text(
                                 stringResource(R.string.auth_or_continue_with),
                                 color = InkSecondary,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontSize = 11.sp
+                                style = MaterialTheme.typography.labelSmall
                             )
                             Divider(modifier = Modifier.weight(1f), color = InkHairline)
                         }
@@ -381,7 +379,7 @@ fun LoginScreen(
                             Text(
                                 text = stringResource(R.string.auth_continue_google),
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         }
 
@@ -412,7 +410,7 @@ fun LoginScreen(
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = stringResource(R.string.auth_phone_sms),
-                                    fontSize = 13.sp,
+                                    style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -432,7 +430,7 @@ fun LoginScreen(
                             ) {
                                 Text(
                                     text = stringResource(R.string.auth_guest_rider),
-                                    fontSize = 13.sp,
+                                    style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -509,12 +507,12 @@ fun LoginScreen(
 
                         TextButton(
                             onClick = { showForgotPassword = false },
-                            modifier = Modifier.defaultMinSize(minHeight = 44.dp)
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                         ) {
                             Text(
                                 stringResource(R.string.auth_return_to_sign_in),
                                 color = InkSecondary,
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -555,8 +553,7 @@ fun LoginScreen(
             Text(
                 text = stringResource(R.string.auth_terms_login),
                 color = InkSecondary,
-                style = MaterialTheme.typography.bodySmall,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 textAlign = TextAlign.Center,
                 lineHeight = 16.sp
             )

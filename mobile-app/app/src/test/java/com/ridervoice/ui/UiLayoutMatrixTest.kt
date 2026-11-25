@@ -2,6 +2,7 @@ package com.ridervoice.ui
 
 import android.app.Application
 import android.content.res.Configuration
+import android.provider.Settings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -27,8 +28,10 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.test.core.app.ApplicationProvider
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -46,6 +49,8 @@ import com.ridervoice.ui.components.PrimaryButton
 import com.ridervoice.ui.components.RvBottomNavigationBar
 import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.screens.SosScreen
+import com.ridervoice.ui.screens.room.ConnectionPill
+import com.ridervoice.ui.screens.room.PttPerforatedButton
 import com.ridervoice.ui.screens.room.RideTopBar
 import com.ridervoice.ui.screens.room.RiderList
 import com.ridervoice.ui.screens.room.TalkControls
@@ -384,5 +389,129 @@ class UiLayoutMatrixTest {
             .assertIsDisplayed()
             .assertHeightIsAtLeast(56.dp)
         composeRule.onNodeWithTag("rider_list_lazy").assertIsDisplayed()
+    }
+
+    @Test(timeout = 10_000L)
+    fun idleRideUi_hasZeroInfiniteAnimations_andWaitForIdleSettles() {
+        val participants = sampleParticipants(8)
+        composeRule.setContent {
+            RiderVoiceTheme {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    RideTopBar(
+                        rideName = "Canyon Run",
+                        connectionState = ConnectionState.CONNECTED,
+                        activeSpeaker = null,
+                        currentUid = "rider-1",
+                        participants = participants,
+                        activeDevice = AudioDevice.BluetoothSco("Cardo"),
+                        routerState = RouterState.ACTIVE,
+                        requestedDevice = AudioDevice.BluetoothSco("Cardo"),
+                        routedInput = RoutedDeviceInfo(typeName = "MIC", productName = "Phone Mic"),
+                        routedOutput = RoutedDeviceInfo(typeName = "SPK", productName = "Speakerphone"),
+                        isCollectingDiag = false,
+                        diagSampleCount = 0,
+                        onAudioRouteClick = {},
+                        onDiagnosticsClick = {},
+                        onLeaveClick = {},
+                        onRescanAudio = {}
+                    )
+                    RiderList(
+                        participants = participants,
+                        currentUid = "rider-1",
+                        activeSpeaker = null,
+                        isCurrentUserTransmitting = false,
+                        isHost = true,
+                        remoteLocations = emptyMap(),
+                        currentLocation = null,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TalkControls(
+                        isMicEnabled = false,
+                        isDeafened = false,
+                        isPttPressed = false,
+                        isVoxOpen = false,
+                        onToggleMic = {},
+                        onToggleDeafen = {},
+                        onPttPressStart = {},
+                        onPttPressEnd = {},
+                        onSosClick = {}
+                    )
+                }
+            }
+        }
+        // With autoAdvance = true (default), waitForIdle() only returns when zero infinite transitions are running
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("connection_dot_static", useUnmergedTree = true).assertIsDisplayed()
+        assertTrue(
+            "Connected RideTopBar must not compose pulsing dot",
+            composeRule.onAllNodesWithTag("connection_dot_pulsing", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
+        )
+        assertTrue(
+            "Idle RiderList must not compose SpeakingPulseLayer",
+            composeRule.onAllNodesWithTag("speaking_pulse_active", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
+        )
+        assertTrue(
+            "Idle TalkControls must not compose PttActiveRimPulse",
+            composeRule.onAllNodesWithTag("ptt_rim_pulse_active", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
+        )
+    }
+
+    @Test
+    fun activeSpeakerAndReconnectingAndPressedPtt_runActiveAnimations_andStopOnReduceMotion() {
+        val participants = sampleParticipants(3)
+        var reduceMotion by mutableStateOf(false)
+        val ctx = ApplicationProvider.getApplicationContext<Application>()
+        composeRule.mainClock.autoAdvance = false
+
+        try {
+            composeRule.setContent {
+                if (reduceMotion) {
+                    Settings.Global.putFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
+                } else {
+                    Settings.Global.putFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+                }
+                androidx.compose.runtime.key(reduceMotion) {
+                    RiderVoiceTheme {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            ConnectionPill(state = ConnectionState.RECONNECTING)
+                            RiderList(
+                                participants = participants,
+                                currentUid = "rider-1",
+                                activeSpeaker = "rider-2",
+                                isCurrentUserTransmitting = false,
+                                isHost = true,
+                                remoteLocations = emptyMap(),
+                                currentLocation = null,
+                                modifier = Modifier.weight(1f)
+                            )
+                            PttPerforatedButton(
+                                isPressed = true,
+                                isVoxOpen = false,
+                                onPressStart = {},
+                                onPressEnd = {}
+                            )
+                        }
+                    }
+                }
+            }
+
+            composeRule.mainClock.advanceTimeBy(300L)
+            composeRule.onNodeWithTag("speaking_pulse_active", useUnmergedTree = true).assertIsDisplayed()
+            composeRule.onNodeWithTag("connection_dot_pulsing", useUnmergedTree = true).assertIsDisplayed()
+            composeRule.onNodeWithTag("ptt_rim_pulse_active", useUnmergedTree = true).assertIsDisplayed()
+
+            // When reduce motion is enabled, pulsing transitions are replaced with static markers
+            reduceMotion = true
+            composeRule.mainClock.autoAdvance = true
+            composeRule.waitForIdle()
+            composeRule.onNodeWithTag("speaking_pulse_static", useUnmergedTree = true).assertIsDisplayed()
+            composeRule.onNodeWithTag("connection_dot_static", useUnmergedTree = true).assertIsDisplayed()
+            assertTrue(
+                composeRule.onAllNodesWithTag("ptt_rim_pulse_active", useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
+            )
+        } finally {
+            Settings.Global.putFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        }
     }
 }

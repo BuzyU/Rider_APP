@@ -20,6 +20,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -222,21 +224,21 @@ fun ConnectionPill(state: ConnectionState) {
         ConnectionState.DISCONNECTED -> InkSecondary to stringResource(R.string.room_conn_offline)
     }
 
-    val pulse = rememberInfiniteTransition(label = "pulse")
-    val alpha by pulse.animateFloat(
-        initialValue = 1f,
-        targetValue = if (state == ConnectionState.CONNECTED) 0.45f else 1f,
-        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Reverse),
-        label = "dot"
-    )
+    val shouldPulse = state == ConnectionState.CONNECTING || state == ConnectionState.RECONNECTING
+    val reduceMotion = rememberIsReduceMotionEnabled()
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(color.copy(alpha = alpha))
-        )
+        if (shouldPulse && !reduceMotion) {
+            PulsingConnectionDot(color = color)
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .drawBehind { drawCircle(color = color) }
+                    .testTag("connection_dot_static")
+            )
+        }
         Spacer(modifier = Modifier.width(5.dp))
         Text(
             text = label,
@@ -249,6 +251,24 @@ fun ConnectionPill(state: ConnectionState) {
             overflow = TextOverflow.Ellipsis
         )
     }
+}
+
+@Composable
+private fun PulsingConnectionDot(color: Color) {
+    val pulse = rememberInfiniteTransition(label = "pulse")
+    val alpha = pulse.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.35f,
+        animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Reverse),
+        label = "dot"
+    )
+    Box(
+        modifier = Modifier
+            .size(8.dp)
+            .clip(CircleShape)
+            .drawBehind { drawCircle(color = color.copy(alpha = alpha.value)) }
+            .testTag("connection_dot_pulsing")
+    )
 }
 
 @Composable

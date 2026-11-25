@@ -476,10 +476,23 @@ fun AudioRouteChip(
 }
 
 @Composable
-fun SpinningRadar() {
+fun SpinningRadar(isScanning: Boolean = true) {
+    val isResumed = rememberIsLifecycleResumed()
+    val reduceMotion = rememberIsReduceMotionEnabled()
+    val scanningCd = stringResource(R.string.cd_scanning_bt)
+
+    if (isScanning && isResumed && !reduceMotion) {
+        SpinningRadarAnimated(scanningCd = scanningCd)
+    } else {
+        SpinningRadarStatic(scanningCd = scanningCd)
+    }
+}
+
+@Composable
+private fun SpinningRadarAnimated(scanningCd: String) {
     val infiniteTransition = rememberInfiniteTransition(label = "radar")
 
-    val rotation by infiniteTransition.animateFloat(
+    val rotation = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
@@ -489,7 +502,7 @@ fun SpinningRadar() {
         label = "radarRotate"
     )
 
-    val scale by infiniteTransition.animateFloat(
+    val scale = infiniteTransition.animateFloat(
         initialValue = 0.5f,
         targetValue = 1.25f,
         animationSpec = infiniteRepeatable(
@@ -499,7 +512,7 @@ fun SpinningRadar() {
         label = "radarScale"
     )
 
-    val alpha by infiniteTransition.animateFloat(
+    val alpha = infiniteTransition.animateFloat(
         initialValue = 0.85f,
         targetValue = 0f,
         animationSpec = infiniteRepeatable(
@@ -509,18 +522,17 @@ fun SpinningRadar() {
         label = "radarAlpha"
     )
 
-    val popColor = Pop
-    val scanningCd = stringResource(R.string.cd_scanning_bt)
     Canvas(
         modifier = Modifier
             .fillMaxSize()
             .semantics { contentDescription = scanningCd }
     ) {
         val center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
-        val radius = (size.width / 2) * scale
+        val radius = (size.width / 2) * scale.value
+        val popColor = Pop
 
         drawCircle(
-            color = popColor.copy(alpha = alpha),
+            color = popColor.copy(alpha = alpha.value),
             radius = radius,
             center = center,
             style = Stroke(width = 2.5.dp.toPx())
@@ -528,11 +540,31 @@ fun SpinningRadar() {
 
         drawArc(
             color = popColor.copy(alpha = 0.25f),
-            startAngle = rotation,
+            startAngle = rotation.value,
             sweepAngle = 90f,
             useCenter = true,
             topLeft = androidx.compose.ui.geometry.Offset(center.x - radius, center.y - radius),
             size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2)
+        )
+    }
+}
+
+@Composable
+private fun SpinningRadarStatic(scanningCd: String) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .semantics { contentDescription = scanningCd }
+    ) {
+        val center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
+        val radius = (size.width / 2) * 0.85f
+        val popColor = Pop
+
+        drawCircle(
+            color = popColor.copy(alpha = 0.45f),
+            radius = radius,
+            center = center,
+            style = Stroke(width = 2.5.dp.toPx())
         )
     }
 }

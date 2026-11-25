@@ -25,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,22 +49,14 @@ fun ParticipantCard(
     speedKmh: Float? = null
 ) {
     val alphaVal = if (isFaded || participant.isGhost) 0.58f else 1.0f
-
-    val pulse = rememberInfiniteTransition(label = "speakerPulse")
-    val pulseAlpha by pulse.animateFloat(
-        initialValue = 0.65f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(500, easing = LinearEasing), RepeatMode.Reverse),
-        label = "pulseAlpha"
-    )
+    val reduceMotion = rememberIsReduceMotionEnabled()
 
     val cardBorderColor by animateColorAsState(
         targetValue = when {
             isSpeaking -> Pop
             participant.isGhost -> Brick.copy(alpha = 0.7f)
             else -> InkHairline
-        },
-        label = "borderColor"
+        }
     )
 
     Card(
@@ -94,7 +88,7 @@ fun ParticipantCard(
                         .clip(CircleShape)
                         .background(
                             when {
-                                isSpeaking -> Pop.copy(alpha = pulseAlpha)
+                                isSpeaking -> Color.Transparent
                                 participant.isGhost -> BrickContainer
                                 else -> PaperSunken
                             }
@@ -111,6 +105,12 @@ fun ParticipantCard(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
+                    if (isSpeaking) {
+                        SpeakingPulseLayer(
+                            reduceMotion = reduceMotion,
+                            modifier = Modifier.matchParentSize()
+                        )
+                    }
                     if (isSpeaking) {
                         Icon(
                             imageVector = Icons.Default.GraphicEq,
@@ -304,4 +304,31 @@ fun ParticipantCard(
             }
         }
     }
+}
+
+@Composable
+private fun SpeakingPulseLayer(
+    reduceMotion: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (reduceMotion) {
+        Box(
+            modifier = modifier
+                .drawBehind { drawCircle(color = Pop) }
+                .testTag("speaking_pulse_static")
+        )
+        return
+    }
+    val pulse = rememberInfiniteTransition(label = "speakerPulse")
+    val pulseAlpha = pulse.animateFloat(
+        initialValue = 0.65f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(500, easing = LinearEasing), RepeatMode.Reverse),
+        label = "pulseAlpha"
+    )
+    Box(
+        modifier = modifier
+            .drawBehind { drawCircle(color = Pop.copy(alpha = pulseAlpha.value)) }
+            .testTag("speaking_pulse_active")
+    )
 }

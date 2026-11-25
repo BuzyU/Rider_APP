@@ -27,7 +27,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -214,14 +218,7 @@ fun PttPerforatedButton(
     onPressEnd: () -> Unit
 ) {
     val isActive = isPressed || isVoxOpen
-
-    val pulseTransition = rememberInfiniteTransition(label = "ptt")
-    val pulseAlpha by pulseTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = if (isActive) 0.55f else 1f,
-        animationSpec = infiniteRepeatable(tween(450, easing = LinearEasing), RepeatMode.Reverse),
-        label = "pttPulseAlpha"
-    )
+    val reduceMotion = rememberIsReduceMotionEnabled()
 
     val buttonBg = when {
         isPressed -> Pop
@@ -229,11 +226,7 @@ fun PttPerforatedButton(
         else      -> PaperSunken
     }
 
-    val rimColor = when {
-        isPressed -> Pop.copy(alpha = pulseAlpha)
-        isVoxOpen -> Pop.copy(alpha = pulseAlpha)
-        else      -> InkHairline
-    }
+    val staticRimColor = if (isActive) Pop else InkHairline
 
     val dotColor = when {
         isPressed -> PaperOnPop.copy(alpha = 0.25f)
@@ -247,7 +240,13 @@ fun PttPerforatedButton(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(buttonBg)
-            .border(2.dp, rimColor, RoundedCornerShape(16.dp))
+            .then(
+                if (!isActive || reduceMotion) {
+                    Modifier.border(2.dp, staticRimColor, RoundedCornerShape(16.dp))
+                } else {
+                    Modifier
+                }
+            )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
@@ -268,6 +267,12 @@ fun PttPerforatedButton(
             .testTag("talk_controls_ptt"),
         contentAlignment = Alignment.Center
     ) {
+        if (isActive && !reduceMotion) {
+            PttActiveRimPulse(
+                color = Pop,
+                modifier = Modifier.matchParentSize()
+            )
+        }
         Canvas(modifier = Modifier.matchParentSize()) {
             val stepX = 14.dp.toPx()
             val stepY = 10.dp.toPx()
@@ -291,7 +296,7 @@ fun PttPerforatedButton(
         Surface(
             color = if (isPressed) Pop else PaperRaised.copy(alpha = 0.94f),
             shape = RoundedCornerShape(10.dp),
-            border = BorderStroke(1.dp, rimColor),
+            border = BorderStroke(1.dp, staticRimColor),
             modifier = Modifier.widthIn(min = 64.dp)
         ) {
             Row(
@@ -323,4 +328,31 @@ fun PttPerforatedButton(
             }
         }
     }
+}
+
+@Composable
+private fun PttActiveRimPulse(
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val pulseTransition = rememberInfiniteTransition(label = "ptt")
+    val pulseAlpha = pulseTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.55f,
+        animationSpec = infiniteRepeatable(tween(450, easing = LinearEasing), RepeatMode.Reverse),
+        label = "pttPulseAlpha"
+    )
+    Box(
+        modifier = modifier
+            .drawBehind {
+                val strokePx = 2.dp.toPx()
+                val cornerPx = 16.dp.toPx()
+                drawRoundRect(
+                    color = color.copy(alpha = pulseAlpha.value),
+                    cornerRadius = CornerRadius(cornerPx, cornerPx),
+                    style = Stroke(width = strokePx)
+                )
+            }
+            .testTag("ptt_rim_pulse_active")
+    )
 }

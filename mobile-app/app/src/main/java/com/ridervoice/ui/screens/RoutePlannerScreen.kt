@@ -577,10 +577,37 @@ fun RoutePlannerScreen(
 private fun OfflineRouteRadarCanvas(
     nearbyRiders: List<NearbyRider>,
     hasDestination: Boolean,
+    destinationLabel: String,
+    isScanning: Boolean = nearbyRiders.isEmpty()
+) {
+    val isResumed = rememberIsLifecycleResumed()
+    val reduceMotion = rememberIsReduceMotionEnabled()
+
+    if (isScanning && isResumed && !reduceMotion) {
+        OfflineRouteRadarAnimated(
+            nearbyRiders = nearbyRiders,
+            hasDestination = hasDestination,
+            destinationLabel = destinationLabel
+        )
+    } else {
+        OfflineRouteRadarContent(
+            nearbyRiders = nearbyRiders,
+            hasDestination = hasDestination,
+            destinationLabel = destinationLabel,
+            sweepAngleProvider = { 45f },
+            pulseScaleProvider = { 1.0f }
+        )
+    }
+}
+
+@Composable
+private fun OfflineRouteRadarAnimated(
+    nearbyRiders: List<NearbyRider>,
+    hasDestination: Boolean,
     destinationLabel: String
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "RadarSweep")
-    val sweepAngle by infiniteTransition.animateFloat(
+    val sweepAngle = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
@@ -590,7 +617,7 @@ private fun OfflineRouteRadarCanvas(
         label = "SweepAngle"
     )
 
-    val pulseScale by infiniteTransition.animateFloat(
+    val pulseScale = infiniteTransition.animateFloat(
         initialValue = 0.85f,
         targetValue = 1.25f,
         animationSpec = infiniteRepeatable(
@@ -600,18 +627,35 @@ private fun OfflineRouteRadarCanvas(
         label = "PulseScale"
     )
 
-    val ringColor = InkHairline
-    val axisColor = InkSecondary.copy(alpha = 0.28f)
-    val popColor = Pop
-    val mossColor = Moss
-    val dotHalo = PaperRaised
+    OfflineRouteRadarContent(
+        nearbyRiders = nearbyRiders,
+        hasDestination = hasDestination,
+        destinationLabel = destinationLabel,
+        sweepAngleProvider = { sweepAngle.value },
+        pulseScaleProvider = { pulseScale.value }
+    )
+}
 
+@Composable
+private fun OfflineRouteRadarContent(
+    nearbyRiders: List<NearbyRider>,
+    hasDestination: Boolean,
+    destinationLabel: String,
+    sweepAngleProvider: () -> Float,
+    pulseScaleProvider: () -> Float
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(PaperSunken)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
+            val ringColor = InkHairline
+            val axisColor = InkSecondary.copy(alpha = 0.28f)
+            val popColor = Pop
+            val mossColor = Moss
+            val dotHalo = PaperRaised
+
             val center = Offset(size.width / 2f, size.height / 2f)
             val maxRadius = (minOf(size.width, size.height) / 2f) * 0.88f
 
@@ -629,7 +673,7 @@ private fun OfflineRouteRadarCanvas(
             drawLine(axisColor, Offset(center.x, center.y - maxRadius), Offset(center.x, center.y + maxRadius), strokeWidth = 1.dp.toPx())
             drawLine(axisColor, Offset(center.x - maxRadius, center.y), Offset(center.x + maxRadius, center.y), strokeWidth = 1.dp.toPx())
 
-            val sweepRad = Math.toRadians(sweepAngle.toDouble())
+            val sweepRad = Math.toRadians(sweepAngleProvider().toDouble())
             val sweepEnd = Offset(
                 x = center.x + (maxRadius * cos(sweepRad)).toFloat(),
                 y = center.y + (maxRadius * sin(sweepRad)).toFloat()
@@ -677,7 +721,7 @@ private fun OfflineRouteRadarCanvas(
                 drawCircle(color = mossColor, radius = 4.5.dp.toPx(), center = riderOffset)
             }
 
-            drawCircle(color = mossColor.copy(alpha = 0.2f), radius = 16.dp.toPx() * pulseScale, center = center)
+            drawCircle(color = mossColor.copy(alpha = 0.2f), radius = 16.dp.toPx() * pulseScaleProvider(), center = center)
             drawCircle(color = dotHalo, radius = 7.dp.toPx(), center = center)
             drawCircle(color = mossColor, radius = 5.dp.toPx(), center = center)
         }

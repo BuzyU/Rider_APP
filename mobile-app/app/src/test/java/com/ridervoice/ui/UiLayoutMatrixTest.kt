@@ -597,4 +597,104 @@ class UiLayoutMatrixTest {
             pttBounds.bottom <= (640f - navBarDp + 0.5f).dp
         )
     }
+
+    @Test
+    fun rideTopBar_noStatusTruncationOrOverlap_acrossFontScalesLocalesStatesAndDiag() {
+        val fontScales = listOf(1.0f, 1.3f, 2.0f)
+        val locales = listOf(Locale("en"), Locale("hi"), Locale("mr"))
+        val states = ConnectionState.values().toList()
+        val diagOptions = listOf(false, true)
+
+        var scaleIdx by mutableIntStateOf(0)
+        var localeIdx by mutableIntStateOf(0)
+        var stateIdx by mutableIntStateOf(0)
+        var diagOn by mutableStateOf(false)
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            val baseDensity = LocalDensity.current
+            val baseCtx = LocalContext.current
+            val loc = locales[localeIdx]
+            val cfg = Configuration(baseCtx.resources.configuration).apply { setLocale(loc) }
+            CompositionLocalProvider(
+                LocalConfiguration provides cfg,
+                LocalDensity provides Density(density = baseDensity.density, fontScale = fontScales[scaleIdx])
+            ) {
+                RiderVoiceTheme {
+                    Box(modifier = Modifier.size(width = 320.dp, height = 140.dp)) {
+                        RideTopBar(
+                            rideName = longRideName,
+                            connectionState = states[stateIdx],
+                            activeSpeaker = null,
+                            currentUid = "rider-1",
+                            participants = sampleParticipants(6),
+                            activeDevice = AudioDevice.BluetoothSco("Cardo"),
+                            routerState = RouterState.ACTIVE,
+                            requestedDevice = AudioDevice.BluetoothSco("Cardo"),
+                            routedInput = RoutedDeviceInfo(typeName = "BT", productName = "Cardo"),
+                            routedOutput = RoutedDeviceInfo(typeName = "BT", productName = "Cardo"),
+                            isCollectingDiag = diagOn,
+                            diagSampleCount = 12,
+                            onAudioRouteClick = {},
+                            onDiagnosticsClick = {},
+                            onLeaveClick = {},
+                            onRescanAudio = {}
+                        )
+                    }
+                }
+            }
+        }
+
+        for (sIdx in fontScales.indices) {
+            for (lIdx in locales.indices) {
+                for (stIdx in states.indices) {
+                    for (dOn in diagOptions) {
+                        scaleIdx = sIdx
+                        localeIdx = lIdx
+                        stateIdx = stIdx
+                        diagOn = dOn
+                        composeRule.waitForIdle()
+                        composeRule.mainClock.advanceTimeByFrame()
+                        composeRule.waitForIdle()
+
+                        val caseDesc = "scale=${fontScales[sIdx]}, locale=${locales[lIdx].language}, state=${states[stIdx]}, diag=$dOn"
+                        val connLabel = composeRule.onNodeWithTag("ride_topbar_conn_label", useUnmergedTree = true)
+                        connLabel.assertIsDisplayed()
+                        val layout = connLabel.getTextLayout()
+                        assertFalse(
+                            "Status text ellipsized/overflowed for $caseDesc (text=${layout.layoutInput.text})",
+                            layout.hasVisualOverflow || layout.didOverflowWidth
+                        )
+
+                        val left = composeRule.onNodeWithTag("ride_topbar_left").getBoundsInRoot()
+                        val center = composeRule.onNodeWithTag("ride_topbar_center").getBoundsInRoot()
+                        val right = composeRule.onNodeWithTag("ride_topbar_right").getBoundsInRoot()
+
+                        assertTrue(
+                            "Left ($left) overlaps Center ($center) for $caseDesc",
+                            left.right <= center.left + 0.5.dp
+                        )
+                        assertTrue(
+                            "Center ($center) overlaps Right ($right) for $caseDesc",
+                            center.right <= right.left + 0.5.dp
+                        )
+                        val centerWidth = center.right - center.left
+                        assertTrue(
+                            "Center width ($centerWidth) must be >= 80.dp for $caseDesc",
+                            centerWidth >= 80.dp
+                        )
+
+                        if (dOn) {
+                            val diagBounds = composeRule.onNodeWithTag("ride_topbar_diag_pill").getBoundsInRoot()
+                            val connBounds = connLabel.getBoundsInRoot()
+                            assertTrue(
+                                "Connection label ($connBounds) overlaps DIAG pill ($diagBounds) for $caseDesc",
+                                connBounds.bottom <= diagBounds.top + 0.5.dp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

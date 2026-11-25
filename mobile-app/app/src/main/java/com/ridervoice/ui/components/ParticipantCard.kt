@@ -46,8 +46,12 @@ fun ParticipantCard(
     isCurrentUser: Boolean = false,
     isHost: Boolean = false,
     distanceMeters: Float? = null,
-    speedKmh: Float? = null
+    speedKmh: Float? = null,
+    onComposed: (() -> Unit)? = null
 ) {
+    if (onComposed != null) {
+        androidx.compose.runtime.SideEffect(onComposed)
+    }
     val alphaVal = if (isFaded || participant.isGhost) 0.58f else 1.0f
     val reduceMotion = rememberIsReduceMotionEnabled()
 

@@ -1,5 +1,7 @@
 package com.ridervoice.models
 
+import androidx.compose.runtime.Immutable
+
 data class ConvoyCreateRequest(
     val convoyName: String,
     val origin: String? = null,
@@ -19,6 +21,7 @@ data class ConvoyCreateResponse(
     val status: String? = null
 )
 
+@Immutable
 data class LobbyStatus(
     val roomId: String,
     val convoyName: String,
@@ -46,6 +49,7 @@ data class LobbyStatus(
     val serverTime: String? = null
 )
 
+@Immutable
 data class LobbyHost(
     val id: String,
     val callsign: String? = null,
@@ -54,6 +58,7 @@ data class LobbyHost(
     val bikeModel: String? = null
 )
 
+@Immutable
 data class LobbyInviteEntry(
     val inviteId: String,
     val status: String,
@@ -76,6 +81,7 @@ data class ToggleOfflineMeshRequest(
     val enabled: Boolean
 )
 
+@Immutable
 data class LobbyRiderInfo(
     val id: String,
     val handle: String?,
@@ -139,6 +145,7 @@ data class ProfileRequest(
     val phone: String? = null
 )
 
+@Immutable
 data class ProfileResponse(
     val id: String,
     val handle: String?,
@@ -150,6 +157,7 @@ data class ProfileResponse(
     val createdAt: String? = null
 )
 
+@Immutable
 data class DeviceHandshakeResult(
     val deviceName: String,
     val deviceType: DeviceType,
@@ -159,6 +167,7 @@ data class DeviceHandshakeResult(
 
 enum class DeviceType { BLUETOOTH_SCO, BLUETOOTH_A2DP, WIRED, USB, EARPIECE }
 
+@Immutable
 data class RoomData(
     val roomName: String,
     val token: String,
@@ -171,6 +180,7 @@ data class RoomData(
 data class RoomTokenRequest(val roomName: String)
 data class FcmTokenRequest(val token: String, val platform: String = "android", val userId: String = "")
 
+@Immutable
 data class PostRideSnapshot(
     val convoyName: String,
     val testNumber: Int? = null,
@@ -229,6 +239,7 @@ object RideSession {
     }
 }
 
+@Immutable
 data class ShareLinkResponse(
     val token: String,
     val shareUrl: String,
@@ -245,6 +256,7 @@ data class TransferHostRequest(
     val newHostId: String
 )
 
+@Immutable
 data class Friend(
     val id: String,
     val handle: String,
@@ -261,6 +273,7 @@ data class DeclineFriendRequestBody(
     val requestId: String? = null
 )
 
+@Immutable
 data class IncomingSquadRequest(
     val id: String,
     val requesterId: String,
@@ -280,6 +293,7 @@ data class SentSquadRequestDto(
     val addressee: Friend? = null
 )
 
+@Immutable
 data class SentSquadRequest(
     val id: String,
     val addresseeId: String,
@@ -310,6 +324,7 @@ sealed class RiderSearchState {
     data class Error(val message: String) : RiderSearchState()
 }
 
+@Immutable
 data class RideInvite(
     val id: String,
     val roomId: String,
@@ -320,7 +335,9 @@ data class RideInvite(
     val room: RoomDetails
 )
 
+@Immutable
 data class InviterDetails(val handle: String, val displayName: String?)
+@Immutable
 data class RoomDetails(val name: String)
 
 @androidx.compose.runtime.Immutable
@@ -331,6 +348,7 @@ data class Participant(
     val displayName: String? = null
 )
 
+@Immutable
 data class RiderLocation(
     val riderId: String,
     val lat: Double,
@@ -340,6 +358,7 @@ data class RiderLocation(
     val timestamp: Long
 )
 
+@Immutable
 data class RideHistoryResponse(
     val id: String,
     val riderId: String,
@@ -351,6 +370,7 @@ data class RideHistoryResponse(
     val roomName: String? = null
 )
 
+@Immutable
 data class SosAlertResponse(
     val sent: Boolean,
     val alertId: String? = null,
@@ -377,6 +397,7 @@ data class SyncRideRequest(
     val clientRideId: String? = null
 )
 
+@Immutable
 data class SyncRideEvent(
     val eventType: String,
     val lat: Double,

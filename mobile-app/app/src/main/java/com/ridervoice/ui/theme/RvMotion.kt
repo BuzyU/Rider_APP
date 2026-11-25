@@ -13,6 +13,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import com.ridervoice.navigation.Routes
  * No other file may hard-code navigation animation durations; all route
  * transitions and reduce-motion checks flow through [RvMotion].
  */
+@Immutable
 object RvMotion {
     const val INSTANT: Int = 0
     const val QUICK: Int = 120

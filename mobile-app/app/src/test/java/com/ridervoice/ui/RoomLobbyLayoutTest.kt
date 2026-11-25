@@ -642,4 +642,52 @@ class RoomLobbyLayoutTest {
             )
         }
     }
+
+    @Test
+    fun eightRiders_activeSpeakerChange_recomposesAtMostOldAndNewSpeakerCards() {
+        val participants = sampleParticipants(8)
+        var activeSpeaker by mutableStateOf<String?>("rider-2")
+        val composeCounts = mutableMapOf<String, Int>()
+        val callbacks = participants.associate { p ->
+            p.identity to {
+                composeCounts[p.identity] = (composeCounts[p.identity] ?: 0) + 1
+            }
+        }
+
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            RiderVoiceTheme {
+                LazyColumn(modifier = Modifier.size(width = 360.dp, height = 960.dp)) {
+                    items(participants, key = { it.identity }) { participant ->
+                        com.ridervoice.ui.components.ParticipantCard(
+                            participant = participant,
+                            isSpeaking = activeSpeaker == participant.identity,
+                            isCurrentUser = participant.identity == "rider-1",
+                            isHost = participant.identity == "rider-1",
+                            onComposed = callbacks.getValue(participant.identity)
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        val initialCounts = composeCounts.toMap()
+        assertTrue("Expected all 8 cards composed initially", initialCounts.size == 8)
+
+        // Change activeSpeaker from rider-2 to rider-5
+        activeSpeaker = "rider-5"
+        composeRule.waitForIdle()
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.waitForIdle()
+
+        val recomposedRiders = participants.map { it.identity }.filter { id ->
+            (composeCounts[id] ?: 0) > (initialCounts[id] ?: 0)
+        }
+        assertTrue(
+            "Expected at most 2 cards (old/new speaker) to recompose, but recomposed: $recomposedRiders",
+            recomposedRiders.size <= 2 &&
+                recomposedRiders.all { it == "rider-2" || it == "rider-5" }
+        )
+    }
 }

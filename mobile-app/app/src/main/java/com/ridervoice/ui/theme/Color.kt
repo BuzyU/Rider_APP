@@ -26,6 +26,7 @@ internal object LightPalette {
     val Surface = Color(0xFFFFFDF8)             // Paper Card
     val SurfaceAlt = Color(0xFFECE5D6)          // Sand Bento Tile
     val Border = Color(0xFFE3DCCB)              // Crisp Map Hairline
+    val BorderStrong = Color(0xFF786F63)        // High-contrast interactive border (>= 3.9:1 on Paper/Raised/Sunken)
     val TextPrimary = Color(0xFF23201B)         // Carbon Ink (14.4:1 on Bone)
     val TextSecondary = Color(0xFF6B645A)       // Graphite Secondary (5.35:1 on Bone)
     val TextDisabled = Color(0xFF9A9286)        // Tertiary Ink
@@ -64,6 +65,7 @@ internal object DarkPalette {
     val Surface = Color(0xFF171718)
     val SurfaceAlt = Color(0xFF222224)
     val Border = Color(0xFF2C2C2E)
+    val BorderStrong = Color(0xFF82807A)        // High-contrast interactive border (>= 4.0:1 on Dark Paper/Raised/Sunken)
     val TextPrimary = Color(0xFFF4F3F0)
     val TextSecondary = Color(0xFFA4A29D)
     val TextDisabled = Color(0xFF6B6965)
@@ -94,6 +96,7 @@ val Paper: Color get() = if (ThemeState.isDarkTheme) DarkPalette.Background else
 val PaperRaised: Color get() = if (ThemeState.isDarkTheme) DarkPalette.Surface else LightPalette.Surface
 val PaperSunken: Color get() = if (ThemeState.isDarkTheme) DarkPalette.SurfaceAlt else LightPalette.SurfaceAlt
 val InkHairline: Color get() = if (ThemeState.isDarkTheme) DarkPalette.Border else LightPalette.Border
+val InkBorderStrong: Color get() = if (ThemeState.isDarkTheme) DarkPalette.BorderStrong else LightPalette.BorderStrong
 val Ink: Color get() = if (ThemeState.isDarkTheme) DarkPalette.TextPrimary else LightPalette.TextPrimary
 val InkSecondary: Color get() = if (ThemeState.isDarkTheme) DarkPalette.TextSecondary else LightPalette.TextSecondary
 val InkDisabled: Color get() = if (ThemeState.isDarkTheme) DarkPalette.TextDisabled else LightPalette.TextDisabled

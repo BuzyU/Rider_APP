@@ -38,6 +38,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import com.ridervoice.ui.components.rvBringIntoViewOnFocus
+import com.ridervoice.ui.components.RvTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -165,7 +166,7 @@ fun InviteFriendsContent(
                     .height(48.dp),
                 shape = RoundedCornerShape(14.dp),
                 border = BorderStroke(1.dp, InkHairline),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperRaised)
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperSunken)
             ) {
                 Icon(Icons.Default.PersonAdd, contentDescription = stringResource(R.string.cd_add_rider), tint = Pop, modifier = Modifier.size(17.dp))
                 Spacer(modifier = Modifier.width(6.dp))
@@ -187,7 +188,7 @@ fun InviteFriendsContent(
                         .height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     border = BorderStroke(1.dp, InkHairline),
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperRaised)
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperSunken)
                 ) {
                     Icon(Icons.Default.GroupAdd, contentDescription = stringResource(R.string.cd_invite_all), tint = Ink, modifier = Modifier.size(17.dp))
                     Spacer(modifier = Modifier.width(6.dp))
@@ -197,7 +198,7 @@ fun InviteFriendsContent(
         }
 
         if (friends.isNotEmpty()) {
-            OutlinedTextField(
+            RvTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = { Text(stringResource(R.string.squad_filter_placeholder), color = InkSecondary, style = MaterialTheme.typography.bodyMedium) },
@@ -216,8 +217,8 @@ fun InviteFriendsContent(
                 shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     focusedBorderColor = Pop,
-                    unfocusedBorderColor = InkHairline,
-                    containerColor = PaperRaised,
+                    unfocusedBorderColor = InkBorderStrong,
+                    containerColor = PaperSunken,
                     textColor = Ink,
                     cursorColor = Pop
                 )

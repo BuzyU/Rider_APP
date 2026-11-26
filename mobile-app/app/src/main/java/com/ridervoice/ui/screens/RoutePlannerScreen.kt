@@ -52,6 +52,7 @@ import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.Role
 import com.ridervoice.ui.components.LocalRvFeedback
+import com.ridervoice.ui.components.RvTextField
 
 private const val PREFS_NAME = "ridervoice_route_prefs"
 private const val KEY_MAPBOX_TOKEN = "mapbox_token"
@@ -108,8 +109,8 @@ fun RoutePlannerScreen(
 
     val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
         focusedBorderColor = Pop,
-        unfocusedBorderColor = InkHairline,
-        containerColor = PaperRaised,
+        unfocusedBorderColor = InkBorderStrong,
+        containerColor = PaperSunken,
         textColor = Ink,
         cursorColor = Pop
     )
@@ -233,7 +234,7 @@ fun RoutePlannerScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                OutlinedTextField(
+                RvTextField(
                     value = uiState.origin,
                     onValueChange = { viewModel.updateOrigin(it) },
                     keyboardOptions = KeyboardOptions(
@@ -256,7 +257,7 @@ fun RoutePlannerScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                OutlinedTextField(
+                RvTextField(
                     value = uiState.destination,
                     onValueChange = { viewModel.updateDestination(it) },
                     keyboardOptions = KeyboardOptions(
@@ -307,7 +308,7 @@ fun RoutePlannerScreen(
                 Surface(
                     color = if (isSelected) PopContainer else PaperSunken,
                     shape = RoundedCornerShape(RvRadius.pill),
-                    border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.3f) else InkHairline),
+                    border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.3f) else InkBorderStrong),
                     modifier = Modifier
                         .defaultMinSize(minHeight = 48.dp)
                         .selectable(
@@ -537,7 +538,7 @@ fun RoutePlannerScreen(
         AlertDialog(
             onDismissRequest = { showTokenDialog = false },
             shape = RoundedCornerShape(24.dp),
-            containerColor = PaperRaised,
+            containerColor = PaperSunken,
             title = {
                 Text(
                     text = stringResource(R.string.route_mapbox_dialog_title),
@@ -554,7 +555,7 @@ fun RoutePlannerScreen(
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
+                    RvTextField(
                         value = inputTokenText,
                         onValueChange = { inputTokenText = it },
                         placeholder = { Text("pk.eyJ...", color = InkSecondary) },

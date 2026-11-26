@@ -53,6 +53,7 @@ import androidx.compose.ui.autofill.AutofillType
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import com.ridervoice.ui.components.rvAutofill
+import com.ridervoice.ui.components.RvTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,7 +129,7 @@ fun LoginScreen(
 
     val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
         focusedBorderColor = Pop,
-        unfocusedBorderColor = InkHairline,
+        unfocusedBorderColor = InkBorderStrong,
         textColor = Ink,
         cursorColor = Pop,
         containerColor = PaperSunken.copy(alpha = 0.5f)
@@ -136,7 +137,7 @@ fun LoginScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = Paper,
+        containerColor = PaperSunken,
         contentWindowInsets = ZeroWindowInsets
     ) { padding ->
         Column(
@@ -245,7 +246,7 @@ fun LoginScreen(
                             modifier = Modifier.padding(top = 4.dp, bottom = 18.dp)
                         )
 
-                        OutlinedTextField(
+                        RvTextField(
                             value = email,
                             onValueChange = { email = it.trim() },
                             label = { Text(stringResource(R.string.auth_email_label), color = InkSecondary) },
@@ -268,7 +269,7 @@ fun LoginScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        OutlinedTextField(
+                        RvTextField(
                             value = password,
                             onValueChange = { password = it },
                             label = { Text(stringResource(R.string.auth_password_label), color = InkSecondary) },
@@ -468,7 +469,7 @@ fun LoginScreen(
                             modifier = Modifier.padding(top = 6.dp, bottom = 18.dp)
                         )
 
-                        OutlinedTextField(
+                        RvTextField(
                             value = forgotEmail,
                             onValueChange = { forgotEmail = it.trim() },
                             label = { Text(stringResource(R.string.auth_registered_email), color = InkSecondary) },

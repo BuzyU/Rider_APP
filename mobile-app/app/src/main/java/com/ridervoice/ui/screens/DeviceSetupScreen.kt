@@ -337,7 +337,7 @@ fun DeviceSetupScreen(
                     Surface(
                         color = PaperRaised,
                         shape = RoundedCornerShape(22.dp),
-                        border = BorderStroke(1.dp, if (isBluetoothActive) Moss.copy(alpha = 0.55f) else InkHairline),
+                        border = BorderStroke(1.dp, if (isBluetoothActive) Moss.copy(alpha = 0.55f) else InkBorderStrong),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -448,7 +448,7 @@ fun AudioRouteChip(
     Surface(
         color = if (isSelected) PopContainer else PaperSunken,
         shape = RoundedCornerShape(RvRadius.pill),
-        border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.35f) else InkHairline),
+        border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.35f) else InkBorderStrong),
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
             .selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick)

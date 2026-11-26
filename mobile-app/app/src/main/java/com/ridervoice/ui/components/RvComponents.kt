@@ -106,7 +106,7 @@ fun SecondaryButton(
             .heightIn(min = RvTouchTarget.min),
         shape = RoundedCornerShape(16.dp),
         border = ButtonDefaults.outlinedButtonBorder.copy(
-            brush = SolidColor(if (destructive) Brick else InkHairline)
+            brush = SolidColor(if (destructive) Brick else InkBorderStrong)
         ),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = if (destructive) BrickContainer.copy(alpha = 0.35f) else PaperRaised,

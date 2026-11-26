@@ -5,14 +5,19 @@ import android.graphics.Bitmap
 import android.graphics.Canvas as AndroidCanvas
 import android.view.View
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -333,5 +338,103 @@ class DarkThemeComplianceTest {
             ?: error("Could not locate Theme.kt")
         assertTrue("Theme.kt must sync window decorView background", themeText.contains("decorView.setBackgroundColor"))
         assertTrue("Theme.kt must disable nav bar contrast enforcement on API 29+", themeText.contains("isNavigationBarContrastEnforced = false"))
+    }
+
+    @Test
+    fun nonFrozenUi_usesRvTextFieldInsteadOfDirectOutlinedTextField() {
+        val candidates = listOf(
+            File("src/main/java/com/ridervoice"),
+            File("app/src/main/java/com/ridervoice"),
+            File("mobile-app/app/src/main/java/com/ridervoice")
+        )
+        val root = candidates.firstOrNull { it.isDirectory }
+            ?: error("Could not locate com/ridervoice source root")
+        val allowlist = setOf(
+            "ui/components/RvTextField.kt",
+            "ui/screens/RoomScreen.kt",
+            "ui/screens/room/AudioRouteSheet.kt",
+            "ui/screens/room/AudioVuMeter.kt",
+            "ui/screens/room/DiagnosticsDialog.kt",
+            "ui/screens/room/LeaveRideDialog.kt",
+            "ui/screens/room/SosAlertBanner.kt"
+        )
+        val hits = mutableListOf<String>()
+        root.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .forEach { file ->
+                val rel = file.relativeTo(root).invariantSeparatorsPath
+                if (!(rel.startsWith("ui/") || rel.startsWith("mesh/ui/"))) return@forEach
+                if (rel in allowlist) return@forEach
+                file.readLines().forEachIndexed { i, line ->
+                    if (line.contains("OutlinedTextField(")) {
+                        hits += "$rel:${i + 1}: ${line.trim()}"
+                    }
+                }
+            }
+        assertTrue("Direct OutlinedTextField( found outside RvTextField.kt:\n${hits.joinToString("\n")}", hits.isEmpty())
+    }
+
+    @Test
+    fun rvTextField_rendersVisibleUnfocusedBorderInLightAndDarkThemes() {
+        fun linearizeChannel(v: Float): Double =
+            if (v <= 0.03928f) v / 12.92 else Math.pow((v + 0.055) / 1.055, 2.4)
+
+        fun luminance(c: Color): Double =
+            0.2126 * linearizeChannel(c.red) + 0.7152 * linearizeChannel(c.green) + 0.0722 * linearizeChannel(c.blue)
+
+        fun ratio(a: Color, b: Color): Double {
+            val l1 = luminance(a)
+            val l2 = luminance(b)
+            return (kotlin.math.max(l1, l2) + 0.05) / (kotlin.math.min(l1, l2) + 0.05)
+        }
+
+        var hostView: View? = null
+        var drawnBorderColor: Color? = null
+        ThemeState.set(false)
+        composeRule.setContent {
+            hostView = LocalView.current
+            RiderVoiceTheme {
+                Box(
+                    modifier = Modifier
+                        .size(width = 240.dp, height = 88.dp)
+                        .background(Paper)
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                ) {
+                    com.ridervoice.ui.components.RvTextField(
+                        value = "",
+                        onValueChange = {},
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("rv_text_field_sample")
+                    )
+                    Canvas(modifier = Modifier.size(16.dp)) {
+                        drawnBorderColor = InkBorderStrong
+                        drawRect(color = InkBorderStrong)
+                    }
+                }
+            }
+        }
+
+        for ((isDark, expectedBorder) in listOf(false to LightPalette.BorderStrong, true to DarkPalette.BorderStrong)) {
+            ThemeState.set(isDark)
+            composeRule.waitForIdle()
+            composeRule.runOnUiThread {
+                val view = hostView ?: error("Expected hostView")
+                val bmp = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+                view.draw(AndroidCanvas(bmp))
+            }
+            val borderColor = composeRule.onNodeWithTag("rv_text_field_sample").fetchSemanticsNode()
+                .config[com.ridervoice.ui.components.RvTextFieldUnfocusedBorderColorKey]
+            assertEquals(expectedBorder, drawnBorderColor)
+            assertEquals(expectedBorder, borderColor)
+
+            val paperContrast = ratio(borderColor, Paper)
+            val raisedContrast = ratio(borderColor, PaperRaised)
+            val sunkenContrast = ratio(borderColor, PaperSunken)
+            assertTrue(
+                "Expected visible unfocused border >= 3.0:1 against ${if (isDark) "Dark" else "Light"} surfaces, got Paper=${"%.2f".format(paperContrast)}, Raised=${"%.2f".format(raisedContrast)}, Sunken=${"%.2f".format(sunkenContrast)}",
+                paperContrast >= 3.0 && raisedContrast >= 3.0 && sunkenContrast >= 3.0
+            )
+        }
     }
 }

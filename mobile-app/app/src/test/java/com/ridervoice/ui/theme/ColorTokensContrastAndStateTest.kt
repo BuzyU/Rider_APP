@@ -242,6 +242,30 @@ class ColorTokensContrastAndStateTest {
     }
 
     @Test
+    fun inkBorderStrong_meetsNonTextThreeToOneContrastAcrossAllSurfacesAndThemes() {
+        val borderPairs = listOf(
+            "Light BorderStrong on Paper" to (LightPalette.BorderStrong to LightPalette.Background),
+            "Light BorderStrong on PaperRaised" to (LightPalette.BorderStrong to LightPalette.Surface),
+            "Light BorderStrong on PaperSunken" to (LightPalette.BorderStrong to LightPalette.SurfaceAlt),
+            "Dark BorderStrong on Paper" to (DarkPalette.BorderStrong to DarkPalette.Background),
+            "Dark BorderStrong on PaperRaised" to (DarkPalette.BorderStrong to DarkPalette.Surface),
+            "Dark BorderStrong on PaperSunken" to (DarkPalette.BorderStrong to DarkPalette.SurfaceAlt)
+        )
+        val failures = mutableListOf<String>()
+        for ((name, pair) in borderPairs) {
+            val ratio = contrastRatio(pair.first, pair.second)
+            if (ratio < 3.0) {
+                failures += "$name contrast=${"%.2f".format(ratio)} < 3.0:1"
+            }
+            val (h, s) = hueAndSat(pair.first)
+            if (s > 0.15 && h in 170.0..310.0) {
+                failures += "$name has banned blue/cyan/violet hue (H=${"%.1f".format(h)}, S=${"%.2f".format(s)})"
+            }
+        }
+        assertTrue("InkBorderStrong contrast/hue violations:\n${failures.joinToString("\n")}", failures.isEmpty())
+    }
+
+    @Test
     fun inkDisabled_isNotUsedOnActiveControlsOrStatusIndicators() {
         val javaRoot = File(locateMainDir(), "java/com/ridervoice")
         val checkedFiles = listOf(

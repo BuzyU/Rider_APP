@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
+import com.ridervoice.ui.components.RvTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,7 +102,7 @@ fun HostSetupScreen(
         AlertDialog(
             onDismissRequest = { showLearnMoreSheet = false },
             shape = RoundedCornerShape(24.dp),
-            containerColor = PaperRaised,
+            containerColor = PaperSunken,
             title = {
                 Text(
                     text = stringResource(R.string.create_ride_diagnostics_title),
@@ -132,8 +133,8 @@ fun HostSetupScreen(
 
     val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
         focusedBorderColor = Pop,
-        unfocusedBorderColor = InkHairline,
-        containerColor = PaperRaised,
+        unfocusedBorderColor = InkBorderStrong,
+        containerColor = PaperSunken,
         textColor = Ink,
         cursorColor = Pop
     )
@@ -177,7 +178,7 @@ fun HostSetupScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // 1. Ride Name (required, 3-40 chars)
-        OutlinedTextField(
+        RvTextField(
             value = convoyName,
             onValueChange = { convoyName = it.take(40) },
             label = { Text(stringResource(R.string.create_ride_name_label)) },
@@ -206,7 +207,7 @@ fun HostSetupScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // 2. Meet-up point (optional)
-        OutlinedTextField(
+        RvTextField(
             value = meetupPoint,
             onValueChange = { meetupPoint = it },
             label = { Text(stringResource(R.string.create_ride_meetup_label)) },
@@ -228,7 +229,7 @@ fun HostSetupScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // 3. Destination (optional)
-        OutlinedTextField(
+        RvTextField(
             value = destination,
             onValueChange = { destination = it },
             label = { Text(stringResource(R.string.create_ride_destination_label)) },
@@ -250,7 +251,7 @@ fun HostSetupScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // 4. Start (optional)
-        OutlinedTextField(
+        RvTextField(
             value = origin,
             onValueChange = { origin = it },
             label = { Text(stringResource(R.string.host_start_label)) },

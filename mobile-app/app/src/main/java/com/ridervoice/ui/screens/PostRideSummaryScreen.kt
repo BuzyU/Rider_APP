@@ -39,6 +39,7 @@ import com.ridervoice.ui.theme.RvDateFormat
 import com.ridervoice.ui.theme.rememberAppLocale
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.Role
+import com.ridervoice.ui.components.RvTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,7 +84,7 @@ fun PostRideSummaryScreen(
     }
 
     Scaffold(
-        containerColor = Paper,
+        containerColor = PaperSunken,
         contentWindowInsets = ZeroWindowInsets,
         bottomBar = {
             Surface(
@@ -305,7 +306,7 @@ fun PostRideSummaryScreen(
             }
 
             // Ride Logbook Notes Inputs
-            OutlinedTextField(
+            RvTextField(
                 value = rideTitle,
                 onValueChange = { rideTitle = it },
                 placeholder = { Text(stringResource(R.string.summary_title_placeholder), color = InkSecondary) },
@@ -323,13 +324,13 @@ fun PostRideSummaryScreen(
                 shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     focusedBorderColor = Pop,
-                    unfocusedBorderColor = InkHairline,
-                    containerColor = PaperRaised,
+                    unfocusedBorderColor = InkBorderStrong,
+                    containerColor = PaperSunken,
                     textColor = Ink
                 )
             )
 
-            OutlinedTextField(
+            RvTextField(
                 value = rideNotes,
                 onValueChange = { rideNotes = it },
                 placeholder = { Text(stringResource(R.string.summary_notes_placeholder), color = InkSecondary) },
@@ -344,8 +345,8 @@ fun PostRideSummaryScreen(
                 shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     focusedBorderColor = Pop,
-                    unfocusedBorderColor = InkHairline,
-                    containerColor = PaperRaised,
+                    unfocusedBorderColor = InkBorderStrong,
+                    containerColor = PaperSunken,
                     textColor = Ink
                 )
             )
@@ -466,7 +467,7 @@ fun PrivacyChip(
     Surface(
         color = if (isSelected) PopContainer else PaperRaised,
         shape = RoundedCornerShape(RvRadius.pill),
-        border = BorderStroke(1.dp, if (isSelected) Pop else InkHairline),
+        border = BorderStroke(1.dp, if (isSelected) Pop else InkBorderStrong),
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
             .selectable(

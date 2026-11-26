@@ -83,6 +83,8 @@ import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import com.ridervoice.ui.components.LocalRvFeedback
+import com.ridervoice.ui.components.RvTextField
+import com.ridervoice.ui.theme.InkBorderStrong
 
 private val PaperSurface get() = MeshColors.LobbyBackground
 private val CardDark get() = MeshColors.LobbyCard
@@ -620,7 +622,7 @@ fun OfflineMeshLobbyScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    OutlinedTextField(
+                    RvTextField(
                         value = joinCodeInput,
                         onValueChange = {
                             joinCodeInput = it.uppercase()
@@ -639,7 +641,7 @@ fun OfflineMeshLobbyScreen(
                         ),
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = PopAccent,
-                            unfocusedBorderColor = MeshColors.LobbyBorderUnfocused,
+                            unfocusedBorderColor = InkBorderStrong,
                             textColor = InkPrimary
                         ),
                         modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus()

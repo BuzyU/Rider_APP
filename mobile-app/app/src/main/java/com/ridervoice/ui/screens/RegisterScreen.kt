@@ -46,6 +46,7 @@ import androidx.compose.ui.autofill.AutofillType
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import com.ridervoice.ui.components.rvAutofill
+import com.ridervoice.ui.components.RvTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,7 +79,7 @@ fun RegisterScreen(
 
     val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
         focusedBorderColor = Pop,
-        unfocusedBorderColor = InkHairline,
+        unfocusedBorderColor = InkBorderStrong,
         textColor = Ink,
         cursorColor = Pop,
         containerColor = PaperSunken.copy(alpha = 0.5f)
@@ -86,7 +87,7 @@ fun RegisterScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = Paper,
+        containerColor = PaperSunken,
         contentWindowInsets = ZeroWindowInsets,
         topBar = {
             TopAppBar(
@@ -203,7 +204,7 @@ fun RegisterScreen(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedTextField(
+                    RvTextField(
                         value = handle,
                         onValueChange = { handle = it.trim().removePrefix("@") },
                         label = { Text(stringResource(R.string.auth_rider_handle), color = InkSecondary) },
@@ -233,7 +234,7 @@ fun RegisterScreen(
                         colors = fieldColors
                     )
 
-                    OutlinedTextField(
+                    RvTextField(
                         value = email,
                         onValueChange = { email = it.trim() },
                         label = { Text(stringResource(R.string.auth_email_label), color = InkSecondary) },
@@ -254,7 +255,7 @@ fun RegisterScreen(
                         colors = fieldColors
                     )
 
-                    OutlinedTextField(
+                    RvTextField(
                         value = password,
                         onValueChange = { password = it },
                         label = { Text(stringResource(R.string.auth_password_label), color = InkSecondary) },
@@ -293,7 +294,7 @@ fun RegisterScreen(
                         colors = fieldColors
                     )
 
-                    OutlinedTextField(
+                    RvTextField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
                         label = { Text(stringResource(R.string.auth_confirm_password), color = InkSecondary) },

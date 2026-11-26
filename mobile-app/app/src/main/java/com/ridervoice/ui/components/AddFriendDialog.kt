@@ -126,7 +126,7 @@ fun AddFriendDialog(
                             .padding(horizontal = 20.dp, vertical = 18.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        OutlinedTextField(
+                        RvTextField(
                             value = query,
                             onValueChange = { raw ->
                                 val cleaned = raw.trim().removePrefix("@")
@@ -208,8 +208,8 @@ fun AddFriendDialog(
                             ),
                             colors = TextFieldDefaults.outlinedTextFieldColors(
                                 focusedBorderColor = Moss,
-                                unfocusedBorderColor = InkHairline,
-                                containerColor = Paper,
+                                unfocusedBorderColor = InkBorderStrong,
+                                containerColor = PaperSunken,
                                 textColor = Ink,
                                 cursorColor = Moss
                             ),

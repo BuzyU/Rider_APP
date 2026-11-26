@@ -171,7 +171,7 @@ fun RideStatsScreen(
                 Surface(
                     color = if (isSelected) PopContainer else PaperSunken,
                     shape = RoundedCornerShape(RvRadius.pill),
-                    border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.25f) else InkHairline),
+                    border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.25f) else InkBorderStrong),
                     modifier = Modifier
                         .defaultMinSize(minHeight = 48.dp)
                         .selectable(

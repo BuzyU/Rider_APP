@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import com.ridervoice.ui.components.rvBringIntoViewOnFocus
+import com.ridervoice.ui.components.RvTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,8 +68,8 @@ fun JoinRoomScreen(
 
     val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
         focusedBorderColor = Pop,
-        unfocusedBorderColor = InkHairline,
-        containerColor = PaperRaised,
+        unfocusedBorderColor = InkBorderStrong,
+        containerColor = PaperSunken,
         textColor = Ink,
         cursorColor = Pop
     )
@@ -185,7 +186,7 @@ fun JoinRoomScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            OutlinedTextField(
+            RvTextField(
                 value = userName,
                 onValueChange = { userName = it },
                 label = { Text(stringResource(R.string.join_callsign_label)) },
@@ -206,7 +207,7 @@ fun JoinRoomScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            OutlinedTextField(
+            RvTextField(
                 value = roomCode,
                 onValueChange = { roomCode = it },
                 label = { Text(stringResource(R.string.join_code_or_link_label)) },

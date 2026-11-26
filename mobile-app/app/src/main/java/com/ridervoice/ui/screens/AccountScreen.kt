@@ -49,6 +49,7 @@ import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.window.Dialog
+import com.ridervoice.ui.components.RvTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -507,7 +508,7 @@ internal fun EditProfileFormContent(
 
     val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
         focusedBorderColor = Pop,
-        unfocusedBorderColor = InkHairline,
+        unfocusedBorderColor = InkBorderStrong,
         containerColor = PaperSunken.copy(alpha = 0.65f),
         textColor = Ink,
         cursorColor = Pop
@@ -532,7 +533,7 @@ internal fun EditProfileFormContent(
                     color = Ink,
                     fontWeight = FontWeight.Bold
                 )
-                OutlinedTextField(
+                RvTextField(
                     value = displayName,
                     onValueChange = { displayName = it },
                     label = { Text(stringResource(R.string.account_display_name)) },
@@ -548,7 +549,7 @@ internal fun EditProfileFormContent(
                     modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("account_display_name_field")
                 )
 
-                OutlinedTextField(
+                RvTextField(
                     value = handle,
                     onValueChange = { handle = it },
                     label = { Text(stringResource(R.string.account_callsign_handle)) },
@@ -565,7 +566,7 @@ internal fun EditProfileFormContent(
                     modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("account_handle_field")
                 )
 
-                OutlinedTextField(
+                RvTextField(
                     value = phone,
                     onValueChange = { phone = it },
                     label = { Text(stringResource(R.string.account_phone_number)) },
@@ -581,7 +582,7 @@ internal fun EditProfileFormContent(
                     modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("account_phone_field")
                 )
 
-                OutlinedTextField(
+                RvTextField(
                     value = bikeModel,
                     onValueChange = { bikeModel = it },
                     label = { Text(stringResource(R.string.account_motorcycle_hint)) },
@@ -597,7 +598,7 @@ internal fun EditProfileFormContent(
                     modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("account_bike_field")
                 )
 
-                OutlinedTextField(
+                RvTextField(
                     value = bio,
                     onValueChange = { bio = it },
                     label = { Text(stringResource(R.string.account_bio)) },

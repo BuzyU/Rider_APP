@@ -126,7 +126,16 @@ val Brick: Color get() = if (ThemeState.isDarkTheme) DarkPalette.EmergencyRed el
 val BrickContainer: Color get() = if (ThemeState.isDarkTheme) DarkPalette.EmergencyContainer else LightPalette.EmergencyContainer
 val PaperOnBrick: Color get() = if (ThemeState.isDarkTheme) DarkPalette.OnEmergency else LightPalette.OnEmergency
 
-// --- Legacy Token Aliases (Preserved for Frozen Files & Backwards Compatibility) ---
+/** Standard modal backdrop scrim overlay shared by full-window sheets and dialogs. */
+val RvScrim: Color get() = Color(0x73000000)
+
+/**
+ * Legacy token aliases preserved strictly for frozen online room files (`RoomScreen.kt`,
+ * `AudioRouteSheet.kt`, `AudioVuMeter.kt`, `DiagnosticsDialog.kt`, `LeaveRideDialog.kt`,
+ * `SosAlertBanner.kt`) and backwards compatibility. All active non-frozen UI must use
+ * the semantic tokens above (`Paper`, `PaperRaised`, `PaperSunken`, `Ink`, `InkSecondary`,
+ * `InkHairline`, `InkBorderStrong`, `Pop`, `Moss`, `Brick`, `RvScrim`).
+ */
 val GraphiteBase: Color get() = Paper
 val DarkSlate: Color get() = PaperRaised
 val Gunmetal: Color get() = PaperSunken

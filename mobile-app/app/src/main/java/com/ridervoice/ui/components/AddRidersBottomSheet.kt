@@ -35,6 +35,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun AddRidersBottomSheet(
     convoyName: String,
@@ -61,6 +62,7 @@ fun AddRidersBottomSheet(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
             dismissOnBackPress = true,
             dismissOnClickOutside = true
         )
@@ -68,12 +70,12 @@ fun AddRidersBottomSheet(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(RvScrim)
                 .clickable(role = Role.Button) { onDismiss() },
             contentAlignment = Alignment.BottomCenter
         ) {
             Surface(
-                color = Paper,
+                color = PaperRaised,
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                 border = BorderStroke(1.dp, InkHairline),
                 modifier = Modifier

@@ -437,4 +437,54 @@ class DarkThemeComplianceTest {
             )
         }
     }
+
+    @Test
+    fun nonFrozenUiDoesNotReferenceLegacyColorAliasesOrRawBlackScrim() {
+        val candidates = listOf(
+            File("src/main/java/com/ridervoice"),
+            File("app/src/main/java/com/ridervoice"),
+            File("mobile-app/app/src/main/java/com/ridervoice")
+        )
+        val root = candidates.firstOrNull { it.isDirectory } ?: error("Cannot find com/ridervoice")
+        val excluded = setOf(
+            "ui/theme/Color.kt",
+            "mesh/ui/MeshColors.kt",
+            "ui/screens/RoomScreen.kt",
+            "ui/screens/room/AudioRouteSheet.kt",
+            "ui/screens/room/AudioVuMeter.kt",
+            "ui/screens/room/DiagnosticsDialog.kt",
+            "ui/screens/room/LeaveRideDialog.kt",
+            "ui/screens/room/SosAlertBanner.kt"
+        )
+        val legacyAliasRegex = Regex(
+            """(?<!\.)\b(GraphiteBase|DarkSlate|Gunmetal|GraphiteSurface|BorderColor|TextPrimary|TextSecondary|TextMuted|NeonOrange|ElectricCyan|NeonViolet|TechGreen|SuccessGreen|AlertRed|WarningAmber|AmberContainer|HazardContainer)\b"""
+        )
+        val violations = mutableListOf<String>()
+
+        listOf(File(root, "MainActivity.kt"), File(root, "ui"), File(root, "mesh/ui"))
+            .forEach { target ->
+                val files = if (target.isFile) listOf(target) else target.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
+                for (file in files) {
+                    val rel = file.relativeTo(root).invariantSeparatorsPath
+                    if (rel in excluded) continue
+                    file.readLines().forEachIndexed { i, rawLine ->
+                        val line = rawLine.trim()
+                        if (line.startsWith("//") || line.startsWith("*")) return@forEachIndexed
+                        if (line.contains("Color.Black.copy(")) {
+                            violations += "$rel:${i + 1}: raw Color.Black.copy scrim (use RvScrim)"
+                        }
+                        val match = legacyAliasRegex.find(line)
+                        if (match != null) {
+                            violations += "$rel:${i + 1}: legacy color alias ${match.value}"
+                        }
+                    }
+                }
+            }
+
+        assertEquals(Color(0x73000000), RvScrim)
+        assertTrue(
+            "Legacy color aliases or raw black scrims found in non-frozen UI:\n${violations.joinToString("\n")}",
+            violations.isEmpty()
+        )
+    }
 }

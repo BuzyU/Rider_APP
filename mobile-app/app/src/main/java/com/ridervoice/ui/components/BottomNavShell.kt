@@ -328,6 +328,7 @@ private fun BottomNavTabItem(
  * Material3 1.0.1 compatible bottom-anchored sheet opened from the Profile Avatar on Dashboard.
  * Preserves 100% callback parity (Account, Settings, Audio & Helmet Setup, Route Planner, Sign Out).
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun MoreMenuBottomSheet(
     onDismiss: () -> Unit,
@@ -342,6 +343,7 @@ fun MoreMenuBottomSheet(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
             dismissOnBackPress = true,
             dismissOnClickOutside = true
         )
@@ -349,7 +351,7 @@ fun MoreMenuBottomSheet(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(RvScrim)
                 .clickable(role = Role.Button, onClick = onDismiss),
             contentAlignment = Alignment.BottomCenter
         ) {

@@ -10,7 +10,6 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -73,8 +72,10 @@ class EmergencyAlertActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        val initialDarkTheme = com.ridervoice.security.SecurePreferences(this)
+            .getBoolean("dark_theme_enabled", false)
+        applyRiderVoiceWindowChrome(initialDarkTheme)
         incidentClientAlertId = savedInstanceState?.getString("incident_client_alert_id")
             ?: java.util.UUID.randomUUID().toString()
         hasDispatchedIncident = savedInstanceState?.getBoolean("incident_has_dispatched", false) ?: false

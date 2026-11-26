@@ -14,10 +14,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.core.view.WindowCompat
+import android.content.res.Configuration
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import org.robolectric.Robolectric
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -277,11 +288,18 @@ class DarkThemeComplianceTest {
         )
         val themeText = candidates.firstOrNull { it.isFile }?.readText()
             ?: error("Could not locate Theme.kt")
+        val chromeCandidates = listOf(
+            File("src/main/java/com/ridervoice/ui/theme/WindowChrome.kt"),
+            File("app/src/main/java/com/ridervoice/ui/theme/WindowChrome.kt"),
+            File("mobile-app/app/src/main/java/com/ridervoice/ui/theme/WindowChrome.kt")
+        )
+        val chromeText = chromeCandidates.firstOrNull { it.isFile }?.readText()
+            ?: error("Could not locate WindowChrome.kt")
 
         assertTrue("Theme.kt must not use animateColorAsState", !themeText.contains("animateColorAsState"))
-        assertTrue("Theme.kt must not assign window.statusBarColor", !themeText.contains("window.statusBarColor"))
-        assertTrue("Theme.kt must not assign window.navigationBarColor", !themeText.contains("window.navigationBarColor"))
-        assertTrue("Theme.kt must call enableEdgeToEdge", themeText.contains("enableEdgeToEdge("))
+        assertTrue("Theme.kt must not use bare SideEffect", !themeText.contains("SideEffect {"))
+        assertTrue("Theme.kt must call applyRiderVoiceWindowChrome", themeText.contains("applyRiderVoiceWindowChrome("))
+        assertTrue("WindowChrome.kt must call enableEdgeToEdge", chromeText.contains("enableEdgeToEdge("))
 
         ThemeState.set(false)
         var drawnPopColor: Color? = null
@@ -330,14 +348,15 @@ class DarkThemeComplianceTest {
         composeRule.onNodeWithTag("rv_root_backdrop").assertIsDisplayed()
 
         val candidates = listOf(
-            File("src/main/java/com/ridervoice/ui/theme/Theme.kt"),
-            File("app/src/main/java/com/ridervoice/ui/theme/Theme.kt"),
-            File("mobile-app/app/src/main/java/com/ridervoice/ui/theme/Theme.kt")
+            File("src/main/java/com/ridervoice/ui/theme/WindowChrome.kt"),
+            File("app/src/main/java/com/ridervoice/ui/theme/WindowChrome.kt"),
+            File("mobile-app/app/src/main/java/com/ridervoice/ui/theme/WindowChrome.kt")
         )
-        val themeText = candidates.firstOrNull { it.isFile }?.readText()
-            ?: error("Could not locate Theme.kt")
-        assertTrue("Theme.kt must sync window decorView background", themeText.contains("decorView.setBackgroundColor"))
-        assertTrue("Theme.kt must disable nav bar contrast enforcement on API 29+", themeText.contains("isNavigationBarContrastEnforced = false"))
+        val chromeText = candidates.firstOrNull { it.isFile }?.readText()
+            ?: error("Could not locate WindowChrome.kt")
+        assertTrue("WindowChrome.kt must sync window decorView background", chromeText.contains("decorView.setBackgroundColor"))
+        assertTrue("WindowChrome.kt must disable nav bar contrast enforcement on API 29+", chromeText.contains("isNavigationBarContrastEnforced = false"))
+        assertTrue("WindowChrome.kt must disable status bar contrast enforcement on API 29+", chromeText.contains("isStatusBarContrastEnforced = false"))
     }
 
     @Test
@@ -485,6 +504,113 @@ class DarkThemeComplianceTest {
         assertTrue(
             "Legacy color aliases or raw black scrims found in non-frozen UI:\n${violations.joinToString("\n")}",
             violations.isEmpty()
+        )
+    }
+
+    @Test
+    fun windowChrome_matrix_systemLightDark_x_inAppLightDark_andNoReinvocationOnRecompose() {
+        val candidates = listOf(
+            File("src/main"),
+            File("app/src/main"),
+            File("mobile-app/app/src/main")
+        )
+        val mainDir = candidates.firstOrNull { it.isDirectory } ?: error("Cannot find src/main")
+
+        // Verify night & API-bucket theme resources exist with matching light/dark window chrome
+        val themeExpectations = listOf(
+            "res/values/themes.xml" to "#F5F1E8",
+            "res/values-night/themes.xml" to "#0E0E0F",
+            "res/values-v28/themes.xml" to "#F5F1E8",
+            "res/values-night-v28/themes.xml" to "#0E0E0F",
+            "res/values-v29/themes.xml" to "#F5F1E8",
+            "res/values-night-v29/themes.xml" to "#0E0E0F",
+            "res/values-v30/themes.xml" to "#F5F1E8",
+            "res/values-night-v30/themes.xml" to "#0E0E0F",
+            "res/values-v31/themes.xml" to "#F5F1E8",
+            "res/values-night-v31/themes.xml" to "#0E0E0F"
+        )
+        for ((relPath, expectedHex) in themeExpectations) {
+            val content = File(mainDir, relPath).readText()
+            assertTrue("$relPath must set windowBackground $expectedHex", content.contains(expectedHex))
+            assertTrue("$relPath must use transparent status/nav bars", content.contains("@android:color/transparent"))
+        }
+
+        // Verify all 3 Activity classes apply in-app chrome before setContent
+        for (actPath in listOf(
+            "java/com/ridervoice/MainActivity.kt",
+            "java/com/ridervoice/ui/screens/EmergencyAlertActivity.kt",
+            "java/com/ridervoice/ui/screens/RideInviteActivity.kt"
+        )) {
+            val src = File(mainDir, actPath).readText()
+            val chromeIdx = src.indexOf("applyRiderVoiceWindowChrome(")
+            val setContentIdx = src.indexOf("setContent {")
+            assertTrue("$actPath must call applyRiderVoiceWindowChrome before setContent", chromeIdx in 0 until setContentIdx)
+        }
+
+        // Test 2x2 matrix: system {light, dark} x in-app {light, dark}
+        for (systemNight in listOf(Configuration.UI_MODE_NIGHT_NO, Configuration.UI_MODE_NIGHT_YES)) {
+            for (inAppDark in listOf(false, true)) {
+                val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+                val activity = controller.get()
+                activity.resources.configuration.uiMode =
+                    (activity.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or systemNight
+
+                activity.applyRiderVoiceWindowChrome(inAppDark)
+                var observedPaper: Color? = null
+                activity.setContent {
+                    RiderVoiceTheme {
+                        observedPaper = Paper
+                        androidx.compose.material3.Text("ChromeMatrix")
+                    }
+                }
+                composeRule.waitForIdle()
+
+                val expectedColor = if (inAppDark) DarkPalette.Background else LightPalette.Background
+                val expectedArgb = expectedColor.toArgb()
+                assertEquals(expectedColor, observedPaper)
+                assertEquals(expectedArgb, (activity.window.decorView.background as ColorDrawable).color)
+                @Suppress("DEPRECATION")
+                run {
+                    assertEquals(android.graphics.Color.TRANSPARENT, activity.window.statusBarColor)
+                    assertEquals(android.graphics.Color.TRANSPARENT, activity.window.navigationBarColor)
+                }
+                val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+                assertEquals(!inAppDark, insetsController.isAppearanceLightStatusBars)
+                assertEquals(!inAppDark, insetsController.isAppearanceLightNavigationBars)
+                if (Build.VERSION.SDK_INT >= 29) {
+                    assertTrue(!activity.window.isNavigationBarContrastEnforced)
+                    assertTrue(!activity.window.isStatusBarContrastEnforced)
+                }
+                controller.pause().stop().destroy()
+            }
+        }
+
+        // Verify recompositions with unchanged isDark do NOT re-invoke enableEdgeToEdge
+        ThemeState.set(false)
+        var counter by mutableIntStateOf(0)
+        composeRule.setContent {
+            RiderVoiceTheme {
+                androidx.compose.material3.Text("Tick=$counter")
+            }
+        }
+        composeRule.waitForIdle()
+        val baselineInvocations = enableEdgeToEdgeInvocationCount
+        repeat(5) { step ->
+            composeRule.runOnUiThread { counter = step + 1 }
+            composeRule.waitForIdle()
+        }
+        assertEquals(
+            "Unchanged isDark recompositions must not re-invoke enableEdgeToEdge",
+            baselineInvocations,
+            enableEdgeToEdgeInvocationCount
+        )
+
+        composeRule.runOnUiThread { ThemeState.set(true) }
+        composeRule.waitForIdle()
+        assertEquals(
+            "Toggling isDark must invoke applyRiderVoiceWindowChrome exactly once",
+            baselineInvocations + 1,
+            enableEdgeToEdgeInvocationCount
         )
     }
 }

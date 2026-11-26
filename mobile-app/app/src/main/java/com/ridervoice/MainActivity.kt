@@ -21,7 +21,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.navigation.NavGraph
-import androidx.activity.enableEdgeToEdge
 import com.ridervoice.permissions.PermissionManager
 import com.ridervoice.ui.theme.*
 import com.ridervoice.update.AppVersion
@@ -61,28 +60,18 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         permissionLauncher.launch(PermissionManager.requiredPermissions)
 
         val initialDarkTheme = securePreferences.getBoolean("dark_theme_enabled", false)
-        com.ridervoice.ui.theme.ThemeState.set(initialDarkTheme)
+        applyRiderVoiceWindowChrome(initialDarkTheme)
         com.ridervoice.ui.theme.RideErgonomicsSettings.setHapticFeedbackEnabled(
             securePreferences.isHapticFeedbackEnabled()
         )
         com.ridervoice.ui.theme.RideErgonomicsSettings.setKeepScreenOnDuringRide(
             securePreferences.isKeepScreenOnDuringRide()
         )
-        val initialBarStyle = if (initialDarkTheme) {
-            androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-        } else {
-            androidx.activity.SystemBarStyle.light(
-                android.graphics.Color.TRANSPARENT,
-                android.graphics.Color.TRANSPARENT
-            )
-        }
-        enableEdgeToEdge(statusBarStyle = initialBarStyle, navigationBarStyle = initialBarStyle)
 
         if (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
             lifecycleScope.launch {

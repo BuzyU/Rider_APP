@@ -1,20 +1,14 @@
 package com.ridervoice.ui.theme
 
 import android.app.Activity
-import android.graphics.Color as AndroidColor
-import android.graphics.drawable.ColorDrawable
-import android.os.Build
 import androidx.activity.ComponentActivity
-import androidx.activity.SystemBarStyle
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 
@@ -77,26 +71,10 @@ fun RiderVoiceTheme(content: @Composable () -> Unit) {
     val target = if (isDark) DarkScheme else LightScheme
 
     val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val activity = view.context.findActivity() as? ComponentActivity ?: return@SideEffect
-            val barStyle = if (isDark) {
-                SystemBarStyle.dark(AndroidColor.TRANSPARENT)
-            } else {
-                SystemBarStyle.light(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT)
-            }
-            activity.enableEdgeToEdge(
-                statusBarStyle = barStyle,
-                navigationBarStyle = barStyle
-            )
-            val bgArgb = (if (isDark) DarkPalette.Background else LightPalette.Background).toArgb()
-            activity.window.setBackgroundDrawable(ColorDrawable(bgArgb))
-            activity.window.decorView.setBackgroundColor(bgArgb)
-            if (Build.VERSION.SDK_INT >= 29) {
-                activity.window.isNavigationBarContrastEnforced = false
-                activity.window.isStatusBarContrastEnforced = false
-            }
-        }
+    val activity = if (view.isInEditMode) null else view.context.findActivity() as? ComponentActivity
+    DisposableEffect(activity, isDark) {
+        activity?.applyRiderVoiceWindowChrome(isDark)
+        onDispose {}
     }
 
     MaterialTheme(colorScheme = target, typography = Typography) {

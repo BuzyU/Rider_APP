@@ -778,10 +778,11 @@ class UiLayoutMatrixTest {
             .forEach { dir ->
                 dir.walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { f ->
                     val rel = f.relativeTo(root).path.replace('\\', '/')
-                    if (rel in frozen) return@forEach
-                    val text = f.readText()
-                    if (Regex("""\bScaffold\s*\(""").containsMatchIn(text) && !text.contains("ZeroWindowInsets") && !text.contains("WindowInsets(0, 0, 0, 0)")) {
-                        missingZeroInsets += rel
+                    if (rel !in frozen) {
+                        val text = f.readText()
+                        if (Regex("""\bScaffold\s*\(""").containsMatchIn(text) && !text.contains("ZeroWindowInsets") && !text.contains("WindowInsets(0, 0, 0, 0)")) {
+                            missingZeroInsets += rel
+                        }
                     }
                 }
             }
@@ -789,6 +790,60 @@ class UiLayoutMatrixTest {
         assertTrue(
             "Non-frozen Scaffolds missing ZeroWindowInsets (causes double systemBar padding): $missingZeroInsets",
             missingZeroInsets.isEmpty()
+        )
+    }
+
+    @Test
+    fun noNonFrozenIconButtonSpecifiesSizeBelow48dp() {
+        val candidates = listOf(
+            java.io.File("src/main/java/com/ridervoice"),
+            java.io.File("app/src/main/java/com/ridervoice"),
+            java.io.File("mobile-app/app/src/main/java/com/ridervoice")
+        )
+        val root = candidates.firstOrNull { it.isDirectory } ?: error("Cannot find com/ridervoice")
+        val frozen = setOf(
+            "ui/screens/RoomScreen.kt",
+            "ui/screens/room/AudioRouteSheet.kt",
+            "ui/screens/room/AudioVuMeter.kt",
+            "ui/screens/room/DiagnosticsDialog.kt",
+            "ui/screens/room/LeaveRideDialog.kt",
+            "ui/screens/room/SosAlertBanner.kt"
+        )
+        val iconBtnStart = Regex("""\bIconButton\s*\(""")
+        val smallSizeRegex = Regex("""\.size\(\s*(\d+)\.dp\s*\)""")
+        val violations = mutableListOf<String>()
+
+        listOf(java.io.File(root, "MainActivity.kt"), java.io.File(root, "ui"), java.io.File(root, "mesh/ui"))
+            .forEach { target ->
+                val files = if (target.isFile) listOf(target) else target.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
+                for (f in files) {
+                    val rel = f.relativeTo(root).path.replace('\\', '/')
+                    if (rel in frozen) continue
+                    val text = f.readText()
+                    for (m in iconBtnStart.findAll(text)) {
+                        var depth = 1
+                        var idx = m.range.last + 1
+                        while (idx < text.length && depth > 0) {
+                            when (text[idx]) {
+                                '(' -> depth++
+                                ')' -> depth--
+                            }
+                            idx++
+                        }
+                        val headerArgs = text.substring(m.range.first, idx.coerceAtMost(text.length))
+                        for (sm in smallSizeRegex.findAll(headerArgs)) {
+                            val dpVal = sm.groupValues[1].toInt()
+                            if (dpVal < 48) {
+                                violations += "$rel IconButton has size(${dpVal}.dp) < 48.dp"
+                            }
+                        }
+                    }
+                }
+            }
+
+        assertTrue(
+            "IconButtons with touch target < 48dp in non-frozen UI:\n${violations.joinToString("\n")}",
+            violations.isEmpty()
         )
     }
 }

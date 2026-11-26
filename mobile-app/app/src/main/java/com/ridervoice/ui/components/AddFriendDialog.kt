@@ -171,7 +171,7 @@ fun AddFriendDialog(
                                             },
                                             modifier = Modifier
                                                 .padding(end = 4.dp)
-                                                .size(40.dp)
+                                                .size(RvTouchTarget.min)
                                                 .clip(CircleShape)
                                                 .background(MossContainer)
                                                 .border(1.dp, Moss.copy(alpha = 0.45f), CircleShape)

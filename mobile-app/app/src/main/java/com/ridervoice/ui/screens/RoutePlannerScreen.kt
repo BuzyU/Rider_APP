@@ -138,7 +138,7 @@ fun RoutePlannerScreen(
                 IconButton(
                     onClick = { showMenuDropdown = true },
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(RvTouchTarget.min)
                         .clip(CircleShape)
                         .background(PaperRaised)
                         .border(1.dp, InkHairline, CircleShape)

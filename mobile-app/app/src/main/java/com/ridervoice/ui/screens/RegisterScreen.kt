@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 package com.ridervoice.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
@@ -40,6 +41,11 @@ import com.ridervoice.R
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.autofill.AutofillType
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import com.ridervoice.ui.components.rvAutofill
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,12 +61,12 @@ fun RegisterScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val focusManager = LocalFocusManager.current
 
-    var handle by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var handle by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
 
     val passwordsMatch = password == confirmPassword
     val passwordLongEnough = password.length >= 6
@@ -204,9 +210,13 @@ fun RegisterScreen(
                         placeholder = { Text(stringResource(R.string.dialog_add_rider_placeholder), color = InkSecondary) },
                         leadingIcon = { Text("@", color = Pop, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 12.dp)) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("register_handle_field")
+                            .rvAutofill(AutofillType.Username, onFill = { handle = it.trim().removePrefix("@") }),
                         shape = RoundedCornerShape(16.dp),
                         keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
                             keyboardType = KeyboardType.Text,
                             imeAction = ImeAction.Next
                         ),
@@ -228,9 +238,13 @@ fun RegisterScreen(
                         onValueChange = { email = it.trim() },
                         label = { Text(stringResource(R.string.auth_email_label), color = InkSecondary) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("register_email_field")
+                            .rvAutofill(AutofillType.EmailAddress, onFill = { email = it.trim() }),
                         shape = RoundedCornerShape(16.dp),
                         keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
                         ),
@@ -246,9 +260,13 @@ fun RegisterScreen(
                         label = { Text(stringResource(R.string.auth_password_label), color = InkSecondary) },
                         singleLine = true,
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("register_password_field")
+                            .rvAutofill(AutofillType.NewPassword, onFill = { password = it }),
                         shape = RoundedCornerShape(16.dp),
                         keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Next
                         ),
@@ -281,9 +299,13 @@ fun RegisterScreen(
                         label = { Text(stringResource(R.string.auth_confirm_password), color = InkSecondary) },
                         singleLine = true,
                         visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("register_confirm_password_field")
+                            .rvAutofill(AutofillType.NewPassword, onFill = { confirmPassword = it }),
                         shape = RoundedCornerShape(16.dp),
                         keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
                         ),

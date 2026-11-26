@@ -24,6 +24,16 @@ import com.ridervoice.ui.components.RvScreen
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.JoinRoomViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,16 +44,17 @@ fun JoinRoomScreen(
     onJoin: (roomName: String, userName: String) -> Unit,
     viewModel: JoinRoomViewModel = hiltViewModel()
 ) {
+    val focusManager = LocalFocusManager.current
     val currentUser = remember { FirebaseAuth.getInstance().currentUser }
-    var roomCode by remember { mutableStateOf(initialRoomName) }
-    var userName by remember {
+    var roomCode by rememberSaveable(initialRoomName) { mutableStateOf(initialRoomName) }
+    var userName by rememberSaveable {
         mutableStateOf(currentUser?.displayName ?: currentUser?.email?.substringBefore("@") ?: "Rider")
     }
 
     val isTokenConnecting by viewModel.isConnecting.collectAsStateWithLifecycle()
     val tokenError by viewModel.error.collectAsStateWithLifecycle()
 
-    var activeToken by remember { mutableStateOf(initialToken?.takeIf { it.isNotBlank() }) }
+    var activeToken by rememberSaveable(initialToken) { mutableStateOf(initialToken?.takeIf { it.isNotBlank() }) }
     LaunchedEffect(activeToken) {
         activeToken?.let { tok ->
             viewModel.joinViaToken(tok) { roomName ->
@@ -180,7 +191,15 @@ fun JoinRoomScreen(
                 label = { Text(stringResource(R.string.join_callsign_label)) },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = InkSecondary) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                ),
+                modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("join_username_field"),
                 shape = RoundedCornerShape(16.dp),
                 colors = fieldColors
             )
@@ -203,7 +222,22 @@ fun JoinRoomScreen(
                     }
                 },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.None,
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Go
+                ),
+                keyboardActions = KeyboardActions(
+                    onGo = {
+                        focusManager.clearFocus()
+                        if (canJoin) {
+                            viewModel.smartJoin(roomCode.trim(), userName.trim()) { resolvedRoom ->
+                                onJoin(resolvedRoom, userName.trim())
+                            }
+                        }
+                    }
+                ),
+                modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("join_room_code_field"),
                 shape = RoundedCornerShape(16.dp),
                 colors = fieldColors
             )

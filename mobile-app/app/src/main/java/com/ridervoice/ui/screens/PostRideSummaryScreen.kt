@@ -26,6 +26,15 @@ import com.ridervoice.R
 import com.ridervoice.ui.components.ConfirmDialog
 import com.ridervoice.ui.theme.*
 import java.util.Locale
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,11 +49,12 @@ fun PostRideSummaryScreen(
     onSaveToLogbook: (title: String, privacy: String) -> Unit,
     onDiscard: () -> Unit
 ) {
-    var selectedPrivacy by remember { mutableStateOf("SQUAD") }
-    var rideTitle by remember { mutableStateOf("") }
-    var rideNotes by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
+    var selectedPrivacy by rememberSaveable { mutableStateOf("SQUAD") }
+    var rideTitle by rememberSaveable { mutableStateOf("") }
+    var rideNotes by rememberSaveable { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
-    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
+    var showDiscardConfirmDialog by rememberSaveable { mutableStateOf(false) }
 
     val avgSpeedKmh = if (durationMinutes > 0) (distanceKm / (durationMinutes / 60f)) else 0f
     val durationFormatted = if (durationMinutes >= 60) {
@@ -295,8 +305,15 @@ fun PostRideSummaryScreen(
                 onValueChange = { rideTitle = it },
                 placeholder = { Text(stringResource(R.string.summary_title_placeholder), color = InkSecondary) },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .rvBringIntoViewOnFocus()
                     .testTag("summary_ride_title_input"),
                 shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
@@ -312,7 +329,13 @@ fun PostRideSummaryScreen(
                 onValueChange = { rideNotes = it },
                 placeholder = { Text(stringResource(R.string.summary_notes_placeholder), color = InkSecondary) },
                 maxLines = 3,
-                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("summary_ride_notes_input"),
                 shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     focusedBorderColor = Pop,

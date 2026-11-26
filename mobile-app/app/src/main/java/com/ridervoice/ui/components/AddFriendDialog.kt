@@ -29,6 +29,10 @@ import com.ridervoice.models.ProfileResponse
 import com.ridervoice.models.RiderRelation
 import com.ridervoice.models.RiderSearchState
 import com.ridervoice.ui.theme.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +45,7 @@ fun AddFriendDialog(
     onSendRequestToProfile: ((ProfileResponse) -> Unit)? = null,
     onAcceptIncomingProfile: ((ProfileResponse) -> Unit)? = null
 ) {
-    var query by remember { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf("") }
     val supportsLiveSearch = onSearchQueryChange != null
 
     Dialog(
@@ -187,7 +191,11 @@ fun AddFriendDialog(
                                     }
                                 }
                             },
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.None,
+                                keyboardType = KeyboardType.Text,
+                                imeAction = ImeAction.Search
+                            ),
                             keyboardActions = KeyboardActions(
                                 onSearch = {
                                     if (supportsLiveSearch) {
@@ -208,6 +216,7 @@ fun AddFriendDialog(
                             shape = RoundedCornerShape(16.dp),
                             singleLine = true,
                             modifier = Modifier
+                                .rvBringIntoViewOnFocus()
                                 .fillMaxWidth()
                                 .testTag("add_rider_search_input")
                         )

@@ -36,6 +36,19 @@ import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AccountViewModel
 import com.ridervoice.ui.viewmodels.UpdateViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import com.ridervoice.ui.components.rvBringIntoViewOnFocus
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.window.Dialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,7 +60,7 @@ fun AccountScreen(
     onCheckForUpdates: () -> Unit = { updateViewModel.checkForUpdates() }
 ) {
     val uiState by accountViewModel.uiState.collectAsStateWithLifecycle()
-    var showEditDialog by remember { mutableStateOf(false) }
+    var showEditDialog by rememberSaveable { mutableStateOf(false) }
 
     val context = LocalContext.current
 
@@ -449,7 +462,7 @@ private fun AccountInfoRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EditProfileDialog(
+internal fun EditProfileDialog(
     initialDisplayName: String,
     initialHandle: String,
     initialPhone: String,
@@ -459,11 +472,38 @@ private fun EditProfileDialog(
     onDismiss: () -> Unit,
     onSave: (displayName: String, handle: String, phone: String, bikeModel: String, bio: String) -> Unit
 ) {
-    var displayName by remember { mutableStateOf(initialDisplayName) }
-    var handle by remember { mutableStateOf(initialHandle.removePrefix("@")) }
-    var phone by remember { mutableStateOf(initialPhone) }
-    var bikeModel by remember { mutableStateOf(initialBikeModel) }
-    var bio by remember { mutableStateOf(initialBio) }
+    Dialog(onDismissRequest = onDismiss) {
+        EditProfileFormContent(
+            initialDisplayName = initialDisplayName,
+            initialHandle = initialHandle,
+            initialPhone = initialPhone,
+            initialBikeModel = initialBikeModel,
+            initialBio = initialBio,
+            isSaving = isSaving,
+            onDismiss = onDismiss,
+            onSave = onSave
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun EditProfileFormContent(
+    initialDisplayName: String,
+    initialHandle: String,
+    initialPhone: String,
+    initialBikeModel: String,
+    initialBio: String,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (displayName: String, handle: String, phone: String, bikeModel: String, bio: String) -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    var displayName by rememberSaveable { mutableStateOf(initialDisplayName) }
+    var handle by rememberSaveable { mutableStateOf(initialHandle.removePrefix("@")) }
+    var phone by rememberSaveable { mutableStateOf(initialPhone) }
+    var bikeModel by rememberSaveable { mutableStateOf(initialBikeModel) }
+    var bio by rememberSaveable { mutableStateOf(initialBio) }
 
     val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
         focusedBorderColor = Pop,
@@ -473,31 +513,39 @@ private fun EditProfileDialog(
         cursorColor = Pop
     )
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
+    Surface(
         shape = RoundedCornerShape(24.dp),
-        containerColor = PaperRaised,
-        title = {
-            Text(
-                text = stringResource(R.string.account_edit_profile),
-                style = MaterialTheme.typography.titleMedium,
-                color = Ink,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
+        color = PaperRaised,
+        border = BorderStroke(1.dp, InkHairline),
+        modifier = Modifier.fillMaxWidth()
+    ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                Text(
+                    text = stringResource(R.string.account_edit_profile),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Ink,
+                    fontWeight = FontWeight.Bold
+                )
                 OutlinedTextField(
                     value = displayName,
                     onValueChange = { displayName = it },
                     label = { Text(stringResource(R.string.account_display_name)) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     shape = RoundedCornerShape(14.dp),
                     colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("account_display_name_field")
                 )
 
                 OutlinedTextField(
@@ -506,9 +554,15 @@ private fun EditProfileDialog(
                     label = { Text(stringResource(R.string.account_callsign_handle)) },
                     leadingIcon = { Text("@", color = Pop, fontWeight = FontWeight.Bold) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.None,
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     shape = RoundedCornerShape(14.dp),
                     colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("account_handle_field")
                 )
 
                 OutlinedTextField(
@@ -516,9 +570,15 @@ private fun EditProfileDialog(
                     onValueChange = { phone = it },
                     label = { Text(stringResource(R.string.account_phone_number)) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.None,
+                        keyboardType = KeyboardType.Phone,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     shape = RoundedCornerShape(14.dp),
                     colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("account_phone_field")
                 )
 
                 OutlinedTextField(
@@ -526,9 +586,15 @@ private fun EditProfileDialog(
                     onValueChange = { bikeModel = it },
                     label = { Text(stringResource(R.string.account_motorcycle_hint)) },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     shape = RoundedCornerShape(14.dp),
                     colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("account_bike_field")
                 )
 
                 OutlinedTextField(
@@ -536,30 +602,41 @@ private fun EditProfileDialog(
                     onValueChange = { bio = it },
                     label = { Text(stringResource(R.string.account_bio)) },
                     maxLines = 3,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(onDone = {
+                        focusManager.clearFocus()
+                        if (!isSaving) onSave(displayName, handle, phone, bikeModel, bio)
+                    }),
                     shape = RoundedCornerShape(14.dp),
                     colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("account_bio_field")
                 )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onSave(displayName, handle, phone, bikeModel, bio) },
-                enabled = !isSaving,
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Pop)
-            ) {
-                if (isSaving) {
-                    CircularProgressIndicator(color = PaperOnPop, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.action_cancel), color = Ink)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = { onSave(displayName, handle, phone, bikeModel, bio) },
+                        enabled = !isSaving,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Pop)
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(color = PaperOnPop, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        Text(stringResource(R.string.action_save), color = PaperOnPop, fontWeight = FontWeight.Bold)
+                    }
                 }
-                Text(stringResource(R.string.action_save), color = PaperOnPop, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel), color = Ink)
             }
         }
-    )
 }

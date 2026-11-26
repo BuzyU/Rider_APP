@@ -22,6 +22,16 @@ import com.ridervoice.ui.components.*
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.HostSetupViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,16 +45,17 @@ fun HostSetupScreen(
     val error by viewModel.error.collectAsStateWithLifecycle()
     val createState by viewModel.createState.collectAsStateWithLifecycle()
 
-    var convoyName by remember { mutableStateOf("") }
-    var meetupPoint by remember { mutableStateOf("") }
-    var destination by remember { mutableStateOf("") }
-    var origin by remember { mutableStateOf("") }
-    var diagnosticsEnabled by remember { mutableStateOf(false) }
-    var moreOptionsExpanded by remember { mutableStateOf(false) }
-    var showDiscardDialog by remember { mutableStateOf(false) }
-    var showLearnMoreSheet by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    var convoyName by rememberSaveable { mutableStateOf("") }
+    var meetupPoint by rememberSaveable { mutableStateOf("") }
+    var destination by rememberSaveable { mutableStateOf("") }
+    var origin by rememberSaveable { mutableStateOf("") }
+    var diagnosticsEnabled by rememberSaveable { mutableStateOf(false) }
+    var moreOptionsExpanded by rememberSaveable { mutableStateOf(false) }
+    var showDiscardDialog by rememberSaveable { mutableStateOf(false) }
+    var showLearnMoreSheet by rememberSaveable { mutableStateOf(false) }
 
-    val clientRequestId = remember { viewModel.getOrCreateClientRequestId() }
+    val clientRequestId = rememberSaveable { viewModel.getOrCreateClientRequestId() }
 
     val isDirty = convoyName.isNotBlank() || origin.isNotBlank() || destination.isNotBlank() || meetupPoint.isNotBlank()
     val isNameValid = convoyName.trim().length in 3..40
@@ -177,7 +188,15 @@ fun HostSetupScreen(
             },
             isError = convoyName.isNotBlank() && !isNameValid,
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Next
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+            ),
+            modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("host_convoy_name_field"),
             shape = RoundedCornerShape(16.dp),
             colors = fieldColors
         )
@@ -191,7 +210,15 @@ fun HostSetupScreen(
             label = { Text(stringResource(R.string.create_ride_meetup_label)) },
             placeholder = { Text(stringResource(R.string.host_meetup_placeholder), color = InkSecondary) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Next
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+            ),
+            modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("host_meetup_field"),
             shape = RoundedCornerShape(16.dp),
             colors = fieldColors
         )
@@ -205,7 +232,15 @@ fun HostSetupScreen(
             label = { Text(stringResource(R.string.create_ride_destination_label)) },
             placeholder = { Text(stringResource(R.string.host_dest_placeholder), color = InkSecondary) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Next
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+            ),
+            modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("host_destination_field"),
             shape = RoundedCornerShape(16.dp),
             colors = fieldColors
         )
@@ -219,7 +254,27 @@ fun HostSetupScreen(
             label = { Text(stringResource(R.string.host_start_label)) },
             placeholder = { Text(stringResource(R.string.host_start_placeholder), color = InkSecondary) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    focusManager.clearFocus()
+                    if (canCreate) {
+                        viewModel.createConvoy(
+                            convoyName = convoyName.trim(),
+                            origin = origin.trim().ifBlank { null },
+                            destination = destination.trim().ifBlank { null },
+                            meetupPoint = meetupPoint.trim().ifBlank { null },
+                            diagnosticsEnabled = diagnosticsEnabled,
+                            clientRequestId = clientRequestId
+                        )
+                    }
+                }
+            ),
+            modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("host_origin_field"),
             shape = RoundedCornerShape(16.dp),
             colors = fieldColors
         )

@@ -32,6 +32,7 @@ import com.ridervoice.ui.screens.InviteFriendsContent
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.LobbyViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @Composable
 fun AddRidersBottomSheet(
@@ -40,13 +41,13 @@ fun AddRidersBottomSheet(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
 
     val shareLink by lobbyViewModel.shareLink.collectAsStateWithLifecycle()
     val isGeneratingLink by lobbyViewModel.isGeneratingLink.collectAsStateWithLifecycle()
     val linkError by lobbyViewModel.linkError.collectAsStateWithLifecycle()
 
-    var isCopied by remember { mutableStateOf(false) }
+    var isCopied by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(selectedTab) {
         if (selectedTab == 1 && shareLink == null) {

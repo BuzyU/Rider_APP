@@ -41,6 +41,15 @@ import com.ridervoice.ui.viewmodels.RoutePlannerViewModel
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 
 private const val PREFS_NAME = "ridervoice_route_prefs"
 private const val KEY_MAPBOX_TOKEN = "mapbox_token"
@@ -77,13 +86,14 @@ fun RoutePlannerScreen(
     val effectiveToken = if (isValidMapboxToken(userCustomToken)) userCustomToken else resToken
     val hasValidToken = isValidMapboxToken(effectiveToken)
 
-    var useRadarMode by remember { mutableStateOf(!hasValidToken) }
-    var showTokenDialog by remember { mutableStateOf(false) }
-    var inputTokenText by remember { mutableStateOf(userCustomToken) }
+    val focusManager = LocalFocusManager.current
+    var useRadarMode by rememberSaveable { mutableStateOf(!hasValidToken) }
+    var showTokenDialog by rememberSaveable { mutableStateOf(false) }
+    var inputTokenText by rememberSaveable { mutableStateOf(userCustomToken) }
 
-    var selectedPreference by remember { mutableStateOf("scenic") }
+    var selectedPreference by rememberSaveable { mutableStateOf("scenic") }
     val preferenceKeys = listOf("fastest", "scenic", "twisty", "offroad")
-    var showMenuDropdown by remember { mutableStateOf(false) }
+    var showMenuDropdown by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(effectiveToken, hasValidToken) {
         if (hasValidToken) {
@@ -223,7 +233,13 @@ fun RoutePlannerScreen(
                 OutlinedTextField(
                     value = uiState.origin,
                     onValueChange = { viewModel.updateOrigin(it) },
-                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus(),
                     placeholder = { Text(stringResource(R.string.route_origin_placeholder), color = InkSecondary) },
                     leadingIcon = {
                         IconButton(onClick = { viewModel.useCurrentLocation() }) {
@@ -240,7 +256,13 @@ fun RoutePlannerScreen(
                 OutlinedTextField(
                     value = uiState.destination,
                     onValueChange = { viewModel.updateDestination(it) },
-                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Search
+                    ),
+                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                    modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus(),
                     placeholder = { Text(stringResource(R.string.route_dest_short), color = InkSecondary) },
                     leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = stringResource(R.string.route_dest_short), tint = Pop) },
                     singleLine = true,
@@ -530,9 +552,15 @@ fun RoutePlannerScreen(
                         onValueChange = { inputTokenText = it },
                         placeholder = { Text("pk.eyJ...", color = InkSecondary) },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
+                            keyboardType = KeyboardType.Ascii,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                         shape = RoundedCornerShape(14.dp),
                         colors = fieldColors,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus()
                     )
                 }
             },

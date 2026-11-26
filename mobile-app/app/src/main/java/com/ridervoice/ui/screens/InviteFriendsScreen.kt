@@ -29,6 +29,15 @@ import com.ridervoice.ui.components.PrimaryButton
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.InviteFriendsViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,9 +120,15 @@ fun InviteFriendsContent(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
 
-    val invitedIds = remember { mutableStateListOf<String>() }
-    var searchQuery by remember { mutableStateOf("") }
-    var showAddFriendDialog by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val invitedIds = rememberSaveable(
+        saver = listSaver(
+            save = { it.toList() },
+            restore = { mutableStateListOf<String>().apply { addAll(it) } }
+        )
+    ) { mutableStateListOf<String>() }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var showAddFriendDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadFriends()
@@ -188,9 +203,16 @@ fun InviteFriendsContent(
                 placeholder = { Text(stringResource(R.string.squad_filter_placeholder), color = InkSecondary, style = MaterialTheme.typography.bodyMedium) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search), tint = InkSecondary) },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.None,
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Search
+                ),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .rvBringIntoViewOnFocus(),
                 shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     focusedBorderColor = Pop,

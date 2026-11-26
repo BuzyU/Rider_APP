@@ -43,6 +43,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +56,7 @@ fun RideStatsScreen(
     val context = LocalContext.current
 
     val filterKeys = listOf("all", "month", "synced", "longest")
-    var selectedFilter by remember { mutableStateOf("all") }
+    var selectedFilter by rememberSaveable { mutableStateOf("all") }
 
     val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
     val currentMonthKey = remember {

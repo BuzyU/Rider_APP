@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 package com.ridervoice.ui.screens
 
 import androidx.activity.compose.BackHandler
@@ -46,6 +47,12 @@ import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.autofill.AutofillType
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import com.ridervoice.ui.components.rvAutofill
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,11 +73,11 @@ fun LoginScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val focusManager = LocalFocusManager.current
 
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var showForgotPassword by remember { mutableStateOf(false) }
-    var forgotEmail by remember { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var showForgotPassword by rememberSaveable { mutableStateOf(false) }
+    var forgotEmail by rememberSaveable { mutableStateOf("") }
 
     BackHandler(enabled = showForgotPassword) {
         showForgotPassword = false
@@ -243,9 +250,13 @@ fun LoginScreen(
                             onValueChange = { email = it.trim() },
                             label = { Text(stringResource(R.string.auth_email_label), color = InkSecondary) },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("login_email_field")
+                                .rvAutofill(AutofillType.EmailAddress, onFill = { email = it.trim() }),
                             shape = RoundedCornerShape(16.dp),
                             keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.None,
                                 keyboardType = KeyboardType.Email,
                                 imeAction = ImeAction.Next
                             ),
@@ -263,9 +274,13 @@ fun LoginScreen(
                             label = { Text(stringResource(R.string.auth_password_label), color = InkSecondary) },
                             singleLine = true,
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("login_password_field")
+                                .rvAutofill(AutofillType.Password, onFill = { password = it }),
                             shape = RoundedCornerShape(16.dp),
                             keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.None,
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Done
                             ),
@@ -458,9 +473,13 @@ fun LoginScreen(
                             onValueChange = { forgotEmail = it.trim() },
                             label = { Text(stringResource(R.string.auth_registered_email), color = InkSecondary) },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("login_forgot_email_field")
+                                .rvAutofill(AutofillType.EmailAddress, onFill = { forgotEmail = it.trim() }),
                             shape = RoundedCornerShape(16.dp),
                             keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.None,
                                 keyboardType = KeyboardType.Email,
                                 imeAction = ImeAction.Done
                             ),

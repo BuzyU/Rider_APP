@@ -79,6 +79,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 
 private val PaperSurface get() = MeshColors.LobbyBackground
 private val CardDark get() = MeshColors.LobbyCard
@@ -99,10 +101,10 @@ fun OfflineMeshLobbyScreen(
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    var generatedCode by remember { mutableStateOf<String?>(null) }
-    var joinCodeInput by remember { mutableStateOf("") }
-    var joinError by remember { mutableStateOf<String?>(null) }
-    var useAsBackup by remember { mutableStateOf(viewModel.isMicOwnedByLiveKit()) }
+    var generatedCode by rememberSaveable { mutableStateOf<String?>(null) }
+    var joinCodeInput by rememberSaveable { mutableStateOf("") }
+    var joinError by rememberSaveable { mutableStateOf<String?>(null) }
+    var useAsBackup by rememberSaveable { mutableStateOf(viewModel.isMicOwnedByLiveKit()) }
 
     val backupSession by viewModel.backupSession.collectAsStateWithLifecycle()
     val isDerivingKey by viewModel.isDerivingKey.collectAsStateWithLifecycle()
@@ -111,7 +113,7 @@ fun OfflineMeshLobbyScreen(
     val diagSnapshot by viewModel.transport.diagnostics.collectAsStateWithLifecycle()
 
     var localIp by remember { mutableStateOf<String?>(null) }
-    var bcastAddr by remember { mutableStateOf("255.255.255.255") }
+    var bcastAddr by rememberSaveable { mutableStateOf("255.255.255.255") }
     var elapsedZeroNeighboursSec by remember { mutableLongStateOf(0L) }
     val neighboursCount = diagSnapshot.authenticatedNeighborsLast10s
 
@@ -632,7 +634,7 @@ fun OfflineMeshLobbyScreen(
                             unfocusedBorderColor = MeshColors.LobbyBorderUnfocused,
                             textColor = InkPrimary
                         ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus()
                     )
 
                     if (joinError != null || sessionError) {

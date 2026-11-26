@@ -23,6 +23,7 @@ import com.ridervoice.ui.components.PrimaryButton
 import com.ridervoice.ui.components.RvScreen
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.JoinRoomViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,8 +40,8 @@ fun JoinRoomScreen(
         mutableStateOf(currentUser?.displayName ?: currentUser?.email?.substringBefore("@") ?: "Rider")
     }
 
-    val isTokenConnecting by viewModel.isConnecting.collectAsState()
-    val tokenError by viewModel.error.collectAsState()
+    val isTokenConnecting by viewModel.isConnecting.collectAsStateWithLifecycle()
+    val tokenError by viewModel.error.collectAsStateWithLifecycle()
 
     var activeToken by remember { mutableStateOf(initialToken?.takeIf { it.isNotBlank() }) }
     LaunchedEffect(activeToken) {

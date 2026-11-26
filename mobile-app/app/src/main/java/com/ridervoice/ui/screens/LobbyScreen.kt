@@ -35,6 +35,7 @@ import com.ridervoice.ui.components.*
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.LobbyLoadState
 import com.ridervoice.ui.viewmodels.LobbyViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,11 +48,11 @@ fun LobbyScreen(
     onInviteMoreClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val lobbyStatus by viewModel.lobbyStatus.collectAsState()
-    val loadState by viewModel.loadState.collectAsState()
-    val activeRide by viewModel.activeRideState.collectAsState()
-    val error by viewModel.error.collectAsState()
-    val terminal by viewModel.terminal.collectAsState()
+    val lobbyStatus by viewModel.lobbyStatus.collectAsStateWithLifecycle()
+    val loadState by viewModel.loadState.collectAsStateWithLifecycle()
+    val activeRide by viewModel.activeRideState.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+    val terminal by viewModel.terminal.collectAsStateWithLifecycle()
 
     var showExitDialog by remember { mutableStateOf(false) }
     var showStartAloneDialog by remember { mutableStateOf(false) }

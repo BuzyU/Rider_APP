@@ -28,6 +28,7 @@ import com.ridervoice.ui.components.InlineError
 import com.ridervoice.ui.components.PrimaryButton
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.InviteFriendsViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,9 +107,9 @@ fun InviteFriendsContent(
     onNavigateToSquad: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val friends by viewModel.friends.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
+    val friends by viewModel.friends.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
 
     val invitedIds = remember { mutableStateListOf<String>() }
     var searchQuery by remember { mutableStateOf("") }

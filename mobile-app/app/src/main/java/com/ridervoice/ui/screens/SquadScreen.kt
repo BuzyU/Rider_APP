@@ -42,6 +42,7 @@ import com.ridervoice.ui.components.InlineError
 import com.ridervoice.ui.components.RvPullToRefreshContainer
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.SquadViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +52,7 @@ fun SquadScreen(
     onOpenRequests: () -> Unit = {},
     viewModel: SquadViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val currentUserId = remember {
         try {

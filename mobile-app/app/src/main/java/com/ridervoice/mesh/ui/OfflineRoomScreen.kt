@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,21 +48,21 @@ fun OfflineRoomScreen(
     diagnosticsRepo: MeshDiagnosticsRepository? = null
 ) {
     com.ridervoice.ui.theme.KeepRideScreenOnEffect()
-    val transportState by transport.state.collectAsState()
-    val peers by transport.participants.collectAsState()
-    val activeSpeakers by transport.activeSpeakers.collectAsState()
-    val micState by transport.micState.collectAsState()
-    val diagSnapshot = ((transport as? OfflineMeshVoiceTransport)?.diagnostics ?: diagnosticsRepo?.snapshot)?.collectAsState()?.value
+    val transportState by transport.state.collectAsStateWithLifecycle()
+    val peers by transport.participants.collectAsStateWithLifecycle()
+    val activeSpeakers by transport.activeSpeakers.collectAsStateWithLifecycle()
+    val micState by transport.micState.collectAsStateWithLifecycle()
+    val diagSnapshot = ((transport as? OfflineMeshVoiceTransport)?.diagnostics ?: diagnosticsRepo?.snapshot)?.collectAsStateWithLifecycle()?.value
     val coroutineScope = rememberCoroutineScope()
 
     val meshTransport = transport as? OfflineMeshVoiceTransport
     val micController = meshTransport?.micController
     val voxBridge = meshTransport?.voxBridge
-    val micToggleOn by (micController?.micToggleOn ?: MutableStateFlow(false)).collectAsState()
-    val isVoxEnabled by (micController?.voxEnabled ?: voxBridge?.voxEnabled ?: MutableStateFlow(false)).collectAsState()
-    val isPttActive by (micController?.pttHeld ?: voxBridge?.isPttActive ?: MutableStateFlow(false)).collectAsState()
-    val activeRoute by (meshTransport?.audioRoute ?: MutableStateFlow(AudioRoute.SPEAKER)).collectAsState()
-    val transportDeafened by (meshTransport?.deafened ?: MutableStateFlow(false)).collectAsState()
+    val micToggleOn by (micController?.micToggleOn ?: MutableStateFlow(false)).collectAsStateWithLifecycle()
+    val isVoxEnabled by (micController?.voxEnabled ?: voxBridge?.voxEnabled ?: MutableStateFlow(false)).collectAsStateWithLifecycle()
+    val isPttActive by (micController?.pttHeld ?: voxBridge?.isPttActive ?: MutableStateFlow(false)).collectAsStateWithLifecycle()
+    val activeRoute by (meshTransport?.audioRoute ?: MutableStateFlow(AudioRoute.SPEAKER)).collectAsStateWithLifecycle()
+    val transportDeafened by (meshTransport?.deafened ?: MutableStateFlow(false)).collectAsStateWithLifecycle()
 
     var localDeafened by remember { mutableStateOf(false) }
     val isDeafened = if (meshTransport != null) transportDeafened else localDeafened

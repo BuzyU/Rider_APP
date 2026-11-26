@@ -27,6 +27,7 @@ import com.ridervoice.ui.components.ConfirmDialog
 import com.ridervoice.ui.components.InlineError
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.InvitesInboxViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun InvitesInboxScreen(
@@ -35,9 +36,9 @@ fun InvitesInboxScreen(
     onBackClick: () -> Unit,
     onHostRideClick: () -> Unit = {}
 ) {
-    val invites by viewModel.invites.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
+    val invites by viewModel.invites.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
 
     var inviteToDecline by remember { mutableStateOf<RideInvite?>(null) }
     var processingInviteId by remember { mutableStateOf<String?>(null) }

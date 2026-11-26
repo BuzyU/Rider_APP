@@ -34,13 +34,14 @@ import com.ridervoice.ui.components.InlineError
 import com.ridervoice.ui.components.RvPullToRefreshContainer
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.SquadViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun SquadRequestsScreen(
     onBackClick: () -> Unit,
     viewModel: SquadViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentUserId = remember {
         try {
             FirebaseAuth.getInstance().currentUser?.uid

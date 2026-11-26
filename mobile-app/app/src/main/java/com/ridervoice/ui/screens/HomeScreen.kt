@@ -35,6 +35,7 @@ import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.HomeViewModel
 import com.ridervoice.utils.OEMBatteryWarning
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +54,7 @@ fun HomeScreen(
     onAccountClick: () -> Unit = {},
     onLogoutSuccess: () -> Unit = {}
 ) {
-    val uiState = viewModel.uiState.collectAsState().value
+    val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
 
     var showBatteryWarning by remember { mutableStateOf(OEMBatteryWarning.isAggressiveOEM()) }
 

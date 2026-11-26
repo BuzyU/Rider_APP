@@ -35,6 +35,7 @@ import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AuthViewModel
 import com.ridervoice.ui.viewmodels.SettingsViewModel
 import com.ridervoice.ui.viewmodels.UpdateViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun SettingsScreen(
@@ -48,7 +49,7 @@ fun SettingsScreen(
     onSignOutSuccess: () -> Unit = {},
     onNavigateToOfflineMeshLobby: () -> Unit = {}
 ) {
-    val settingsState by settingsViewModel.settingsState.collectAsState()
+    val settingsState by settingsViewModel.settingsState.collectAsStateWithLifecycle()
 
     var showOptionsDialog by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
     var showSignOutConfirmDialog by remember { mutableStateOf(false) }
@@ -288,7 +289,7 @@ fun SettingsScreen(
         }
 
         val context = LocalContext.current
-        val updateState by updateViewModel.uiState.collectAsState()
+        val updateState by updateViewModel.uiState.collectAsStateWithLifecycle()
         UpdateDialog(
             uiState = updateState,
             onConfirmDownload = { updateViewModel.promptDownloadConfirmation(it) },
@@ -434,7 +435,7 @@ fun SettingsScreen(
             )
         }
 
-        val showDisclosure by settingsViewModel.showDiagnosticDisclosure.collectAsState()
+        val showDisclosure by settingsViewModel.showDiagnosticDisclosure.collectAsStateWithLifecycle()
         if (showDisclosure) {
             AlertDialog(
                 onDismissRequest = { settingsViewModel.dismissDiagnosticDisclosure() },

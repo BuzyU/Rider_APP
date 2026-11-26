@@ -9,7 +9,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -47,7 +47,7 @@ fun NavGraph(
         }
     }
 
-    val pendingDeepLink by DeepLinkHolder.pendingToken.collectAsState()
+    val pendingDeepLink by DeepLinkHolder.pendingToken.collectAsStateWithLifecycle()
     LaunchedEffect(pendingDeepLink) {
         val token = pendingDeepLink
         if (!token.isNullOrBlank()) {
@@ -370,7 +370,7 @@ fun NavGraph(
         ) { back ->
             val roomName = back.arguments?.getString("roomName") ?: ""
             val vm: com.ridervoice.ui.viewmodels.SosViewModel = androidx.hilt.navigation.compose.hiltViewModel()
-            val state by vm.state.collectAsState()
+            val state by vm.state.collectAsStateWithLifecycle()
 
             SosScreen(
                 state = state,
@@ -387,7 +387,7 @@ fun NavGraph(
 
         composable(Routes.POST_RIDE_SUMMARY) {
             val vm: com.ridervoice.ui.viewmodels.PostRideSummaryViewModel = androidx.hilt.navigation.compose.hiltViewModel()
-            val summary by vm.summary.collectAsState()
+            val summary by vm.summary.collectAsStateWithLifecycle()
 
             val current = summary
             if (current == null) {
@@ -487,7 +487,7 @@ fun NavGraph(
         ) { backStackEntry ->
             val rideId = backStackEntry.arguments?.getString("rideId") ?: "latest"
             val statsVm: com.ridervoice.ui.viewmodels.RideStatsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
-            val replay by statsVm.replayData.collectAsState()
+            val replay by statsVm.replayData.collectAsStateWithLifecycle()
             LaunchedEffect(rideId) {
                 statsVm.loadReplay(rideId)
             }
@@ -524,7 +524,7 @@ fun NavGraph(
             }
             com.ridervoice.ui.theme.KeepRideScreenOnEffect()
             val viewModel: com.ridervoice.mesh.ui.OfflineMeshViewModel = androidx.hilt.navigation.compose.hiltViewModel()
-            val session by viewModel.activeSession.collectAsState()
+            val session by viewModel.activeSession.collectAsStateWithLifecycle()
             val s = session ?: run {
                 LaunchedEffect(Unit) {
                     navController.popBackStack()
@@ -533,7 +533,7 @@ fun NavGraph(
             }
             val context = LocalContext.current
             val transport = viewModel.transport
-            val liveKitConflict by viewModel.liveKitConflictError.collectAsState()
+            val liveKitConflict by viewModel.liveKitConflictError.collectAsStateWithLifecycle()
 
             LaunchedEffect(s.sessionId) {
                 viewModel.startSession(s)

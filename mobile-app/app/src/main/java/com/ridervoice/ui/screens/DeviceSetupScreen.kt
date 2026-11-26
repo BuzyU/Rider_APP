@@ -35,6 +35,7 @@ import com.ridervoice.ui.components.PrimaryButton
 import com.ridervoice.ui.components.SecondaryButton
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.DeviceSetupViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun DeviceSetupScreen(
@@ -45,11 +46,11 @@ fun DeviceSetupScreen(
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val routerState by viewModel.routerState.collectAsState()
-    val activeDevice by viewModel.activeDevice.collectAsState()
-    val requestedDevice by viewModel.requestedDevice.collectAsState()
-    val routedInput by viewModel.routedInput.collectAsState()
-    val routedOutput by viewModel.routedOutput.collectAsState()
+    val routerState by viewModel.routerState.collectAsStateWithLifecycle()
+    val activeDevice by viewModel.activeDevice.collectAsStateWithLifecycle()
+    val requestedDevice by viewModel.requestedDevice.collectAsStateWithLifecycle()
+    val routedInput by viewModel.routedInput.collectAsStateWithLifecycle()
+    val routedOutput by viewModel.routedOutput.collectAsStateWithLifecycle()
 
     val isBluetoothActive = activeDevice is AudioDevice.BluetoothSco
     var selectedRouteType by remember(activeDevice) {

@@ -26,7 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -114,27 +114,27 @@ fun OfflineAwareRoomHost(
     viewModel: OfflineAwareRoomViewModel = hiltViewModel(),
     onPairBackupClick: (() -> Unit)? = null
 ) {
-    val autoSwitchState by viewModel.autoSwitchState.collectAsState()
-    val groupStatus by viewModel.groupStatus.collectAsState()
-    val meshParticipants by viewModel.meshParticipants.collectAsState()
-    val diagSnapshot by viewModel.meshDiagSnapshot.collectAsState()
-    val lastTransitionReason by viewModel.lastTransitionReason.collectAsState()
-    val offlineAvailability by viewModel.offlineAvailability.collectAsState()
+    val autoSwitchState by viewModel.autoSwitchState.collectAsStateWithLifecycle()
+    val groupStatus by viewModel.groupStatus.collectAsStateWithLifecycle()
+    val meshParticipants by viewModel.meshParticipants.collectAsStateWithLifecycle()
+    val diagSnapshot by viewModel.meshDiagSnapshot.collectAsStateWithLifecycle()
+    val lastTransitionReason by viewModel.lastTransitionReason.collectAsStateWithLifecycle()
+    val offlineAvailability by viewModel.offlineAvailability.collectAsStateWithLifecycle()
 
-    val transportState by viewModel.transportState.collectAsState()
-    val activeSpeakers by viewModel.activeSpeakers.collectAsState()
-    val micState by viewModel.micState.collectAsState()
-    val activeRoute by viewModel.audioRoute.collectAsState()
-    val isDeafened by viewModel.deafened.collectAsState()
-    val backupSession by viewModel.backupSession.collectAsState()
+    val transportState by viewModel.transportState.collectAsStateWithLifecycle()
+    val activeSpeakers by viewModel.activeSpeakers.collectAsStateWithLifecycle()
+    val micState by viewModel.micState.collectAsStateWithLifecycle()
+    val activeRoute by viewModel.audioRoute.collectAsStateWithLifecycle()
+    val isDeafened by viewModel.deafened.collectAsStateWithLifecycle()
+    val backupSession by viewModel.backupSession.collectAsStateWithLifecycle()
     val micController = viewModel.micController
-    val micToggleOn by micController.micToggleOn.collectAsState()
-    val isVoxEnabled by micController.voxEnabled.collectAsState()
-    val isPttActive by micController.pttHeld.collectAsState()
+    val micToggleOn by micController.micToggleOn.collectAsStateWithLifecycle()
+    val isVoxEnabled by micController.voxEnabled.collectAsStateWithLifecycle()
+    val isPttActive by micController.pttHeld.collectAsStateWithLifecycle()
 
     var showDiagDialog by remember { mutableStateOf(false) }
 
-    val settingsSnapshot by OfflineMeshGate.settingsFlow.collectAsState()
+    val settingsSnapshot by OfflineMeshGate.settingsFlow.collectAsStateWithLifecycle()
     val isMeshGateOpen = OfflineMeshGate.isOfflineAllowed(offlineMeshEnabled = settingsSnapshot.offlineMeshEnabled)
 
     val isMeshOverlayActive = isMeshGateOpen && autoSwitchState in setOf(

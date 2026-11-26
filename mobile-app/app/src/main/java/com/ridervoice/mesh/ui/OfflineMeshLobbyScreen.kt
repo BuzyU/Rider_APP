@@ -52,7 +52,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -104,11 +104,11 @@ fun OfflineMeshLobbyScreen(
     var joinError by remember { mutableStateOf<String?>(null) }
     var useAsBackup by remember { mutableStateOf(viewModel.isMicOwnedByLiveKit()) }
 
-    val backupSession by viewModel.backupSession.collectAsState()
-    val isDerivingKey by viewModel.isDerivingKey.collectAsState()
-    val sessionError by viewModel.sessionError.collectAsState()
-    val audioFailure by viewModel.audioFailure.collectAsState()
-    val diagSnapshot by viewModel.transport.diagnostics.collectAsState()
+    val backupSession by viewModel.backupSession.collectAsStateWithLifecycle()
+    val isDerivingKey by viewModel.isDerivingKey.collectAsStateWithLifecycle()
+    val sessionError by viewModel.sessionError.collectAsStateWithLifecycle()
+    val audioFailure by viewModel.audioFailure.collectAsStateWithLifecycle()
+    val diagSnapshot by viewModel.transport.diagnostics.collectAsStateWithLifecycle()
 
     var localIp by remember { mutableStateOf<String?>(null) }
     var bcastAddr by remember { mutableStateOf("255.255.255.255") }

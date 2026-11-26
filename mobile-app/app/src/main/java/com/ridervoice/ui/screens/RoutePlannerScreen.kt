@@ -40,6 +40,7 @@ import com.ridervoice.ui.viewmodels.NearbyRider
 import com.ridervoice.ui.viewmodels.RoutePlannerViewModel
 import kotlin.math.cos
 import kotlin.math.sin
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private const val PREFS_NAME = "ridervoice_route_prefs"
 private const val KEY_MAPBOX_TOKEN = "mapbox_token"
@@ -57,7 +58,7 @@ fun RoutePlannerScreen(
     viewModel: RoutePlannerViewModel = hiltViewModel(),
     onBackClick: () -> Unit
 ) {
-    val uiState = viewModel.uiState.collectAsState().value
+    val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
     val context = LocalContext.current
 
     val sharedPrefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }

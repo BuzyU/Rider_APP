@@ -21,6 +21,7 @@ import com.ridervoice.R
 import com.ridervoice.ui.components.*
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.HostSetupViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,9 +31,9 @@ fun HostSetupScreen(
     onBackClick: () -> Unit,
     onImportRouteClick: () -> Unit = {}
 ) {
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
-    val createState by viewModel.createState.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+    val createState by viewModel.createState.collectAsStateWithLifecycle()
 
     var convoyName by remember { mutableStateOf("") }
     var meetupPoint by remember { mutableStateOf("") }

@@ -35,6 +35,7 @@ import com.ridervoice.ui.components.UpdateDialog
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.AccountViewModel
 import com.ridervoice.ui.viewmodels.UpdateViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +46,7 @@ fun AccountScreen(
     onNavigateToSettings: () -> Unit = {},
     onCheckForUpdates: () -> Unit = { updateViewModel.checkForUpdates() }
 ) {
-    val uiState by accountViewModel.uiState.collectAsState()
+    val uiState by accountViewModel.uiState.collectAsStateWithLifecycle()
     var showEditDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -377,7 +378,7 @@ fun AccountScreen(
             )
         }
 
-        val updateState by updateViewModel.uiState.collectAsState()
+        val updateState by updateViewModel.uiState.collectAsStateWithLifecycle()
         UpdateDialog(
             uiState = updateState,
             onConfirmDownload = { updateViewModel.promptDownloadConfirmation(it) },

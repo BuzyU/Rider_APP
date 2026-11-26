@@ -14,7 +14,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -104,7 +104,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val appLang by securePreferences.appLanguage.collectAsState()
+            val appLang by securePreferences.appLanguage.collectAsStateWithLifecycle()
             val localizedContext = remember(appLang) {
                 com.ridervoice.utils.LocaleHelper.getLocalizedContext(this@MainActivity, appLang)
             }

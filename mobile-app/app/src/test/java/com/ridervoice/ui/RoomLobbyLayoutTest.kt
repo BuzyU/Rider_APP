@@ -690,4 +690,38 @@ class RoomLobbyLayoutTest {
                 recomposedRiders.all { it == "rider-2" || it == "rider-5" }
         )
     }
+
+    @Test
+    fun composeStabilityConf_containsNoWildcardsCollectionsOrMutableClasses() {
+        val confFile = listOf(
+            java.io.File("compose-stability.conf"),
+            java.io.File("app/compose-stability.conf"),
+            java.io.File("mobile-app/app/compose-stability.conf")
+        ).firstOrNull { it.exists() } ?: error("Could not find compose-stability.conf")
+
+        val entries = confFile.readLines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("//") && !it.startsWith("#") }
+
+        assertTrue("compose-stability.conf must declare explicit immutable entries", entries.isNotEmpty())
+        val forbiddenSubstrings = listOf(
+            "*",
+            "kotlin.collections.",
+            "java.util.",
+            "android.location.Location",
+            "RideSession"
+        )
+        for (entry in entries) {
+            for (bad in forbiddenSubstrings) {
+                assertTrue(
+                    "compose-stability.conf entry '$entry' contains forbidden pattern '$bad'",
+                    !entry.contains(bad)
+                )
+            }
+            assertTrue(
+                "compose-stability.conf entry '$entry' must be an explicit com.ridervoice.* FQCN",
+                entry.startsWith("com.ridervoice.")
+            )
+        }
+    }
 }

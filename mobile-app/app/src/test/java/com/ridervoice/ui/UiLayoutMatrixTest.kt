@@ -52,7 +52,10 @@ import com.ridervoice.audio.RouterState
 import com.ridervoice.models.Participant
 import com.ridervoice.navigation.Routes
 import com.ridervoice.network.ConnectionState
+import com.ridervoice.R
+import com.ridervoice.ui.components.MoreMenuBottomSheet
 import com.ridervoice.ui.components.PrimaryButton
+import androidx.compose.ui.test.onAllNodesWithText
 import com.ridervoice.ui.components.RvBottomNavIconNameKey
 import com.ridervoice.ui.components.RvBottomNavigationBar
 import com.ridervoice.ui.components.TabProfileAvatar
@@ -951,6 +954,34 @@ class UiLayoutMatrixTest {
         assertTrue(
             "Found raw Material Icons references outside RvIcons.kt and frozen files:\n${violations.joinToString("\n")}",
             violations.isEmpty()
+        )
+    }
+
+    @Test
+    fun moreMenuBottomSheet_omitsDuplicateSettings_whileBottomBarRetainsSettingsTab() {
+        val ctx = ApplicationProvider.getApplicationContext<Application>()
+        val accountLabel = ctx.getString(R.string.menu_account_title)
+        val audioLabel = ctx.getString(R.string.menu_audio_title)
+        val settingsLabel = ctx.getString(R.string.nav_settings)
+
+        composeRule.setContent {
+            RiderVoiceTheme {
+                MoreMenuBottomSheet(
+                    onDismiss = {},
+                    onAccountClick = {},
+                    onSettingsClick = {},
+                    onDeviceSetupClick = {},
+                    onSignOutClick = {}
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(accountLabel).assertIsDisplayed()
+        composeRule.onNodeWithText(audioLabel).assertIsDisplayed()
+        assertTrue(
+            "MoreMenuBottomSheet must not contain duplicate Settings row",
+            composeRule.onAllNodesWithText(settingsLabel).fetchSemanticsNodes().isEmpty()
         )
     }
 }

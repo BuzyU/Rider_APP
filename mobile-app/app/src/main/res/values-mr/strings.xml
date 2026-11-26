@@ -438,7 +438,6 @@
     <string name="menu_route_planner_subtitle">वेपॉइंट्स आणि ऑफलाइन रडार नियोजन</string>
     <string name="menu_inbox_title">इनबॉक्स</string>
     <string name="menu_inbox_subtitle">प्रलंबित ग्रुप राइड आमंत्रणे</string>
-    <string name="menu_settings_subtitle">आवाज, भाषा, डिस्प्ले आणि अपडेट्स</string>
     <string name="dialog_add_rider_title">रायडर जोडा</string>
     <string name="dialog_add_rider_desc">स्क्वाड विनंती पाठवण्यासाठी @handle ने रायडर शोधा.</string>
     <string name="dialog_add_rider_placeholder">@handle ने शोधा</string>

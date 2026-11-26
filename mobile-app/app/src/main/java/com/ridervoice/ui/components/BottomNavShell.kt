@@ -447,15 +447,6 @@ fun MoreMenuBottomSheet(
                             }
                         )
                     }
-                    MoreSheetRow(
-                        icon = RvIcons.Tune,
-                        title = stringResource(R.string.nav_settings),
-                        subtitle = stringResource(R.string.menu_settings_subtitle),
-                        onClick = {
-                            onDismiss()
-                            onSettingsClick()
-                        }
-                    )
 
                     Spacer(modifier = Modifier.height(4.dp))
                     Divider(

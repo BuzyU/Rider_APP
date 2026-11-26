@@ -438,7 +438,6 @@
     <string name="menu_route_planner_subtitle">Plan waypoints &amp; offline radar</string>
     <string name="menu_inbox_title">Inbox</string>
     <string name="menu_inbox_subtitle">Pending group ride invitations</string>
-    <string name="menu_settings_subtitle">Voice, language, display &amp; updates</string>
     <string name="dialog_add_rider_title">Add Rider</string>
     <string name="dialog_add_rider_desc">Find a rider by @handle to send a squad request.</string>
     <string name="dialog_add_rider_placeholder">Search by @handle</string>

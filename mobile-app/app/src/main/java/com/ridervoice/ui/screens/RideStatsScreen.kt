@@ -38,12 +38,13 @@ import com.ridervoice.services.RideRecorder
 import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.RideStatsViewModel
-import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.ridervoice.ui.theme.RvDateFormat
+import com.ridervoice.ui.theme.rememberAppLocale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,20 +55,20 @@ fun RideStatsScreen(
 ) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
     val context = LocalContext.current
+    val appLocale = rememberAppLocale()
 
     val filterKeys = listOf("all", "month", "synced", "longest")
     var selectedFilter by rememberSaveable { mutableStateOf("all") }
 
-    val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
-    val currentMonthKey = remember {
-        SimpleDateFormat("MMMM yyyy", Locale.US).format(Date()).uppercase(Locale.US)
+    val currentMonthBucket = remember {
+        RvDateFormat.monthKey(System.currentTimeMillis())
     }
+    val currentYear = remember(currentMonthBucket) { currentMonthBucket.year }
 
-    val filteredSessions = remember(uiState.sessions, selectedFilter) {
-        val monthFmt = SimpleDateFormat("MMMM yyyy", Locale.US)
+    val filteredSessions = remember(uiState.sessions, selectedFilter, currentMonthBucket) {
         when (selectedFilter) {
             "month" -> uiState.sessions.filter {
-                monthFmt.format(Date(it.startTime)).uppercase(Locale.US) == currentMonthKey
+                RvDateFormat.monthKey(it.startTime) == currentMonthBucket
             }
             "synced" -> uiState.sessions.filter { it.isSynced }
             "longest" -> uiState.sessions.sortedByDescending { it.totalDistanceMeters }
@@ -75,10 +76,9 @@ fun RideStatsScreen(
         }
     }
 
-    val groupedByMonth = remember(filteredSessions) {
-        val monthFmt = SimpleDateFormat("MMMM yyyy", Locale.US)
+    val groupedByMonth = remember(filteredSessions, appLocale) {
         filteredSessions.groupBy { session ->
-            monthFmt.format(Date(session.startTime)).uppercase(Locale.US)
+            RvDateFormat.formatMonthYear(session.startTime, appLocale)
         }
     }
 
@@ -494,8 +494,9 @@ private fun RideHistoryCard(
             trimmed
         }
     }
-    val dateLabel = remember(session.startTime) {
-        SimpleDateFormat("EEE, d MMM · hh:mm a", Locale.US).format(Date(session.startTime))
+    val appLocale = rememberAppLocale()
+    val dateLabel = remember(session.startTime, appLocale) {
+        RvDateFormat.formatShortDateTime(session.startTime, appLocale)
     }
 
     Surface(

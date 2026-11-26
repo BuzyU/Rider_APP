@@ -37,6 +37,8 @@ import com.ridervoice.R
 import com.ridervoice.models.Participant
 import com.ridervoice.ui.theme.*
 import java.util.Locale
+import com.ridervoice.ui.theme.RvDateFormat
+import com.ridervoice.ui.theme.rememberAppLocale
 
 @Composable
 fun ParticipantCard(
@@ -264,10 +266,11 @@ fun ParticipantCard(
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
+                            val appLocale = rememberAppLocale()
                             val distStr = if (distanceMeters < 1000f) {
                                 stringResource(R.string.distance_m_value, distanceMeters.toInt())
                             } else {
-                                stringResource(R.string.distance_km_value, String.format(Locale.US, "%.1f", distanceMeters / 1000f))
+                                stringResource(R.string.distance_km_value, RvDateFormat.formatDecimal(distanceMeters / 1000f, 1, appLocale))
                             }
                             Text(
                                 text = distStr,

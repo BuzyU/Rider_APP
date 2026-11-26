@@ -41,10 +41,11 @@ import com.ridervoice.data.local.entities.RideSessionEntity
 import com.ridervoice.services.RideRecorder
 import com.ridervoice.ui.theme.*
 import kotlinx.coroutines.delay
-import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.*
+import com.ridervoice.ui.theme.RvDateFormat
+import com.ridervoice.ui.theme.rememberAppLocale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,15 +109,16 @@ fun RideReplayScreen(
         waypoints.maxOfOrNull { it.speedMps * 3.6f }?.takeIf { it > 0f }
     }
 
+    val appLocale = rememberAppLocale()
     val defaultRideTitle = stringResource(R.string.replay_recorded_ride_default)
     val rideTitle = remember(session, defaultRideTitle) {
         session?.roomName?.trim()?.takeIf { it.isNotBlank() && !RideRecorder.isUuidLike(it) }
             ?: defaultRideTitle
     }
 
-    val dateSubtitle = remember(startTimeMs) {
+    val dateSubtitle = remember(startTimeMs, appLocale) {
         startTimeMs?.let {
-            SimpleDateFormat("EEE, d MMM yyyy · hh:mm a", Locale.US).format(Date(it))
+            RvDateFormat.formatFullDateTime(it, appLocale)
         }
     }
 
@@ -124,9 +126,9 @@ fun RideReplayScreen(
         formatDuration(durationSec)
     }
 
-    val distanceText = remember(totalDistanceKm) {
-        if (totalDistanceKm >= 10f) String.format(Locale.US, "%.1f", totalDistanceKm)
-        else String.format(Locale.US, "%.2f", totalDistanceKm)
+    val distanceText = remember(totalDistanceKm, appLocale) {
+        if (totalDistanceKm >= 10f) RvDateFormat.formatDecimal(totalDistanceKm, 1, appLocale)
+        else RvDateFormat.formatDecimal(totalDistanceKm, 2, appLocale)
     }
 
     LaunchedEffect(isPlaying, playbackSpeed, hasTrack) {
@@ -194,8 +196,8 @@ fun RideReplayScreen(
                         if (dateSubtitle != null) append("$dateSubtitle\n")
                         append("Distance: $distanceText km\n")
                         append("Duration: $durationText\n")
-                        if (avgSpeedKmh != null) append("Avg Speed: ${String.format(Locale.US, "%.0f", avgSpeedKmh)} km/h\n")
-                        if (topSpeedKmh != null) append("Top Speed: ${String.format(Locale.US, "%.0f", topSpeedKmh)} km/h")
+                        if (avgSpeedKmh != null) append("Avg Speed: ${RvDateFormat.formatDecimal(avgSpeedKmh, 0, appLocale)} km/h\n")
+                        if (topSpeedKmh != null) append("Top Speed: ${RvDateFormat.formatDecimal(topSpeedKmh, 0, appLocale)} km/h")
                     }
                     val sendIntent = Intent().apply {
                         action = Intent.ACTION_SEND
@@ -385,7 +387,7 @@ fun RideReplayScreen(
                 ) {
                     ReplayTelemetryTile(
                         label = stringResource(R.string.summary_stat_avg_speed),
-                        value = avgSpeedKmh?.let { String.format(Locale.US, "%.0f", it) } ?: "--",
+                        value = avgSpeedKmh?.let { RvDateFormat.formatDecimal(it, 0, appLocale) } ?: "--",
                         unit = if (avgSpeedKmh != null) stringResource(R.string.unit_kmh) else "",
                         icon = Icons.Default.Speed,
                         accentColor = Ink,
@@ -393,7 +395,7 @@ fun RideReplayScreen(
                     )
                     ReplayTelemetryTile(
                         label = stringResource(R.string.summary_stat_top_speed),
-                        value = topSpeedKmh?.let { String.format(Locale.US, "%.0f", it) } ?: "--",
+                        value = topSpeedKmh?.let { RvDateFormat.formatDecimal(it, 0, appLocale) } ?: "--",
                         unit = if (topSpeedKmh != null) stringResource(R.string.unit_kmh) else "",
                         icon = Icons.Default.Bolt,
                         accentColor = Pop,
@@ -566,7 +568,7 @@ fun RideReplayScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = stringResource(R.string.distance_km_value, String.format(Locale.US, "%.1f", currentTraveledKm)),
+                                        text = stringResource(R.string.distance_km_value, RvDateFormat.formatDecimal(currentTraveledKm, 1, appLocale)),
                                         color = InkSecondary,
                                         style = RvTypography.microBadge
                                     )
@@ -914,20 +916,21 @@ private fun ConvoyEventMilestoneCard(
     event: ConvoyEventEntity,
     rideStartMs: Long?
 ) {
-    val timeLabel = remember(event.timestamp) {
-        SimpleDateFormat("hh:mm a", Locale.US).format(Date(event.timestamp))
+    val appLocale = rememberAppLocale()
+    val timeLabel = remember(event.timestamp, appLocale) {
+        RvDateFormat.formatTimeOnly(event.timestamp, appLocale)
     }
     val elapsedLabel = remember(event.timestamp, rideStartMs) {
         if (rideStartMs != null && event.timestamp >= rideStartMs) {
             "+${formatDuration((event.timestamp - rideStartMs) / 1000L)}"
         } else null
     }
-    val readableType = remember(event.eventType) {
+    val readableType = remember(event.eventType, appLocale) {
         event.eventType
             .replace('_', ' ')
-            .lowercase(Locale.US)
+            .lowercase(appLocale)
             .split(' ')
-            .joinToString(" ") { part -> part.replaceFirstChar { it.uppercase(Locale.US) } }
+            .joinToString(" ") { part -> part.replaceFirstChar { it.uppercase(appLocale) } }
     }
     val hasCoords = event.lat != 0.0 || event.lng != 0.0
 
@@ -987,7 +990,7 @@ private fun ConvoyEventMilestoneCard(
                     Spacer(modifier = Modifier.height(3.dp))
                     val detail = buildList {
                         if (elapsedLabel != null) add(elapsedLabel)
-                        if (hasCoords) add(String.format(Locale.US, "%.4f, %.4f", event.lat, event.lng))
+                        if (hasCoords) add("${RvDateFormat.formatDecimal(event.lat, 4, appLocale)}, ${RvDateFormat.formatDecimal(event.lng, 4, appLocale)}")
                     }.joinToString(" · ")
                     Text(
                         text = detail,

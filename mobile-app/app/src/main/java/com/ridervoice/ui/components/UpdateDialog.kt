@@ -33,6 +33,8 @@ import com.ridervoice.update.ReleaseNoteSection
 import com.ridervoice.update.ReleaseNotesParser
 import com.ridervoice.update.UpdateUiState
 import java.util.Locale
+import com.ridervoice.ui.theme.RvDateFormat
+import com.ridervoice.ui.theme.rememberAppLocale
 
 @Composable
 fun UpdateDialog(
@@ -325,8 +327,9 @@ fun UpdateDialog(
             val cleanVer = uiState.releaseInfo.versionName.removePrefix("v").removePrefix("V")
             val versionBadge = "v$cleanVer"
             val hasKnownTotal = uiState.totalBytes > 0L
-            val dlMb = String.format(Locale.US, "%.1f MB", uiState.downloadedBytes.toDouble() / (1024.0 * 1024.0))
-            val totalMb = String.format(Locale.US, "%.1f MB", uiState.totalBytes.toDouble() / (1024.0 * 1024.0))
+            val appLocale = rememberAppLocale()
+            val dlMb = "${RvDateFormat.formatDecimal(uiState.downloadedBytes.toDouble() / (1024.0 * 1024.0), 1, appLocale)} MB"
+            val totalMb = "${RvDateFormat.formatDecimal(uiState.totalBytes.toDouble() / (1024.0 * 1024.0), 1, appLocale)} MB"
 
             UpdateDialogShell(
                 title = stringResource(R.string.update_downloading_title),

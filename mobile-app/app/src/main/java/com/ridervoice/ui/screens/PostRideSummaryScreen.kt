@@ -35,6 +35,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import com.ridervoice.ui.components.rvBringIntoViewOnFocus
+import com.ridervoice.ui.theme.RvDateFormat
+import com.ridervoice.ui.theme.rememberAppLocale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -217,13 +219,14 @@ fun PostRideSummaryScreen(
                 style = MaterialTheme.typography.labelSmall
             )
 
+            val appLocale = rememberAppLocale()
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 SummaryBentoTile(
                     label = stringResource(R.string.summary_stat_distance),
-                    value = String.format(Locale.US, "%.1f", distanceKm),
+                    value = RvDateFormat.formatDecimal(distanceKm, 1, appLocale),
                     unit = stringResource(R.string.unit_km),
                     icon = Icons.Default.Straighten,
                     modifier = Modifier.weight(1f)
@@ -243,14 +246,14 @@ fun PostRideSummaryScreen(
             ) {
                 SummaryBentoTile(
                     label = stringResource(R.string.summary_stat_avg_speed),
-                    value = String.format(Locale.US, "%.0f", avgSpeedKmh),
+                    value = RvDateFormat.formatDecimal(avgSpeedKmh, 0, appLocale),
                     unit = stringResource(R.string.unit_kmh),
                     icon = Icons.Default.Speed,
                     modifier = Modifier.weight(1f)
                 )
                 SummaryBentoTile(
                     label = stringResource(R.string.summary_stat_top_speed),
-                    value = String.format(Locale.US, "%.0f", topSpeed),
+                    value = RvDateFormat.formatDecimal(topSpeed, 0, appLocale),
                     unit = stringResource(R.string.unit_kmh),
                     icon = Icons.Default.Bolt,
                     modifier = Modifier.weight(1f)

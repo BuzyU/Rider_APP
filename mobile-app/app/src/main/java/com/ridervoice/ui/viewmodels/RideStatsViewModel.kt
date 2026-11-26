@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import java.util.Locale
+import com.ridervoice.ui.theme.RvDateFormat
 
 data class RideStatsState(
     val totalDistance: String = "0.0",
@@ -75,7 +76,8 @@ class RideStatsViewModel @Inject constructor(
         viewModelScope.launch {
             val maxSpeedMps = rideDao.getAllTimeMaxSpeed() ?: 0f
             val topSpeedKmh = maxSpeedMps * 3.6f
-            val topSpeedStr = String.format(Locale.US, "%.0f", topSpeedKmh)
+            val appLocale = Locale.getDefault()
+            val topSpeedStr = RvDateFormat.formatDecimal(topSpeedKmh, 0, appLocale)
 
             rideDao.getAllSessions().collectLatest { sessions ->
                 _latestSessionId.value = sessions.firstOrNull()?.id
@@ -94,12 +96,12 @@ class RideStatsViewModel @Inject constructor(
                 val hours = totalDurationSec / 3600
                 val mins = (totalDurationSec % 3600) / 60
                 val secs = totalDurationSec % 60
-                val timeStr = String.format(Locale.US, "%02d:%02d:%02d", hours, mins, secs)
+                val timeStr = RvDateFormat.formatDurationHms(hours, mins, secs, appLocale)
 
                 _uiState.value = _uiState.value.copy(
-                    totalDistance = String.format(Locale.US, "%.1f", totalKm),
+                    totalDistance = RvDateFormat.formatDecimal(totalKm, 1, appLocale),
                     totalTime = timeStr,
-                    avgSpeed = String.format(Locale.US, "%.0f", avgSpeedKmh),
+                    avgSpeed = RvDateFormat.formatDecimal(avgSpeedKmh, 0, appLocale),
                     topSpeed = topSpeedStr,
                     totalRidesCount = sessions.size,
                     sessions = sessions,
@@ -139,25 +141,11 @@ class RideStatsViewModel @Inject constructor(
                 val response = apiService.getRideHistory()
                 if (response.isSuccessful) {
                     val rides = response.body() ?: emptyList()
-                    val fallbackFormatter = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-                        timeZone = java.util.TimeZone.getTimeZone("UTC")
-                    }
 
                     for (rideResponse in rides) {
                         try {
-                            val startMs = try {
-                                java.time.Instant.parse(rideResponse.startTime).toEpochMilli()
-                            } catch (_: Exception) {
-                                fallbackFormatter.parse(rideResponse.startTime)?.time ?: continue
-                            }
-
-                            val endMs = rideResponse.endTime?.let {
-                                try {
-                                    java.time.Instant.parse(it).toEpochMilli()
-                                } catch (_: Exception) {
-                                    fallbackFormatter.parse(it)?.time
-                                }
-                            }
+                            val startMs = RvDateFormat.parseIsoInstantEpochMillis(rideResponse.startTime) ?: continue
+                            val endMs = rideResponse.endTime?.let { RvDateFormat.parseIsoInstantEpochMillis(it) }
 
                             val existing = rideDao.getSessionById(rideResponse.id)
                             val remoteName = rideResponse.roomName?.trim()?.takeIf {

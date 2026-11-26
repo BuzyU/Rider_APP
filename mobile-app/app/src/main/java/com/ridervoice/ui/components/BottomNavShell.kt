@@ -45,6 +45,11 @@ import com.google.firebase.auth.FirebaseAuth
 import com.ridervoice.R
 import com.ridervoice.navigation.Routes
 import com.ridervoice.ui.theme.*
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
 
 private val TOP_LEVEL_TAB_ROUTES = setOf(
     Routes.HOME,
@@ -85,7 +90,7 @@ fun TabProfileAvatar(
             .size(RvTouchTarget.min)
             .testTag("tab_profile_avatar")
             .semantics { contentDescription = openAccountCd }
-            .clickable(onClick = onClick),
+            .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Box(
@@ -214,7 +219,9 @@ fun RvBottomNavigationBar(
                 }
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectableGroup(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     BottomNavTabItem(
@@ -283,9 +290,11 @@ private fun BottomNavTabItem(
         modifier = modifier
             .defaultMinSize(minWidth = RvTouchTarget.min, minHeight = 48.dp)
             .clip(RoundedCornerShape(14.dp))
-            .clickable(
+            .selectable(
+                selected = selected,
                 interactionSource = interactionSource,
                 indication = null,
+                role = Role.Tab,
                 onClick = onClick
             )
             .padding(vertical = 4.dp),
@@ -332,7 +341,7 @@ fun MoreMenuBottomSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.45f))
-                .clickable(onClick = onDismiss),
+                .clickable(role = Role.Button, onClick = onDismiss),
             contentAlignment = Alignment.BottomCenter
         ) {
             Surface(
@@ -341,7 +350,7 @@ fun MoreMenuBottomSheet(
                 border = BorderStroke(1.dp, InkHairline),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(enabled = false) {}
+                    .pointerInput(Unit) { detectTapGestures { } }
             ) {
                 Column(
                     modifier = Modifier
@@ -481,7 +490,7 @@ private fun MoreSheetRow(
         modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 52.dp)
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),

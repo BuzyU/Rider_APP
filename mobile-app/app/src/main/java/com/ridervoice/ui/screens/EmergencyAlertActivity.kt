@@ -48,6 +48,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 
 @AndroidEntryPoint
 class EmergencyAlertActivity : ComponentActivity() {
@@ -272,7 +275,8 @@ fun EmergencyAlertContent(
                 Surface(
                     color = BrickContainer,
                     shape = RoundedCornerShape(RvRadius.pill),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Brick.copy(alpha = 0.5f))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Brick.copy(alpha = 0.5f)),
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive }
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

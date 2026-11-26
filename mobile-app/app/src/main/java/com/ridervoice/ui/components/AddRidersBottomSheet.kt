@@ -33,6 +33,10 @@ import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.LobbyViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
 
 @Composable
 fun AddRidersBottomSheet(
@@ -67,7 +71,7 @@ fun AddRidersBottomSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.45f))
-                .clickable { onDismiss() },
+                .clickable(role = Role.Button) { onDismiss() },
             contentAlignment = Alignment.BottomCenter
         ) {
             Surface(
@@ -76,7 +80,7 @@ fun AddRidersBottomSheet(
                 border = BorderStroke(1.dp, InkHairline),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(enabled = false) {}
+                    .pointerInput(Unit) { detectTapGestures { } }
             ) {
                 Column(
                     modifier = Modifier
@@ -146,7 +150,11 @@ fun AddRidersBottomSheet(
                                 modifier = Modifier
                                     .weight(1f)
                                     .defaultMinSize(minHeight = 48.dp)
-                                    .clickable { selectedTab = idx }
+                                    .selectable(
+                                        selected = selected,
+                                        role = Role.Tab,
+                                        onClick = { selectedTab = idx }
+                                    )
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,

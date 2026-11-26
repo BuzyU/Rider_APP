@@ -19,6 +19,9 @@ import com.ridervoice.models.RiderLocation
 import com.ridervoice.ui.components.EmptyState
 import com.ridervoice.ui.components.ParticipantCard
 import com.ridervoice.ui.theme.InkSecondary
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
 
 @Composable
 fun RiderList(
@@ -52,6 +55,10 @@ fun RiderList(
     LazyColumn(
         modifier = modifier
             .fillMaxWidth()
+            .semantics {
+                isTraversalGroup = true
+                traversalIndex = 2f
+            }
             .testTag("rider_list_lazy"),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(vertical = 4.dp)

@@ -81,6 +81,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.ridervoice.ui.components.rvBringIntoViewOnFocus
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 
 private val PaperSurface get() = MeshColors.LobbyBackground
 private val CardDark get() = MeshColors.LobbyCard
@@ -401,6 +403,11 @@ fun OfflineMeshLobbyScreen(
                     .fillMaxWidth()
                     .background(CardDark, RoundedCornerShape(22.dp))
                     .border(1.dp, MeshColors.LobbyBorder, RoundedCornerShape(22.dp))
+                    .toggleable(
+                        value = useAsBackup,
+                        role = Role.Switch,
+                        onValueChange = { useAsBackup = it }
+                    )
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -415,7 +422,7 @@ fun OfflineMeshLobbyScreen(
                 }
                 Switch(
                     checked = useAsBackup,
-                    onCheckedChange = { useAsBackup = it }
+                    onCheckedChange = null
                 )
             }
 

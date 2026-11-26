@@ -57,6 +57,9 @@ import androidx.compose.ui.unit.sp
 import com.ridervoice.R
 import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.theme.*
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.traversalIndex
 
 @Composable
 fun TalkControls(
@@ -95,7 +98,8 @@ fun TalkControls(
             .navigationBarsPadding()
             .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
             .systemGestureExclusion()
-            .heightIn(min = RvTouchTarget.ptt),
+            .heightIn(min = RvTouchTarget.ptt)
+            .semantics { isTraversalGroup = true },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -108,6 +112,7 @@ fun TalkControls(
                 onClick = onToggleMic,
                 modifier = Modifier
                     .size(56.dp)
+                    .semantics { traversalIndex = 4f }
                     .testTag("talk_controls_mic")
                     .border(
                         1.5.dp,
@@ -151,6 +156,7 @@ fun TalkControls(
                 onClick = onToggleDeafen,
                 modifier = Modifier
                     .size(56.dp)
+                    .semantics { traversalIndex = 4.2f }
                     .testTag("talk_controls_deafen")
                     .border(
                         1.5.dp,
@@ -191,7 +197,8 @@ fun TalkControls(
             isVoxOpen = isVoxOpen,
             modifier = Modifier
                 .weight(1f)
-                .height(RvTouchTarget.ptt),
+                .height(RvTouchTarget.ptt)
+                .semantics { traversalIndex = 3f },
             onPressStart = onPttPressStart,
             onPressEnd = onPttPressEnd
         )
@@ -212,8 +219,11 @@ fun TalkControls(
                     .clip(RoundedCornerShape(14.dp))
                     .background(BrickContainer)
                     .border(2.dp, Brick, RoundedCornerShape(14.dp))
-                    .clickable { onSosClick() }
-                    .semantics { contentDescription = sosBtnCd },
+                    .clickable(role = Role.Button) { onSosClick() }
+                    .semantics {
+                        contentDescription = sosBtnCd
+                        traversalIndex = 5f
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

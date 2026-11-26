@@ -40,6 +40,11 @@ import com.ridervoice.network.ConnectionState
 import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.components.ParticipantNameResolver
 import com.ridervoice.ui.theme.*
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.traversalIndex
 
 @Composable
 fun RideTopBar(
@@ -75,7 +80,8 @@ fun RideTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(RvDimens.rideTopBarHeight)
-                    .padding(horizontal = 4.dp),
+                    .padding(horizontal = 4.dp)
+                    .semantics { isTraversalGroup = true },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -85,6 +91,7 @@ fun RideTopBar(
                     modifier = Modifier
                         .width(116.dp)
                         .fillMaxHeight()
+                        .semantics { traversalIndex = 1f }
                         .testTag("ride_topbar_left"),
                     contentAlignment = Alignment.CenterStart
                 ) {
@@ -98,6 +105,7 @@ fun RideTopBar(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
+                        .semantics { traversalIndex = 1.5f }
                         .testTag("ride_topbar_center")
                         .padding(horizontal = 2.dp)
                 ) {
@@ -131,7 +139,9 @@ fun RideTopBar(
                         fontWeight = if (activeSpeaker != null) FontWeight.Bold else FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.heightIn(min = 16.dp)
+                        modifier = Modifier
+                            .heightIn(min = 16.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite }
                     )
                 }
 
@@ -147,7 +157,8 @@ fun RideTopBar(
                     Box(
                         modifier = Modifier
                             .requiredSize(48.dp)
-                            .clickable { onAudioRouteClick() }
+                            .semantics { traversalIndex = 4.5f }
+                            .clickable(role = Role.Button) { onAudioRouteClick() }
                             .testTag("ride_topbar_audio_badge"),
                         contentAlignment = Alignment.Center
                     ) {
@@ -171,7 +182,10 @@ fun RideTopBar(
                             .clip(CircleShape)
                             .background(BrickContainer)
                             .border(1.5.dp, Brick, CircleShape)
-                            .semantics { contentDescription = leaveVoiceCd }
+                            .semantics {
+                                contentDescription = leaveVoiceCd
+                                traversalIndex = 6f
+                            }
                             .testTag("ride_topbar_leave_button")
                     ) {
                         Icon(
@@ -196,7 +210,8 @@ fun RideTopBar(
                         .clip(RoundedCornerShape(8.dp))
                         .background(BrickContainer)
                         .border(1.dp, Brick, RoundedCornerShape(8.dp))
-                        .clickable { onDiagnosticsClick() }
+                        .semantics { traversalIndex = 4.8f }
+                        .clickable(role = Role.Button) { onDiagnosticsClick() }
                         .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Box(
@@ -236,7 +251,10 @@ fun ConnectionPill(state: ConnectionState) {
     val shouldPulse = state == ConnectionState.CONNECTING || state == ConnectionState.RECONNECTING
     val reduceMotion = rememberIsReduceMotionEnabled()
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+    ) {
         if (shouldPulse && !reduceMotion) {
             PulsingConnectionDot(color = color)
         } else {

@@ -37,6 +37,9 @@ import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.VoiceTransport
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
 
 @androidx.compose.material3.ExperimentalMaterial3Api
 @Composable
@@ -186,7 +189,10 @@ fun OfflineRoomScreen(
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).semantics {
+                        isTraversalGroup = true
+                        traversalIndex = 2f
+                    },
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(uniquePeers, key = { it.id }) { peer ->

@@ -36,6 +36,10 @@ import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.LobbyLoadState
 import com.ridervoice.ui.viewmodels.LobbyViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -189,7 +193,8 @@ fun LobbyScreen(
                             text = effectiveDisplayName,
                             style = MaterialTheme.typography.titleMedium,
                             color = Ink,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.semantics { heading() }
                         )
                         Text(
                             text = when {
@@ -795,7 +800,14 @@ fun OfflineConfigCard(
             // Only host can toggle room-level offline switch
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = meshConfig?.offlineMeshEnabled == true,
+                        enabled = isHost,
+                        role = Role.Switch,
+                        onValueChange = { onToggleOffline(it) }
+                    )
             ) {
                 Text(
                     stringResource(R.string.lobby_offline_host_switch_label),
@@ -805,7 +817,7 @@ fun OfflineConfigCard(
                 )
                 Switch(
                     checked = meshConfig?.offlineMeshEnabled == true,
-                    onCheckedChange = { onToggleOffline(it) },
+                    onCheckedChange = null,
                     enabled = isHost,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = PaperOnPop,

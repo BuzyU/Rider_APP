@@ -50,6 +50,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import com.ridervoice.ui.components.rvBringIntoViewOnFocus
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 
 private const val PREFS_NAME = "ridervoice_route_prefs"
 private const val KEY_MAPBOX_TOKEN = "mapbox_token"
@@ -307,7 +309,11 @@ fun RoutePlannerScreen(
                     border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.3f) else InkHairline),
                     modifier = Modifier
                         .defaultMinSize(minHeight = 48.dp)
-                        .clickable { selectedPreference = prefKey }
+                        .selectable(
+                            selected = isSelected,
+                            role = Role.RadioButton,
+                            onClick = { selectedPreference = prefKey }
+                        )
                 ) {
                     Box(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -366,7 +372,7 @@ fun RoutePlannerScreen(
             ) {
                 Row(
                     modifier = Modifier
-                        .clickable {
+                        .clickable(role = Role.Button) {
                             if (useRadarMode && !hasValidToken) {
                                 inputTokenText = userCustomToken
                                 showTokenDialog = true
@@ -423,7 +429,7 @@ fun RoutePlannerScreen(
                         color = PaperRaised,
                         shape = RoundedCornerShape(16.dp),
                         border = BorderStroke(1.dp, InkHairline),
-                        modifier = Modifier.clickable { viewModel.setDestinationFromRider(rider) }
+                        modifier = Modifier.clickable(role = Role.Button) { viewModel.setDestinationFromRider(rider) }
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),

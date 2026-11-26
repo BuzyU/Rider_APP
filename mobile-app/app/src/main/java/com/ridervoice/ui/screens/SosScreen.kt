@@ -35,6 +35,9 @@ import com.ridervoice.R
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.SosState
 import kotlinx.coroutines.delay
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 
 @Composable
 fun SosScreen(
@@ -193,6 +196,7 @@ fun SosScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 12.dp)
+                            .semantics { liveRegion = LiveRegionMode.Assertive }
                     ) {
                         Column(
                             modifier = Modifier.padding(22.dp),

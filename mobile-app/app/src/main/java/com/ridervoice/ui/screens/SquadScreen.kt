@@ -43,6 +43,9 @@ import com.ridervoice.ui.components.RvPullToRefreshContainer
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.SquadViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,7 +132,7 @@ fun SquadScreen(
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).semantics { heading() }
                     )
 
                     IconButton(
@@ -230,7 +233,8 @@ fun SquadScreen(
                                 text = stringResource(R.string.squad_members_header),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.labelSmall,
-                                letterSpacing = 0.9.sp
+                                letterSpacing = 0.9.sp,
+                                modifier = Modifier.semantics { heading() }
                             )
                             Text(
                                 text = pluralStringResource(R.plurals.riders_count, uiState.friends.size, uiState.friends.size),
@@ -358,7 +362,7 @@ fun SquadScreen(
                     .padding(end = 16.dp, bottom = 16.dp)
                     .defaultMinSize(minHeight = 52.dp)
                     .clip(RoundedCornerShape(RvRadius.pill))
-                    .clickable(onClick = onOpenRequests)
+                    .clickable(role = Role.Button, onClick = onOpenRequests)
                     .testTag("squad_requests_fab")
             ) {
                 Row(
@@ -468,7 +472,7 @@ private fun PendingSectionDashedDivider(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .defaultMinSize(minHeight = 48.dp).clickable(onClick = onClearRejected)
+                    .defaultMinSize(minHeight = 48.dp).clickable(role = Role.Button, onClick = onClearRejected)
                     .padding(horizontal = 6.dp, vertical = 4.dp)
                     .testTag("squad_clear_rejected_btn")
             )

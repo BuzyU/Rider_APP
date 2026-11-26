@@ -89,6 +89,10 @@ import com.ridervoice.mesh.transport.AudioRoute
 import com.ridervoice.mesh.transport.MicState
 import com.ridervoice.mesh.transport.UnifiedVoicePeer
 import com.ridervoice.mesh.transport.VoiceTransportState
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.traversalIndex
 
 @Composable
 fun MeshDiagnosticsDialog(
@@ -331,7 +335,11 @@ fun MeshTopBar(
                     text = stringResource(R.string.mesh_status_summary, stateText, peerCount),
                     style = MaterialTheme.typography.labelSmall,
                     color = MeshColors.Slate,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.semantics {
+                        liveRegion = LiveRegionMode.Polite
+                        traversalIndex = 1f
+                    }
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -341,7 +349,8 @@ fun MeshTopBar(
                         shape = RoundedCornerShape(6.dp),
                         modifier = Modifier
                             .padding(end = 8.dp)
-                            .clickable { onSosClick() }
+                            .semantics { traversalIndex = 5f }
+                            .clickable(role = Role.Button) { onSosClick() }
                     ) {
                         Text(
                             text = stringResource(R.string.mesh_sos),
@@ -452,7 +461,8 @@ fun MeshBottomBar(
                         .testTag("mesh_bottom_audio_route")
                         .weight(1f)
                         .heightIn(min = 48.dp)
-                        .clickable { onCycleAudioRoute() }
+                        .semantics { traversalIndex = 4.5f }
+                        .clickable(role = Role.Button) { onCycleAudioRoute() }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
@@ -480,7 +490,8 @@ fun MeshBottomBar(
                         .testTag("mesh_bottom_vox")
                         .weight(0.9f)
                         .heightIn(min = 48.dp)
-                        .clickable { onToggleVox() }
+                        .semantics { traversalIndex = 4.3f }
+                        .clickable(role = Role.Button) { onToggleVox() }
                 ) {
                     Box(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
@@ -602,7 +613,8 @@ fun MeshBottomBar(
                         .testTag("mesh_bottom_leave")
                         .widthIn(min = 64.dp)
                         .heightIn(min = 48.dp)
-                        .clickable { onLeave() }
+                        .semantics { traversalIndex = 6f }
+                        .clickable(role = Role.Button) { onLeave() }
                 ) {
                     Box(
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),

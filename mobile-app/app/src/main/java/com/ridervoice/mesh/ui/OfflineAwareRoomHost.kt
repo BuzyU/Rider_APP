@@ -58,6 +58,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 
 @HiltViewModel
 class OfflineAwareRoomViewModel @Inject constructor(
@@ -253,7 +257,7 @@ private fun OfflineBackupChip(
     Surface(
         color = MeshColors.SurfaceDark,
         shape = RoundedCornerShape(12.dp),
-        modifier = if (onClick != null) modifier.clickable { onClick() } else modifier
+        modifier = if (onClick != null) modifier.clickable(role = Role.Button) { onClick() } else modifier
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -315,7 +319,9 @@ fun TacticalBanner(
     Card(
         colors = CardDefaults.cardColors(containerColor = MeshColors.CardBackground),
         shape = RoundedCornerShape(10.dp),
-        modifier = modifier
+        modifier = modifier.semantics {
+            liveRegion = if (state == AutoSwitchState.FALLBACK_UNAVAILABLE) LiveRegionMode.Assertive else LiveRegionMode.Polite
+        }
     ) {
         Column(
             modifier = Modifier
@@ -346,7 +352,7 @@ fun TacticalBanner(
                 Surface(
                     color = MeshColors.SurfaceDark,
                     shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier.clickable { onViewDiagnostics() }
+                    modifier = Modifier.clickable(role = Role.Button) { onViewDiagnostics() }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),

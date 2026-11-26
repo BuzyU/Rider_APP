@@ -45,6 +45,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.ridervoice.ui.theme.RvDateFormat
 import com.ridervoice.ui.theme.rememberAppLocale
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -153,7 +156,7 @@ fun RideStatsScreen(
 
         // Filter Pills Row ("All rides", "This month", "Synced", "Longest")
         LazyRow(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().selectableGroup(),
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -171,7 +174,11 @@ fun RideStatsScreen(
                     border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.25f) else InkHairline),
                     modifier = Modifier
                         .defaultMinSize(minHeight = 48.dp)
-                        .clickable { selectedFilter = filterKey }
+                        .selectable(
+                            selected = isSelected,
+                            role = Role.Tab,
+                            onClick = { selectedFilter = filterKey }
+                        )
                 ) {
                     Box(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
@@ -301,7 +308,7 @@ fun RideStatsScreen(
                     border = BorderStroke(1.dp, InkHairline),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onReplayRide("latest") }
+                        .clickable(role = Role.Button) { onReplayRide("latest") }
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -505,7 +512,7 @@ private fun RideHistoryCard(
         border = BorderStroke(1.dp, InkHairline),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
     ) {
         Row(
             modifier = Modifier

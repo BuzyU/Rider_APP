@@ -36,6 +36,8 @@ import com.ridervoice.ui.components.SecondaryButton
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.DeviceSetupViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 
 @Composable
 fun DeviceSetupScreen(
@@ -449,7 +451,7 @@ fun AudioRouteChip(
         border = BorderStroke(1.dp, if (isSelected) Pop.copy(alpha = 0.35f) else InkHairline),
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
-            .clickable { onClick() }
+            .selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),

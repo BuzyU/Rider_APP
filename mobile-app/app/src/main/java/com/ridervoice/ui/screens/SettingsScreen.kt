@@ -36,6 +36,11 @@ import com.ridervoice.ui.viewmodels.AuthViewModel
 import com.ridervoice.ui.viewmodels.SettingsViewModel
 import com.ridervoice.ui.viewmodels.UpdateViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 
 @Composable
 fun SettingsScreen(
@@ -77,7 +82,7 @@ fun SettingsScreen(
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).semantics { heading() }
                     )
                 }
             }
@@ -394,14 +399,18 @@ fun SettingsScreen(
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
-                                        if (key == "appLanguage") {
-                                            settingsViewModel.setAppLanguage(option)
-                                        } else {
-                                            settingsViewModel.updateSettingValue(key, option)
+                                    .selectable(
+                                        selected = isSelected,
+                                        role = Role.RadioButton,
+                                        onClick = {
+                                            if (key == "appLanguage") {
+                                                settingsViewModel.setAppLanguage(option)
+                                            } else {
+                                                settingsViewModel.updateSettingValue(key, option)
+                                            }
+                                            showOptionsDialog = null
                                         }
-                                        showOptionsDialog = null
-                                    }
+                                    )
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -487,7 +496,7 @@ private fun SettingsGroupCard(
             color = InkSecondary,
             style = MaterialTheme.typography.labelSmall,
             letterSpacing = 0.9.sp,
-            modifier = Modifier.padding(start = 4.dp)
+            modifier = Modifier.padding(start = 4.dp).semantics { heading() }
         )
         Surface(
             color = PaperRaised,
@@ -521,7 +530,7 @@ private fun SettingsRowValue(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -571,7 +580,7 @@ private fun SettingsRowAction(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -659,7 +668,12 @@ private fun SettingsRowToggle(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .toggleable(
+                value = checked,
+                enabled = enabled,
+                role = Role.Switch,
+                onValueChange = onCheckedChange
+            )
             .padding(horizontal = 14.dp, vertical = 10.dp)
             .alpha(if (enabled) 1f else 0.45f),
         verticalAlignment = Alignment.CenterVertically
@@ -693,7 +707,7 @@ private fun SettingsRowToggle(
         Switch(
             checked = checked,
             enabled = enabled,
-            onCheckedChange = if (enabled) onCheckedChange else null,
+            onCheckedChange = null,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = PaperOnPop,
                 checkedTrackColor = Pop,

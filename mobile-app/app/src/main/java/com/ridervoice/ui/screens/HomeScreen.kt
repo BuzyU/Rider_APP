@@ -36,6 +36,9 @@ import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.HomeViewModel
 import com.ridervoice.utils.OEMBatteryWarning
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +106,7 @@ fun HomeScreen(
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).semantics { heading() }
                     )
 
                     TabProfileAvatar(
@@ -160,7 +163,7 @@ fun HomeScreen(
                     .height(176.dp)
                     .clip(RoundedCornerShape(28.dp))
                     .border(1.dp, InkHairline, RoundedCornerShape(28.dp))
-                    .clickable { onHostRideClick() }
+                    .clickable(role = Role.Button) { onHostRideClick() }
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.hero_create_ride),
@@ -242,7 +245,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 142.dp)
-                        .clickable { onJoinRideClick() }
+                        .clickable(role = Role.Button) { onJoinRideClick() }
                 ) {
                     Column(
                         modifier = Modifier
@@ -290,7 +293,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 142.dp)
-                        .clickable { onInvitesInboxClick() }
+                        .clickable(role = Role.Button) { onInvitesInboxClick() }
                 ) {
                     Column(
                         modifier = Modifier
@@ -357,7 +360,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .then(
                         if (uiState.hasActiveRide && uiState.activeRideName.isNotBlank()) {
-                            Modifier.clickable { onStartRideClick(uiState.activeRideName) }
+                            Modifier.clickable(role = Role.Button) { onStartRideClick(uiState.activeRideName) }
                         } else {
                             Modifier
                         }
@@ -381,7 +384,8 @@ fun HomeScreen(
                                 text = if (uiState.hasActiveRide) stringResource(R.string.home_live_convoy) else stringResource(R.string.home_convoy_status),
                                 color = InkSecondary,
                                 style = MaterialTheme.typography.labelSmall,
-                                letterSpacing = 0.9.sp
+                                letterSpacing = 0.9.sp,
+                                modifier = Modifier.semantics { heading() }
                             )
                         }
                         if (uiState.hasActiveRide) {
@@ -511,7 +515,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp)
-                        .clickable { onSosClick() }
+                        .clickable(role = Role.Button) { onSosClick() }
                 ) {
                     Row(
                         modifier = Modifier

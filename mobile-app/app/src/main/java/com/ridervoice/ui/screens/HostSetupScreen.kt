@@ -32,6 +32,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import com.ridervoice.ui.components.rvBringIntoViewOnFocus
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -292,7 +294,7 @@ fun HostSetupScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { moreOptionsExpanded = !moreOptionsExpanded },
+                        .clickable(role = Role.Button) { moreOptionsExpanded = !moreOptionsExpanded },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -323,7 +325,13 @@ fun HostSetupScreen(
                         Divider(color = InkHairline)
                         Spacer(modifier = Modifier.height(14.dp))
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .toggleable(
+                                    value = diagnosticsEnabled,
+                                    role = Role.Switch,
+                                    onValueChange = { diagnosticsEnabled = it }
+                                ),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -339,17 +347,11 @@ fun HostSetupScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = InkSecondary
                                 )
-                                TextButton(
-                                    onClick = { showLearnMoreSheet = true },
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
-                                    Text(stringResource(R.string.action_learn_more), color = Pop, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                }
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Switch(
                                 checked = diagnosticsEnabled,
-                                onCheckedChange = { diagnosticsEnabled = it },
+                                onCheckedChange = null,
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = PaperOnPop,
                                     checkedTrackColor = Pop,
@@ -357,6 +359,12 @@ fun HostSetupScreen(
                                     uncheckedTrackColor = PaperSunken
                                 )
                             )
+                        }
+                        TextButton(
+                            onClick = { showLearnMoreSheet = true },
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(stringResource(R.string.action_learn_more), color = Pop, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))

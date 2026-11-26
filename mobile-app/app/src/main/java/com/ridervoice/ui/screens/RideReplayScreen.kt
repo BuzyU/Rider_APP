@@ -46,6 +46,7 @@ import java.util.Locale
 import kotlin.math.*
 import com.ridervoice.ui.theme.RvDateFormat
 import com.ridervoice.ui.theme.rememberAppLocale
+import androidx.compose.ui.semantics.Role
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -738,7 +739,7 @@ fun RideReplayScreen(
                                 border = BorderStroke(1.dp, InkHairline),
                                 modifier = Modifier
                                     .defaultMinSize(minHeight = 48.dp)
-                                    .clickable {
+                                    .clickable(role = Role.Button) {
                                         playbackSpeed = when (playbackSpeed) {
                                             1 -> 2
                                             2 -> 4

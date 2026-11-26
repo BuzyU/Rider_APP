@@ -37,6 +37,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 import com.ridervoice.ui.theme.RvDateFormat
 import com.ridervoice.ui.theme.rememberAppLocale
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -467,7 +469,11 @@ fun PrivacyChip(
         border = BorderStroke(1.dp, if (isSelected) Pop else InkHairline),
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)
-            .clickable { onClick() }
+            .selectable(
+                selected = isSelected,
+                role = Role.RadioButton,
+                onClick = onClick
+            )
     ) {
         Box(
             modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),

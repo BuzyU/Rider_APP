@@ -312,4 +312,26 @@ class DarkThemeComplianceTest {
         assertEquals(DarkPalette.Background, schemeBg)
         assertEquals(DarkPalette.AccentAmber, drawnPopColor)
     }
+
+    @Test
+    fun rootBackdrop_rendersFullWindowPaperAndSyncsDecorViewBackgroundOnThemeToggle() {
+        ThemeState.set(false)
+        composeRule.setContent {
+            RiderVoiceTheme {
+                androidx.compose.material3.Text("RootBackdropCheck")
+            }
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("rv_root_backdrop").assertIsDisplayed()
+
+        val candidates = listOf(
+            File("src/main/java/com/ridervoice/ui/theme/Theme.kt"),
+            File("app/src/main/java/com/ridervoice/ui/theme/Theme.kt"),
+            File("mobile-app/app/src/main/java/com/ridervoice/ui/theme/Theme.kt")
+        )
+        val themeText = candidates.firstOrNull { it.isFile }?.readText()
+            ?: error("Could not locate Theme.kt")
+        assertTrue("Theme.kt must sync window decorView background", themeText.contains("decorView.setBackgroundColor"))
+        assertTrue("Theme.kt must disable nav bar contrast enforcement on API 29+", themeText.contains("isNavigationBarContrastEnforced = false"))
+    }
 }

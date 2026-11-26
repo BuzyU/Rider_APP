@@ -2,15 +2,21 @@ package com.ridervoice.ui.theme
 
 import android.app.Activity
 import android.graphics.Color as AndroidColor
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 
 private val DarkScheme = darkColorScheme(
     primary = DarkPalette.AccentAmber,
@@ -83,8 +89,23 @@ fun RiderVoiceTheme(content: @Composable () -> Unit) {
                 statusBarStyle = barStyle,
                 navigationBarStyle = barStyle
             )
+            val bgArgb = (if (isDark) DarkPalette.Background else LightPalette.Background).toArgb()
+            activity.window.setBackgroundDrawable(ColorDrawable(bgArgb))
+            activity.window.decorView.setBackgroundColor(bgArgb)
+            if (Build.VERSION.SDK_INT >= 29) {
+                activity.window.isNavigationBarContrastEnforced = false
+                activity.window.isStatusBarContrastEnforced = false
+            }
         }
     }
 
-    MaterialTheme(colorScheme = target, typography = Typography, content = content)
+    MaterialTheme(colorScheme = target, typography = Typography) {
+        Surface(
+            color = Paper,
+            contentColor = Ink,
+            modifier = Modifier.testTag("rv_root_backdrop")
+        ) {
+            content()
+        }
+    }
 }

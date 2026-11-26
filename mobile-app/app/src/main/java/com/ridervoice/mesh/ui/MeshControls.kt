@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.ridervoice.ui.theme.RideErgonomicsSettings
+import com.ridervoice.ui.theme.rememberRvHapticsController
 import com.ridervoice.ui.theme.ZeroWindowInsets
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -383,6 +384,7 @@ fun MeshBottomBar(
 ) {
     val currentOnPttPressChange by rememberUpdatedState(onPttPressChange)
     val haptic = LocalHapticFeedback.current
+    val rvHaptics = rememberRvHapticsController()
     val currentHapticEnabled by rememberUpdatedState(RideErgonomicsSettings.hapticFeedbackEnabled)
     var isHoldingGesture by remember { mutableStateOf(false) }
 
@@ -567,7 +569,10 @@ fun MeshBottomBar(
             ) {
                 // Mic Toggle
                 IconButton(
-                    onClick = onToggleMic,
+                    onClick = {
+                        rvHaptics.toggle()
+                        onToggleMic()
+                    },
                     modifier = Modifier
                         .testTag("mesh_bottom_mic")
                         .size(50.dp)
@@ -583,7 +588,10 @@ fun MeshBottomBar(
 
                 // Deafen Toggle
                 IconButton(
-                    onClick = onToggleDeafen,
+                    onClick = {
+                        rvHaptics.toggle()
+                        onToggleDeafen()
+                    },
                     modifier = Modifier
                         .testTag("mesh_bottom_deafen")
                         .size(50.dp)

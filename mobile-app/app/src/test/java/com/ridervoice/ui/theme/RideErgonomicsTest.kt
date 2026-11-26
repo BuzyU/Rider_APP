@@ -15,7 +15,16 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
+import com.ridervoice.R
+import com.ridervoice.network.ConnectionState
+import com.ridervoice.ui.screens.SosScreen
+import com.ridervoice.ui.screens.room.ConnectionPill
+import com.ridervoice.ui.screens.room.TalkControls
+import com.ridervoice.ui.viewmodels.SosState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -208,5 +217,96 @@ class RideErgonomicsTest {
         showEffect = false
         composeRule.waitForIdle()
         assertFalse("keepScreenOn must clear when KeepRideScreenOnEffect disposes", view.keepScreenOn)
+    }
+
+    @Test
+    fun rvHaptics_gatesOnGlobalToggle_andDebouncesConnectionFlapping() {
+        val recorded = mutableListOf<RvHapticEvent>()
+        var fakeNowMs = 10_000L
+        val controller = RvHapticsController(
+            sink = { recorded += it },
+            isEnabled = { RideErgonomicsSettings.hapticFeedbackEnabled },
+            clock = { fakeNowMs }
+        )
+
+        // Connection flapping debounce (< 5_000L ms must emit at most once; >= 5_000L ms emits again)
+        RideErgonomicsSettings.setHapticFeedbackEnabled(true)
+        controller.onConnectionTransition(ConnectionState.CONNECTING) // initial baseline, no pulse
+        assertTrue(recorded.isEmpty())
+
+        controller.onConnectionTransition(ConnectionState.CONNECTED) // t = 10_000 -> CONFIRM
+        controller.onConnectionTransition(ConnectionState.RECONNECTING) // t = 10_000 -> debounced
+        fakeNowMs += 2_000L
+        controller.onConnectionTransition(ConnectionState.CONNECTED) // t = 12_000 -> debounced
+        fakeNowMs += 2_999L
+        controller.onConnectionTransition(ConnectionState.FAILED) // t = 14_999 -> debounced
+        assertEquals(listOf(RvHapticEvent.CONFIRM), recorded)
+
+        fakeNowMs += 1L // t = 15_000 (5_000 ms elapsed since last pulse)
+        controller.onConnectionTransition(ConnectionState.CONNECTED)
+        assertEquals(listOf(RvHapticEvent.CONFIRM, RvHapticEvent.CONFIRM), recorded)
+
+        // Compose integration: TalkControls mic/deafen + ConnectionPill + SosScreen countdown & dispatch
+        recorded.clear()
+        fakeNowMs = 30_000L
+        var connState by mutableStateOf(ConnectionState.CONNECTING)
+        var showSos by mutableStateOf(false)
+        val ctx = ApplicationProvider.getApplicationContext<Application>()
+        val sendNowLabel = ctx.getString(R.string.sos_send_now_btn)
+
+        composeRule.setContent {
+            CompositionLocalProvider(LocalRvHaptics provides controller) {
+                RiderVoiceTheme {
+                    ConnectionPill(state = connState)
+                    TalkControls(
+                        isMicEnabled = false,
+                        isDeafened = false,
+                        isPttPressed = false,
+                        isVoxOpen = false,
+                        onToggleMic = {},
+                        onToggleDeafen = {},
+                        onPttPressStart = {},
+                        onPttPressEnd = {},
+                        onSosClick = {}
+                    )
+                    if (showSos) {
+                        SosScreen(state = SosState.Idle, onCancelClick = {}, onSend = {})
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        // Enabled: mic & deafen toggles + connection transition
+        composeRule.onNodeWithTag("talk_controls_mic").performClick()
+        composeRule.onNodeWithTag("talk_controls_deafen").performClick()
+        composeRule.runOnUiThread { connState = ConnectionState.CONNECTED }
+        composeRule.waitForIdle()
+        assertEquals(
+            listOf(RvHapticEvent.TOGGLE, RvHapticEvent.TOGGLE, RvHapticEvent.CONFIRM),
+            recorded
+        )
+
+        // SOS countdown tick + dispatch warning
+        recorded.clear()
+        composeRule.runOnUiThread { showSos = true }
+        composeRule.waitForIdle()
+        composeRule.mainClock.advanceTimeBy(1_100L)
+        composeRule.waitForIdle()
+        assertTrue("Expected at least one countdown tick", recorded.contains(RvHapticEvent.TICK))
+        composeRule.onNodeWithText(sendNowLabel).performScrollTo().performClick()
+        composeRule.waitForIdle()
+        assertTrue("Expected WARNING haptic on SOS dispatch", recorded.contains(RvHapticEvent.WARNING))
+
+        // Disabled: zero events across toggles, SOS, and connection state changes
+        recorded.clear()
+        fakeNowMs = 50_000L
+        RideErgonomicsSettings.setHapticFeedbackEnabled(false)
+        composeRule.onNodeWithTag("talk_controls_mic").performClick()
+        composeRule.onNodeWithTag("talk_controls_deafen").performClick()
+        composeRule.runOnUiThread { connState = ConnectionState.RECONNECTING }
+        composeRule.mainClock.advanceTimeBy(1_100L)
+        composeRule.waitForIdle()
+        assertTrue("Expected 0 haptics when disabled, got $recorded", recorded.isEmpty())
     }
 }

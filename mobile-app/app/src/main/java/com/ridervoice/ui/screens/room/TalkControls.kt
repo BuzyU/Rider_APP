@@ -71,6 +71,7 @@ fun TalkControls(
     KeepRideScreenOnEffect()
 
     val haptic = LocalHapticFeedback.current
+    val rvHaptics = rememberRvHapticsController()
     val hapticEnabled by rememberUpdatedState(RideErgonomicsSettings.hapticFeedbackEnabled)
     var seenInitialVox by remember { mutableStateOf(false) }
     var prevVoxOpen by remember { mutableStateOf(isVoxOpen) }
@@ -103,7 +104,10 @@ fun TalkControls(
             modifier = Modifier.width(58.dp)
         ) {
             FilledIconButton(
-                onClick = onToggleMic,
+                onClick = {
+                    rvHaptics.toggle()
+                    onToggleMic()
+                },
                 modifier = Modifier
                     .size(56.dp)
                     .semantics { traversalIndex = 4f }
@@ -147,7 +151,10 @@ fun TalkControls(
             modifier = Modifier.width(58.dp)
         ) {
             FilledIconButton(
-                onClick = onToggleDeafen,
+                onClick = {
+                    rvHaptics.toggle()
+                    onToggleDeafen()
+                },
                 modifier = Modifier
                     .size(56.dp)
                     .semantics { traversalIndex = 4.2f }

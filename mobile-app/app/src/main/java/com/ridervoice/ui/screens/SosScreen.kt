@@ -43,6 +43,7 @@ fun SosScreen(
     val context = LocalContext.current
     val emergencyInfo = remember { com.ridervoice.utils.EmergencyNumbers.resolve(context) }
     val emergencyNumber = emergencyInfo.number
+    val rvHaptics = rememberRvHapticsController()
     val isDark = ThemeState.isDarkTheme
     var countdown by rememberSaveable { mutableStateOf(10) }
     var hasAutoDispatched by rememberSaveable { mutableStateOf(false) }
@@ -50,9 +51,11 @@ fun SosScreen(
 
     val triggerDispatchOnce: () -> Unit = {
         if (state is SosState.Failed && !isCancelled) {
+            rvHaptics.warning()
             onSend()
         } else if (state is SosState.Idle && !hasAutoDispatched && !isCancelled) {
             hasAutoDispatched = true
+            rvHaptics.warning()
             onSend()
         }
     }
@@ -62,11 +65,16 @@ fun SosScreen(
             while (countdown > 0 && !hasAutoDispatched && !isCancelled) {
                 delay(1_000L)
                 if (!hasAutoDispatched && !isCancelled) {
-                    countdown = (countdown - 1).coerceAtLeast(0)
+                    val next = (countdown - 1).coerceAtLeast(0)
+                    countdown = next
+                    if (next in 1..9) {
+                        rvHaptics.tick()
+                    }
                 }
             }
             if (countdown <= 0 && !hasAutoDispatched && !isCancelled) {
                 hasAutoDispatched = true
+                rvHaptics.warning()
                 onSend()
             }
         }

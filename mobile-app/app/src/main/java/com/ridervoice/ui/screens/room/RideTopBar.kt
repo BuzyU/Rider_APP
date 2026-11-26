@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -238,6 +239,10 @@ fun RideTopBar(
 
 @Composable
 fun ConnectionPill(state: ConnectionState) {
+    val rvHaptics = rememberRvHapticsController()
+    LaunchedEffect(state) {
+        rvHaptics.onConnectionTransition(state)
+    }
     val (color, label) = when (state) {
         ConnectionState.CONNECTED    -> StatusOk     to stringResource(R.string.room_conn_connected)
         ConnectionState.CONNECTING   -> StatusWarn   to stringResource(R.string.room_conn_connecting)

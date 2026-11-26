@@ -1,7 +1,6 @@
 package com.ridervoice.ui.screens
 
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -52,6 +51,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.Role
+import com.ridervoice.ui.components.LocalRvFeedback
 
 private const val PREFS_NAME = "ridervoice_route_prefs"
 private const val KEY_MAPBOX_TOKEN = "mapbox_token"
@@ -88,6 +88,7 @@ fun RoutePlannerScreen(
     val effectiveToken = if (isValidMapboxToken(userCustomToken)) userCustomToken else resToken
     val hasValidToken = isValidMapboxToken(effectiveToken)
 
+    val feedback = LocalRvFeedback.current
     val focusManager = LocalFocusManager.current
     var useRadarMode by rememberSaveable { mutableStateOf(!hasValidToken) }
     var showTokenDialog by rememberSaveable { mutableStateOf(false) }
@@ -200,7 +201,7 @@ fun RoutePlannerScreen(
                         text = { Text(stringResource(R.string.route_export_gpx), color = Ink) },
                         onClick = {
                             showMenuDropdown = false
-                            Toast.makeText(context, context.getString(R.string.toast_gpx_exported), Toast.LENGTH_SHORT).show()
+                            feedback.showSuccess(context.getString(R.string.toast_gpx_exported))
                         },
                         leadingIcon = { Icon(Icons.Default.Download, contentDescription = null, tint = Ink) }
                     )
@@ -523,7 +524,7 @@ fun RoutePlannerScreen(
                     leadingIcon = Icons.Default.Save,
                     onClick = {
                         viewModel.saveRoute {
-                            Toast.makeText(context, context.getString(R.string.toast_route_saved, uiState.routeName), Toast.LENGTH_SHORT).show()
+                            feedback.showSuccess(context.getString(R.string.toast_route_saved, uiState.routeName))
                             onBackClick()
                         }
                     }
@@ -582,9 +583,9 @@ fun RoutePlannerScreen(
                             } catch (_: Throwable) {}
                             useRadarMode = false
                             showTokenDialog = false
-                            Toast.makeText(context, context.getString(R.string.toast_mapbox_saved), Toast.LENGTH_SHORT).show()
+                            feedback.showSuccess(context.getString(R.string.toast_mapbox_saved))
                         } else {
-                            Toast.makeText(context, context.getString(R.string.toast_mapbox_invalid), Toast.LENGTH_SHORT).show()
+                            feedback.showError(context.getString(R.string.toast_mapbox_invalid))
                         }
                     },
                     shape = RoundedCornerShape(14.dp),

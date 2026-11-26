@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -40,6 +39,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import com.ridervoice.ui.components.LocalRvFeedback
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +52,7 @@ fun LobbyScreen(
     onInviteMoreClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val feedback = LocalRvFeedback.current
     val lobbyStatus by viewModel.lobbyStatus.collectAsStateWithLifecycle()
     val loadState by viewModel.loadState.collectAsStateWithLifecycle()
     val activeRide by viewModel.activeRideState.collectAsStateWithLifecycle()
@@ -610,7 +611,7 @@ fun LobbyScreen(
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                                 val clip = ClipData.newPlainText(context.getString(R.string.lobby_ride_code_label), effectiveJoinCode)
                                 clipboard?.setPrimaryClip(clip)
-                                Toast.makeText(context, context.getString(R.string.toast_ride_code_copied), Toast.LENGTH_SHORT).show()
+                                feedback.showSuccess(context.getString(R.string.toast_ride_code_copied))
                             },
                             onShare = {
                                 val sendIntent = Intent().apply {

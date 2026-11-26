@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,6 +44,7 @@ fun AddRidersBottomSheet(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val sheetFeedback = rememberRvFeedbackController()
     var selectedTab by rememberSaveable { mutableStateOf(0) }
 
     val shareLink by lobbyViewModel.shareLink.collectAsStateWithLifecycle()
@@ -270,7 +270,7 @@ fun AddRidersBottomSheet(
                                                     val clip = ClipData.newPlainText(context.getString(R.string.sheet_convoy_link_clip_label), activeLink)
                                                     clipboard.setPrimaryClip(clip)
                                                     isCopied = true
-                                                    Toast.makeText(context, context.getString(R.string.toast_link_copied), Toast.LENGTH_SHORT).show()
+                                                    sheetFeedback.showSuccess(context.getString(R.string.toast_link_copied))
                                                 }
                                             ) {
                                                 Icon(
@@ -292,7 +292,7 @@ fun AddRidersBottomSheet(
                                                 val clip = ClipData.newPlainText(context.getString(R.string.sheet_convoy_link_clip_label), activeLink)
                                                 clipboard.setPrimaryClip(clip)
                                                 isCopied = true
-                                                Toast.makeText(context, context.getString(R.string.toast_link_copied), Toast.LENGTH_SHORT).show()
+                                                sheetFeedback.showSuccess(context.getString(R.string.toast_link_copied))
                                             },
                                             shape = RoundedCornerShape(16.dp),
                                             border = BorderStroke(1.dp, InkHairline),
@@ -360,6 +360,10 @@ fun AddRidersBottomSheet(
                     }
                 }
             }
+            RvSnackbarHost(
+                controller = sheetFeedback,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }

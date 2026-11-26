@@ -5,7 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
 import android.os.PersistableBundle
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -83,6 +82,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
+import com.ridervoice.ui.components.LocalRvFeedback
 
 private val PaperSurface get() = MeshColors.LobbyBackground
 private val CardDark get() = MeshColors.LobbyCard
@@ -138,6 +138,7 @@ fun OfflineMeshLobbyScreen(
         }
     }
 
+    val feedback = LocalRvFeedback.current
     val scrollState = rememberScrollState()
 
     val submitJoinCode: () -> Unit = {
@@ -147,7 +148,7 @@ fun OfflineMeshLobbyScreen(
             saveAsBackupOnly = useAsBackup,
             onReady = {
                 if (useAsBackup) {
-                    Toast.makeText(context, context.getString(R.string.mesh_backup_saved_toast), Toast.LENGTH_SHORT).show()
+                    feedback.showSuccess(context.getString(R.string.mesh_backup_saved_toast))
                     onBackClick()
                 } else {
                     onEnterSession()
@@ -547,7 +548,7 @@ fun OfflineMeshLobbyScreen(
                                         putBoolean("android.content.extra.IS_SENSITIVE", true)
                                     }
                                     cm.setPrimaryClip(clip)
-                                    Toast.makeText(context, context.getString(R.string.mesh_lobby_code_copied), Toast.LENGTH_SHORT).show()
+                                    feedback.showSuccess(context.getString(R.string.mesh_lobby_code_copied))
                                 },
                                 shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.weight(1f)
@@ -561,7 +562,7 @@ fun OfflineMeshLobbyScreen(
                                 onClick = {
                                     if (useAsBackup) {
                                         viewModel.saveCurrentGeneratedAsBackupAndFinish {
-                                            Toast.makeText(context, context.getString(R.string.mesh_backup_saved_toast), Toast.LENGTH_SHORT).show()
+                                            feedback.showSuccess(context.getString(R.string.mesh_backup_saved_toast))
                                             onBackClick()
                                         }
                                     } else {

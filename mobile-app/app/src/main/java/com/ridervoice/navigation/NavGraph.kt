@@ -30,12 +30,19 @@ import com.ridervoice.ui.screens.*
 import com.ridervoice.ui.theme.Paper
 import com.ridervoice.ui.theme.RvMotion
 import com.ridervoice.utils.OEMBatteryWarning
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
+import com.ridervoice.ui.components.LocalRvFeedback
+import com.ridervoice.ui.components.RvFeedbackController
+import com.ridervoice.ui.components.RvSnackbarHost
+import com.ridervoice.ui.components.rememberRvFeedbackController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavGraph(
     navController: NavHostController = rememberNavController(),
-    startRoute: String? = null
+    startRoute: String? = null,
+    feedbackController: RvFeedbackController = rememberRvFeedbackController()
 ) {
     
     LaunchedEffect(Unit) {
@@ -66,6 +73,7 @@ fun NavGraph(
     val isImeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val showBottomBar = shouldShowBottomBar(currentRoute, isImeVisible)
 
+    CompositionLocalProvider(LocalRvFeedback provides feedbackController) {
     Scaffold(
         containerColor = Paper,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -583,6 +591,12 @@ fun NavGraph(
             )
         }
     }
+            RvSnackbarHost(
+                controller = feedbackController,
+                suppressed = currentRoute == Routes.SOS,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
+    }
     }
 }

@@ -113,6 +113,10 @@ class MainActivity : ComponentActivity() {
                 androidx.compose.ui.platform.LocalConfiguration provides localizedContext.resources.configuration
             ) {
                 com.ridervoice.ui.theme.RiderVoiceTheme {
+                val feedbackController = com.ridervoice.ui.components.rememberRvFeedbackController()
+                androidx.compose.runtime.CompositionLocalProvider(
+                    com.ridervoice.ui.components.LocalRvFeedback provides feedbackController
+                ) {
                 val showUpdateSuccessDialog = remember { mutableStateOf(false) }
                 val updatedVersionName = remember { mutableStateOf("") }
                 val crashReportText = remember { mutableStateOf<String?>(null) }
@@ -143,7 +147,7 @@ class MainActivity : ComponentActivity() {
                     securePreferences.saveString("installed_version_name", currentVersion)
                 }
 
-                NavGraph(startRoute = initialRoute)
+                NavGraph(startRoute = initialRoute, feedbackController = feedbackController)
 
                 crashReportText.value?.let { report ->
                     AlertDialog(
@@ -198,7 +202,7 @@ class MainActivity : ComponentActivity() {
                                     val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
                                     val clip = android.content.ClipData.newPlainText(getString(R.string.crash_clip_label), report)
                                     clipboard?.setPrimaryClip(clip)
-                                    android.widget.Toast.makeText(this@MainActivity, getString(R.string.crash_copied_toast), android.widget.Toast.LENGTH_SHORT).show()
+                                    feedbackController.showSuccess(getString(R.string.crash_copied_toast))
                                     try { java.io.File(filesDir, App.CRASH_FILE_NAME).delete() } catch (_: Exception) {}
                                     crashReportText.value = null
                                 },
@@ -335,6 +339,7 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 }
+            }
             }
         }
     }

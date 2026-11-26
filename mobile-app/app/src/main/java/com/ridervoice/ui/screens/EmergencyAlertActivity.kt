@@ -19,9 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -283,7 +280,7 @@ fun EmergencyAlertContent(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Warning,
+                            imageVector = RvIcons.Warning,
                             contentDescription = stringResource(R.string.cd_warning_hazard),
                             tint = Brick,
                             modifier = Modifier.size(18.dp)
@@ -450,7 +447,7 @@ fun EmergencyAlertContent(
                     shape = RoundedCornerShape(18.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Phone,
+                        imageVector = RvIcons.Phone,
                         contentDescription = stringResource(R.string.cd_call_number, emergencyNumber),
                         modifier = Modifier.size(20.dp)
                     )

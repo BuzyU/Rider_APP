@@ -16,12 +16,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.systemGestureExclusion
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MicOff
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -124,7 +118,7 @@ fun TalkControls(
                 )
             ) {
                 Icon(
-                    imageVector = if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
+                    imageVector = if (isMicEnabled) RvIcons.Mic else RvIcons.MicOff,
                     contentDescription = if (isMicEnabled) stringResource(R.string.cd_mic_on_tap_mute) else stringResource(R.string.cd_mic_muted_tap_on),
                     tint = if (isMicEnabled) Pop else InkSecondary,
                     modifier = Modifier.size(24.dp)
@@ -168,7 +162,7 @@ fun TalkControls(
                 )
             ) {
                 Icon(
-                    imageVector = if (isDeafened) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                    imageVector = if (isDeafened) RvIcons.VolumeOff else RvIcons.VolumeUp,
                     contentDescription = if (isDeafened) stringResource(R.string.cd_deafened_tap_hear) else stringResource(R.string.cd_tap_to_deafen),
                     tint = if (isDeafened) Brick else InkSecondary,
                     modifier = Modifier.size(24.dp)
@@ -227,7 +221,7 @@ fun TalkControls(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Warning,
+                    imageVector = RvIcons.Warning,
                     contentDescription = stringResource(R.string.mesh_sos),
                     tint = Brick,
                     modifier = Modifier.size(26.dp)
@@ -382,7 +376,7 @@ fun PttPerforatedButton(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Mic,
+                    imageVector = RvIcons.Mic,
                     contentDescription = null,
                     tint = if (isPressed) PaperOnPop else (if (isVoxOpen) Pop else Ink),
                     modifier = Modifier.size(16.dp)

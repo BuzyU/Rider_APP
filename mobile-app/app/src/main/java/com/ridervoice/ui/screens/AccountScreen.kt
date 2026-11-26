@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -100,7 +98,7 @@ fun AccountScreen(
                         .border(1.dp, Pop.copy(alpha = 0.3f), CircleShape)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Edit,
+                        imageVector = RvIcons.Edit,
                         contentDescription = stringResource(R.string.account_edit_profile),
                         tint = Pop,
                         modifier = Modifier.size(19.dp)
@@ -118,7 +116,7 @@ fun AccountScreen(
                         .border(1.dp, InkHairline, CircleShape)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Settings,
+                        imageVector = RvIcons.Settings,
                         contentDescription = stringResource(R.string.nav_settings),
                         tint = Ink,
                         modifier = Modifier.size(20.dp)
@@ -156,7 +154,7 @@ fun AccountScreen(
                                     modifier = Modifier.padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.Warning, contentDescription = null, tint = Brick)
+                                    Icon(RvIcons.Warning, contentDescription = null, tint = Brick)
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(text = err, color = Brick, style = MaterialTheme.typography.bodySmall)
                                 }
@@ -176,7 +174,7 @@ fun AccountScreen(
                                     modifier = Modifier.padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Moss)
+                                    Icon(RvIcons.CheckCircle, contentDescription = null, tint = Moss)
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(text = msg, color = Moss, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
                                 }
@@ -302,25 +300,25 @@ fun AccountScreen(
                                     AccountInfoRow(
                                         label = stringResource(R.string.account_display_name),
                                         value = uiState.displayName.ifBlank { stringResource(R.string.account_not_configured) },
-                                        icon = Icons.Default.Badge
+                                        icon = RvIcons.Badge
                                     )
                                     Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
                                     AccountInfoRow(
                                         label = stringResource(R.string.account_callsign_handle),
                                         value = "@${uiState.handle.removePrefix("@")}",
-                                        icon = Icons.Default.AlternateEmail
+                                        icon = RvIcons.AlternateEmail
                                     )
                                     Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
                                     AccountInfoRow(
                                         label = stringResource(R.string.account_email_address),
                                         value = uiState.email,
-                                        icon = Icons.Default.Email
+                                        icon = RvIcons.Email
                                     )
                                     Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
                                     AccountInfoRow(
                                         label = stringResource(R.string.account_phone_number),
                                         value = uiState.phone,
-                                        icon = Icons.Default.Phone
+                                        icon = RvIcons.Phone
                                     )
                                 }
                             }
@@ -347,13 +345,13 @@ fun AccountScreen(
                                     AccountInfoRow(
                                         label = stringResource(R.string.account_motorcycle),
                                         value = uiState.bikeModel,
-                                        icon = Icons.Default.TwoWheeler
+                                        icon = RvIcons.TwoWheeler
                                     )
                                     Divider(color = InkHairline, modifier = Modifier.padding(start = 66.dp, end = 16.dp))
                                     AccountInfoRow(
                                         label = stringResource(R.string.account_bio),
                                         value = uiState.bio,
-                                        icon = Icons.Default.Notes
+                                        icon = RvIcons.Notes
                                     )
                                 }
                             }
@@ -365,7 +363,7 @@ fun AccountScreen(
                         PrimaryButton(
                             text = stringResource(R.string.account_edit_profile),
                             onClick = { showEditDialog = true },
-                            leadingIcon = Icons.Default.Edit
+                            leadingIcon = RvIcons.Edit
                         )
                     }
 

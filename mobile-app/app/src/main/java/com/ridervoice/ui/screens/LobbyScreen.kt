@@ -13,8 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -223,7 +221,7 @@ fun LobbyScreen(
                             .border(1.dp, InkHairline, CircleShape)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = RvIcons.Back,
                             contentDescription = stringResource(R.string.cd_leave_lobby),
                             tint = Ink,
                             modifier = Modifier.size(20.dp)
@@ -324,7 +322,7 @@ fun LobbyScreen(
                                     showAddRidersSheet = true
                                     onInviteMoreClick()
                                 },
-                                leadingIcon = Icons.Default.PersonAdd
+                                leadingIcon = RvIcons.PersonAdd
                             )
                         } else {
                             Surface(
@@ -379,7 +377,7 @@ fun LobbyScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Warning,
+                            imageVector = RvIcons.Warning,
                             contentDescription = null,
                             tint = Brick,
                             modifier = Modifier.size(48.dp)
@@ -483,7 +481,7 @@ fun LobbyScreen(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = Icons.Default.Warning,
+                                        imageVector = RvIcons.Warning,
                                         contentDescription = null,
                                         tint = Brick,
                                         modifier = Modifier.size(20.dp)
@@ -695,7 +693,7 @@ fun LobbyScreen(
                                 {
                                     IconButton(onClick = { riderToRemove = entry.invitee }) {
                                         Icon(
-                                            imageVector = Icons.Default.RemoveCircleOutline,
+                                            imageVector = RvIcons.RemoveCircleOutline,
                                             contentDescription = stringResource(R.string.action_remove),
                                             tint = Brick
                                         )
@@ -728,7 +726,7 @@ fun LobbyScreen(
                                 {
                                     IconButton(onClick = { riderToRemove = entry.invitee }) {
                                         Icon(
-                                            imageVector = Icons.Default.Close,
+                                            imageVector = RvIcons.Close,
                                             contentDescription = stringResource(R.string.cd_cancel_invite),
                                             tint = InkSecondary
                                         )

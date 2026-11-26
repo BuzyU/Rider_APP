@@ -10,8 +10,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -129,7 +127,7 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.BatteryAlert,
+                            RvIcons.BatteryAlert,
                             contentDescription = stringResource(R.string.cd_battery_warning),
                             tint = Pop,
                             modifier = Modifier.size(20.dp)
@@ -146,7 +144,7 @@ fun HomeScreen(
                             modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
-                                Icons.Default.Close,
+                                RvIcons.Close,
                                 contentDescription = stringResource(R.string.cd_dismiss),
                                 tint = InkSecondary,
                                 modifier = Modifier.size(16.dp)
@@ -222,7 +220,7 @@ fun HomeScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ArrowForward,
+                                imageVector = RvIcons.Forward,
                                 contentDescription = stringResource(R.string.cd_start_creating_ride),
                                 tint = HeroPhotoBadgeIcon,
                                 modifier = Modifier.size(22.dp)
@@ -261,7 +259,7 @@ fun HomeScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Login,
+                                imageVector = RvIcons.Login,
                                 contentDescription = stringResource(R.string.action_join_ride),
                                 tint = PaperOnPop,
                                 modifier = Modifier.size(20.dp)
@@ -314,14 +312,14 @@ fun HomeScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.NotificationsNone,
+                                    imageVector = RvIcons.NotificationsNone,
                                     contentDescription = stringResource(R.string.menu_inbox_title),
                                     tint = Ink,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
                             Icon(
-                                imageVector = Icons.Default.ChevronRight,
+                                imageVector = RvIcons.ChevronRight,
                                 contentDescription = null,
                                 tint = InkSecondary,
                                 modifier = Modifier.size(20.dp)
@@ -418,7 +416,7 @@ fun HomeScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (uiState.hasActiveRide) {
                             Icon(
-                                imageVector = Icons.Default.Mic,
+                                imageVector = RvIcons.Mic,
                                 contentDescription = null,
                                 tint = InkSecondary,
                                 modifier = Modifier.size(14.dp)
@@ -452,7 +450,7 @@ fun HomeScreen(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.HeadsetMic,
+                                        imageVector = RvIcons.HeadsetMic,
                                         contentDescription = null,
                                         tint = Ink,
                                         modifier = Modifier.size(14.dp)
@@ -489,7 +487,7 @@ fun HomeScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Icon(
-                                    imageVector = Icons.Default.ArrowForward,
+                                    imageVector = RvIcons.Forward,
                                     contentDescription = null,
                                     modifier = Modifier.size(15.dp)
                                 )
@@ -525,7 +523,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Warning,
+                            imageVector = RvIcons.Warning,
                             contentDescription = stringResource(R.string.sos_title),
                             tint = Brick,
                             modifier = Modifier.size(21.dp)

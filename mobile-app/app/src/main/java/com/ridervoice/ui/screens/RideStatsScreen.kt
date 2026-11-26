@@ -12,8 +12,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -144,7 +142,7 @@ fun RideStatsScreen(
                             .border(1.dp, InkHairline, CircleShape)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Share,
+                            imageVector = RvIcons.Share,
                             contentDescription = stringResource(R.string.cd_share_ride_stats),
                             tint = Ink,
                             modifier = Modifier.size(20.dp)
@@ -236,7 +234,7 @@ fun RideStatsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.TwoWheeler,
+                                    imageVector = RvIcons.TwoWheeler,
                                     contentDescription = null,
                                     tint = InkSecondary,
                                     modifier = Modifier.size(26.dp)
@@ -322,7 +320,7 @@ fun RideStatsScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Flag,
+                                imageVector = RvIcons.Flag,
                                 contentDescription = stringResource(R.string.history_field_journal),
                                 tint = Moss,
                                 modifier = Modifier.size(20.dp)
@@ -343,7 +341,7 @@ fun RideStatsScreen(
                             )
                         }
                         Icon(
-                            imageVector = Icons.Default.ChevronRight,
+                            imageVector = RvIcons.ChevronRight,
                             contentDescription = null,
                             tint = InkSecondary,
                             modifier = Modifier.size(20.dp)
@@ -416,7 +414,7 @@ private fun SeasonTotalsBentoCard(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CheckCircleOutline,
+                            imageVector = RvIcons.CheckCircleOutline,
                             contentDescription = null,
                             tint = Moss,
                             modifier = Modifier.size(13.dp)
@@ -549,7 +547,7 @@ private fun RideHistoryCard(
 
             // Right: Chevron
             Icon(
-                imageVector = Icons.Default.ChevronRight,
+                imageVector = RvIcons.ChevronRight,
                 contentDescription = stringResource(R.string.cd_open_replay),
                 tint = InkSecondary,
                 modifier = Modifier.size(18.dp)

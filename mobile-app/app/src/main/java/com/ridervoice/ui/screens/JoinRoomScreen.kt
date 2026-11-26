@@ -3,10 +3,6 @@ package com.ridervoice.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MeetingRoom
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -123,7 +119,7 @@ fun JoinRoomScreen(
                         )
                     } else if (tokenError != null) {
                         Icon(
-                            Icons.Default.Warning,
+                            RvIcons.Warning,
                             contentDescription = null,
                             tint = Brick,
                             modifier = Modifier.size(40.dp)
@@ -190,7 +186,7 @@ fun JoinRoomScreen(
                 value = userName,
                 onValueChange = { userName = it },
                 label = { Text(stringResource(R.string.join_callsign_label)) },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = InkSecondary) },
+                leadingIcon = { Icon(RvIcons.Person, contentDescription = null, tint = InkSecondary) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
@@ -212,7 +208,7 @@ fun JoinRoomScreen(
                 onValueChange = { roomCode = it },
                 label = { Text(stringResource(R.string.join_code_or_link_label)) },
                 placeholder = { Text(stringResource(R.string.join_code_placeholder), color = InkSecondary) },
-                leadingIcon = { Icon(Icons.Default.MeetingRoom, contentDescription = null, tint = Pop) },
+                leadingIcon = { Icon(RvIcons.MeetingRoom, contentDescription = null, tint = Pop) },
                 supportingText = {
                     if (roomCode.isBlank()) {
                         Text(

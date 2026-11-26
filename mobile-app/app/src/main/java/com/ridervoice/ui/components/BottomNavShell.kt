@@ -12,8 +12,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -50,6 +48,9 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+
+val RvBottomNavIconNameKey = SemanticsPropertyKey<String>("RvBottomNavIconName")
 
 private val TOP_LEVEL_TAB_ROUTES = setOf(
     Routes.HOME,
@@ -226,28 +227,32 @@ fun RvBottomNavigationBar(
                 ) {
                     BottomNavTabItem(
                         label = stringResource(R.string.tab_dashboard),
-                        icon = Icons.Default.GridView,
+                        unselectedIcon = RvIcons.NavHome,
+                        selectedIcon = RvIcons.NavHomeSelected,
                         selected = currentRoute == Routes.HOME,
                         onClick = onHomeClick,
                         modifier = Modifier.weight(1f).testTag("bottom_nav_home")
                     )
                     BottomNavTabItem(
                         label = stringResource(R.string.tab_history),
-                        icon = Icons.Default.History,
+                        unselectedIcon = RvIcons.NavHistory,
+                        selectedIcon = RvIcons.NavHistorySelected,
                         selected = currentRoute == Routes.RIDE_STATS,
                         onClick = onHistoryClick,
                         modifier = Modifier.weight(1f).testTag("bottom_nav_history")
                     )
                     BottomNavTabItem(
                         label = stringResource(R.string.tab_my_squad),
-                        icon = Icons.Default.Group,
+                        unselectedIcon = RvIcons.NavSquad,
+                        selectedIcon = RvIcons.NavSquadSelected,
                         selected = currentRoute == Routes.SQUAD,
                         onClick = onSquadClick,
                         modifier = Modifier.weight(1f).testTag("bottom_nav_squad")
                     )
                     BottomNavTabItem(
                         label = stringResource(R.string.nav_settings),
-                        icon = Icons.Default.Tune,
+                        unselectedIcon = RvIcons.NavSettings,
+                        selectedIcon = RvIcons.NavSettingsSelected,
                         selected = currentRoute == Routes.SETTINGS,
                         onClick = onSettingsClick,
                         modifier = Modifier.weight(1f).testTag("bottom_nav_settings")
@@ -261,7 +266,8 @@ fun RvBottomNavigationBar(
 @Composable
 private fun BottomNavTabItem(
     label: String,
-    icon: ImageVector,
+    unselectedIcon: ImageVector,
+    selectedIcon: ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -290,6 +296,9 @@ private fun BottomNavTabItem(
         modifier = modifier
             .defaultMinSize(minWidth = RvTouchTarget.min, minHeight = 48.dp)
             .clip(RoundedCornerShape(14.dp))
+            .semantics {
+                this[RvBottomNavIconNameKey] = (if (selected) selectedIcon else unselectedIcon).name
+            }
             .selectable(
                 selected = selected,
                 interactionSource = interactionSource,
@@ -301,7 +310,7 @@ private fun BottomNavTabItem(
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = icon,
+            imageVector = if (selected) selectedIcon else unselectedIcon,
             contentDescription = label,
             tint = iconTint,
             modifier = Modifier
@@ -389,7 +398,7 @@ fun MoreMenuBottomSheet(
                             modifier = Modifier.size(RvTouchTarget.min)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                imageVector = RvIcons.Close,
                                 contentDescription = stringResource(R.string.cd_close_menu),
                                 tint = InkSecondary
                             )
@@ -397,7 +406,7 @@ fun MoreMenuBottomSheet(
                     }
 
                     MoreSheetRow(
-                        icon = Icons.Default.AccountCircle,
+                        icon = RvIcons.AccountCircle,
                         title = stringResource(R.string.menu_account_title),
                         subtitle = stringResource(R.string.menu_account_subtitle),
                         onClick = {
@@ -406,7 +415,7 @@ fun MoreMenuBottomSheet(
                         }
                     )
                     MoreSheetRow(
-                        icon = Icons.Default.HeadsetMic,
+                        icon = RvIcons.HeadsetMic,
                         title = stringResource(R.string.menu_audio_title),
                         subtitle = stringResource(R.string.menu_audio_subtitle),
                         onClick = {
@@ -416,7 +425,7 @@ fun MoreMenuBottomSheet(
                     )
                     if (onRoutePlannerClick != null) {
                         MoreSheetRow(
-                            icon = Icons.Default.Map,
+                            icon = RvIcons.Map,
                             title = stringResource(R.string.route_planner_title),
                             subtitle = stringResource(R.string.menu_route_planner_subtitle),
                             onClick = {
@@ -427,7 +436,7 @@ fun MoreMenuBottomSheet(
                     }
                     if (onInvitesInboxClick != null) {
                         MoreSheetRow(
-                            icon = Icons.Default.Mail,
+                            icon = RvIcons.Mail,
                             title = stringResource(R.string.menu_inbox_title),
                             subtitle = stringResource(R.string.menu_inbox_subtitle),
                             onClick = {
@@ -437,7 +446,7 @@ fun MoreMenuBottomSheet(
                         )
                     }
                     MoreSheetRow(
-                        icon = Icons.Default.Tune,
+                        icon = RvIcons.Tune,
                         title = stringResource(R.string.nav_settings),
                         subtitle = stringResource(R.string.menu_settings_subtitle),
                         onClick = {
@@ -455,7 +464,7 @@ fun MoreMenuBottomSheet(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     MoreSheetRow(
-                        icon = Icons.Default.Logout,
+                        icon = RvIcons.Logout,
                         title = stringResource(R.string.action_sign_out),
                         subtitle = null,
                         destructive = true,
@@ -531,10 +540,10 @@ private fun MoreSheetRow(
             }
             if (!destructive) {
                 Icon(
-                    imageVector = Icons.Default.ChevronRight,
+                    imageVector = RvIcons.ChevronRight,
                     contentDescription = null,
                     tint = InkSecondary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp).rvRtlMirrored()
                 )
             }
         }

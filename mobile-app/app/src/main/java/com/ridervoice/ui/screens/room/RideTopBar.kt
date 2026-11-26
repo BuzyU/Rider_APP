@@ -12,8 +12,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -189,7 +187,7 @@ fun RideTopBar(
                             .testTag("ride_topbar_leave_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CallEnd,
+                            imageVector = RvIcons.Leave,
                             contentDescription = stringResource(R.string.cd_leave_ride),
                             tint = Brick,
                             modifier = Modifier.size(24.dp)

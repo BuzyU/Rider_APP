@@ -7,8 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -55,7 +53,7 @@ fun UpdateDialog(
             UpdateDialogShell(
                 title = stringResource(R.string.update_checking_title),
                 subtitle = null,
-                icon = Icons.Default.SystemUpdate,
+                icon = RvIcons.SystemUpdate,
                 iconBg = PopContainer,
                 iconTint = Pop,
                 dismissible = false,
@@ -89,7 +87,7 @@ fun UpdateDialog(
                 title = stringResource(R.string.update_uptodate_title),
                 subtitle = null,
                 versionBadge = versionBadge,
-                icon = Icons.Default.CheckCircle,
+                icon = RvIcons.CheckCircle,
                 iconBg = MossContainer,
                 iconTint = Moss,
                 dismissible = true,
@@ -144,7 +142,7 @@ fun UpdateDialog(
             UpdateDialogShell(
                 title = stringResource(R.string.update_available_title),
                 subtitle = stringResource(R.string.update_badge_app),
-                icon = Icons.Default.SystemUpdate,
+                icon = RvIcons.SystemUpdate,
                 iconBg = PopContainer,
                 iconTint = Pop,
                 dismissible = true,
@@ -226,7 +224,7 @@ fun UpdateDialog(
                                 )
                             }
                             Icon(
-                                imageVector = Icons.Default.ArrowForward,
+                                imageVector = RvIcons.Forward,
                                 contentDescription = null,
                                 tint = InkSecondary,
                                 modifier = Modifier.size(18.dp)
@@ -274,7 +272,7 @@ fun UpdateDialog(
                 title = stringResource(R.string.update_confirm_title),
                 subtitle = null,
                 versionBadge = versionBadge,
-                icon = Icons.Default.Download,
+                icon = RvIcons.Download,
                 iconBg = PopContainer,
                 iconTint = Pop,
                 dismissible = true,
@@ -335,7 +333,7 @@ fun UpdateDialog(
                 title = stringResource(R.string.update_downloading_title),
                 subtitle = stringResource(R.string.update_downloading_badge),
                 versionBadge = versionBadge,
-                icon = Icons.Default.Downloading,
+                icon = RvIcons.Downloading,
                 iconBg = PopContainer,
                 iconTint = Pop,
                 dismissible = false,
@@ -415,7 +413,7 @@ fun UpdateDialog(
             UpdateDialogShell(
                 title = stringResource(R.string.update_verifying_title),
                 subtitle = null,
-                icon = Icons.Default.VerifiedUser,
+                icon = RvIcons.VerifiedUser,
                 iconBg = MossContainer,
                 iconTint = Moss,
                 dismissible = false,
@@ -449,7 +447,7 @@ fun UpdateDialog(
                 title = stringResource(R.string.update_download_complete_title),
                 subtitle = null,
                 versionBadge = versionBadge,
-                icon = Icons.Default.DownloadDone,
+                icon = RvIcons.DownloadDone,
                 iconBg = MossContainer,
                 iconTint = Moss,
                 dismissible = true,
@@ -503,7 +501,7 @@ fun UpdateDialog(
             UpdateDialogShell(
                 title = stringResource(R.string.update_permission_title),
                 subtitle = null,
-                icon = Icons.Default.Security,
+                icon = RvIcons.Security,
                 iconBg = PopContainer,
                 iconTint = Pop,
                 dismissible = true,
@@ -564,7 +562,7 @@ fun UpdateDialog(
                 title = stringResource(R.string.update_installer_launched_title),
                 subtitle = null,
                 versionBadge = versionBadge,
-                icon = Icons.Default.InstallMobile,
+                icon = RvIcons.InstallMobile,
                 iconBg = MossContainer,
                 iconTint = Moss,
                 dismissible = true,
@@ -617,7 +615,7 @@ fun UpdateDialog(
             UpdateDialogShell(
                 title = stringResource(R.string.update_failed_title),
                 subtitle = null,
-                icon = Icons.Default.ErrorOutline,
+                icon = RvIcons.ErrorOutline,
                 iconBg = BrickContainer,
                 iconTint = Brick,
                 dismissible = true,
@@ -811,7 +809,7 @@ private fun UpdateDialogShell(
                                 modifier = Modifier.size(RvTouchTarget.min)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
+                                    imageVector = RvIcons.Close,
                                     contentDescription = stringResource(R.string.cd_dismiss),
                                     tint = InkSecondary,
                                     modifier = Modifier.size(20.dp)
@@ -890,35 +888,35 @@ private fun ReleaseNoteCategoryCard(section: ReleaseNoteSection) {
     val (labelRes, icon, badgeBg, badgeTint, dotColor) = when (section.category) {
         ReleaseNoteCategory.WHATS_NEW -> Quint(
             R.string.update_cat_whats_new,
-            Icons.Default.AutoAwesome,
+            RvIcons.AutoAwesome,
             PopContainer,
             Pop,
             Pop
         )
         ReleaseNoteCategory.IMPROVEMENTS -> Quint(
             R.string.update_cat_improvements,
-            Icons.Default.Tune,
+            RvIcons.Tune,
             PaperSunken,
             Ink,
             InkSecondary
         )
         ReleaseNoteCategory.BUG_FIXES -> Quint(
             R.string.update_cat_bug_fixes,
-            Icons.Default.Build,
+            RvIcons.Build,
             MossContainer,
             Moss,
             Moss
         )
         ReleaseNoteCategory.RELIABILITY -> Quint(
             R.string.update_cat_reliability,
-            Icons.Default.VerifiedUser,
+            RvIcons.VerifiedUser,
             PaperSunken,
             Ink,
             InkSecondary
         )
         ReleaseNoteCategory.NOTES -> Quint(
             R.string.update_cat_notes,
-            Icons.Default.Info,
+            RvIcons.Info,
             PaperSunken,
             InkSecondary,
             InkSecondary

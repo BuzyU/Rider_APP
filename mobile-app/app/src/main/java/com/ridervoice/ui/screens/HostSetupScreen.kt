@@ -6,8 +6,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -301,7 +299,7 @@ fun HostSetupScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.Tune,
+                            imageVector = RvIcons.Tune,
                             contentDescription = null,
                             tint = Pop,
                             modifier = Modifier.size(20.dp)
@@ -315,7 +313,7 @@ fun HostSetupScreen(
                         )
                     }
                     Icon(
-                        imageVector = if (moreOptionsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        imageVector = if (moreOptionsExpanded) RvIcons.ExpandLess else RvIcons.ExpandMore,
                         contentDescription = null,
                         tint = InkSecondary
                     )
@@ -373,7 +371,7 @@ fun HostSetupScreen(
                         SecondaryButton(
                             text = stringResource(R.string.host_import_route),
                             onClick = onImportRouteClick,
-                            leadingIcon = Icons.Default.Map
+                            leadingIcon = RvIcons.Map
                         )
                     }
                 }

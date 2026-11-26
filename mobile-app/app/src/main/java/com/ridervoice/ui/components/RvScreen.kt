@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -60,10 +58,10 @@ fun RvScreen(
                                 .border(1.dp, InkHairline, CircleShape)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ArrowBack,
+                                imageVector = RvIcons.Back,
                                 contentDescription = stringResource(R.string.cd_back),
                                 tint = Ink,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(20.dp).rvRtlMirrored()
                             )
                         }
                     }

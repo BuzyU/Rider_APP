@@ -11,11 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -135,7 +130,7 @@ fun SosScreen(
                         .background(PaperRaised)
                         .border(1.dp, InkHairline, CircleShape)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close_sos), tint = Ink, modifier = Modifier.size(20.dp))
+                    Icon(RvIcons.Close, contentDescription = stringResource(R.string.cd_close_sos), tint = Ink, modifier = Modifier.size(20.dp))
                 }
             }
 
@@ -165,7 +160,7 @@ fun SosScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
+                                imageVector = RvIcons.CheckCircle,
                                 contentDescription = stringResource(R.string.cd_alert_sent),
                                 tint = Moss,
                                 modifier = Modifier.size(52.dp)
@@ -202,7 +197,7 @@ fun SosScreen(
                             modifier = Modifier.padding(22.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = Brick, modifier = Modifier.size(46.dp))
+                            Icon(RvIcons.Warning, contentDescription = null, tint = Brick, modifier = Modifier.size(46.dp))
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
                                 text = stringResource(R.string.sos_not_sent_title),
@@ -230,7 +225,7 @@ fun SosScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = Brick),
                                 shape = RoundedCornerShape(16.dp)
                             ) {
-                                Icon(Icons.Default.Phone, contentDescription = null, tint = PaperOnBrick)
+                                Icon(RvIcons.Phone, contentDescription = null, tint = PaperOnBrick)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = stringResource(R.string.sos_call_now, state.emergencyNumber),
@@ -271,7 +266,7 @@ fun SosScreen(
                             modifier = Modifier.padding(20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = Brick, modifier = Modifier.size(36.dp))
+                            Icon(RvIcons.Warning, contentDescription = null, tint = Brick, modifier = Modifier.size(36.dp))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = stringResource(R.string.sos_alert_failed_title),
@@ -350,7 +345,7 @@ fun SosScreen(
                     ),
                     shape = RoundedCornerShape(18.dp)
                 ) {
-                    Icon(Icons.Default.Phone, contentDescription = stringResource(R.string.cd_call_number, emergencyNumber), modifier = Modifier.size(20.dp))
+                    Icon(RvIcons.Phone, contentDescription = stringResource(R.string.cd_call_number, emergencyNumber), modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     val callLabel = if (emergencyInfo.isFallback) {
                         stringResource(R.string.sos_call_fallback, emergencyNumber)
@@ -373,7 +368,7 @@ fun SosScreen(
                         shape = RoundedCornerShape(18.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Brick)
                     ) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = PaperOnBrick)
+                        Icon(RvIcons.Warning, contentDescription = null, tint = PaperOnBrick)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = if (state is SosState.Failed) stringResource(R.string.sos_retry_broadcast) else stringResource(R.string.sos_send_now_btn),

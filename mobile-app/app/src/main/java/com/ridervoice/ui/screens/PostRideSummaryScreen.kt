@@ -9,8 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -125,7 +123,7 @@ fun PostRideSummaryScreen(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(stringResource(R.string.summary_saving), color = PaperOnPop, style = MaterialTheme.typography.labelLarge)
                             } else {
-                                Icon(Icons.Default.BookmarkAdded, contentDescription = null, modifier = Modifier.size(19.dp))
+                                Icon(RvIcons.BookmarkAdded, contentDescription = null, modifier = Modifier.size(19.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = stringResource(R.string.summary_save_to_logbook),
@@ -145,7 +143,7 @@ fun PostRideSummaryScreen(
                             ),
                             modifier = Modifier.height(54.dp)
                         ) {
-                            Icon(Icons.Default.DeleteOutline, contentDescription = stringResource(R.string.action_discard), modifier = Modifier.size(20.dp))
+                            Icon(RvIcons.DeleteOutline, contentDescription = stringResource(R.string.action_discard), modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -231,14 +229,14 @@ fun PostRideSummaryScreen(
                     label = stringResource(R.string.summary_stat_distance),
                     value = RvDateFormat.formatDecimal(distanceKm, 1, appLocale),
                     unit = stringResource(R.string.unit_km),
-                    icon = Icons.Default.Straighten,
+                    icon = RvIcons.Straighten,
                     modifier = Modifier.weight(1f)
                 )
                 SummaryBentoTile(
                     label = stringResource(R.string.summary_stat_moving_time),
                     value = durationFormatted,
                     unit = "",
-                    icon = Icons.Default.Timer,
+                    icon = RvIcons.Timer,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -251,14 +249,14 @@ fun PostRideSummaryScreen(
                     label = stringResource(R.string.summary_stat_avg_speed),
                     value = RvDateFormat.formatDecimal(avgSpeedKmh, 0, appLocale),
                     unit = stringResource(R.string.unit_kmh),
-                    icon = Icons.Default.Speed,
+                    icon = RvIcons.Speed,
                     modifier = Modifier.weight(1f)
                 )
                 SummaryBentoTile(
                     label = stringResource(R.string.summary_stat_top_speed),
                     value = RvDateFormat.formatDecimal(topSpeed, 0, appLocale),
                     unit = stringResource(R.string.unit_kmh),
-                    icon = Icons.Default.Bolt,
+                    icon = RvIcons.Bolt,
                     modifier = Modifier.weight(1f)
                 )
             }

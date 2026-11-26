@@ -10,8 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -148,7 +146,7 @@ fun SquadScreen(
                             .testTag("squad_add_rider_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.PersonAdd,
+                            imageVector = RvIcons.PersonAdd,
                             contentDescription = stringResource(R.string.cd_add_rider),
                             tint = Moss,
                             modifier = Modifier.size(22.dp)
@@ -181,7 +179,7 @@ fun SquadScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Groups,
+                                imageVector = RvIcons.Groups,
                                 contentDescription = null,
                                 tint = InkSecondary,
                                 modifier = Modifier.size(40.dp)
@@ -276,7 +274,7 @@ fun SquadScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Groups,
+                                            imageVector = RvIcons.Groups,
                                             contentDescription = null,
                                             tint = InkSecondary,
                                             modifier = Modifier.size(26.dp)
@@ -310,7 +308,7 @@ fun SquadScreen(
                                         modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.PersonAdd,
+                                            imageVector = RvIcons.PersonAdd,
                                             contentDescription = null,
                                             tint = PaperOnPop,
                                             modifier = Modifier.size(18.dp)
@@ -371,7 +369,7 @@ fun SquadScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MarkEmailUnread,
+                        imageVector = RvIcons.MarkEmailUnread,
                         contentDescription = stringResource(R.string.cd_open_squad_requests),
                         tint = PaperOnPop,
                         modifier = Modifier.size(20.dp)
@@ -584,7 +582,7 @@ private fun SentSquadRequestCard(
                         .testTag("sent_request_remove_${request.id}")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = RvIcons.Close,
                         contentDescription = stringResource(R.string.cd_remove_rejected_request, cleanHandle),
                         tint = Brick,
                         modifier = Modifier.size(18.dp)
@@ -703,7 +701,7 @@ fun SquadMemberCard(
                     .testTag("squad_remove_$cleanHandle")
             ) {
                 Icon(
-                    imageVector = Icons.Default.PersonRemove,
+                    imageVector = RvIcons.PersonRemove,
                     contentDescription = stringResource(R.string.cd_remove_from_squad, cleanHandle),
                     tint = Brick,
                     modifier = Modifier.size(19.dp)

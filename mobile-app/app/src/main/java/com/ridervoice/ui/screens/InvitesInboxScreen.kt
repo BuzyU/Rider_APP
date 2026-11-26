@@ -8,8 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -89,7 +87,7 @@ fun InvitesInboxScreen(
                     .border(1.dp, InkHairline, CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = RvIcons.Back,
                     contentDescription = stringResource(R.string.cd_back),
                     tint = Ink,
                     modifier = Modifier.size(20.dp)
@@ -115,7 +113,7 @@ fun InvitesInboxScreen(
                     .border(1.dp, InkHairline, CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Refresh,
+                    imageVector = RvIcons.Refresh,
                     contentDescription = stringResource(R.string.cd_refresh_invites),
                     tint = Ink,
                     modifier = Modifier.size(20.dp)
@@ -161,7 +159,7 @@ fun InvitesInboxScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.MailOutline,
+                                imageVector = RvIcons.MailOutline,
                                 contentDescription = null,
                                 tint = InkSecondary,
                                 modifier = Modifier.size(28.dp)
@@ -188,7 +186,7 @@ fun InvitesInboxScreen(
                             shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.height(50.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = PaperOnPop)
+                            Icon(RvIcons.Add, contentDescription = null, tint = PaperOnPop)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = stringResource(R.string.home_create_ride_title),
@@ -316,7 +314,7 @@ fun InviteCard(
                         .weight(1f)
                         .height(48.dp)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_decline), tint = Brick, modifier = Modifier.size(18.dp))
+                    Icon(RvIcons.Close, contentDescription = stringResource(R.string.action_decline), tint = Brick, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(stringResource(R.string.action_decline), color = Brick, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 }
@@ -338,7 +336,7 @@ fun InviteCard(
                         )
                     } else {
                         Icon(
-                            Icons.Default.Check,
+                            RvIcons.Check,
                             contentDescription = stringResource(R.string.action_accept),
                             tint = PaperOnPop,
                             modifier = Modifier.size(18.dp)

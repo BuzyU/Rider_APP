@@ -9,9 +9,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -158,7 +155,7 @@ class MainActivity : ComponentActivity() {
                         containerColor = PaperRaised,
                         icon = {
                             Icon(
-                                imageVector = Icons.Default.Warning,
+                                imageVector = RvIcons.Warning,
                                 contentDescription = null,
                                 tint = Brick,
                                 modifier = Modifier.size(36.dp)
@@ -230,7 +227,7 @@ class MainActivity : ComponentActivity() {
                         containerColor = PaperRaised,
                         icon = {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
+                                imageVector = RvIcons.CheckCircle,
                                 contentDescription = null,
                                 tint = Moss,
                                 modifier = Modifier.size(36.dp)
@@ -279,7 +276,7 @@ class MainActivity : ComponentActivity() {
                         containerColor = PaperRaised,
                         icon = {
                             Icon(
-                                imageVector = Icons.Default.Warning,
+                                imageVector = RvIcons.Warning,
                                 contentDescription = null,
                                 tint = Pop,
                                 modifier = Modifier.size(36.dp)

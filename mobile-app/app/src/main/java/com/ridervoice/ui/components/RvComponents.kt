@@ -7,8 +7,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -152,25 +150,25 @@ fun StatusChip(
             bgColor = PopContainer
             textColor = Pop
             label = stringResource(R.string.status_host)
-            icon = Icons.Default.Star
+            icon = RvIcons.Star
         }
         "JOINED", "ACCEPTED", "READY" -> {
             bgColor = PaperSunken
             textColor = Ink
             label = if (upper == "READY") stringResource(R.string.status_ready) else stringResource(R.string.lobby_section_joined)
-            icon = Icons.Default.Check
+            icon = RvIcons.Check
         }
         "INVITED", "PENDING" -> {
             bgColor = PaperSunken
             textColor = InkSecondary
             label = stringResource(R.string.lobby_section_invited)
-            icon = Icons.Default.Schedule
+            icon = RvIcons.Schedule
         }
         "DECLINED" -> {
             bgColor = PaperSunken
             textColor = InkSecondary
             label = stringResource(R.string.lobby_section_declined)
-            icon = Icons.Default.Close
+            icon = RvIcons.Close
         }
         "LEFT" -> {
             bgColor = PaperSunken
@@ -258,7 +256,7 @@ fun RiderAvatar(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.MicOff,
+                    imageVector = RvIcons.MicOff,
                     contentDescription = stringResource(R.string.cd_muted),
                     tint = InkSecondary,
                     modifier = Modifier.size(10.dp)
@@ -400,7 +398,7 @@ fun CodeCard(
                     )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ContentCopy,
+                        imageVector = RvIcons.ContentCopy,
                         contentDescription = stringResource(R.string.action_copy_code),
                         modifier = Modifier.size(18.dp),
                         tint = Ink
@@ -421,7 +419,7 @@ fun CodeCard(
                     )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Share,
+                        imageVector = RvIcons.Share,
                         contentDescription = stringResource(R.string.action_share_link),
                         modifier = Modifier.size(18.dp),
                         tint = PaperOnPop
@@ -501,7 +499,7 @@ fun InlineError(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Default.Warning,
+                imageVector = RvIcons.Warning,
                 contentDescription = null,
                 tint = Brick,
                 modifier = Modifier.size(18.dp)
@@ -527,7 +525,7 @@ fun EmptyState(
     title: String,
     body: String,
     modifier: Modifier = Modifier,
-    icon: ImageVector = Icons.Default.Info,
+    icon: ImageVector = RvIcons.Info,
     actionText: String? = null,
     onAction: (() -> Unit)? = null
 ) {

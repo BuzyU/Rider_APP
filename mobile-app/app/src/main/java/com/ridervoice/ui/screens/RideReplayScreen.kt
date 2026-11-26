@@ -11,8 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -176,7 +174,7 @@ fun RideReplayScreen(
                     .border(1.dp, InkHairline, CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = RvIcons.Back,
                     contentDescription = stringResource(R.string.cd_back),
                     tint = Ink,
                     modifier = Modifier.size(20.dp)
@@ -214,7 +212,7 @@ fun RideReplayScreen(
                     .border(1.dp, InkHairline, CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Share,
+                    imageVector = RvIcons.Share,
                     contentDescription = stringResource(R.string.cd_share_ride_summary),
                     tint = Ink,
                     modifier = Modifier.size(19.dp)
@@ -272,7 +270,7 @@ fun RideReplayScreen(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.CloudDone,
+                                    imageVector = RvIcons.CloudDone,
                                     contentDescription = null,
                                     tint = InkSecondary,
                                     modifier = Modifier.size(13.dp)
@@ -342,7 +340,7 @@ fun RideReplayScreen(
                 if (hasTrack) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.Verified,
+                            imageVector = RvIcons.Verified,
                             contentDescription = null,
                             tint = Moss,
                             modifier = Modifier.size(14.dp)
@@ -368,7 +366,7 @@ fun RideReplayScreen(
                         label = stringResource(R.string.summary_stat_distance),
                         value = distanceText,
                         unit = stringResource(R.string.unit_km),
-                        icon = Icons.Default.Straighten,
+                        icon = RvIcons.Straighten,
                         accentColor = Pop,
                         modifier = Modifier.weight(1f)
                     )
@@ -376,7 +374,7 @@ fun RideReplayScreen(
                         label = stringResource(R.string.summary_stat_duration),
                         value = durationText,
                         unit = "",
-                        icon = Icons.Default.Schedule,
+                        icon = RvIcons.Schedule,
                         accentColor = Moss,
                         modifier = Modifier.weight(1f)
                     )
@@ -390,7 +388,7 @@ fun RideReplayScreen(
                         label = stringResource(R.string.summary_stat_avg_speed),
                         value = avgSpeedKmh?.let { RvDateFormat.formatDecimal(it, 0, appLocale) } ?: "--",
                         unit = if (avgSpeedKmh != null) stringResource(R.string.unit_kmh) else "",
-                        icon = Icons.Default.Speed,
+                        icon = RvIcons.Speed,
                         accentColor = Ink,
                         modifier = Modifier.weight(1f)
                     )
@@ -398,7 +396,7 @@ fun RideReplayScreen(
                         label = stringResource(R.string.summary_stat_top_speed),
                         value = topSpeedKmh?.let { RvDateFormat.formatDecimal(it, 0, appLocale) } ?: "--",
                         unit = if (topSpeedKmh != null) stringResource(R.string.unit_kmh) else "",
-                        icon = Icons.Default.Bolt,
+                        icon = RvIcons.Bolt,
                         accentColor = Pop,
                         modifier = Modifier.weight(1f)
                     )
@@ -696,7 +694,7 @@ fun RideReplayScreen(
                                     .clip(CircleShape)
                                     .background(PaperSunken)
                             ) {
-                                Icon(Icons.Default.FastRewind, contentDescription = stringResource(R.string.cd_rewind), tint = Ink)
+                                Icon(RvIcons.FastRewind, contentDescription = stringResource(R.string.cd_rewind), tint = Ink, modifier = Modifier.rvRtlMirrored())
                             }
 
                             Spacer(modifier = Modifier.width(12.dp))
@@ -712,7 +710,7 @@ fun RideReplayScreen(
                                 colors = IconButtonDefaults.filledIconButtonColors(containerColor = Pop)
                             ) {
                                 Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    imageVector = if (isPlaying) RvIcons.Pause else RvIcons.PlayArrow,
                                     contentDescription = if (isPlaying) stringResource(R.string.cd_pause) else stringResource(R.string.cd_play),
                                     tint = PaperOnPop,
                                     modifier = Modifier.size(28.dp)
@@ -728,7 +726,7 @@ fun RideReplayScreen(
                                     .clip(CircleShape)
                                     .background(PaperSunken)
                             ) {
-                                Icon(Icons.Default.FastForward, contentDescription = stringResource(R.string.cd_forward), tint = Ink)
+                                Icon(RvIcons.FastForward, contentDescription = stringResource(R.string.cd_forward), tint = Ink, modifier = Modifier.rvRtlMirrored())
                             }
 
                             Spacer(modifier = Modifier.width(16.dp))
@@ -777,7 +775,7 @@ fun RideReplayScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Route,
+                                imageVector = RvIcons.Route,
                                 contentDescription = null,
                                 tint = InkSecondary,
                                 modifier = Modifier.size(26.dp)

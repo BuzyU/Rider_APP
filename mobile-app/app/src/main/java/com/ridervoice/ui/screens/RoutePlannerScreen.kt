@@ -12,8 +12,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -139,7 +137,7 @@ fun RoutePlannerScreen(
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
             ) {
-                Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.cd_back), tint = Ink, modifier = Modifier.size(20.dp))
+                Icon(RvIcons.Back, contentDescription = stringResource(R.string.cd_back), tint = Ink, modifier = Modifier.size(20.dp))
             }
 
             Text(
@@ -158,7 +156,7 @@ fun RoutePlannerScreen(
                         .background(PaperRaised)
                         .border(1.dp, InkHairline, CircleShape)
                 ) {
-                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.cd_route_options), tint = Ink, modifier = Modifier.size(20.dp))
+                    Icon(RvIcons.MoreVert, contentDescription = stringResource(R.string.cd_route_options), tint = Ink, modifier = Modifier.size(20.dp))
                 }
                 DropdownMenu(
                     expanded = showMenuDropdown,
@@ -183,7 +181,7 @@ fun RoutePlannerScreen(
                         },
                         leadingIcon = {
                             Icon(
-                                if (useRadarMode) Icons.Default.Map else Icons.Default.Layers,
+                                if (useRadarMode) RvIcons.Map else RvIcons.Layers,
                                 contentDescription = null,
                                 tint = Ink
                             )
@@ -196,7 +194,7 @@ fun RoutePlannerScreen(
                             inputTokenText = userCustomToken
                             showTokenDialog = true
                         },
-                        leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null, tint = Pop) }
+                        leadingIcon = { Icon(RvIcons.VpnKey, contentDescription = null, tint = Pop) }
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.route_export_gpx), color = Ink) },
@@ -204,7 +202,7 @@ fun RoutePlannerScreen(
                             showMenuDropdown = false
                             feedback.showSuccess(context.getString(R.string.toast_gpx_exported))
                         },
-                        leadingIcon = { Icon(Icons.Default.Download, contentDescription = null, tint = Ink) }
+                        leadingIcon = { Icon(RvIcons.Download, contentDescription = null, tint = Ink) }
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.route_invert_swap), color = Ink) },
@@ -212,7 +210,7 @@ fun RoutePlannerScreen(
                             showMenuDropdown = false
                             viewModel.swapOriginAndDestination()
                         },
-                        leadingIcon = { Icon(Icons.Default.SwapVert, contentDescription = null, tint = Pop) }
+                        leadingIcon = { Icon(RvIcons.SwapVert, contentDescription = null, tint = Pop) }
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.route_clear), color = Brick) },
@@ -220,7 +218,7 @@ fun RoutePlannerScreen(
                             showMenuDropdown = false
                             viewModel.clearRoute()
                         },
-                        leadingIcon = { Icon(Icons.Default.Clear, contentDescription = null, tint = Brick) }
+                        leadingIcon = { Icon(RvIcons.Clear, contentDescription = null, tint = Brick) }
                     )
                 }
             }
@@ -247,7 +245,7 @@ fun RoutePlannerScreen(
                     placeholder = { Text(stringResource(R.string.route_origin_placeholder), color = InkSecondary) },
                     leadingIcon = {
                         IconButton(onClick = { viewModel.useCurrentLocation() }) {
-                            Icon(Icons.Default.MyLocation, contentDescription = stringResource(R.string.cd_use_my_gps), tint = Moss)
+                            Icon(RvIcons.MyLocation, contentDescription = stringResource(R.string.cd_use_my_gps), tint = Moss)
                         }
                     },
                     singleLine = true,
@@ -268,7 +266,7 @@ fun RoutePlannerScreen(
                     keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
                     modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus(),
                     placeholder = { Text(stringResource(R.string.route_dest_short), color = InkSecondary) },
-                    leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = stringResource(R.string.route_dest_short), tint = Pop) },
+                    leadingIcon = { Icon(RvIcons.LocationOn, contentDescription = stringResource(R.string.route_dest_short), tint = Pop) },
                     singleLine = true,
                     colors = fieldColors,
                     shape = RoundedCornerShape(16.dp)
@@ -285,7 +283,7 @@ fun RoutePlannerScreen(
                     .background(PaperRaised)
                     .border(1.dp, InkHairline, CircleShape)
             ) {
-                Icon(Icons.Default.SwapVert, contentDescription = stringResource(R.string.cd_swap_route), tint = Pop)
+                Icon(RvIcons.SwapVert, contentDescription = stringResource(R.string.cd_swap_route), tint = Pop)
             }
         }
 
@@ -400,7 +398,7 @@ fun RoutePlannerScreen(
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Icon(
-                        Icons.Default.Layers,
+                        RvIcons.Layers,
                         contentDescription = stringResource(R.string.cd_switch_display_mode),
                         tint = InkSecondary,
                         modifier = Modifier.size(14.dp)
@@ -522,7 +520,7 @@ fun RoutePlannerScreen(
 
                 PrimaryButton(
                     text = stringResource(R.string.route_save_button),
-                    leadingIcon = Icons.Default.Save,
+                    leadingIcon = RvIcons.Save,
                     onClick = {
                         viewModel.saveRoute {
                             feedback.showSuccess(context.getString(R.string.toast_route_saved, uiState.routeName))

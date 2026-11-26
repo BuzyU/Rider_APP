@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +29,7 @@ import com.ridervoice.ui.theme.InkHairline
 import com.ridervoice.ui.theme.InkSecondary
 import com.ridervoice.ui.theme.PaperSunken
 import com.ridervoice.ui.theme.Pop
+import com.ridervoice.ui.theme.RvIcons
 
 val RvTextFieldUnfocusedBorderColorKey = SemanticsPropertyKey<Color>("RvTextFieldUnfocusedBorderColor")
 var SemanticsPropertyReceiver.rvTextFieldUnfocusedBorderColor by RvTextFieldUnfocusedBorderColorKey
@@ -133,7 +132,7 @@ fun RvSearchField(
     modifier: Modifier = Modifier,
     leadingIcon: @Composable (() -> Unit)? = {
         Icon(
-            imageVector = Icons.Default.Search,
+            imageVector = RvIcons.Search,
             contentDescription = stringResource(R.string.cd_search),
             tint = InkSecondary
         )

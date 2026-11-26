@@ -8,8 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,7 +70,7 @@ fun InviteFriendsScreen(
                     .border(1.dp, InkHairline, CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = RvIcons.Back,
                     contentDescription = stringResource(R.string.cd_back),
                     tint = Ink,
                     modifier = Modifier.size(20.dp)
@@ -168,7 +166,7 @@ fun InviteFriendsContent(
                 border = BorderStroke(1.dp, InkHairline),
                 colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperSunken)
             ) {
-                Icon(Icons.Default.PersonAdd, contentDescription = stringResource(R.string.cd_add_rider), tint = Pop, modifier = Modifier.size(17.dp))
+                Icon(RvIcons.PersonAdd, contentDescription = stringResource(R.string.cd_add_rider), tint = Pop, modifier = Modifier.size(17.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(stringResource(R.string.invite_add_by_handle), style = MaterialTheme.typography.labelMedium, color = Ink, fontWeight = FontWeight.SemiBold)
             }
@@ -190,7 +188,7 @@ fun InviteFriendsContent(
                     border = BorderStroke(1.dp, InkHairline),
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = PaperSunken)
                 ) {
-                    Icon(Icons.Default.GroupAdd, contentDescription = stringResource(R.string.cd_invite_all), tint = Ink, modifier = Modifier.size(17.dp))
+                    Icon(RvIcons.GroupAdd, contentDescription = stringResource(R.string.cd_invite_all), tint = Ink, modifier = Modifier.size(17.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(stringResource(R.string.invite_all_label), style = MaterialTheme.typography.labelMedium, color = Ink, fontWeight = FontWeight.SemiBold)
                 }
@@ -202,7 +200,7 @@ fun InviteFriendsContent(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = { Text(stringResource(R.string.squad_filter_placeholder), color = InkSecondary, style = MaterialTheme.typography.bodyMedium) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search), tint = InkSecondary) },
+                leadingIcon = { Icon(RvIcons.Search, contentDescription = stringResource(R.string.cd_search), tint = InkSecondary) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.None,
@@ -260,7 +258,7 @@ fun InviteFriendsContent(
                                     .background(PaperSunken),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.PersonSearch, contentDescription = null, tint = InkSecondary, modifier = Modifier.size(26.dp))
+                                Icon(RvIcons.PersonSearch, contentDescription = null, tint = InkSecondary, modifier = Modifier.size(26.dp))
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
@@ -283,7 +281,7 @@ fun InviteFriendsContent(
                                 shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.height(48.dp)
                             ) {
-                                Icon(Icons.Default.PersonAdd, contentDescription = null, tint = PaperOnPop)
+                                Icon(RvIcons.PersonAdd, contentDescription = null, tint = PaperOnPop)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = stringResource(R.string.invite_add_rider_by_handle),
@@ -419,7 +417,7 @@ fun FriendInviteCard(
             ) {
                 if (isInvited) {
                     Icon(
-                        Icons.Default.Check,
+                        RvIcons.Check,
                         contentDescription = stringResource(R.string.lobby_section_invited),
                         tint = Moss,
                         modifier = Modifier.size(15.dp)

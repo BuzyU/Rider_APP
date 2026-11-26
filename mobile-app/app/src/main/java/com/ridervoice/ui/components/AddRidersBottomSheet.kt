@@ -11,8 +11,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -122,7 +120,7 @@ fun AddRidersBottomSheet(
                                 .background(PaperRaised)
                                 .border(1.dp, InkHairline, CircleShape)
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close), tint = Ink, modifier = Modifier.size(18.dp))
+                            Icon(RvIcons.Close, contentDescription = stringResource(R.string.cd_close), tint = Ink, modifier = Modifier.size(18.dp))
                         }
                     }
 
@@ -138,8 +136,8 @@ fun AddRidersBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         val tabItems = listOf(
-                            stringResource(R.string.sheet_tab_from_squad) to Icons.Default.Group,
-                            stringResource(R.string.sheet_tab_share_link) to Icons.Default.Link
+                            stringResource(R.string.sheet_tab_from_squad) to RvIcons.Group,
+                            stringResource(R.string.sheet_tab_share_link) to RvIcons.Link
                         )
                         tabItems.forEachIndexed { idx, (label, icon) ->
                             val selected = selectedTab == idx
@@ -207,7 +205,7 @@ fun AddRidersBottomSheet(
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.Link, contentDescription = null, tint = Pop, modifier = Modifier.size(18.dp))
+                                            Icon(RvIcons.Link, contentDescription = null, tint = Pop, modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
                                                 text = stringResource(R.string.sheet_invite_link_title),
@@ -274,7 +272,7 @@ fun AddRidersBottomSheet(
                                                 }
                                             ) {
                                                 Icon(
-                                                    imageVector = if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy,
+                                                    imageVector = if (isCopied) RvIcons.Check else RvIcons.ContentCopy,
                                                     contentDescription = stringResource(R.string.cd_copy_link),
                                                     tint = if (isCopied) Moss else Pop
                                                 )
@@ -302,7 +300,7 @@ fun AddRidersBottomSheet(
                                                 .height(48.dp)
                                         ) {
                                             Icon(
-                                                Icons.Default.ContentCopy,
+                                                RvIcons.ContentCopy,
                                                 contentDescription = null,
                                                 tint = if (isCopied) Moss else Ink,
                                                 modifier = Modifier.size(17.dp)
@@ -335,7 +333,7 @@ fun AddRidersBottomSheet(
                                                 .height(48.dp)
                                         ) {
                                             Icon(
-                                                Icons.Default.Share,
+                                                RvIcons.Share,
                                                 contentDescription = null,
                                                 tint = PaperOnPop,
                                                 modifier = Modifier.size(17.dp)

@@ -8,8 +8,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -87,7 +85,7 @@ fun AddFriendDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.PersonAdd,
+                                imageVector = RvIcons.PersonAdd,
                                 contentDescription = null,
                                 tint = Moss,
                                 modifier = Modifier.size(22.dp)
@@ -109,7 +107,7 @@ fun AddFriendDialog(
                             modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                imageVector = RvIcons.Close,
                                 contentDescription = stringResource(R.string.action_close),
                                 tint = InkSecondary,
                                 modifier = Modifier.size(20.dp)
@@ -160,7 +158,7 @@ fun AddFriendDialog(
                                             modifier = Modifier.size(48.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Close,
+                                                imageVector = RvIcons.Close,
                                                 contentDescription = stringResource(R.string.cd_clear),
                                                 tint = InkSecondary,
                                                 modifier = Modifier.size(18.dp)
@@ -182,7 +180,7 @@ fun AddFriendDialog(
                                                 .testTag("add_rider_send_icon_btn")
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.PersonAdd,
+                                                imageVector = RvIcons.PersonAdd,
                                                 contentDescription = stringResource(R.string.cd_send_squad_request, query),
                                                 tint = Moss,
                                                 modifier = Modifier.size(20.dp)
@@ -260,7 +258,7 @@ fun AddFriendDialog(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.PersonSearch,
+                                                imageVector = RvIcons.PersonSearch,
                                                 contentDescription = null,
                                                 tint = InkSecondary,
                                                 modifier = Modifier.size(18.dp)
@@ -417,7 +415,7 @@ private fun RiderLookupResultCard(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Check,
+                                imageVector = RvIcons.Check,
                                 contentDescription = null,
                                 tint = Moss,
                                 modifier = Modifier.size(14.dp)
@@ -485,7 +483,7 @@ private fun RiderLookupResultCard(
                             )
                         } else {
                             Icon(
-                                imageVector = Icons.Default.Check,
+                                imageVector = RvIcons.Check,
                                 contentDescription = stringResource(R.string.cd_accept_squad_request, cleanHandle),
                                 tint = Moss,
                                 modifier = Modifier.size(20.dp)
@@ -513,7 +511,7 @@ private fun RiderLookupResultCard(
                             )
                         } else {
                             Icon(
-                                imageVector = Icons.Default.PersonAdd,
+                                imageVector = RvIcons.PersonAdd,
                                 contentDescription = stringResource(R.string.cd_send_squad_request, cleanHandle),
                                 tint = Moss,
                                 modifier = Modifier.size(20.dp)

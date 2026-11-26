@@ -13,11 +13,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Navigation
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -119,14 +114,14 @@ fun ParticipantCard(
                     }
                     if (isSpeaking) {
                         Icon(
-                            imageVector = Icons.Default.GraphicEq,
+                            imageVector = RvIcons.GraphicEq,
                             contentDescription = stringResource(R.string.cd_speaking),
                             tint = PaperOnPop,
                             modifier = Modifier.size(20.dp)
                         )
                     } else if (participant.isGhost) {
                         Icon(
-                            imageVector = Icons.Default.WifiOff,
+                            imageVector = RvIcons.WifiOff,
                             contentDescription = stringResource(R.string.cd_ghost),
                             tint = Brick,
                             modifier = Modifier.size(18.dp)
@@ -260,7 +255,7 @@ fun ParticipantCard(
                     if (distanceMeters != null && !isCurrentUser) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.Navigation,
+                                imageVector = RvIcons.Navigation,
                                 contentDescription = stringResource(R.string.cd_distance),
                                 tint = Ink,
                                 modifier = Modifier.size(12.dp)
@@ -289,7 +284,7 @@ fun ParticipantCard(
                         Spacer(modifier = Modifier.height(2.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.Speed,
+                                imageVector = RvIcons.Speed,
                                 contentDescription = stringResource(R.string.cd_speed),
                                 tint = InkSecondary,
                                 modifier = Modifier.size(11.dp)

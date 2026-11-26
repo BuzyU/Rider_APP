@@ -28,12 +28,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBackIosNew
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.GroupAdd
-import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -85,6 +79,8 @@ import androidx.compose.ui.semantics.Role
 import com.ridervoice.ui.components.LocalRvFeedback
 import com.ridervoice.ui.components.RvTextField
 import com.ridervoice.ui.theme.InkBorderStrong
+import com.ridervoice.ui.theme.RvIcons
+import com.ridervoice.ui.theme.rvRtlMirrored
 
 private val PaperSurface get() = MeshColors.LobbyBackground
 private val CardDark get() = MeshColors.LobbyCard
@@ -192,9 +188,10 @@ fun OfflineMeshLobbyScreen(
                         .border(1.dp, MeshColors.LobbyBorder, CircleShape)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBackIosNew,
+                        imageVector = RvIcons.BackIos,
                         contentDescription = stringResource(R.string.mesh_cd_back),
-                        tint = InkPrimary
+                        tint = InkPrimary,
+                        modifier = Modifier.rvRtlMirrored()
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
@@ -234,7 +231,7 @@ fun OfflineMeshLobbyScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ErrorOutline,
+                            imageVector = RvIcons.ErrorOutline,
                             contentDescription = stringResource(R.string.mesh_cd_error),
                             tint = BrickAlert
                         )
@@ -460,7 +457,7 @@ fun OfflineMeshLobbyScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.WifiTethering,
+                            imageVector = RvIcons.WifiTethering,
                             contentDescription = null,
                             tint = PopAccent
                         )
@@ -555,7 +552,7 @@ fun OfflineMeshLobbyScreen(
                                 shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.mesh_cd_copy), tint = InkPrimary)
+                                Icon(RvIcons.ContentCopy, contentDescription = stringResource(R.string.mesh_cd_copy), tint = InkPrimary)
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(stringResource(R.string.mesh_lobby_copy_code), color = InkPrimary)
                             }
@@ -600,7 +597,7 @@ fun OfflineMeshLobbyScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.GroupAdd,
+                            imageVector = RvIcons.GroupAdd,
                             contentDescription = null,
                             tint = PopAccent
                         )
@@ -651,7 +648,7 @@ fun OfflineMeshLobbyScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.ErrorOutline,
+                                imageVector = RvIcons.ErrorOutline,
                                 contentDescription = stringResource(R.string.mesh_cd_error),
                                 tint = BrickAlert
                             )

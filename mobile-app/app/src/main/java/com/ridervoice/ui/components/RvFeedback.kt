@@ -12,11 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarData
@@ -55,6 +50,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import com.ridervoice.ui.theme.RvIcons
 
 enum class RvFeedbackKind {
     Info,
@@ -170,10 +166,10 @@ internal fun RvFeedbackBanner(
     modifier: Modifier = Modifier
 ) {
     val (container, accent, icon) = when (kind) {
-        RvFeedbackKind.Info -> Triple(PaperRaised, InkHairline, Icons.Default.Info)
-        RvFeedbackKind.Success -> Triple(StatusOkContainer, StatusOk, Icons.Default.CheckCircle)
-        RvFeedbackKind.Warning -> Triple(StatusWarnContainer, StatusWarn, Icons.Default.Warning)
-        RvFeedbackKind.Error -> Triple(BrickContainer, Brick, Icons.Default.ErrorOutline)
+        RvFeedbackKind.Info -> Triple(PaperRaised, InkHairline, RvIcons.Info)
+        RvFeedbackKind.Success -> Triple(StatusOkContainer, StatusOk, RvIcons.CheckCircle)
+        RvFeedbackKind.Warning -> Triple(StatusWarnContainer, StatusWarn, RvIcons.Warning)
+        RvFeedbackKind.Error -> Triple(BrickContainer, Brick, RvIcons.ErrorOutline)
     }
     val actionTint = if (kind == RvFeedbackKind.Info) Pop else accent
 

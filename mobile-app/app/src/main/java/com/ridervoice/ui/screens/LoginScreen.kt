@@ -13,12 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -191,7 +185,7 @@ fun LoginScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Warning,
+                                imageVector = RvIcons.Warning,
                                 contentDescription = stringResource(R.string.cd_error),
                                 tint = Brick,
                                 modifier = Modifier.size(20.dp)
@@ -208,7 +202,7 @@ fun LoginScreen(
                                 modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
+                                    imageVector = RvIcons.Close,
                                     contentDescription = stringResource(R.string.cd_dismiss_error),
                                     tint = Brick,
                                     modifier = Modifier.size(16.dp)
@@ -296,7 +290,7 @@ fun LoginScreen(
                             trailingIcon = {
                                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                     Icon(
-                                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        imageVector = if (passwordVisible) RvIcons.VisibilityOff else RvIcons.Visibility,
                                         contentDescription = if (passwordVisible) stringResource(R.string.cd_hide_password) else stringResource(R.string.cd_show_password),
                                         tint = InkSecondary
                                     )
@@ -421,7 +415,7 @@ fun LoginScreen(
                                 border = BorderStroke(1.dp, InkHairline)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Phone,
+                                    imageVector = RvIcons.Phone,
                                     contentDescription = stringResource(R.string.cd_phone_otp),
                                     tint = Ink,
                                     modifier = Modifier.size(16.dp)

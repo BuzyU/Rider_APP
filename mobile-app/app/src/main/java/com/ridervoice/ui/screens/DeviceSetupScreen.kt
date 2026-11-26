@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -89,7 +87,7 @@ fun DeviceSetupScreen(
                     .border(1.dp, InkHairline, CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = RvIcons.Back,
                     contentDescription = stringResource(R.string.cd_back),
                     tint = Ink,
                     modifier = Modifier.size(20.dp)
@@ -139,7 +137,7 @@ fun DeviceSetupScreen(
                             if (routerState == RouterState.SCANNING || routerState == RouterState.CONNECTING_BT) {
                                 SpinningRadar()
                                 Icon(
-                                    imageVector = Icons.Default.BluetoothSearching,
+                                    imageVector = RvIcons.BluetoothSearching,
                                     contentDescription = stringResource(R.string.cd_scanning_bt),
                                     tint = Pop,
                                     modifier = Modifier.size(40.dp)
@@ -154,7 +152,7 @@ fun DeviceSetupScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.BluetoothDisabled,
+                                        imageVector = RvIcons.BluetoothDisabled,
                                         contentDescription = stringResource(R.string.cd_bt_error),
                                         tint = Brick,
                                         modifier = Modifier.size(44.dp)
@@ -170,7 +168,7 @@ fun DeviceSetupScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.HeadsetMic,
+                                        imageVector = RvIcons.HeadsetMic,
                                         contentDescription = stringResource(R.string.cd_headset_connected),
                                         tint = Moss,
                                         modifier = Modifier.size(44.dp)
@@ -278,7 +276,7 @@ fun DeviceSetupScreen(
                     ) {
                         AudioRouteChip(
                             label = stringResource(R.string.mesh_audio_route_bluetooth),
-                            icon = Icons.Default.Bluetooth,
+                            icon = RvIcons.Bluetooth,
                             isSelected = selectedRouteType == "BLUETOOTH",
                             modifier = Modifier.weight(1f)
                         ) {
@@ -288,7 +286,7 @@ fun DeviceSetupScreen(
 
                         AudioRouteChip(
                             label = stringResource(R.string.mesh_audio_route_speaker),
-                            icon = Icons.Default.VolumeUp,
+                            icon = RvIcons.VolumeUp,
                             isSelected = selectedRouteType == "SPEAKER",
                             modifier = Modifier.weight(1f)
                         ) {
@@ -298,7 +296,7 @@ fun DeviceSetupScreen(
 
                         AudioRouteChip(
                             label = stringResource(R.string.device_route_wired_short),
-                            icon = Icons.Default.Headset,
+                            icon = RvIcons.Headset,
                             isSelected = selectedRouteType == "WIRED",
                             modifier = Modifier.weight(1f)
                         ) {
@@ -328,7 +326,7 @@ fun DeviceSetupScreen(
                             onClick = { viewModel.rescanAudioDevices() },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, tint = Pop, modifier = Modifier.size(16.dp))
+                            Icon(RvIcons.Refresh, contentDescription = null, tint = Pop, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(stringResource(R.string.device_action_rescan), color = Pop, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                         }
@@ -352,7 +350,7 @@ fun DeviceSetupScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = if (isBluetoothActive) Icons.Default.BluetoothConnected else Icons.Default.BluetoothDisabled,
+                                    imageVector = if (isBluetoothActive) RvIcons.BluetoothConnected else RvIcons.BluetoothDisabled,
                                     contentDescription = null,
                                     tint = if (isBluetoothActive) Moss else InkSecondary,
                                     modifier = Modifier.size(22.dp)
@@ -401,7 +399,7 @@ fun DeviceSetupScreen(
             item {
                 SecondaryButton(
                     text = stringResource(R.string.device_open_bt_settings),
-                    leadingIcon = Icons.Default.SettingsBluetooth,
+                    leadingIcon = RvIcons.SettingsBluetooth,
                     onClick = {
                         try {
                             val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS).apply {

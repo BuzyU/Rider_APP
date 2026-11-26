@@ -44,15 +44,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.ridervoice.ui.theme.RideErgonomicsSettings
 import com.ridervoice.ui.theme.ZeroWindowInsets
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Headset
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MicOff
-import androidx.compose.material.icons.filled.PhoneInTalk
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -93,6 +84,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.traversalIndex
+import com.ridervoice.ui.theme.RvIcons
 
 @Composable
 fun MeshDiagnosticsDialog(
@@ -363,7 +355,7 @@ fun MeshTopBar(
                 }
                 IconButton(onClick = onInfoClick) {
                     Icon(
-                        imageVector = Icons.Default.Info,
+                        imageVector = RvIcons.Info,
                         contentDescription = stringResource(R.string.mesh_cd_diagnostics),
                         tint = MeshColors.Cyan
                     )
@@ -449,10 +441,10 @@ fun MeshBottomBar(
             ) {
                 // Audio Route Cycle Button
                 val (routeIcon, routeLabelRes) = when (activeRoute) {
-                    AudioRoute.SPEAKER -> Icons.Default.VolumeUp to R.string.mesh_audio_route_speaker
-                    AudioRoute.BLUETOOTH -> Icons.Default.Bluetooth to R.string.mesh_audio_route_bluetooth
-                    AudioRoute.WIRED -> Icons.Default.Headset to R.string.mesh_audio_route_wired
-                    AudioRoute.EARPIECE -> Icons.Default.PhoneInTalk to R.string.mesh_audio_route_earpiece
+                    AudioRoute.SPEAKER -> RvIcons.VolumeUp to R.string.mesh_audio_route_speaker
+                    AudioRoute.BLUETOOTH -> RvIcons.Bluetooth to R.string.mesh_audio_route_bluetooth
+                    AudioRoute.WIRED -> RvIcons.Headset to R.string.mesh_audio_route_wired
+                    AudioRoute.EARPIECE -> RvIcons.PhoneInTalk to R.string.mesh_audio_route_earpiece
                 }
                 Surface(
                     color = MeshColors.SurfaceElevated,
@@ -583,7 +575,7 @@ fun MeshBottomBar(
                         .background(if (isMicEnabled) MeshColors.Emerald else MeshColors.SurfaceElevated)
                 ) {
                     Icon(
-                        imageVector = if (isMicEnabled) Icons.Default.Mic else Icons.Default.MicOff,
+                        imageVector = if (isMicEnabled) RvIcons.Mic else RvIcons.MicOff,
                         contentDescription = stringResource(R.string.mesh_cd_toggle_mic),
                         tint = if (isMicEnabled) MeshColors.TextOnAccent else MeshColors.Ink
                     )
@@ -599,7 +591,7 @@ fun MeshBottomBar(
                         .background(if (isDeafened) MeshColors.Red else MeshColors.SurfaceElevated)
                 ) {
                     Icon(
-                        imageVector = if (isDeafened) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                        imageVector = if (isDeafened) RvIcons.VolumeOff else RvIcons.VolumeUp,
                         contentDescription = stringResource(R.string.mesh_cd_toggle_deafen),
                         tint = if (isDeafened) MeshColors.TextOnBrick else MeshColors.Ink
                     )

@@ -8,8 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,7 +89,7 @@ fun SquadRequestsScreen(
                         .border(1.dp, InkHairline, CircleShape)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = RvIcons.Back,
                         contentDescription = stringResource(R.string.cd_back),
                         tint = Ink,
                         modifier = Modifier.size(20.dp)
@@ -170,7 +168,7 @@ fun SquadRequestsScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.MarkEmailRead,
+                                        imageVector = RvIcons.MarkEmailRead,
                                         contentDescription = null,
                                         tint = InkSecondary,
                                         modifier = Modifier.size(26.dp)
@@ -323,7 +321,7 @@ private fun IncomingSquadRequestCard(
                             .testTag("request_decline_${request.id}")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = RvIcons.Close,
                             contentDescription = stringResource(R.string.cd_decline_squad_request, cleanHandle.ifBlank { title }),
                             tint = Brick,
                             modifier = Modifier.size(20.dp)
@@ -340,7 +338,7 @@ private fun IncomingSquadRequestCard(
                             .testTag("request_accept_${request.id}")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Check,
+                            imageVector = RvIcons.Check,
                             contentDescription = stringResource(R.string.cd_accept_squad_request, cleanHandle.ifBlank { title }),
                             tint = Moss,
                             modifier = Modifier.size(20.dp)

@@ -53,16 +53,31 @@ import com.ridervoice.models.Participant
 import com.ridervoice.navigation.Routes
 import com.ridervoice.network.ConnectionState
 import com.ridervoice.ui.components.PrimaryButton
+import com.ridervoice.ui.components.RvBottomNavIconNameKey
 import com.ridervoice.ui.components.RvBottomNavigationBar
 import com.ridervoice.ui.components.TabProfileAvatar
 import com.ridervoice.ui.screens.SosScreen
 import com.ridervoice.ui.screens.room.ConnectionPill
 import com.ridervoice.ui.screens.room.PttPerforatedButton
+import com.ridervoice.ui.theme.RvIcons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.test.SemanticsMatcher
 import com.ridervoice.ui.screens.room.RideTopBar
 import com.ridervoice.ui.screens.room.RiderList
 import com.ridervoice.ui.screens.room.TalkControls
 import com.ridervoice.ui.theme.RiderVoiceTheme
 import com.ridervoice.ui.viewmodels.SosState
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -843,6 +858,98 @@ class UiLayoutMatrixTest {
 
         assertTrue(
             "IconButtons with touch target < 48dp in non-frozen UI:\n${violations.joinToString("\n")}",
+            violations.isEmpty()
+        )
+    }
+
+    @Test
+    fun rvIcons_allMembersResolveNonNull_andNavPairsDiffer() {
+        val vectorGetters = RvIcons::class.java.methods
+            .filter { it.name.startsWith("get") && it.parameterCount == 0 && ImageVector::class.java.isAssignableFrom(it.returnType) }
+        assertTrue("Expected >= 100 ImageVector properties in RvIcons", vectorGetters.size >= 100)
+        vectorGetters.forEach { method ->
+            val icon = method.invoke(RvIcons) as? ImageVector
+            assertTrue("RvIcons.${method.name} must resolve non-null", icon != null && icon.name.isNotBlank())
+        }
+
+        assertEquals(Icons.Outlined.GridView, RvIcons.NavHome)
+        assertEquals(Icons.Filled.GridView, RvIcons.NavHomeSelected)
+        assertEquals(Icons.Outlined.History, RvIcons.NavHistory)
+        assertEquals(Icons.Filled.History, RvIcons.NavHistorySelected)
+        assertEquals(Icons.Outlined.Group, RvIcons.NavSquad)
+        assertEquals(Icons.Filled.Group, RvIcons.NavSquadSelected)
+        assertEquals(Icons.Outlined.Settings, RvIcons.NavSettings)
+        assertEquals(Icons.Filled.Settings, RvIcons.NavSettingsSelected)
+        assertFalse(RvIcons.USE_EXIT_GLYPH_FOR_LEAVE)
+        assertEquals(Icons.Filled.CallEnd, RvIcons.Leave)
+    }
+
+    @Test
+    fun bottomNavShell_switchesOutlinedAndFilledIconsOnSelection() {
+        var currentRoute by mutableStateOf(Routes.HOME)
+        composeRule.setContent {
+            com.ridervoice.ui.theme.RiderVoiceTheme {
+                RvBottomNavigationBar(
+                    currentRoute = currentRoute,
+                    onHomeClick = { currentRoute = Routes.HOME },
+                    onHistoryClick = { currentRoute = Routes.RIDE_STATS },
+                    onSquadClick = { currentRoute = Routes.SQUAD },
+                    onSettingsClick = { currentRoute = Routes.SETTINGS }
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        val homeNode = composeRule.onNodeWithTag("bottom_nav_home").fetchSemanticsNode()
+        val settingsNode = composeRule.onNodeWithTag("bottom_nav_settings").fetchSemanticsNode()
+        assertEquals(RvIcons.NavHomeSelected.name, homeNode.config[RvBottomNavIconNameKey])
+        assertEquals(RvIcons.NavSettings.name, settingsNode.config[RvBottomNavIconNameKey])
+        assertEquals(Icons.Outlined.Settings.name, settingsNode.config[RvBottomNavIconNameKey])
+
+        composeRule.runOnUiThread { currentRoute = Routes.SETTINGS }
+        composeRule.waitForIdle()
+
+        val homeNodeAfter = composeRule.onNodeWithTag("bottom_nav_home").fetchSemanticsNode()
+        val settingsNodeAfter = composeRule.onNodeWithTag("bottom_nav_settings").fetchSemanticsNode()
+        assertEquals(RvIcons.NavHome.name, homeNodeAfter.config[RvBottomNavIconNameKey])
+        assertEquals(RvIcons.NavSettingsSelected.name, settingsNodeAfter.config[RvBottomNavIconNameKey])
+        assertEquals(Icons.Filled.Settings.name, settingsNodeAfter.config[RvBottomNavIconNameKey])
+    }
+
+    @Test
+    fun noRawMaterialIconsOutsideRvIconsAndFrozenFiles() {
+        val candidates = listOf(
+            java.io.File("src/main/java/com/ridervoice"),
+            java.io.File("app/src/main/java/com/ridervoice"),
+            java.io.File("mobile-app/app/src/main/java/com/ridervoice")
+        )
+        val root = candidates.firstOrNull { it.isDirectory } ?: error("Cannot find com/ridervoice")
+        val excluded = setOf(
+            "ui/theme/RvIcons.kt",
+            "ui/screens/RoomScreen.kt",
+            "ui/screens/room/AudioRouteSheet.kt",
+            "ui/screens/room/AudioVuMeter.kt",
+            "ui/screens/room/DiagnosticsDialog.kt",
+            "ui/screens/room/LeaveRideDialog.kt",
+            "ui/screens/room/SosAlertBanner.kt"
+        )
+        val rawIconRegex = Regex("""\bIcons\.(Default|Filled|Outlined|Rounded|Sharp|TwoTone)\.""")
+        val violations = mutableListOf<String>()
+
+        root.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .forEach { file ->
+                val rel = file.relativeTo(root).path.replace('\\', '/')
+                if (rel in excluded) return@forEach
+                file.readLines().forEachIndexed { idx, line ->
+                    if (rawIconRegex.containsMatchIn(line)) {
+                        violations += "$rel:${idx + 1}: ${line.trim()}"
+                    }
+                }
+            }
+
+        assertTrue(
+            "Found raw Material Icons references outside RvIcons.kt and frozen files:\n${violations.joinToString("\n")}",
             violations.isEmpty()
         )
     }

@@ -14,12 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -111,7 +105,7 @@ fun RegisterScreen(
                             .border(1.dp, InkHairline, CircleShape)
                     ) {
                         Icon(
-                            Icons.Default.ArrowBack,
+                            RvIcons.Back,
                             contentDescription = stringResource(R.string.cd_return_to_sign_in),
                             tint = Ink,
                             modifier = Modifier.size(20.dp)
@@ -164,7 +158,7 @@ fun RegisterScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Warning,
+                                imageVector = RvIcons.Warning,
                                 contentDescription = stringResource(R.string.cd_registration_error),
                                 tint = Brick,
                                 modifier = Modifier.size(20.dp)
@@ -181,7 +175,7 @@ fun RegisterScreen(
                                 modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
+                                    imageVector = RvIcons.Close,
                                     contentDescription = stringResource(R.string.cd_dismiss_error),
                                     tint = Brick,
                                     modifier = Modifier.size(16.dp)
@@ -277,7 +271,7 @@ fun RegisterScreen(
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
-                                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    imageVector = if (passwordVisible) RvIcons.VisibilityOff else RvIcons.Visibility,
                                     contentDescription = if (passwordVisible) stringResource(R.string.cd_hide_password) else stringResource(R.string.cd_show_password),
                                     tint = InkSecondary
                                 )
@@ -322,7 +316,7 @@ fun RegisterScreen(
                         trailingIcon = {
                             IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                                 Icon(
-                                    imageVector = if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    imageVector = if (confirmPasswordVisible) RvIcons.VisibilityOff else RvIcons.Visibility,
                                     contentDescription = if (confirmPasswordVisible) stringResource(R.string.cd_hide_confirm_password) else stringResource(R.string.cd_show_confirm_password),
                                     tint = InkSecondary
                                 )

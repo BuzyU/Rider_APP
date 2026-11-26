@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -97,7 +95,7 @@ fun SettingsScreen(
                         SettingsRowValue(
                             label = stringResource(R.string.profile_title),
                             value = stringResource(R.string.settings_view_account),
-                            icon = Icons.Default.AccountCircle,
+                            icon = RvIcons.AccountCircle,
                             onClick = onNavigateToAccount
                         )
                     }
@@ -107,7 +105,7 @@ fun SettingsScreen(
                     SettingsGroupCard(title = stringResource(R.string.settings_section_display)) {
                         SettingsRowToggle(
                             label = stringResource(R.string.settings_dark_mode),
-                            icon = Icons.Default.DarkMode,
+                            icon = RvIcons.DarkMode,
                             checked = settingsState.darkTheme,
                             onCheckedChange = { settingsViewModel.toggleDarkTheme() }
                         )
@@ -115,7 +113,7 @@ fun SettingsScreen(
                         SettingsRowToggle(
                             label = stringResource(R.string.settings_keep_screen_on),
                             subtitle = stringResource(R.string.settings_keep_screen_on_desc),
-                            icon = Icons.Default.LightMode,
+                            icon = RvIcons.LightMode,
                             checked = settingsState.keepScreenOnDuringRide,
                             onCheckedChange = { settingsViewModel.toggleKeepScreenOnDuringRide() }
                         )
@@ -128,7 +126,7 @@ fun SettingsScreen(
                                 "en" -> stringResource(R.string.language_en)
                                 else -> stringResource(R.string.language_system)
                             },
-                            icon = Icons.Default.Language,
+                            icon = RvIcons.Language,
                             onClick = {
                                 showOptionsDialog = "appLanguage" to listOf("system", "en", "hi", "mr")
                             }
@@ -141,7 +139,7 @@ fun SettingsScreen(
                         SettingsRowAction(
                             label = stringResource(R.string.settings_headset_setup_title),
                             subtitle = stringResource(R.string.settings_headset_setup_subtitle),
-                            icon = Icons.Default.HeadsetMic,
+                            icon = RvIcons.HeadsetMic,
                             onClick = onDeviceSetupClick
                         )
                         SettingsRowDivider()
@@ -153,27 +151,27 @@ fun SettingsScreen(
                         SettingsRowValue(
                             label = stringResource(R.string.settings_vox_title),
                             value = voxDisplay,
-                            icon = Icons.Default.RecordVoiceOver,
+                            icon = RvIcons.RecordVoiceOver,
                             onClick = { showOptionsDialog = "voxSensitivity" to listOf("Low", "Medium", "High") }
                         )
                         SettingsRowDivider()
                         SettingsRowToggle(
                             label = stringResource(R.string.settings_noise_cancellation),
-                            icon = Icons.Default.Hearing,
+                            icon = RvIcons.Hearing,
                             checked = settingsState.noiseCancellation,
                             onCheckedChange = { settingsViewModel.toggleNoiseCancellation() }
                         )
                         SettingsRowDivider()
                         SettingsRowToggle(
                             label = stringResource(R.string.settings_hardware_ptt),
-                            icon = Icons.Default.Headset,
+                            icon = RvIcons.Headset,
                             checked = settingsState.hardwarePtt,
                             onCheckedChange = { settingsViewModel.toggleHardwarePtt() }
                         )
                         SettingsRowDivider()
                         SettingsRowToggle(
                             label = stringResource(R.string.settings_hybrid_vox),
-                            icon = Icons.Default.HeadsetMic,
+                            icon = RvIcons.HeadsetMic,
                             checked = settingsState.hybridVox,
                             onCheckedChange = { settingsViewModel.toggleHybridVox() }
                         )
@@ -181,7 +179,7 @@ fun SettingsScreen(
                         SettingsRowToggle(
                             label = stringResource(R.string.settings_voice_activation),
                             subtitle = if (settingsState.openMic) stringResource(R.string.settings_open_mic_on) else stringResource(R.string.settings_open_mic_off),
-                            icon = Icons.Default.Podcasts,
+                            icon = RvIcons.Podcasts,
                             checked = settingsState.openMic,
                             onCheckedChange = { settingsViewModel.toggleOpenMic() }
                         )
@@ -189,7 +187,7 @@ fun SettingsScreen(
                         SettingsRowToggle(
                             label = stringResource(R.string.settings_haptic_feedback),
                             subtitle = stringResource(R.string.settings_haptic_feedback_desc),
-                            icon = Icons.Default.Vibration,
+                            icon = RvIcons.Vibration,
                             checked = settingsState.hapticFeedbackEnabled,
                             onCheckedChange = { settingsViewModel.toggleHapticFeedback() }
                         )
@@ -201,7 +199,7 @@ fun SettingsScreen(
                         SettingsRowInfo(
                             label = stringResource(R.string.mesh_settings_title),
                             subtitle = stringResource(R.string.settings_mesh_lobby_note),
-                            icon = Icons.Default.WifiTethering
+                            icon = RvIcons.WifiTethering
                         )
                     }
                 }
@@ -210,7 +208,7 @@ fun SettingsScreen(
                     SettingsGroupCard(title = stringResource(R.string.settings_section_diagnostics)) {
                         SettingsRowToggle(
                             label = stringResource(R.string.settings_share_diag_label),
-                            icon = Icons.Default.NetworkCheck,
+                            icon = RvIcons.NetworkCheck,
                             checked = settingsState.shareDiagnosticsWhenHostEnabled,
                             subtitle = if (settingsState.shareDiagnosticsWhenHostEnabled) {
                                 stringResource(R.string.settings_share_diag_on)
@@ -242,7 +240,7 @@ fun SettingsScreen(
                         SettingsRowValue(
                             label = stringResource(R.string.settings_emergency_country),
                             value = currentDisplay,
-                            icon = Icons.Default.LocalHospital,
+                            icon = RvIcons.LocalHospital,
                             onClick = {
                                 showOptionsDialog = "emergencyCountry" to listOf(
                                     "Auto (Device Region)",
@@ -260,7 +258,7 @@ fun SettingsScreen(
                         SettingsRowValue(
                             label = stringResource(R.string.settings_app_version),
                             value = "v${updateViewModel.currentVersionName.removePrefix("v").removePrefix("V")}",
-                            icon = Icons.Default.SystemUpdate,
+                            icon = RvIcons.SystemUpdate,
                             onClick = { updateViewModel.checkForUpdates(forceRefresh = true) }
                         )
                     }
@@ -281,7 +279,7 @@ fun SettingsScreen(
                             .height(52.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Logout,
+                            imageVector = RvIcons.Logout,
                             contentDescription = null,
                             tint = Brick,
                             modifier = Modifier.size(18.dp)
@@ -425,7 +423,7 @@ fun SettingsScreen(
                                     )
                                     if (isSelected) {
                                         Icon(
-                                            imageVector = Icons.Default.Check,
+                                            imageVector = RvIcons.Check,
                                             contentDescription = stringResource(R.string.cd_selected),
                                             tint = Pop,
                                             modifier = Modifier.size(18.dp)
@@ -562,7 +560,7 @@ private fun SettingsRowValue(
         )
         Spacer(modifier = Modifier.width(4.dp))
         Icon(
-            Icons.Default.ChevronRight,
+            RvIcons.ChevronRight,
             contentDescription = null,
             tint = InkSecondary,
             modifier = Modifier.size(18.dp)
@@ -610,7 +608,7 @@ private fun SettingsRowAction(
             }
         }
         Icon(
-            Icons.Default.ChevronRight,
+            RvIcons.ChevronRight,
             contentDescription = null,
             tint = InkSecondary,
             modifier = Modifier.size(18.dp)

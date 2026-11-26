@@ -363,77 +363,38 @@ fun LobbyScreen(
         containerColor = Paper
     ) { innerPadding ->
         if (status == null && activeRide == null) {
-            if (loadState is LobbyLoadState.Failed) {
+            val lobbyInitialLoadState: UiLoadState<Unit> = if (loadState is LobbyLoadState.Failed) {
                 val failed = loadState as LobbyLoadState.Failed
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(RvSpacing.lg),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = RvIcons.Warning,
-                            contentDescription = null,
-                            tint = Brick,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(RvSpacing.md))
-                        Text(
-                            text = stringResource(R.string.lobby_failed_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = Ink,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(RvSpacing.sm))
-                        Text(
-                            text = if (failed.isSchemaDegraded) {
-                                stringResource(R.string.lobby_schema_degraded)
-                            } else {
-                                failed.reason.ifBlank { stringResource(R.string.lobby_failed_desc) }
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = InkSecondary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        if (!failed.requestId.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(RvSpacing.xs))
-                            Text(
-                                text = stringResource(R.string.lobby_request_id, failed.requestId),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = InkSecondary,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(RvSpacing.xl))
-                        if (failed.isRetryable) {
-                            PrimaryButton(
-                                text = stringResource(R.string.action_retry),
-                                onClick = { viewModel.retryPolling(convoyName) }
-                            )
-                            Spacer(modifier = Modifier.height(RvSpacing.sm))
-                        }
-                        SecondaryButton(
-                            text = stringResource(R.string.action_leave),
-                            onClick = { showExitDialog = true },
-                            destructive = true
-                        )
-                    }
+                val errMsg = if (failed.isSchemaDegraded) {
+                    stringResource(R.string.lobby_schema_degraded)
+                } else {
+                    failed.reason.ifBlank { stringResource(R.string.lobby_failed_desc) }
                 }
+                UiLoadState.Error(
+                    message = errMsg,
+                    onRetry = if (failed.isRetryable) ({ viewModel.retryPolling(convoyName) }) else null
+                )
             } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
-                        Spacer(modifier = Modifier.height(RvSpacing.md))
+                UiLoadState.Loading
+            }
+
+            RvStateHost(
+                state = lobbyInitialLoadState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                loadingContent = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(RvSpacing.lg)
+                            .testTag("rv_state_loading"),
+                        verticalArrangement = Arrangement.spacedBy(RvSpacing.md),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        LoadingSkeleton(height = 84.dp)
+                        LoadingSkeleton(height = 84.dp)
+                        Spacer(modifier = Modifier.height(RvSpacing.sm))
                         val loadingText = if (loadState is LobbyLoadState.Retrying) {
                             val retrying = loadState as LobbyLoadState.Retrying
                             stringResource(R.string.lobby_retrying, retrying.attempt, retrying.maxAttempts)
@@ -445,7 +406,6 @@ fun LobbyScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = InkSecondary
                         )
-                        Spacer(modifier = Modifier.height(RvSpacing.lg))
                         TextButton(onClick = { showExitDialog = true }) {
                             Text(
                                 text = stringResource(R.string.action_leave),
@@ -454,8 +414,43 @@ fun LobbyScreen(
                             )
                         }
                     }
+                },
+                errorContent = { err ->
+                    val failed = loadState as? LobbyLoadState.Failed
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(RvSpacing.lg)
+                            .testTag("rv_state_error"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            InlineError(
+                                message = err.message,
+                                onRetry = err.onRetry
+                            )
+                            if (!failed?.requestId.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(RvSpacing.xs))
+                                Text(
+                                    text = stringResource(R.string.lobby_request_id, failed!!.requestId!!),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = InkSecondary,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(RvSpacing.md))
+                            SecondaryButton(
+                                text = stringResource(R.string.action_leave),
+                                onClick = { showExitDialog = true },
+                                destructive = true
+                            )
+                        }
+                    }
                 }
-            }
+            ) {}
         } else {
             LazyColumn(
                 modifier = Modifier
@@ -661,11 +656,17 @@ fun LobbyScreen(
 
                 if (accepted.isEmpty() && !isHost) {
                     item {
-                        Text(
-                            text = stringResource(R.string.lobby_empty_joined),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = InkSecondary
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("rv_state_empty")
+                        ) {
+                            EmptyState(
+                                title = stringResource(R.string.lobby_waiting_to_start),
+                                body = stringResource(R.string.lobby_empty_joined),
+                                icon = RvIcons.Groups
+                            )
+                        }
                     }
                 } else {
                     items(accepted, key = { "accepted_${it.invitee.id}" }) { entry ->

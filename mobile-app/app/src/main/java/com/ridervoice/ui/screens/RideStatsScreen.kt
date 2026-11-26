@@ -34,6 +34,9 @@ import com.ridervoice.R
 import com.ridervoice.data.local.entities.RideSessionEntity
 import com.ridervoice.services.RideRecorder
 import com.ridervoice.ui.components.CapChromeFontScale
+import com.ridervoice.ui.components.EmptyState
+import com.ridervoice.ui.components.RvStateHost
+import com.ridervoice.ui.components.UiLoadState
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.RideStatsViewModel
 import java.util.Calendar
@@ -45,6 +48,7 @@ import com.ridervoice.ui.theme.RvDateFormat
 import com.ridervoice.ui.theme.rememberAppLocale
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,7 +56,10 @@ import androidx.compose.ui.semantics.Role
 fun RideStatsScreen(
     viewModel: RideStatsViewModel = hiltViewModel(),
     onBackClick: () -> Unit,
-    onReplayRide: (String) -> Unit = {}
+    onReplayRide: (String) -> Unit = {},
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
+    onRetry: (() -> Unit)? = null
 ) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
     val context = LocalContext.current
@@ -195,75 +202,131 @@ fun RideStatsScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Season Totals Bento Card with subtle topographic contour lines
-            item {
-                SeasonTotalsBentoCard(
-                    year = currentYear,
-                    ridesCount = uiState.totalRidesCount,
-                    totalDistanceKm = uiState.totalDistance,
-                    saddleTime = saddleTimeShort,
-                    avgSpeed = uiState.avgSpeed,
-                    topSpeed = uiState.topSpeed
-                )
-            }
+        val activeFilterLabel = when (selectedFilter) {
+            "month" -> stringResource(R.string.history_filter_month)
+            "synced" -> stringResource(R.string.history_filter_synced)
+            "longest" -> stringResource(R.string.history_filter_longest)
+            else -> stringResource(R.string.history_filter_all)
+        }
+        val historyLoadState: UiLoadState<List<RideSessionEntity>> = when {
+            isLoading -> UiLoadState.Loading
+            !errorMessage.isNullOrBlank() -> UiLoadState.Error(message = errorMessage, onRetry = onRetry)
+            filteredSessions.isEmpty() -> UiLoadState.Empty(
+                title = if (uiState.sessions.isEmpty()) stringResource(R.string.history_empty_title) else stringResource(R.string.history_empty_filter, activeFilterLabel),
+                body = stringResource(R.string.history_empty_desc),
+                icon = RvIcons.TwoWheeler
+            )
+            else -> UiLoadState.Content(filteredSessions)
+        }
 
-            if (filteredSessions.isEmpty()) {
-                item {
-                    Surface(
-                        color = PaperRaised,
-                        shape = RoundedCornerShape(24.dp),
-                        border = BorderStroke(1.dp, InkHairline),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
+        RvStateHost(
+            state = historyLoadState,
+            modifier = Modifier.weight(1f),
+            emptyContent = { empty ->
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item {
+                        SeasonTotalsBentoCard(
+                            year = currentYear,
+                            ridesCount = uiState.totalRidesCount,
+                            totalDistanceKm = uiState.totalDistance,
+                            saddleTime = saddleTimeShort,
+                            avgSpeed = uiState.avgSpeed,
+                            topSpeed = uiState.topSpeed
+                        )
+                    }
+                    item {
+                        Surface(
+                            color = PaperRaised,
+                            shape = RoundedCornerShape(24.dp),
+                            border = BorderStroke(1.dp, InkHairline),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .testTag("rv_state_empty")
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(52.dp)
-                                    .clip(CircleShape)
-                                    .background(PaperSunken),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = RvIcons.TwoWheeler,
-                                    contentDescription = null,
-                                    tint = InkSecondary,
-                                    modifier = Modifier.size(26.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            val activeFilterLabel = when (selectedFilter) {
-                                "month" -> stringResource(R.string.history_filter_month)
-                                "synced" -> stringResource(R.string.history_filter_synced)
-                                "longest" -> stringResource(R.string.history_filter_longest)
-                                else -> stringResource(R.string.history_filter_all)
-                            }
-                            Text(
-                                text = if (uiState.sessions.isEmpty()) stringResource(R.string.history_empty_title) else stringResource(R.string.history_empty_filter, activeFilterLabel),
-                                color = Ink,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = stringResource(R.string.history_empty_desc),
-                                color = InkSecondary,
-                                style = MaterialTheme.typography.bodySmall,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            EmptyState(
+                                title = empty.title,
+                                body = empty.body,
+                                icon = empty.icon,
+                                modifier = Modifier.padding(horizontal = 24.dp)
                             )
                         }
                     }
+                    item {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Surface(
+                            color = PaperSunken.copy(alpha = 0.7f),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, InkHairline),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(role = Role.Button) { onReplayRide("latest") }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(MossContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = RvIcons.Flag,
+                                        contentDescription = stringResource(R.string.history_field_journal),
+                                        tint = Moss,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.history_field_journal),
+                                        color = Ink,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.history_field_journal_desc),
+                                        color = InkSecondary,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                Icon(
+                                    imageVector = RvIcons.ChevronRight,
+                                    contentDescription = null,
+                                    tint = InkSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                 }
-            } else {
+            }
+        ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Season Totals Bento Card with subtle topographic contour lines
+                item {
+                    SeasonTotalsBentoCard(
+                        year = currentYear,
+                        ridesCount = uiState.totalRidesCount,
+                        totalDistanceKm = uiState.totalDistance,
+                        saddleTime = saddleTimeShort,
+                        avgSpeed = uiState.avgSpeed,
+                        topSpeed = uiState.topSpeed
+                    )
+                }
+
                 groupedByMonth.forEach { (monthLabel, monthSessions) ->
                     item(key = "header_$monthLabel") {
                         Row(
@@ -295,60 +358,60 @@ fun RideStatsScreen(
                         )
                     }
                 }
-            }
 
-            // Bottom Field Journal / Replay Card (Matches Image 1 bottom footer tile)
-            item {
-                Spacer(modifier = Modifier.height(2.dp))
-                Surface(
-                    color = PaperSunken.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, InkHairline),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(role = Role.Button) { onReplayRide("latest") }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                // Bottom Field Journal / Replay Card (Matches Image 1 bottom footer tile)
+                item {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Surface(
+                        color = PaperSunken.copy(alpha = 0.7f),
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(1.dp, InkHairline),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button) { onReplayRide("latest") }
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MossContainer),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(MossContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = RvIcons.Flag,
+                                    contentDescription = stringResource(R.string.history_field_journal),
+                                    tint = Moss,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.history_field_journal),
+                                    color = Ink,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = stringResource(R.string.history_field_journal_desc),
+                                    color = InkSecondary,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
                             Icon(
-                                imageVector = RvIcons.Flag,
-                                contentDescription = stringResource(R.string.history_field_journal),
-                                tint = Moss,
+                                imageVector = RvIcons.ChevronRight,
+                                contentDescription = null,
+                                tint = InkSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.history_field_journal),
-                                color = Ink,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = stringResource(R.string.history_field_journal_desc),
-                                color = InkSecondary,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        Icon(
-                            imageVector = RvIcons.ChevronRight,
-                            contentDescription = null,
-                            tint = InkSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }

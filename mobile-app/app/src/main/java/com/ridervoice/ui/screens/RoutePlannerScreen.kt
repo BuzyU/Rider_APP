@@ -50,7 +50,11 @@ import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.Role
 import com.ridervoice.ui.components.LocalRvFeedback
+import com.ridervoice.ui.components.LoadingSkeleton
+import com.ridervoice.ui.components.RvStateHost
 import com.ridervoice.ui.components.RvTextField
+import com.ridervoice.ui.components.UiLoadState
+import androidx.compose.ui.platform.testTag
 
 private const val PREFS_NAME = "ridervoice_route_prefs"
 private const val KEY_MAPBOX_TOKEN = "mapbox_token"
@@ -66,7 +70,10 @@ private fun isValidMapboxToken(token: String?): Boolean {
 @Composable
 fun RoutePlannerScreen(
     viewModel: RoutePlannerViewModel = hiltViewModel(),
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
+    onRetry: (() -> Unit)? = null
 ) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
     val context = LocalContext.current
@@ -410,55 +417,108 @@ fun RoutePlannerScreen(
         Spacer(modifier = Modifier.height(10.dp))
 
         // Nearby Riders (from ViewModel state)
-        if (uiState.nearbyRiders.isNotEmpty()) {
-            Text(
-                text = androidx.compose.ui.res.stringResource(R.string.route_nearby_riders_simulated).uppercase(),
-                color = InkSecondary,
-                style = MaterialTheme.typography.labelSmall,
-                letterSpacing = 0.8.sp,
-                modifier = Modifier.padding(horizontal = 16.dp)
+        val nearbyLoadState: UiLoadState<List<NearbyRider>> = when {
+            isLoading -> UiLoadState.Loading
+            !errorMessage.isNullOrBlank() -> UiLoadState.Error(message = errorMessage, onRetry = onRetry)
+            uiState.nearbyRiders.isEmpty() -> UiLoadState.Empty(
+                title = stringResource(R.string.route_nearby_riders_simulated),
+                body = stringResource(R.string.room_no_other_riders),
+                icon = RvIcons.Groups
             )
-            Spacer(modifier = Modifier.height(6.dp))
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(uiState.nearbyRiders, key = { it.handle }) { rider ->
-                    Surface(
-                        color = PaperRaised,
-                        shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, InkHairline),
-                        modifier = Modifier.clickable(role = Role.Button) { viewModel.setDestinationFromRider(rider) }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+            else -> UiLoadState.Content(uiState.nearbyRiders)
+        }
+
+        RvStateHost(
+            state = nearbyLoadState,
+            loadingContent = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .testTag("rv_state_loading")
+                ) {
+                    LoadingSkeleton(height = 52.dp)
+                }
+            },
+            emptyContent = { empty ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .testTag("rv_state_empty"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    com.ridervoice.ui.components.EmptyState(
+                        title = empty.title,
+                        body = empty.body,
+                        icon = empty.icon
+                    )
+                }
+            },
+            errorContent = { err ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .testTag("rv_state_error")
+                ) {
+                    com.ridervoice.ui.components.InlineError(
+                        message = err.message,
+                        onRetry = err.onRetry
+                    )
+                }
+            }
+        ) { riders ->
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = androidx.compose.ui.res.stringResource(R.string.route_nearby_riders_simulated).uppercase(),
+                    color = InkSecondary,
+                    style = MaterialTheme.typography.labelSmall,
+                    letterSpacing = 0.8.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(riders, key = { it.handle }) { rider ->
+                        Surface(
+                            color = PaperRaised,
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, InkHairline),
+                            modifier = Modifier.clickable(role = Role.Button) { viewModel.setDestinationFromRider(rider) }
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(PaperSunken),
-                                contentAlignment = Alignment.Center
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = rider.handle.take(1).uppercase(),
-                                    color = Ink,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text("@${rider.handle}", color = Ink, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                                Text(stringResource(R.string.distance_km_value, rider.distanceKm), color = Pop, style = RvTypography.microBadge)
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(PaperSunken),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = rider.handle.take(1).uppercase(),
+                                        color = Ink,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text("@${rider.handle}", color = Ink, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.distance_km_value, rider.distanceKm), color = Pop, style = RvTypography.microBadge)
+                                }
                             }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
             }
-            Spacer(modifier = Modifier.height(8.dp))
         }
 
         // Route Summary & Save Bento Card

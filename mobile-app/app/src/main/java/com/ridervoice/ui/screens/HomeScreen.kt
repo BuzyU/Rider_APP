@@ -29,11 +29,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.ridervoice.R
 import com.ridervoice.ui.components.CapChromeFontScale
+import com.ridervoice.ui.components.InlineError
+import com.ridervoice.ui.components.RvStateHost
 import com.ridervoice.ui.components.TabProfileAvatar
+import com.ridervoice.ui.components.UiLoadState
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.HomeViewModel
 import com.ridervoice.utils.OEMBatteryWarning
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -53,7 +57,13 @@ fun HomeScreen(
     onInvitesInboxClick: () -> Unit = { onJoinRideClick() },
     onSosClick: () -> Unit = {},
     onAccountClick: () -> Unit = {},
-    onLogoutSuccess: () -> Unit = {}
+    onLogoutSuccess: () -> Unit = {},
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
+    onRetry: () -> Unit = {
+        viewModel.refreshDeviceState()
+        viewModel.refreshActiveRideState()
+    }
 ) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
 
@@ -346,47 +356,117 @@ fun HomeScreen(
                 }
             }
 
+            if (!errorMessage.isNullOrBlank()) {
+                Box(modifier = Modifier.fillMaxWidth().testTag("rv_state_error")) {
+                    InlineError(message = errorMessage, onRetry = onRetry)
+                }
+            }
+
             // 3. LIVE / ACTIVE CONVOY CARD (Matches Image 1 Bottom Bento Card)
-            Surface(
-                color = PaperRaised,
-                shape = RoundedCornerShape(24.dp),
-                border = BorderStroke(
-                    width = if (uiState.hasActiveRide) 1.5.dp else 1.dp,
-                    color = if (uiState.hasActiveRide) Pop.copy(alpha = 0.45f) else InkHairline
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(
-                        if (uiState.hasActiveRide && uiState.activeRideName.isNotBlank()) {
-                            Modifier.clickable(role = Role.Button) { onStartRideClick(uiState.activeRideName) }
-                        } else {
-                            Modifier
-                        }
-                    )
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+            val convoyLoadState: UiLoadState<com.ridervoice.ui.viewmodels.HomeState> = when {
+                isLoading -> UiLoadState.Loading
+                !uiState.hasActiveRide -> UiLoadState.Empty(
+                    title = stringResource(R.string.home_no_active_convoy),
+                    body = stringResource(R.string.home_no_active_convoy_desc),
+                    icon = RvIcons.Mic
+                )
+                else -> UiLoadState.Content(uiState)
+            }
+
+            RvStateHost(
+                state = convoyLoadState,
+                emptyContent = {
+                    Surface(
+                        color = PaperRaised,
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, InkHairline),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("rv_state_empty")
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(if (uiState.hasActiveRide) Moss else InkSecondary)
-                            )
-                            Spacer(modifier = Modifier.width(7.dp))
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(InkSecondary)
+                                    )
+                                    Spacer(modifier = Modifier.width(7.dp))
+                                    Text(
+                                        text = stringResource(R.string.home_convoy_status),
+                                        color = InkSecondary,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        letterSpacing = 0.9.sp,
+                                        modifier = Modifier.semantics { heading() }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
                             Text(
-                                text = if (uiState.hasActiveRide) stringResource(R.string.home_live_convoy) else stringResource(R.string.home_convoy_status),
+                                text = stringResource(R.string.home_no_active_convoy),
+                                color = Ink,
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(modifier = Modifier.height(3.dp))
+
+                            Text(
+                                text = stringResource(R.string.home_no_active_convoy_desc),
                                 color = InkSecondary,
-                                style = MaterialTheme.typography.labelSmall,
-                                letterSpacing = 0.9.sp,
-                                modifier = Modifier.semantics { heading() }
+                                style = MaterialTheme.typography.titleSmall
                             )
                         }
-                        if (uiState.hasActiveRide) {
+                    }
+                }
+            ) { liveState ->
+                Surface(
+                    color = PaperRaised,
+                    shape = RoundedCornerShape(24.dp),
+                    border = BorderStroke(
+                        width = 1.5.dp,
+                        color = Pop.copy(alpha = 0.45f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (liveState.activeRideName.isNotBlank()) {
+                                Modifier.clickable(role = Role.Button) { onStartRideClick(liveState.activeRideName) }
+                            } else {
+                                Modifier
+                            }
+                        )
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Moss)
+                                )
+                                Spacer(modifier = Modifier.width(7.dp))
+                                Text(
+                                    text = stringResource(R.string.home_live_convoy),
+                                    color = InkSecondary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    letterSpacing = 0.9.sp,
+                                    modifier = Modifier.semantics { heading() }
+                                )
+                            }
                             Surface(
                                 color = MossContainer,
                                 shape = RoundedCornerShape(RvRadius.pill)
@@ -400,21 +480,19 @@ fun HomeScreen(
                                 )
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                    Text(
-                        text = if (uiState.hasActiveRide) uiState.activeRideName else stringResource(R.string.home_no_active_convoy),
-                        color = Ink,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                        Text(
+                            text = liveState.activeRideName,
+                            color = Ink,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold
+                        )
 
-                    Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (uiState.hasActiveRide) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = RvIcons.Mic,
                                 contentDescription = null,
@@ -422,19 +500,13 @@ fun HomeScreen(
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = liveState.activeRideSubtitle,
+                                color = InkSecondary,
+                                style = MaterialTheme.typography.titleSmall
+                            )
                         }
-                        Text(
-                            text = if (uiState.hasActiveRide) {
-                                uiState.activeRideSubtitle
-                            } else {
-                                stringResource(R.string.home_no_active_convoy_desc)
-                            },
-                            color = InkSecondary,
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                    }
 
-                    if (uiState.hasActiveRide) {
                         Spacer(modifier = Modifier.height(14.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -457,7 +529,7 @@ fun HomeScreen(
                                     )
                                     Spacer(modifier = Modifier.width(5.dp))
                                     Text(
-                                        text = uiState.deviceName,
+                                        text = liveState.deviceName,
                                         color = Ink,
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.SemiBold,
@@ -469,8 +541,8 @@ fun HomeScreen(
 
                             Button(
                                 onClick = {
-                                    if (uiState.activeRideName.isNotBlank()) {
-                                        onStartRideClick(uiState.activeRideName)
+                                    if (liveState.activeRideName.isNotBlank()) {
+                                        onStartRideClick(liveState.activeRideName)
                                     }
                                 },
                                 shape = RoundedCornerShape(RvRadius.pill),

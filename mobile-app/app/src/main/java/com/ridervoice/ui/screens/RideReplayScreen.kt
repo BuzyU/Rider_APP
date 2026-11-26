@@ -37,6 +37,8 @@ import com.ridervoice.data.local.entities.ConvoyEventEntity
 import com.ridervoice.data.local.entities.RawWaypointEntity
 import com.ridervoice.data.local.entities.RideSessionEntity
 import com.ridervoice.services.RideRecorder
+import com.ridervoice.ui.components.RvStateHost
+import com.ridervoice.ui.components.UiLoadState
 import com.ridervoice.ui.theme.*
 import kotlinx.coroutines.delay
 import java.util.Date
@@ -44,6 +46,7 @@ import java.util.Locale
 import kotlin.math.*
 import com.ridervoice.ui.theme.RvDateFormat
 import com.ridervoice.ui.theme.rememberAppLocale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,7 +57,9 @@ fun RideReplayScreen(
     events: List<ConvoyEventEntity> = emptyList(),
     onBack: () -> Unit,
     session: RideSessionEntity? = null,
-    errorMessage: String? = null
+    errorMessage: String? = null,
+    isLoading: Boolean = false,
+    onRetry: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var timelineProgress by remember { mutableFloatStateOf(0f) }
@@ -220,13 +225,19 @@ fun RideReplayScreen(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+        if (isLoading) {
+            RvStateHost(
+                state = UiLoadState.Loading,
+                modifier = Modifier.weight(1f)
+            ) {}
+        } else {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
             // Status Chips & Ride Header (100% real fetched data)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
@@ -304,7 +315,12 @@ fun RideReplayScreen(
                 }
 
                 if (!errorMessage.isNullOrBlank()) {
-                    com.ridervoice.ui.components.InlineError(message = errorMessage)
+                    Box(modifier = Modifier.fillMaxWidth().testTag("rv_state_error")) {
+                        com.ridervoice.ui.components.InlineError(
+                            message = errorMessage,
+                            onRetry = onRetry
+                        )
+                    }
                 }
 
                 Text(
@@ -418,7 +434,33 @@ fun RideReplayScreen(
                 border = BorderStroke(1.dp, InkHairline),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (hasTrack) {
+                val trackLoadState: UiLoadState<List<RawWaypointEntity>> = if (hasTrack) {
+                    UiLoadState.Content(waypoints)
+                } else {
+                    UiLoadState.Empty(
+                        title = stringResource(R.string.replay_no_gps_title),
+                        body = stringResource(R.string.replay_no_gps_desc),
+                        icon = RvIcons.Route
+                    )
+                }
+                RvStateHost(
+                    state = trackLoadState,
+                    emptyContent = { empty ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp)
+                                .testTag("rv_state_empty"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            com.ridervoice.ui.components.EmptyState(
+                                title = empty.title,
+                                body = empty.body,
+                                icon = empty.icon
+                            )
+                        }
+                    }
+                ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -759,43 +801,6 @@ fun RideReplayScreen(
                             }
                         }
                     }
-                } else {
-                    // Honest empty state when no GPS waypoints were stored
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(CircleShape)
-                                .background(PaperSunken),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = RvIcons.Route,
-                                contentDescription = null,
-                                tint = InkSecondary,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = stringResource(R.string.replay_no_gps_title),
-                            color = Ink,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(R.string.replay_no_gps_desc),
-                            color = InkSecondary,
-                            style = MaterialTheme.typography.bodySmall,
-                            textAlign = TextAlign.Center
-                        )
-                    }
                 }
             }
 
@@ -833,6 +838,7 @@ fun RideReplayScreen(
             }
 
             Spacer(modifier = Modifier.height(20.dp))
+            }
         }
     }
 }

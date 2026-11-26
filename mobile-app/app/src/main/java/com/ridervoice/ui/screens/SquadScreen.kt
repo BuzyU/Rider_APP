@@ -36,8 +36,11 @@ import com.ridervoice.models.SentSquadRequest
 import com.ridervoice.ui.components.AddFriendDialog
 import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.components.ConfirmDialog
+import com.ridervoice.ui.components.EmptyState
 import com.ridervoice.ui.components.InlineError
 import com.ridervoice.ui.components.RvPullToRefreshContainer
+import com.ridervoice.ui.components.RvStateHost
+import com.ridervoice.ui.components.UiLoadState
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.SquadViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -155,18 +158,21 @@ fun SquadScreen(
                 }
             }
 
-            uiState.errorMessage?.let { err ->
-                InlineError(
-                    message = err,
-                    onRetry = {
-                        viewModel.clearError()
-                        currentUserId?.let { viewModel.pullToRefresh(it) }
-                    },
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
+            val hasSquadEntries = uiState.friends.isNotEmpty() || uiState.sentRequests.isNotEmpty()
+            if (uiState.errorMessage != null && hasSquadEntries) {
+                uiState.errorMessage?.let { err ->
+                    InlineError(
+                        message = err,
+                        onRetry = {
+                            viewModel.clearError()
+                            currentUserId?.let { viewModel.pullToRefresh(it) }
+                        },
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
             }
 
-            if (currentUserId == null) {
+            if (currentUserId == null && !uiState.hasLoadedOnce && !uiState.isLoading && uiState.errorMessage == null && !hasSquadEntries) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Surface(
                         color = PaperRaised,
@@ -197,152 +203,100 @@ fun SquadScreen(
                 return@Column
             }
 
-            if (uiState.isLoading && !uiState.hasLoadedOnce) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Moss, strokeWidth = 3.dp)
-                }
-                return@Column
+            val squadLoadState: UiLoadState<com.ridervoice.ui.viewmodels.SquadUiState> = when {
+                uiState.isLoading && !uiState.hasLoadedOnce && !hasSquadEntries -> UiLoadState.Loading
+                uiState.errorMessage != null && !hasSquadEntries -> UiLoadState.Error(
+                    message = uiState.errorMessage!!,
+                    onRetry = {
+                        viewModel.clearError()
+                        currentUserId?.let { viewModel.pullToRefresh(it) }
+                    }
+                )
+                !hasSquadEntries -> UiLoadState.Empty(
+                    title = stringResource(R.string.squad_empty_title),
+                    body = stringResource(R.string.squad_empty_desc),
+                    icon = RvIcons.Groups,
+                    actionText = stringResource(R.string.cd_add_rider),
+                    onAction = {
+                        viewModel.resetSearch()
+                        showAddFriendDialog = true
+                    }
+                )
+                else -> UiLoadState.Content(uiState)
             }
 
-            val hasRejectedRequests = uiState.sentRequests.any { it.isRejected }
-
-            RvPullToRefreshContainer(
-                isRefreshing = uiState.isRefreshing,
-                onRefresh = { viewModel.pullToRefresh(currentUserId) },
+            RvStateHost(
+                state = squadLoadState,
                 modifier = Modifier.weight(1f)
-            ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        top = 2.dp,
-                        bottom = if (uiState.incomingRequests.isNotEmpty()) 88.dp else 20.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) { loadedState ->
+                val hasRejectedRequests = loadedState.sentRequests.any { it.isRejected }
+
+                RvPullToRefreshContainer(
+                    isRefreshing = loadedState.isRefreshing,
+                    onRefresh = { currentUserId?.let { viewModel.pullToRefresh(it) } },
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    item(key = "header_members") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp, vertical = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = stringResource(R.string.squad_members_header),
-                                color = InkSecondary,
-                                style = MaterialTheme.typography.labelSmall,
-                                letterSpacing = 0.9.sp,
-                                modifier = Modifier.semantics { heading() }
-                            )
-                            Text(
-                                text = pluralStringResource(R.plurals.riders_count, uiState.friends.size, uiState.friends.size),
-                                color = InkSecondary,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    items(uiState.friends, key = { "friend_${it.id}" }) { friend ->
-                        SquadMemberCard(
-                            displayName = friend.displayName,
-                            handle = friend.handle,
-                            bike = friend.bikeModel,
-                            onRemoveClick = { friendToRemove = friend }
-                        )
-                    }
-
-                    if (uiState.friends.isEmpty() && uiState.sentRequests.isEmpty()) {
-                        item(key = "empty_squad") {
-                            Surface(
-                                color = PaperRaised,
-                                shape = RoundedCornerShape(24.dp),
-                                border = BorderStroke(1.dp, InkHairline),
-                                modifier = Modifier.fillMaxWidth()
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            top = 2.dp,
+                            bottom = if (loadedState.incomingRequests.isNotEmpty()) 88.dp else 20.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        item(key = "header_members") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 2.dp, vertical = 2.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(24.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(52.dp)
-                                            .clip(CircleShape)
-                                            .background(PaperSunken),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = RvIcons.Groups,
-                                            contentDescription = null,
-                                            tint = InkSecondary,
-                                            modifier = Modifier.size(26.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(
-                                        text = stringResource(R.string.squad_empty_title),
-                                        color = Ink,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = stringResource(R.string.squad_empty_desc),
-                                        color = InkSecondary,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Button(
-                                        onClick = {
-                                            viewModel.resetSearch()
-                                            showAddFriendDialog = true
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Moss,
-                                            contentColor = PaperOnPop
-                                        ),
-                                        shape = RoundedCornerShape(16.dp),
-                                        modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = RvIcons.PersonAdd,
-                                            contentDescription = null,
-                                            tint = PaperOnPop,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = stringResource(R.string.cd_add_rider),
-                                            color = PaperOnPop,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
+                                Text(
+                                    text = stringResource(R.string.squad_members_header),
+                                    color = InkSecondary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    letterSpacing = 0.9.sp,
+                                    modifier = Modifier.semantics { heading() }
+                                )
+                                Text(
+                                    text = pluralStringResource(R.plurals.riders_count, loadedState.friends.size, loadedState.friends.size),
+                                    color = InkSecondary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
-                    }
 
-                    // Sent Requests section after a clean dashed divider
-                    if (uiState.sentRequests.isNotEmpty()) {
-                        item(key = "pending_dashed_divider") {
-                            PendingSectionDashedDivider(
-                                showClearRejected = hasRejectedRequests,
-                                onClearRejected = { viewModel.clearRejectedRequests(currentUserId) },
-                                modifier = Modifier.padding(top = 10.dp, bottom = 2.dp)
+                        items(loadedState.friends, key = { "friend_${it.id}" }) { friend ->
+                            SquadMemberCard(
+                                displayName = friend.displayName,
+                                handle = friend.handle,
+                                bike = friend.bikeModel,
+                                onRemoveClick = { friendToRemove = friend }
                             )
                         }
 
-                        items(uiState.sentRequests, key = { "sent_${it.id}" }) { sentReq ->
-                            SentSquadRequestCard(
-                                request = sentReq,
-                                onRemoveRejected = {
-                                    viewModel.dismissSentRequest(currentUserId, sentReq.id)
-                                }
-                            )
+                        // Sent Requests section after a clean dashed divider
+                        if (loadedState.sentRequests.isNotEmpty()) {
+                            item(key = "pending_dashed_divider") {
+                                PendingSectionDashedDivider(
+                                    showClearRejected = hasRejectedRequests,
+                                    onClearRejected = {
+                                        currentUserId?.let { viewModel.clearRejectedRequests(it) }
+                                    },
+                                    modifier = Modifier.padding(top = 10.dp, bottom = 2.dp)
+                                )
+                            }
+
+                            items(loadedState.sentRequests, key = { "sent_${it.id}" }) { sentReq ->
+                                SentSquadRequestCard(
+                                    request = sentReq,
+                                    onRemoveRejected = {
+                                        currentUserId?.let { viewModel.dismissSentRequest(it, sentReq.id) }
+                                    }
+                                )
+                            }
                         }
                     }
                 }

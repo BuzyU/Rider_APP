@@ -505,6 +505,8 @@ fun NavGraph(
                 waypoints = replay?.waypoints ?: emptyList(),
                 events = replay?.events ?: emptyList(),
                 errorMessage = replay?.errorMessage,
+                isLoading = replay == null,
+                onRetry = { statsVm.loadReplay(rideId) },
                 onBack = { navController.popBackStack() }
             )
         }

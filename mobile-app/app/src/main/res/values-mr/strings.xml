@@ -219,7 +219,6 @@
     <!-- TODO native review -->
     <!-- Offline Mesh Intercom (D15) -->
     <string name="mesh_title">ऑफलाइन मेश इंटरकॉम</string>
-    <string name="mesh_disabled_in_build">या बिल्डमध्ये ऑफलाइन मेश अक्षम आहे</string>
     <string name="mesh_mic_busy_livekit">मायक्रोफोन ऑनलाइन राइडद्वारे वापरला जात आहे. ऑनलाइन राइड सोडा किंवा स्वयंचलित फॉलबॅकची प्रतीक्षा करा.</string>
     <string name="mesh_status_summary">स्थिती: %1$s, %2$d सहकारी</string>
     <string name="mesh_peers_header">मेश सहकारी</string>
@@ -327,13 +326,6 @@
 
     <!-- Settings Mesh Section -->
     <string name="mesh_settings_title">ऑफलाइन मेश इंटरकॉम</string>
-    <string name="mesh_settings_desc">पीअर-टू-पीअर वाय-फाय मेश इंटरकॉम सक्षम आहे</string>
-    <string name="mesh_settings_fallback_title">स्वयंचलित फॉलबॅक</string>
-    <string name="mesh_settings_fallback_disabled_hint">प्रथम ऑफलाइन मेश इंटरकॉम सक्षम करा</string>
-    <string name="mesh_settings_fallback_enabled_hint">इंटरनेट खंडित झाल्यास आपोआप मेशवर स्विच होते</string>
-    <string name="mesh_settings_warm_standby_title">वॉर्म स्टँडबाय डिस्कव्हरी</string>
-    <string name="mesh_settings_warm_standby_desc">तात्काळ स्विचिंगसाठी पार्श्वभूमी पीअर डिस्कव्हरी</string>
-    <string name="mesh_settings_lobby_subtitle">पीअर-टू-पीअर मेश इंटरकॉम चॅनेल होस्ट करा किंवा सामील व्हा</string>
 
     <!-- Foreground Service Notification -->
     <string name="mesh_notif_channel_name">ऑफलाइन मेश इंटरकॉम</string>
@@ -368,13 +360,11 @@
     <string name="mesh_diag_broadcast">ब्रॉडकास्ट पत्ता</string>
     <string name="mesh_diag_stale_timestamps">कालबाह्य टाइमस्टॅम्प</string>
     <string name="mesh_value_none">काहीही नाही</string>
-    <string name="mesh_settings_no_wifi_hardware">डिव्हाइसमध्ये वाय-फाय हार्डवेअर नाही. ऑफलाइन मेश फॉलबॅकसाठी वाय-फाय आवश्यक आहे।</string>
     <string name="mesh_backup_active_label">सक्रिय बॅकअप कोड: %1$s</string>
     <string name="mesh_backup_clear_action">बॅकअप हटवा</string>
     <string name="mesh_backup_saved_toast">ऑनलाइन राइडसाठी बॅकअप पेयरिंग कोड सेव्ह केला</string>
     <string name="mesh_overlay_searching_peers">मेशवर जवळच्या रायडर्सचा शोध सुरू आहे…</string>
     <string name="mesh_tactical_summary">%1$d साथी · कमाल %2$d हॉप</string>
-    <string name="mesh_backup_not_persisted_warning">बॅकअप कोड या डिव्हाइसवर सेव्ह केलेला नाही; ॲप बंद झाल्यास तो नष्ट होईल</string>
     <string name="mesh_selftest_bad_version_hint">जवळच्या रायडर्सकडून विसंगत प्रोटोकॉल आवृत्ती आढळली. कृपया ॲप अपडेट करा.</string>
     <string name="mesh_banner_audio_failed">ऑफलाइन मेश ऑडिओ अयशस्वी झाला</string>
 
@@ -391,7 +381,6 @@
 
     <!-- Offline Lobby Configuration & Gate Strings (FX-03) -->
     <string name="lobby_configuring_offline_progress">ऑफलाइन बॅकअप कॉन्फिगर होत आहे, %1$d पैकी %2$d रायडर्स तयार</string>
-    <string name="lobby_offline_gate_waiting_riders">रायडर्स ऑफलाइन बॅकअप कॉन्फिगर करण्याची वाट पाहत आहे…</string>
     <string name="lobby_offline_host_switch_label">ऑफलाइन मेश बॅकअप</string>
     <string name="lobby_offline_opt_out_button">ऑफलाइन बॅकअपशिवाय राइड करा</string>
     <string name="lobby_offline_opt_in_button">ऑफलाइन बॅकअप सक्षम करा</string>
@@ -403,9 +392,6 @@
     <string name="lobby_offline_retry_step">पुन्हा प्रयत्न करा</string>
     <string name="lobby_offline_hotspot_hint">ऑफलाइन व्हॉइस मेशसाठी सर्व फोन एकाच वाय-फाय किंवा मोबाइल हॉटस्पॉटशी कनेक्ट करा</string>
     <string name="lobby_offline_status_ready">ऑफलाइन तयार</string>
-    <string name="lobby_offline_status_opted_out">ऑप्ट आउट केले</string>
-    <string name="lobby_offline_status_unavailable">अनुपलब्ध</string>
-    <string name="lobby_offline_status_failed">अयशस्वी</string>
     <string name="lobby_offline_status_timed_out">वेळ संपली</string>
     <string name="lobby_start_ride_with_count">राइड सुरू करा (%1$d रायडर्स)</string>
     <string name="lobby_start_ride">राइड सुरू करा</string>
@@ -456,7 +442,6 @@
     <string name="dialog_add_rider_title">रायडर जोडा</string>
     <string name="dialog_add_rider_desc">स्क्वाड विनंती पाठवण्यासाठी @handle ने रायडर शोधा.</string>
     <string name="dialog_add_rider_placeholder">@handle ने शोधा</string>
-    <string name="dialog_add_rider_confirm">विनंती पाठवा</string>
     <string name="sheet_add_riders_title">रायडर्स जोडा</string>
     <string name="sheet_tab_from_squad">स्क्वाडमधून</string>
     <string name="sheet_tab_share_link">लिंक शेअर करा</string>
@@ -503,7 +488,6 @@
     <string name="update_error_browser_hint">मोबाइल डेटावर डाउनलोड थांबत असल्यास, ब्राउझरवरून थेट APK डाउनलोड करण्यासाठी ब्राउझरवर टॅप करा.</string>
     <string name="update_action_browser">ब्राउझर</string>
     <string name="dialog_sign_out_title">RiderVoice मधून साइन आउट करायचे?</string>
-    <string name="dialog_sign_out_home_body">तुम्हाला नक्की लॉग आउट करायचे आहे का? स्क्वाड आणि ग्रुप राइड्ससाठी पुन्हा साइन इन करावे लागेल.</string>
     <string name="dialog_sign_out_settings_body">तुम्ही सर्व बॅकग्राउंड व्हॉइस सेवांमधून डिस्कनेक्ट व्हाल आणि पुन्हा साइन इन करावे लागेल.</string>
     <string name="cd_battery_warning">बॅटरी इशारा</string>
     <string name="home_battery_warning_body">बॅटरी निर्बंधांमुळे बॅकग्राउंड आवाज बंद होऊ शकतो. अखंड ऑडिओसाठी ऑप्टिमायझेशन बंद करा.</string>
@@ -532,7 +516,6 @@
     <string name="account_motorcycle">मोटरसायकल</string>
     <string name="account_motorcycle_hint">मोटरसायकल (उदा. Royal Enfield Himalayan)</string>
     <string name="account_bio">परिचय</string>
-    <string name="account_check_updates">अपडेट्स तपासा</string>
     <string name="device_setup_title">हेडसेट आणि ऑडिओ</string>
     <string name="device_status_scanning">Bluetooth हेडसेट शोधत आहे...</string>
     <string name="device_status_connecting">Bluetooth ऑडिओ कनेक्ट होत आहे...</string>
@@ -616,14 +599,9 @@
     <string name="action_invite">आमंत्रित करा</string>
     <string name="squad_remove_title">स्क्वाडमधून काढायचे?</string>
     <string name="squad_remove_body">@%1$s ला तुमच्या स्क्वाडमधून काढायचे का?</string>
-    <string name="cd_refresh_squad">स्क्वाड रिफ्रेश करा</string>
     <string name="squad_sign_in_prompt">तुमचा स्क्वाड पाहण्यासाठी साइन इन करा</string>
-    <string name="squad_incoming_invites_header">आलेली राइड आमंत्रणे (%1$d)</string>
     <string name="invited_by_handle">@%1$s कडून आमंत्रित</string>
     <string name="squad_members_header">स्क्वाड सदस्य</string>
-    <string name="squad_no_match_title">\"%1$s\" शी जुळणारा कोणताही रायडर नाही</string>
-    <string name="squad_no_match_desc">@%1$s ला त्यांच्या हँडलने थेट तुमच्या स्क्वाडमध्ये जोडा.</string>
-    <string name="squad_add_handle_btn">@%1$s ला स्क्वाडमध्ये जोडा</string>
     <string name="squad_empty_desc">@handle ने रायडर्स जोडण्यासाठी आणि राइडसाठी बोलावण्यासाठी वरील + बटण दाबा.</string>
     <string name="cd_remove_from_squad">@%1$s ला स्क्वाडमधून काढा</string>
     <string name="inbox_decline_title">राइड आमंत्रण नाकारायचे?</string>

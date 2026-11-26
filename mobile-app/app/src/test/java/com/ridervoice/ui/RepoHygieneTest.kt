@@ -55,9 +55,13 @@ class RepoHygieneTest {
             .map { "${it.parentFile?.name}/${it.name}" }
             .sorted()
             .toList()
+        val expectedDrawables = listOf(
+            "drawable-xhdpi/hero_create_ride.webp",
+            "drawable-xxhdpi/hero_create_ride.webp"
+        )
         assertTrue(
-            "Expected only [drawable/hero_create_ride.jpg] in res/drawable*, found: $drawables",
-            drawables == listOf("drawable/hero_create_ride.jpg")
+            "Expected only $expectedDrawables in res/drawable*, found: $drawables",
+            drawables == expectedDrawables
         )
     }
 }

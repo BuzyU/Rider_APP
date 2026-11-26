@@ -219,7 +219,6 @@
     <string name="join_action_enter_code">Enter code</string>
     <!-- Offline Mesh Intercom (D15) -->
     <string name="mesh_title">Offline mesh intercom</string>
-    <string name="mesh_disabled_in_build">Offline mesh is disabled in this build</string>
     <string name="mesh_mic_busy_livekit">Microphone is in use by online ride. Leave online ride or wait for automatic fallback.</string>
     <string name="mesh_status_summary">Status: %1$s, %2$d peers</string>
     <string name="mesh_peers_header">Mesh peers</string>
@@ -327,13 +326,6 @@
 
     <!-- Settings Mesh Section -->
     <string name="mesh_settings_title">Offline mesh intercom</string>
-    <string name="mesh_settings_desc">Peer-to-peer Wi-Fi mesh intercom enabled</string>
-    <string name="mesh_settings_fallback_title">Automatic fallback</string>
-    <string name="mesh_settings_fallback_disabled_hint">Enable offline mesh intercom first</string>
-    <string name="mesh_settings_fallback_enabled_hint">Switches to mesh automatically on internet loss</string>
-    <string name="mesh_settings_warm_standby_title">Warm standby discovery</string>
-    <string name="mesh_settings_warm_standby_desc">Background peer discovery ready for immediate switch</string>
-    <string name="mesh_settings_lobby_subtitle">Host or join a peer-to-peer mesh intercom channel</string>
 
     <!-- Foreground Service Notification -->
     <string name="mesh_notif_channel_name">Offline Mesh Intercom</string>
@@ -368,13 +360,11 @@
     <string name="mesh_diag_broadcast">Broadcast Address</string>
     <string name="mesh_diag_stale_timestamps">Stale Timestamps</string>
     <string name="mesh_value_none">None</string>
-    <string name="mesh_settings_no_wifi_hardware">Device lacks Wi-Fi hardware. Offline mesh fallback requires Wi-Fi.</string>
     <string name="mesh_backup_active_label">Active Backup Code: %1$s</string>
     <string name="mesh_backup_clear_action">Clear Backup</string>
     <string name="mesh_backup_saved_toast">Backup pairing code saved for online rides</string>
     <string name="mesh_overlay_searching_peers">Searching for nearby riders on the mesh…</string>
     <string name="mesh_tactical_summary" tools:ignore="PluralsCandidate">%1$d peers · Max %2$d hops</string>
-    <string name="mesh_backup_not_persisted_warning">Backup code not saved on this device; it will be lost if the app closes</string>
     <string name="mesh_selftest_bad_version_hint">Incompatible protocol version detected from nearby riders. Please update the app.</string>
     <string name="mesh_banner_audio_failed">Offline Mesh Audio Failed</string>
 
@@ -391,7 +381,6 @@
 
     <!-- Offline Lobby Configuration & Gate Strings (FX-03) -->
     <string name="lobby_configuring_offline_progress">Configuring offline backup, %1$d of %2$d riders ready</string>
-    <string name="lobby_offline_gate_waiting_riders">Waiting for riders to configure offline backup…</string>
     <string name="lobby_offline_host_switch_label">Offline Mesh Backup</string>
     <string name="lobby_offline_opt_out_button">Ride without offline backup</string>
     <string name="lobby_offline_opt_in_button">Enable offline backup</string>
@@ -403,9 +392,6 @@
     <string name="lobby_offline_retry_step">Retry</string>
     <string name="lobby_offline_hotspot_hint">Connect all phones to the same Wi-Fi or mobile hotspot for offline voice mesh</string>
     <string name="lobby_offline_status_ready">Offline Ready</string>
-    <string name="lobby_offline_status_opted_out">Opted Out</string>
-    <string name="lobby_offline_status_unavailable">Unavailable</string>
-    <string name="lobby_offline_status_failed">Failed</string>
     <string name="lobby_offline_status_timed_out">Timed Out</string>
     <string name="lobby_start_ride_with_count">Start ride (%1$d riders)</string>
     <string name="lobby_start_ride">Start ride</string>
@@ -456,7 +442,6 @@
     <string name="dialog_add_rider_title">Add Rider</string>
     <string name="dialog_add_rider_desc">Find a rider by @handle to send a squad request.</string>
     <string name="dialog_add_rider_placeholder">Search by @handle</string>
-    <string name="dialog_add_rider_confirm">Send Request</string>
     <string name="sheet_add_riders_title">Add Riders</string>
     <string name="sheet_tab_from_squad">From Squad</string>
     <string name="sheet_tab_share_link">Share Link</string>
@@ -503,7 +488,6 @@
     <string name="update_error_browser_hint">If cellular data keeps aborting, you can tap BROWSER to download the APK directly via your browser.</string>
     <string name="update_action_browser">BROWSER</string>
     <string name="dialog_sign_out_title">Sign out of RiderVoice?</string>
-    <string name="dialog_sign_out_home_body">Are you sure you want to log out? You will need to sign in again to access your squad and group rides.</string>
     <string name="dialog_sign_out_settings_body">You will disconnect from all background voice services and will need to sign back in.</string>
     <string name="cd_battery_warning">Battery Warning</string>
     <string name="home_battery_warning_body">Battery restrictions may mute background voice. Disable optimization for reliable audio.</string>
@@ -532,7 +516,6 @@
     <string name="account_motorcycle">Motorcycle</string>
     <string name="account_motorcycle_hint">Motorcycle (e.g. Yamaha MT-07)</string>
     <string name="account_bio">Bio</string>
-    <string name="account_check_updates">Check for Updates</string>
     <string name="device_setup_title">Headset &amp; Audio</string>
     <string name="device_status_scanning">Searching for Bluetooth headset...</string>
     <string name="device_status_connecting">Connecting Bluetooth audio...</string>
@@ -616,14 +599,9 @@
     <string name="action_invite">Invite</string>
     <string name="squad_remove_title">Remove from squad?</string>
     <string name="squad_remove_body">Remove @%1$s from your squad directory?</string>
-    <string name="cd_refresh_squad">Refresh Squad</string>
     <string name="squad_sign_in_prompt">Sign in to see your squad</string>
-    <string name="squad_incoming_invites_header">INCOMING RIDE INVITES (%1$d)</string>
     <string name="invited_by_handle">Invited by @%1$s</string>
     <string name="squad_members_header">SQUAD MEMBERS</string>
-    <string name="squad_no_match_title">No rider matching \"%1$s\"</string>
-    <string name="squad_no_match_desc">Add @%1$s directly to your squad by their handle.</string>
-    <string name="squad_add_handle_btn">Add @%1$s to Squad</string>
     <string name="squad_empty_desc">Tap the + button above to add riders by @handle and invite them to convoys.</string>
     <string name="cd_remove_from_squad">Remove @%1$s from squad</string>
     <string name="inbox_decline_title">Decline ride invite?</string>

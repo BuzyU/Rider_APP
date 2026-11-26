@@ -157,9 +157,16 @@ class ColorTokensContrastAndStateTest {
             .filter { it.extension.lowercase() in setOf("png", "jpg", "jpeg", "webp") }
             .map { "${it.parentFile?.name}/${it.name}" }
             .toList()
-        val unapprovedBitmaps = bitmaps.filterNot { it == "drawable/hero_create_ride.jpg" }
+        val approvedHeroWebps = setOf(
+            "drawable-xhdpi/hero_create_ride.webp",
+            "drawable-xxhdpi/hero_create_ride.webp"
+        )
+        val unapprovedBitmaps = bitmaps.filterNot { it in approvedHeroWebps }
         if (unapprovedBitmaps.isNotEmpty()) {
             violations += "Unapproved bitmap drawables: $unapprovedBitmaps"
+        }
+        if (!bitmaps.containsAll(approvedHeroWebps)) {
+            violations += "Missing density-bucketed hero WebP drawables: ${approvedHeroWebps - bitmaps.toSet()}"
         }
 
         assertTrue(

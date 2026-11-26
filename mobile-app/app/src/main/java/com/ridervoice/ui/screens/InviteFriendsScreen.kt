@@ -44,6 +44,7 @@ fun InviteFriendsScreen(
             .background(Paper)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
     ) {
         Row(
             modifier = Modifier

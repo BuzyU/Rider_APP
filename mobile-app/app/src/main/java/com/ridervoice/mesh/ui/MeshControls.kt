@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.ridervoice.ui.theme.RideErgonomicsSettings
+import com.ridervoice.ui.theme.ZeroWindowInsets
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Headset
@@ -789,6 +790,7 @@ fun MeshActiveOverlay(
             )
     ) {
         Scaffold(
+            contentWindowInsets = ZeroWindowInsets,
             topBar = {
                 MeshTopBar(
                     sessionCode = title,

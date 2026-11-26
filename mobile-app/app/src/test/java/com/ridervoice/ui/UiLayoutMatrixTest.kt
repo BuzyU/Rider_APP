@@ -761,4 +761,34 @@ class UiLayoutMatrixTest {
             ctaBounds.bottom >= (640f - navBarDp - 24f).dp
         )
     }
+
+    @Test
+    fun allNonFrozenScaffolds_useZeroContentWindowInsetsToPreventDoublePadding() {
+        val candidates = listOf(
+            java.io.File("src/main/java/com/ridervoice"),
+            java.io.File("app/src/main/java/com/ridervoice"),
+            java.io.File("mobile-app/app/src/main/java/com/ridervoice")
+        )
+        val root = candidates.firstOrNull { it.isDirectory } ?: error("Cannot find com/ridervoice")
+        val frozen = setOf("ui/screens/RoomScreen.kt")
+        val missingZeroInsets = mutableListOf<String>()
+
+        listOf(java.io.File(root, "navigation"), java.io.File(root, "ui"), java.io.File(root, "mesh/ui"))
+            .filter { it.isDirectory }
+            .forEach { dir ->
+                dir.walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { f ->
+                    val rel = f.relativeTo(root).path.replace('\\', '/')
+                    if (rel in frozen) return@forEach
+                    val text = f.readText()
+                    if (Regex("""\bScaffold\s*\(""").containsMatchIn(text) && !text.contains("ZeroWindowInsets") && !text.contains("WindowInsets(0, 0, 0, 0)")) {
+                        missingZeroInsets += rel
+                    }
+                }
+            }
+
+        assertTrue(
+            "Non-frozen Scaffolds missing ZeroWindowInsets (causes double systemBar padding): $missingZeroInsets",
+            missingZeroInsets.isEmpty()
+        )
+    }
 }

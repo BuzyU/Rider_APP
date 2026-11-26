@@ -80,8 +80,10 @@ fun RegisterScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = Paper,
+        contentWindowInsets = ZeroWindowInsets,
         topBar = {
             TopAppBar(
+                modifier = Modifier.rvHorizontalSafeArea(),
                 title = {
                     Text(
                         text = stringResource(R.string.action_create_account),
@@ -119,6 +121,7 @@ fun RegisterScreen(
                 .padding(padding)
                 .background(Paper)
                 .navigationBarsPadding()
+                .rvHorizontalSafeArea()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp),

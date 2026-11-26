@@ -177,11 +177,11 @@ fun LobbyScreen(
     val isFailedWithNoData = status == null && activeRide == null && loadState is LobbyLoadState.Failed
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .imePadding(),
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = ZeroWindowInsets,
         topBar = {
             TopAppBar(
+                modifier = Modifier.rvHorizontalSafeArea(),
                 title = {
                     Column {
                         Text(

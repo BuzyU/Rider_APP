@@ -106,6 +106,7 @@ fun RoutePlannerScreen(
             .background(Paper)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
     ) {
         // Editorial Top Bar
         Row(

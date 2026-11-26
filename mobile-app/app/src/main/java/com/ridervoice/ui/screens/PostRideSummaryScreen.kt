@@ -70,6 +70,7 @@ fun PostRideSummaryScreen(
 
     Scaffold(
         containerColor = Paper,
+        contentWindowInsets = ZeroWindowInsets,
         bottomBar = {
             Surface(
                 color = PaperRaised,
@@ -141,6 +142,8 @@ fun PostRideSummaryScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .statusBarsPadding()
+                .rvHorizontalSafeArea()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)

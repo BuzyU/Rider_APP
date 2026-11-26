@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ridervoice.R
+import com.ridervoice.ui.theme.ZeroWindowInsets
 import com.ridervoice.mesh.diagnostics.MeshDiagnosticsRepository
 import com.ridervoice.mesh.transport.AudioRoute
 import com.ridervoice.mesh.transport.MicState
@@ -79,6 +80,7 @@ fun OfflineRoomScreen(
     }
 
     Scaffold(
+        contentWindowInsets = ZeroWindowInsets,
         topBar = {
             MeshTopBar(
                 sessionCode = stringResource(R.string.mesh_code_label, sessionCode),

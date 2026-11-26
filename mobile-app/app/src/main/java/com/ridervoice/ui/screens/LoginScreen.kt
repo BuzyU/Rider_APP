@@ -128,7 +128,8 @@ fun LoginScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = Paper
+        containerColor = Paper,
+        contentWindowInsets = ZeroWindowInsets
     ) { padding ->
         Column(
             modifier = Modifier
@@ -137,6 +138,7 @@ fun LoginScreen(
                 .background(Paper)
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .rvHorizontalSafeArea()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 24.dp),

@@ -19,6 +19,7 @@ import com.ridervoice.models.RiderLocation
 import com.ridervoice.ui.components.EmptyState
 import com.ridervoice.ui.components.ParticipantCard
 import com.ridervoice.ui.theme.InkSecondary
+import com.ridervoice.ui.theme.rvResponsiveContentWidth
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
@@ -52,56 +53,62 @@ fun RiderList(
         return
     }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxWidth()
-            .semantics {
-                isTraversalGroup = true
-                traversalIndex = 2f
-            }
-            .testTag("rider_list_lazy"),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(vertical = 4.dp)
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.TopCenter
     ) {
-        items(
-            items = activeParticipants,
-            key = { it.identity }
-        ) { participant ->
-            val isCurrentUser = (participant.identity == currentUid)
-            val isSpeaking = (activeSpeaker != null && activeSpeaker == participant.identity) ||
-                (isCurrentUser && isCurrentUserTransmitting)
-            val isParticipantHost = (isHost && isCurrentUser)
-            val rLoc = remoteLocations[participant.identity]
-
-            val distanceMeters = remember(currentLocation?.latitude, currentLocation?.longitude, rLoc?.lat, rLoc?.lng, isCurrentUser) {
-                if (isCurrentUser || rLoc == null || currentLocation == null) null else {
-                    val results = FloatArray(1)
-                    Location.distanceBetween(
-                        currentLocation.latitude,
-                        currentLocation.longitude,
-                        rLoc.lat,
-                        rLoc.lng,
-                        results
-                    )
-                    results[0]
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .rvResponsiveContentWidth()
+                .semantics {
+                    isTraversalGroup = true
+                    traversalIndex = 2f
                 }
-            }
+                .testTag("rider_list_lazy"),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 4.dp)
+        ) {
+            items(
+                items = activeParticipants,
+                key = { it.identity }
+            ) { participant ->
+                val isCurrentUser = (participant.identity == currentUid)
+                val isSpeaking = (activeSpeaker != null && activeSpeaker == participant.identity) ||
+                    (isCurrentUser && isCurrentUserTransmitting)
+                val isParticipantHost = (isHost && isCurrentUser)
+                val rLoc = remoteLocations[participant.identity]
 
-            val speedKmh = if (isCurrentUser) {
-                currentLocation?.takeIf { it.hasSpeed() }?.speed?.times(3.6f)
-            } else {
-                rLoc?.speed?.times(3.6f)
-            }
+                val distanceMeters = remember(currentLocation?.latitude, currentLocation?.longitude, rLoc?.lat, rLoc?.lng, isCurrentUser) {
+                    if (isCurrentUser || rLoc == null || currentLocation == null) null else {
+                        val results = FloatArray(1)
+                        Location.distanceBetween(
+                            currentLocation.latitude,
+                            currentLocation.longitude,
+                            rLoc.lat,
+                            rLoc.lng,
+                            results
+                        )
+                        results[0]
+                    }
+                }
 
-            ParticipantCard(
-                participant = participant,
-                isFaded = participant.isGhost,
-                isSpeaking = isSpeaking,
-                isCurrentUser = isCurrentUser,
-                isHost = isParticipantHost,
-                distanceMeters = distanceMeters,
-                speedKmh = speedKmh
-            )
+                val speedKmh = if (isCurrentUser) {
+                    currentLocation?.takeIf { it.hasSpeed() }?.speed?.times(3.6f)
+                } else {
+                    rLoc?.speed?.times(3.6f)
+                }
+
+                ParticipantCard(
+                    participant = participant,
+                    isFaded = participant.isGhost,
+                    isSpeaking = isSpeaking,
+                    isCurrentUser = isCurrentUser,
+                    isHost = isParticipantHost,
+                    distanceMeters = distanceMeters,
+                    speedKmh = speedKmh
+                )
+            }
         }
     }
 }

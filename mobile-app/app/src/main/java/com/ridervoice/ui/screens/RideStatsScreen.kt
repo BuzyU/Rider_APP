@@ -98,7 +98,7 @@ fun RideStatsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Paper)
-            .statusBarsPadding()
+            .rvTopSafeArea()
     ) {
         // Top Header: "History" + Share Action + Profile Avatar
         CapChromeFontScale(maxScale = 1.3f) {

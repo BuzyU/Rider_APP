@@ -260,8 +260,9 @@ fun EmergencyAlertContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
+                .rvResponsiveContentWidth()
+                .rvTopSafeArea()
+                .rvBottomSafeArea()
                 .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,

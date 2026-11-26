@@ -71,8 +71,8 @@ fun AccountScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
+                .rvTopSafeArea()
+                .rvBottomSafeArea()
         ) {
             // Editorial Top Bar (Title + Circular Edit & Settings)
             Row(

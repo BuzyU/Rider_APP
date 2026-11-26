@@ -113,22 +113,27 @@ fun RegisterScreen(
                     }
                 },
                 colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = Paper),
-                windowInsets = WindowInsets.statusBars
+                windowInsets = RvSafeTopInsets
             )
         }
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Paper)
-                .navigationBarsPadding()
-                .rvHorizontalSafeArea()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(Paper),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .rvResponsiveContentWidth()
+                    .rvBottomSafeArea()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             Text(
                 text = stringResource(R.string.auth_register_subtitle),
                 color = InkSecondary,
@@ -404,6 +409,7 @@ fun RegisterScreen(
                 textAlign = TextAlign.Center,
                 lineHeight = 16.sp
             )
+        }
         }
     }
 }

@@ -90,8 +90,7 @@ fun TalkControls(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
+            .rvBottomSafeArea()
             .systemGestureExclusion()
             .heightIn(min = RvTouchTarget.ptt)
             .semantics { isTraversalGroup = true },

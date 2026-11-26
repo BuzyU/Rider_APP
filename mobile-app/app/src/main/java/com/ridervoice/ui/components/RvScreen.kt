@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
@@ -71,7 +72,7 @@ fun RvScreen(
                     containerColor = Paper,
                     titleContentColor = Ink
                 ),
-                windowInsets = WindowInsets.statusBars
+                windowInsets = RvSafeTopInsets
             )
         },
         bottomBar = {
@@ -83,11 +84,17 @@ fun RvScreen(
                         .rvBottomSafeArea()
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = RvSpacing.lg, vertical = RvSpacing.sm)
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        bottomBar()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .rvResponsiveContentWidth()
+                                .padding(horizontal = RvSpacing.lg, vertical = RvSpacing.sm)
+                        ) {
+                            bottomBar()
+                        }
                     }
                 }
             }
@@ -95,21 +102,29 @@ fun RvScreen(
         containerColor = Paper
     ) { innerPadding ->
         val baseModifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)
-            .rvHorizontalSafeArea()
-            .let { if (bottomBar == null) it.navigationBarsPadding() else it }
-        Column(
-            modifier = if (scrollable) {
-                baseModifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = RvSpacing.lg)
-            } else {
-                baseModifier
-                    .padding(horizontal = RvSpacing.lg)
-            }
+            .fillMaxWidth()
+            .rvResponsiveContentWidth()
+            .let { if (bottomBar == null) it.rvBottomSafeArea() else it.rvHorizontalSafeArea() }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter
         ) {
-            content()
+            Column(
+                modifier = if (scrollable) {
+                    baseModifier
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = RvSpacing.lg)
+                } else {
+                    baseModifier
+                        .fillMaxHeight()
+                        .padding(horizontal = RvSpacing.lg)
+                }
+            ) {
+                content()
+            }
         }
     }
 }

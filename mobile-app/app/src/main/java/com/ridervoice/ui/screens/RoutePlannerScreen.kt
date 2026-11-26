@@ -117,8 +117,8 @@ fun RoutePlannerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Paper)
-            .statusBarsPadding()
-            .navigationBarsPadding()
+            .rvTopSafeArea()
+            .rvBottomSafeArea()
             .imePadding()
     ) {
         // Editorial Top Bar

@@ -16,10 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -81,6 +79,8 @@ import com.ridervoice.ui.components.RvTextField
 import com.ridervoice.ui.theme.InkBorderStrong
 import com.ridervoice.ui.theme.RvIcons
 import com.ridervoice.ui.theme.rvRtlMirrored
+import com.ridervoice.ui.theme.rvBottomSafeArea
+import com.ridervoice.ui.theme.rvTopSafeArea
 
 private val PaperSurface get() = MeshColors.LobbyBackground
 private val CardDark get() = MeshColors.LobbyCard
@@ -166,8 +166,8 @@ fun OfflineMeshLobbyScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
+                .rvTopSafeArea()
+                .rvBottomSafeArea()
                 .imePadding()
                 .verticalScroll(scrollState)
                 .padding(16.dp)

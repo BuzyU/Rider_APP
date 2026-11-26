@@ -85,12 +85,13 @@ fun SosScreen(
         .background(Paper)
         .border(6.dp, Brick)
 
-    Box(modifier = bgModifier) {
+    Box(modifier = bgModifier, contentAlignment = Alignment.TopCenter) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
+                .rvResponsiveContentWidth()
+                .rvTopSafeArea()
+                .rvBottomSafeArea()
                 .padding(horizontal = 20.dp, vertical = 16.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,

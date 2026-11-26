@@ -984,4 +984,170 @@ class UiLayoutMatrixTest {
             composeRule.onAllNodesWithText(settingsLabel).fetchSemanticsNodes().isEmpty()
         )
     }
+
+    @Test
+    fun noRawSystemBarOrCutoutInsetsOutsideRvSafeArea() {
+        val candidates = listOf(
+            java.io.File("src/main/java/com/ridervoice"),
+            java.io.File("app/src/main/java/com/ridervoice"),
+            java.io.File("mobile-app/app/src/main/java/com/ridervoice")
+        )
+        val root = candidates.firstOrNull { it.isDirectory } ?: error("Cannot find com/ridervoice")
+        val allowlist = setOf(
+            "ui/theme/RvSafeArea.kt",
+            "ui/screens/RoomScreen.kt",
+            "ui/screens/room/AudioRouteSheet.kt",
+            "ui/screens/room/AudioVuMeter.kt",
+            "ui/screens/room/DiagnosticsDialog.kt",
+            "ui/screens/room/LeaveRideDialog.kt",
+            "ui/screens/room/SosAlertBanner.kt"
+        )
+        val rawInsetRegex = Regex(
+            """statusBarsPadding|navigationBarsPadding|WindowInsets\.statusBars\b|WindowInsets\.navigationBars\b|WindowInsets\.displayCutout\b|\bdisplayCutout\b"""
+        )
+        val violations = mutableListOf<String>()
+
+        listOf(java.io.File(root, "ui"), java.io.File(root, "mesh/ui"))
+            .forEach { target ->
+                target.walkTopDown()
+                    .filter { it.isFile && it.extension == "kt" }
+                    .forEach { file ->
+                        val rel = file.relativeTo(root).invariantSeparatorsPath
+                        if (rel in allowlist) return@forEach
+                        file.readLines().forEachIndexed { i, rawLine ->
+                            val line = rawLine.trim()
+                            if (line.startsWith("//") || line.startsWith("*")) return@forEachIndexed
+                            if (rawInsetRegex.containsMatchIn(line)) {
+                                violations += "$rel:${i + 1}: $line"
+                            }
+                        }
+                    }
+            }
+
+        assertTrue(
+            "Raw inset modifiers or WindowInsets.displayCutout found outside RvSafeArea.kt and frozen files:\n${violations.joinToString("\n")}",
+            violations.isEmpty()
+        )
+    }
+
+    @android.annotation.SuppressLint("NewApi")
+    @Test
+    fun rvSafeTopInsets_equalsMaxOfStatusBarAndCutoutTop_andRideTopBarButtonsStayInsideSafeBoundsAcrossMatrix() {
+        data class InsetCase(
+            val widthDp: Int,
+            val heightDp: Int,
+            val statusTopDp: Int,
+            val cutoutTopDp: Int,
+            val cutoutSideDp: Int,
+            val fontScale: Float,
+            val locale: Locale
+        )
+
+        val cases = listOf(
+            InsetCase(320, 640, statusTopDp = 0, cutoutTopDp = 80, cutoutSideDp = 0, fontScale = 1.0f, locale = Locale("en")),
+            InsetCase(320, 640, statusTopDp = 24, cutoutTopDp = 56, cutoutSideDp = 32, fontScale = 1.3f, locale = Locale("hi")),
+            InsetCase(360, 720, statusTopDp = 32, cutoutTopDp = 24, cutoutSideDp = 0, fontScale = 2.0f, locale = Locale("mr")),
+            InsetCase(411, 891, statusTopDp = 48, cutoutTopDp = 80, cutoutSideDp = 32, fontScale = 1.3f, locale = Locale("en")),
+            InsetCase(600, 900, statusTopDp = 24, cutoutTopDp = 56, cutoutSideDp = 32, fontScale = 2.0f, locale = Locale("hi")),
+            InsetCase(840, 500, statusTopDp = 0, cutoutTopDp = 56, cutoutSideDp = 32, fontScale = 1.0f, locale = Locale("mr"))
+        )
+
+        var idx by mutableIntStateOf(0)
+        var observedSafeTopDp by mutableStateOf(0.dp)
+        var hostView: View? = null
+        var densityPx = 1f
+
+        composeRule.setContent {
+            val c = cases[idx]
+            val baseDensity = LocalDensity.current
+            densityPx = baseDensity.density
+            hostView = LocalView.current
+            val baseCtx = LocalContext.current
+            val cfg = Configuration(baseCtx.resources.configuration).apply {
+                setLocale(c.locale)
+                screenWidthDp = c.widthDp
+            }
+            CompositionLocalProvider(
+                LocalConfiguration provides cfg,
+                LocalDensity provides Density(density = baseDensity.density, fontScale = c.fontScale)
+            ) {
+                RiderVoiceTheme {
+                    observedSafeTopDp = com.ridervoice.ui.theme.rememberRvSafeTopPadding()
+                    Box(modifier = Modifier.size(width = c.widthDp.dp, height = c.heightDp.dp)) {
+                        RideTopBar(
+                            rideName = longRideName,
+                            connectionState = ConnectionState.CONNECTED,
+                            activeSpeaker = null,
+                            currentUid = "rider-1",
+                            participants = sampleParticipants(6),
+                            activeDevice = AudioDevice.BluetoothSco("Cardo Packtalk"),
+                            routerState = RouterState.ACTIVE,
+                            requestedDevice = AudioDevice.BluetoothSco("Cardo Packtalk"),
+                            routedInput = RoutedDeviceInfo(typeName = "BT", productName = "Cardo"),
+                            routedOutput = RoutedDeviceInfo(typeName = "BT", productName = "Cardo"),
+                            isCollectingDiag = true,
+                            diagSampleCount = 12,
+                            onAudioRouteClick = {},
+                            onDiagnosticsClick = {},
+                            onLeaveClick = {},
+                            onRescanAudio = {}
+                        )
+                    }
+                }
+            }
+        }
+
+        for (i in cases.indices) {
+            idx = i
+            val c = cases[i]
+            composeRule.waitForIdle()
+            composeRule.runOnUiThread {
+                val view = hostView ?: error("Expected hostView")
+                val statusPx = (c.statusTopDp * densityPx).toInt()
+                val cutoutTopPx = (c.cutoutTopDp * densityPx).toInt()
+                val sidePx = (c.cutoutSideDp * densityPx).toInt()
+                val cutout = if (cutoutTopPx > 0 || sidePx > 0) {
+                    android.view.DisplayCutout(
+                        android.graphics.Insets.of(sidePx, cutoutTopPx, sidePx, 0),
+                        if (sidePx > 0) android.graphics.Rect(0, 0, sidePx, 100) else null,
+                        if (cutoutTopPx > 0) android.graphics.Rect(100, 0, 200, cutoutTopPx) else null,
+                        if (sidePx > 0) android.graphics.Rect((c.widthDp * densityPx).toInt() - sidePx, 0, (c.widthDp * densityPx).toInt(), 100) else null,
+                        null
+                    )
+                } else null
+                val platformInsets = android.view.WindowInsets.Builder()
+                    .setInsets(
+                        android.view.WindowInsets.Type.statusBars(),
+                        android.graphics.Insets.of(0, statusPx, 0, 0)
+                    )
+                    .setInsets(
+                        android.view.WindowInsets.Type.displayCutout(),
+                        android.graphics.Insets.of(sidePx, cutoutTopPx, sidePx, 0)
+                    )
+                    .setDisplayCutout(cutout)
+                    .build()
+                view.dispatchApplyWindowInsets(platformInsets)
+            }
+            composeRule.waitForIdle()
+
+            val expectedTop = maxOf(c.statusTopDp, c.cutoutTopDp).dp
+            assertTrue(
+                "RvSafeTop ($observedSafeTopDp) must equal max(status=${c.statusTopDp}, cutout=${c.cutoutTopDp}).dp for $c",
+                abs(observedSafeTopDp.value - expectedTop.value) <= 1.0f
+            )
+
+            val audioBounds = composeRule.onNodeWithTag("ride_topbar_audio_badge").getBoundsInRoot()
+            val leaveBounds = composeRule.onNodeWithTag("ride_topbar_leave_button").getBoundsInRoot()
+            val centerBounds = composeRule.onNodeWithTag("ride_topbar_center").getBoundsInRoot()
+
+            assertTrue("Audio badge top (${audioBounds.top}) < expected safe top ($expectedTop) for $c", audioBounds.top >= expectedTop - 1.dp)
+            assertTrue("Leave button top (${leaveBounds.top}) < expected safe top ($expectedTop) for $c", leaveBounds.top >= expectedTop - 1.dp)
+            assertTrue("Audio badge left (${audioBounds.left}) < left cutout (${c.cutoutSideDp}.dp) for $c", audioBounds.left >= c.cutoutSideDp.dp - 1.dp)
+            assertTrue("Leave button right (${leaveBounds.right}) > width-rightCutout (${c.widthDp - c.cutoutSideDp}.dp) for $c", leaveBounds.right <= (c.widthDp - c.cutoutSideDp).dp + 1.dp)
+            assertTrue("Leave button width ${(leaveBounds.right - leaveBounds.left)} < 48.dp for $c", (leaveBounds.right - leaveBounds.left) >= 47.5.dp)
+            assertTrue("Audio badge width ${(audioBounds.right - audioBounds.left)} < 48.dp for $c", (audioBounds.right - audioBounds.left) >= 47.5.dp)
+            assertTrue("Center ($centerBounds) overlaps Audio ($audioBounds) for $c", centerBounds.right <= audioBounds.left + 1.dp)
+            assertTrue("Audio ($audioBounds) overlaps Leave ($leaveBounds) for $c", audioBounds.right <= leaveBounds.left + 1.dp)
+        }
+    }
 }

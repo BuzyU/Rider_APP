@@ -78,7 +78,7 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Paper)
-            .statusBarsPadding()
+            .rvTopSafeArea()
     ) {
         // Scrollable Bento Dashboard Body
         Column(

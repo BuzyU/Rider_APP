@@ -107,7 +107,7 @@ fun SquadScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Paper)
-            .statusBarsPadding()
+            .rvTopSafeArea()
     ) {
         Column(
             modifier = Modifier

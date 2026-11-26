@@ -154,8 +154,8 @@ fun RideReplayScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Paper)
-            .statusBarsPadding()
-            .navigationBarsPadding()
+            .rvTopSafeArea()
+            .rvBottomSafeArea()
     ) {
         // Editorial Top Bar (Circular Back + Centered Title + Circular Share)
         Row(

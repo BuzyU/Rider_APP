@@ -232,7 +232,7 @@ fun LobbyScreen(
                     containerColor = Paper,
                     titleContentColor = Ink
                 ),
-                windowInsets = WindowInsets.statusBars
+                windowInsets = RvSafeTopInsets
             )
         },
         bottomBar = {
@@ -241,7 +241,7 @@ fun LobbyScreen(
                     color = Paper,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
+                        .rvBottomSafeArea()
                         .imePadding()
                 ) {
                     Column(

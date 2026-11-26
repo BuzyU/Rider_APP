@@ -62,7 +62,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Paper)
-                .statusBarsPadding()
+                .rvTopSafeArea()
         ) {
             // Top Header matching Dashboard, History & My Squad
             CapChromeFontScale(maxScale = 1.3f) {

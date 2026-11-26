@@ -71,8 +71,8 @@ fun SquadRequestsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Paper)
-            .statusBarsPadding()
-            .navigationBarsPadding()
+            .rvTopSafeArea()
+            .rvBottomSafeArea()
     ) {
         // Editorial Top Bar
         CapChromeFontScale(maxScale = 1.3f) {

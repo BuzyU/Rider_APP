@@ -53,8 +53,8 @@ fun InviteFriendsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Paper)
-            .statusBarsPadding()
-            .navigationBarsPadding()
+            .rvTopSafeArea()
+            .rvBottomSafeArea()
             .imePadding()
     ) {
         Row(

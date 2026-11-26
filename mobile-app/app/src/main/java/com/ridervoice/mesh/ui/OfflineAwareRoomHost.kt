@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,6 +60,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import com.ridervoice.ui.theme.RvIcons
+import com.ridervoice.ui.theme.rememberRvSafeTopPadding
+import com.ridervoice.ui.theme.rvHorizontalSafeArea
 
 @HiltViewModel
 class OfflineAwareRoomViewModel @Inject constructor(
@@ -216,8 +217,8 @@ fun OfflineAwareRoomHost(
                     onClick = onPairBackupClick,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .statusBarsPadding()
-                        .padding(top = RvDimens.rideTopBarHeight)
+                        .rvHorizontalSafeArea()
+                        .padding(top = rememberRvSafeTopPadding() + RvDimens.rideTopBarHeight)
                 )
             }
 
@@ -232,8 +233,8 @@ fun OfflineAwareRoomHost(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopCenter)
-                        .statusBarsPadding()
-                        .padding(top = RvDimens.rideTopBarHeight, start = 12.dp, end = 12.dp, bottom = 6.dp)
+                        .rvHorizontalSafeArea()
+                        .padding(top = rememberRvSafeTopPadding() + RvDimens.rideTopBarHeight, start = 12.dp, end = 12.dp, bottom = 6.dp)
                 )
             }
         }

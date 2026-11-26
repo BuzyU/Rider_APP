@@ -76,8 +76,8 @@ class RideInviteActivity : ComponentActivity() {
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Paper)
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
+                    .rvTopSafeArea()
+                    .rvBottomSafeArea()
                     .padding(20.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -85,7 +85,7 @@ class RideInviteActivity : ComponentActivity() {
                     color = PaperRaised,
                     shape = RoundedCornerShape(28.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, InkHairline),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().rvResponsiveContentWidth()
                 ) {
                 Column(
                     modifier = Modifier

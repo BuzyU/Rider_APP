@@ -18,10 +18,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.semantics.contentDescription
@@ -86,6 +84,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.traversalIndex
 import com.ridervoice.ui.theme.RvIcons
+import com.ridervoice.ui.theme.rvBottomSafeArea
+import com.ridervoice.ui.theme.rvTopSafeArea
 
 @Composable
 fun MeshDiagnosticsDialog(
@@ -311,7 +311,7 @@ fun MeshTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
+                .rvTopSafeArea()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -428,7 +428,7 @@ fun MeshBottomBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
+                .rvBottomSafeArea()
                 .systemGestureExclusion()
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally

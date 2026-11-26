@@ -175,7 +175,7 @@ fun RvBottomNavigationBar(
             modifier = modifier
                 .fillMaxWidth()
                 .background(Paper)
-                .navigationBarsPadding()
+                .rvBottomSafeArea()
                 .padding(horizontal = 20.dp, vertical = 10.dp)
                 .testTag("rv_bottom_nav_bar"),
             contentAlignment = Alignment.Center
@@ -366,7 +366,7 @@ fun MoreMenuBottomSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
+                        .rvBottomSafeArea()
                         .padding(horizontal = 20.dp, vertical = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {

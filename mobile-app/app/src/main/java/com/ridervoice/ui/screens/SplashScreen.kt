@@ -69,8 +69,8 @@ fun SplashScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Paper)
-            .statusBarsPadding()
-            .navigationBarsPadding(),
+            .rvTopSafeArea()
+            .rvBottomSafeArea(),
         contentAlignment = Alignment.Center
     ) {
         Column(

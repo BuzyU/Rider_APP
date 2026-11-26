@@ -134,19 +134,24 @@ fun LoginScreen(
         containerColor = PaperSunken,
         contentWindowInsets = ZeroWindowInsets
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Paper)
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .rvHorizontalSafeArea()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(Paper),
+            contentAlignment = Alignment.TopCenter
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .rvResponsiveContentWidth()
+                    .rvTopSafeArea()
+                    .rvBottomSafeArea()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
@@ -574,6 +579,7 @@ fun LoginScreen(
                 textAlign = TextAlign.Center,
                 lineHeight = 16.sp
             )
+        }
         }
     }
 }

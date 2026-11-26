@@ -72,127 +72,136 @@ fun RideTopBar(
         Column(
             modifier = modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
-                .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
+                .rvTopSafeArea()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(RvDimens.rideTopBarHeight)
-                    .padding(horizontal = 4.dp)
-                    .semantics { isTraversalGroup = true },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left: Fixed-width slot (116dp) dedicated to ConnectionPill so status text never
-                // squeezes against DIAG and center/right siblings never shift.
-                Box(
-                    modifier = Modifier
-                        .width(116.dp)
-                        .fillMaxHeight()
-                        .semantics { traversalIndex = 1f }
-                        .testTag("ride_topbar_left"),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    ConnectionPill(connectionState)
-                }
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val isTight = maxWidth < 310.dp
+                val isVeryTight = maxWidth < 260.dp
+                val leftSlotWidth = if (isTight) 64.dp else 116.dp
+                val audioLeaveGap = if (isTight) 8.dp else 16.dp
+                val rightSlotWidth = 48.dp + audioLeaveGap + 48.dp
+                val rowHPadding = if (isTight) 2.dp else 4.dp
 
-                // Center: Ride Name & Active Speaker / Rider Count (>= 80dp even on 320dp viewports)
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .semantics { traversalIndex = 1.5f }
-                        .testTag("ride_topbar_center")
-                        .padding(horizontal = 2.dp)
-                ) {
-                    Text(
-                        text = rideName,
-                        color = Ink,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    val speakerText = if (activeSpeaker != null) {
-                        val spk = participants.find { it.identity == activeSpeaker }
-                        val resolvedName = if (activeSpeaker == currentUid) {
-                            stringResource(R.string.participant_you)
-                        } else {
-                            ParticipantNameResolver.resolve(activeSpeaker, spk?.displayName)
-                        }
-                        stringResource(R.string.room_speaker_speaking, resolvedName)
-                    } else if (!isLargeFont) {
-                        val count = participants.count { !it.isGhost }
-                        pluralStringResource(R.plurals.riders_in_voice_count, count, count)
-                    } else {
-                        val count = participants.count { !it.isGhost }
-                        stringResource(R.string.room_riders_in_voice_short, count)
-                    }
-                    Text(
-                        text = speakerText,
-                        color = if (activeSpeaker != null) Pop else InkSecondary,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (activeSpeaker != null) FontWeight.Bold else FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .heightIn(min = 16.dp)
-                            .semantics { liveRegion = LiveRegionMode.Polite }
-                    )
-                }
-
-                // Right: Fixed-width slot (48dp Audio + 16dp clear gap + 48x56dp Leave = 112dp)
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .width(112.dp)
-                        .fillMaxHeight()
-                        .testTag("ride_topbar_right"),
-                    horizontalArrangement = Arrangement.End
+                        .fillMaxWidth()
+                        .height(RvDimens.rideTopBarHeight)
+                        .padding(horizontal = rowHPadding)
+                        .semantics { isTraversalGroup = true },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Left: Dedicated ConnectionPill slot so status text never shifts siblings
                     Box(
                         modifier = Modifier
-                            .requiredSize(48.dp)
-                            .semantics { traversalIndex = 4.5f }
-                            .clickable(role = Role.Button) { onAudioRouteClick() }
-                            .testTag("ride_topbar_audio_badge"),
-                        contentAlignment = Alignment.Center
+                            .width(leftSlotWidth)
+                            .fillMaxHeight()
+                            .semantics { traversalIndex = 1f }
+                            .testTag("ride_topbar_left"),
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        AudioDeviceBadge(
-                            device = activeDevice,
-                            routerState = routerState,
-                            requestedDevice = requestedDevice,
-                            routedInput = routedInput,
-                            routedOutput = routedOutput,
-                            onRetry = onRescanAudio
-                        )
+                        ConnectionPill(connectionState)
                     }
 
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    val leaveVoiceCd = stringResource(R.string.cd_leave_voice_call)
-                    IconButton(
-                        onClick = onLeaveClick,
+                    // Center: Ride Name & optional Active Speaker / Rider Count
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
                         modifier = Modifier
-                            .requiredSize(width = 48.dp, height = 56.dp)
-                            .clip(CircleShape)
-                            .background(BrickContainer)
-                            .border(1.5.dp, Brick, CircleShape)
-                            .semantics {
-                                contentDescription = leaveVoiceCd
-                                traversalIndex = 6f
-                            }
-                            .testTag("ride_topbar_leave_button")
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .semantics { traversalIndex = 1.5f }
+                            .testTag("ride_topbar_center")
+                            .padding(horizontal = 2.dp)
                     ) {
-                        Icon(
-                            imageVector = RvIcons.Leave,
-                            contentDescription = stringResource(R.string.cd_leave_ride),
-                            tint = Brick,
-                            modifier = Modifier.size(24.dp)
+                        Text(
+                            text = rideName,
+                            color = Ink,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
+                        if (!isVeryTight) {
+                            val speakerText = if (activeSpeaker != null) {
+                                val spk = participants.find { it.identity == activeSpeaker }
+                                val resolvedName = if (activeSpeaker == currentUid) {
+                                    stringResource(R.string.participant_you)
+                                } else {
+                                    ParticipantNameResolver.resolve(activeSpeaker, spk?.displayName)
+                                }
+                                stringResource(R.string.room_speaker_speaking, resolvedName)
+                            } else if (!isLargeFont) {
+                                val count = participants.count { !it.isGhost }
+                                pluralStringResource(R.plurals.riders_in_voice_count, count, count)
+                            } else {
+                                val count = participants.count { !it.isGhost }
+                                stringResource(R.string.room_riders_in_voice_short, count)
+                            }
+                            Text(
+                                text = speakerText,
+                                color = if (activeSpeaker != null) Pop else InkSecondary,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (activeSpeaker != null) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .heightIn(min = 16.dp)
+                                    .semantics { liveRegion = LiveRegionMode.Polite }
+                            )
+                        }
+                    }
+
+                    // Right: Dedicated Audio badge + gap + Leave button slot
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .width(rightSlotWidth)
+                            .fillMaxHeight()
+                            .testTag("ride_topbar_right"),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .requiredSize(48.dp)
+                                .semantics { traversalIndex = 4.5f }
+                                .clickable(role = Role.Button) { onAudioRouteClick() }
+                                .testTag("ride_topbar_audio_badge"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AudioDeviceBadge(
+                                device = activeDevice,
+                                routerState = routerState,
+                                requestedDevice = requestedDevice,
+                                routedInput = routedInput,
+                                routedOutput = routedOutput,
+                                onRetry = onRescanAudio
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(audioLeaveGap))
+
+                        val leaveVoiceCd = stringResource(R.string.cd_leave_voice_call)
+                        IconButton(
+                            onClick = onLeaveClick,
+                            modifier = Modifier
+                                .requiredSize(width = 48.dp, height = 56.dp)
+                                .clip(CircleShape)
+                                .background(BrickContainer)
+                                .border(1.5.dp, Brick, CircleShape)
+                                .semantics {
+                                    contentDescription = leaveVoiceCd
+                                    traversalIndex = 6f
+                                }
+                                .testTag("ride_topbar_leave_button")
+                        ) {
+                            Icon(
+                                imageVector = RvIcons.Leave,
+                                contentDescription = stringResource(R.string.cd_leave_ride),
+                                tint = Brick,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }

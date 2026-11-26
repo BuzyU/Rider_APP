@@ -89,7 +89,7 @@ fun PostRideSummaryScreen(
                 color = PaperRaised,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
+                Column(modifier = Modifier.fillMaxWidth().rvBottomSafeArea()) {
                     Divider(color = InkHairline, thickness = 1.dp)
                     Row(
                         modifier = Modifier
@@ -154,7 +154,7 @@ fun PostRideSummaryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .statusBarsPadding()
+                .rvTopSafeArea()
                 .rvHorizontalSafeArea()
                 .imePadding()
                 .verticalScroll(rememberScrollState())

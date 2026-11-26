@@ -206,40 +206,47 @@ fun RideTopBar(
                 }
             }
 
-            if (isCollectingDiag) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .padding(start = 4.dp)
-                        .widthIn(min = 48.dp)
-                        .height(48.dp)
-                        .testTag("ride_topbar_diag_pill")
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(BrickContainer)
-                        .border(1.dp, Brick, RoundedCornerShape(8.dp))
-                        .semantics { traversalIndex = 4.8f }
-                        .clickable(role = Role.Button) { onDiagnosticsClick() }
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Box(
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (isCollectingDiag) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
                         modifier = Modifier
-                            .size(5.dp)
-                            .clip(CircleShape)
-                            .background(Brick)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (diagSampleCount > 0) stringResource(R.string.room_diag_count, diagSampleCount) else stringResource(R.string.room_diag_rec),
-                        color = Brick,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.2.sp,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.testTag("ride_topbar_diag_label")
-                    )
+                            .padding(start = 4.dp)
+                            .widthIn(min = 48.dp)
+                            .height(48.dp)
+                            .testTag("ride_topbar_diag_pill")
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(BrickContainer)
+                            .border(1.dp, Brick, RoundedCornerShape(8.dp))
+                            .semantics { traversalIndex = 4.8f }
+                            .clickable(role = Role.Button) { onDiagnosticsClick() }
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(5.dp)
+                                .clip(CircleShape)
+                                .background(Brick)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (diagSampleCount > 0) stringResource(R.string.room_diag_count, diagSampleCount) else stringResource(R.string.room_diag_rec),
+                            color = Brick,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.2.sp,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.testTag("ride_topbar_diag_label")
+                        )
+                    }
                 }
             }
         }

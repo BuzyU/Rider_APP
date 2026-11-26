@@ -1150,4 +1150,86 @@ class UiLayoutMatrixTest {
             assertTrue("Audio ($audioBounds) overlaps Leave ($leaveBounds) for $c", audioBounds.right <= leaveBounds.left + 1.dp)
         }
     }
+
+    @Test
+    fun rideTopBar_and_riderList_maintainConstantHeightAndTopCoordinate_whenDiagnosticsToggles_acrossFontScales() {
+        val fontScales = listOf(1.0f, 1.3f, 2.0f)
+        var fontScaleIdx by mutableIntStateOf(0)
+        var diagOn by mutableStateOf(false)
+
+        composeRule.setContent {
+            val baseDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(density = baseDensity.density, fontScale = fontScales[fontScaleIdx])
+            ) {
+                RiderVoiceTheme {
+                    Column(modifier = Modifier.size(width = 360.dp, height = 640.dp)) {
+                        Box(modifier = Modifier.fillMaxWidth().testTag("ride_topbar_container")) {
+                            RideTopBar(
+                                rideName = longRideName,
+                                connectionState = ConnectionState.CONNECTED,
+                                activeSpeaker = null,
+                                currentUid = "rider-1",
+                                participants = sampleParticipants(6),
+                                activeDevice = AudioDevice.BluetoothSco("Cardo"),
+                                routerState = RouterState.ACTIVE,
+                                requestedDevice = AudioDevice.BluetoothSco("Cardo"),
+                                routedInput = RoutedDeviceInfo(typeName = "BT", productName = "Cardo"),
+                                routedOutput = RoutedDeviceInfo(typeName = "BT", productName = "Cardo"),
+                                isCollectingDiag = diagOn,
+                                diagSampleCount = 12,
+                                onAudioRouteClick = {},
+                                onDiagnosticsClick = {},
+                                onLeaveClick = {},
+                                onRescanAudio = {}
+                            )
+                        }
+                        RiderList(
+                            participants = sampleParticipants(6),
+                            currentUid = "rider-1",
+                            activeSpeaker = null,
+                            isCurrentUserTransmitting = false,
+                            isHost = true,
+                            remoteLocations = emptyMap(),
+                            currentLocation = null,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+
+        for (i in fontScales.indices) {
+            fontScaleIdx = i
+            diagOn = false
+            composeRule.waitForIdle()
+
+            val topBarOff = composeRule.onNodeWithTag("ride_topbar_container").getBoundsInRoot()
+            val listOff = composeRule.onNodeWithTag("rider_list_lazy").getBoundsInRoot()
+
+            diagOn = true
+            composeRule.waitForIdle()
+
+            val topBarOn = composeRule.onNodeWithTag("ride_topbar_container").getBoundsInRoot()
+            val listOn = composeRule.onNodeWithTag("rider_list_lazy").getBoundsInRoot()
+            val diagNode = composeRule.onNodeWithTag("ride_topbar_diag_pill")
+            diagNode.assertHeightIsAtLeast(48.dp)
+            val diagBounds = diagNode.getBoundsInRoot()
+
+            val heightOff = topBarOff.bottom - topBarOff.top
+            val heightOn = topBarOn.bottom - topBarOn.top
+            assertTrue(
+                "RideTopBar height changed at fontScale=${fontScales[i]}: off=$heightOff, on=$heightOn",
+                abs(heightOff.value - heightOn.value) <= 0.5f
+            )
+            assertTrue(
+                "RiderList top coordinate shifted at fontScale=${fontScales[i]}: off=${listOff.top}, on=${listOn.top}",
+                abs(listOff.top.value - listOn.top.value) <= 0.5f
+            )
+            assertTrue(
+                "DIAG pill bottom (${diagBounds.bottom}) must stay inside RideTopBar bottom (${topBarOn.bottom}) at fontScale=${fontScales[i]}",
+                diagBounds.bottom <= topBarOn.bottom + 0.5.dp
+            )
+        }
+    }
 }

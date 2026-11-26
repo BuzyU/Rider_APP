@@ -23,6 +23,8 @@ import com.ridervoice.R
 import com.ridervoice.models.RideInvite
 import com.ridervoice.ui.components.ConfirmDialog
 import com.ridervoice.ui.components.InlineError
+import com.ridervoice.ui.components.RvStateHost
+import com.ridervoice.ui.components.UiLoadState
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.InvitesInboxViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -121,90 +123,108 @@ fun InvitesInboxScreen(
             }
         }
 
-        error?.let { err ->
-            InlineError(
-                message = err,
-                onRetry = { viewModel.loadInvites() },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-            )
+        if (invites.isNotEmpty()) {
+            error?.let { err ->
+                InlineError(
+                    message = err,
+                    onRetry = { viewModel.loadInvites() },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
         }
 
-        if (isLoading && invites.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
-            }
-        } else if (invites.isEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp, vertical = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Surface(
-                    color = PaperRaised,
-                    shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, InkHairline),
-                    modifier = Modifier.fillMaxWidth()
+        val inboxLoadState: UiLoadState<List<RideInvite>> = when {
+            isLoading && invites.isEmpty() -> UiLoadState.Loading
+            error != null && invites.isEmpty() -> UiLoadState.Error(
+                message = error!!,
+                onRetry = { viewModel.loadInvites() }
+            )
+            invites.isEmpty() -> UiLoadState.Empty(
+                title = stringResource(R.string.inbox_empty_title),
+                body = stringResource(R.string.inbox_empty_desc),
+                icon = RvIcons.MailOutline,
+                actionText = stringResource(R.string.home_create_ride_title),
+                onAction = onHostRideClick
+            )
+            else -> UiLoadState.Content(invites)
+        }
+
+        RvStateHost(
+            state = inboxLoadState,
+            modifier = Modifier.weight(1f),
+            emptyContent = { empty ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Column(
-                        modifier = Modifier.padding(28.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Surface(
+                        color = PaperRaised,
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, InkHairline),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(CircleShape)
-                                .background(PaperSunken),
-                            contentAlignment = Alignment.Center
+                        Column(
+                            modifier = Modifier.padding(28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(
-                                imageVector = RvIcons.MailOutline,
-                                contentDescription = null,
-                                tint = InkSecondary,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text(
-                            text = stringResource(R.string.inbox_empty_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Ink
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = stringResource(R.string.inbox_empty_desc),
-                            color = InkSecondary,
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Button(
-                            onClick = onHostRideClick,
-                            colors = ButtonDefaults.buttonColors(containerColor = Pop),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.height(50.dp)
-                        ) {
-                            Icon(RvIcons.Add, contentDescription = null, tint = PaperOnPop)
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(CircleShape)
+                                    .background(PaperSunken),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = empty.icon,
+                                    contentDescription = null,
+                                    tint = InkSecondary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(14.dp))
                             Text(
-                                text = stringResource(R.string.home_create_ride_title),
-                                color = PaperOnPop,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
+                                text = empty.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Ink
                             )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = empty.body,
+                                color = InkSecondary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Button(
+                                onClick = { empty.onAction?.invoke() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Pop),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.height(50.dp)
+                            ) {
+                                Icon(RvIcons.Add, contentDescription = null, tint = PaperOnPop)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = empty.actionText ?: "",
+                                    color = PaperOnPop,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
             }
-        } else {
+        ) { itemsList ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(invites, key = { it.id }) { invite ->
+                items(itemsList, key = { it.id }) { invite ->
                     val isProcessing = processingInviteId == invite.id
                     InviteCard(
                         invite = invite,

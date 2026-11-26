@@ -24,6 +24,8 @@ import com.ridervoice.R
 import com.ridervoice.models.Friend
 import com.ridervoice.ui.components.InlineError
 import com.ridervoice.ui.components.PrimaryButton
+import com.ridervoice.ui.components.RvStateHost
+import com.ridervoice.ui.components.UiLoadState
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.InviteFriendsViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -143,12 +145,14 @@ fun InviteFriendsContent(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        error?.let { err ->
-            InlineError(
-                message = err,
-                onRetry = { viewModel.loadFriends() },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
+        if (friends.isNotEmpty()) {
+            error?.let { err ->
+                InlineError(
+                    message = err,
+                    onRetry = { viewModel.loadFriends() },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
         }
 
         Row(
@@ -228,12 +232,26 @@ fun InviteFriendsContent(
             else friends.filter { it.handle.contains(searchQuery.removePrefix("@").trim(), ignoreCase = true) }
         }
 
-        Box(modifier = Modifier.weight(1f)) {
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
-                }
-            } else if (friends.isEmpty()) {
+        val inviteLoadState: UiLoadState<List<Friend>> = when {
+            isLoading && friends.isEmpty() -> UiLoadState.Loading
+            error != null && friends.isEmpty() -> UiLoadState.Error(
+                message = error!!,
+                onRetry = { viewModel.loadFriends() }
+            )
+            friends.isEmpty() -> UiLoadState.Empty(
+                title = stringResource(R.string.squad_empty_title),
+                body = stringResource(R.string.invite_empty_desc),
+                icon = RvIcons.PersonSearch,
+                actionText = stringResource(R.string.invite_add_rider_by_handle),
+                onAction = { showAddFriendDialog = true }
+            )
+            else -> UiLoadState.Content(filteredFriends)
+        }
+
+        RvStateHost(
+            state = inviteLoadState,
+            modifier = Modifier.weight(1f),
+            emptyContent = { empty ->
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -258,25 +276,25 @@ fun InviteFriendsContent(
                                     .background(PaperSunken),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(RvIcons.PersonSearch, contentDescription = null, tint = InkSecondary, modifier = Modifier.size(26.dp))
+                                Icon(empty.icon, contentDescription = null, tint = InkSecondary, modifier = Modifier.size(26.dp))
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = stringResource(R.string.squad_empty_title),
+                                text = empty.title,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Ink
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = stringResource(R.string.invite_empty_desc),
+                                text = empty.body,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = InkSecondary,
                                 textAlign = TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
-                                onClick = { showAddFriendDialog = true },
+                                onClick = { empty.onAction?.invoke() },
                                 colors = ButtonDefaults.buttonColors(containerColor = Pop),
                                 shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.height(48.dp)
@@ -284,7 +302,7 @@ fun InviteFriendsContent(
                                 Icon(RvIcons.PersonAdd, contentDescription = null, tint = PaperOnPop)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = stringResource(R.string.invite_add_rider_by_handle),
+                                    text = empty.actionText ?: "",
                                     color = PaperOnPop,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold
@@ -299,24 +317,24 @@ fun InviteFriendsContent(
                         }
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(filteredFriends, key = { it.id }) { friend ->
-                        FriendInviteCard(
-                            friend = friend,
-                            isInvited = invitedIds.contains(friend.id),
-                            onInviteClick = {
-                                if (!invitedIds.contains(friend.id)) {
-                                    viewModel.sendInvite(convoyName, friend.id)
-                                    invitedIds.add(friend.id)
-                                }
+            }
+        ) { friendList ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(friendList, key = { it.id }) { friend ->
+                    FriendInviteCard(
+                        friend = friend,
+                        isInvited = invitedIds.contains(friend.id),
+                        onInviteClick = {
+                            if (!invitedIds.contains(friend.id)) {
+                                viewModel.sendInvite(convoyName, friend.id)
+                                invitedIds.add(friend.id)
                             }
-                        )
-                    }
+                        }
+                    )
                 }
             }
         }

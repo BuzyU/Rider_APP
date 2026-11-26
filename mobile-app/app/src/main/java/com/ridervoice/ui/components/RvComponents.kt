@@ -1,6 +1,8 @@
 package com.ridervoice.ui.components
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -581,6 +583,107 @@ fun LoadingSkeleton(
             .clip(RoundedCornerShape(RvRadius.sm))
             .background(PaperSunken)
     )
+}
+
+/** Unified async screen load state for presentation UI. */
+sealed interface UiLoadState<out T> {
+    data object Loading : UiLoadState<Nothing>
+    data class Empty(
+        val title: String,
+        val body: String,
+        val icon: ImageVector = RvIcons.Info,
+        val actionText: String? = null,
+        val onAction: (() -> Unit)? = null
+    ) : UiLoadState<Nothing>
+    data class Error(
+        val message: String,
+        val onRetry: (() -> Unit)? = null
+    ) : UiLoadState<Nothing>
+    data class Content<T>(val data: T) : UiLoadState<T>
+}
+
+/**
+ * Renders unified [UiLoadState] transitions with [RvMotion.QUICK] crossfade (or [RvMotion.INSTANT]
+ * when reduce-motion is enabled).
+ */
+@Composable
+fun <T> RvStateHost(
+    state: UiLoadState<T>,
+    modifier: Modifier = Modifier,
+    loadingContent: @Composable () -> Unit = {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .testTag("rv_state_loading"),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            LoadingSkeleton(height = 84.dp)
+            LoadingSkeleton(height = 84.dp)
+            LoadingSkeleton(height = 84.dp)
+        }
+    },
+    emptyContent: @Composable (UiLoadState.Empty) -> Unit = { empty ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp)
+                .testTag("rv_state_empty"),
+            contentAlignment = Alignment.Center
+        ) {
+            EmptyState(
+                title = empty.title,
+                body = empty.body,
+                icon = empty.icon,
+                actionText = empty.actionText,
+                onAction = empty.onAction
+            )
+        }
+    },
+    errorContent: @Composable (UiLoadState.Error) -> Unit = { err ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .testTag("rv_state_error"),
+            contentAlignment = Alignment.Center
+        ) {
+            InlineError(
+                message = err.message,
+                onRetry = err.onRetry
+            )
+        }
+    },
+    content: @Composable (T) -> Unit
+) {
+    val reduceMotion = rememberIsReduceMotionEnabled()
+    var lastEmpty by remember { mutableStateOf<UiLoadState.Empty?>(null) }
+    var lastError by remember { mutableStateOf<UiLoadState.Error?>(null) }
+    if (state is UiLoadState.Empty) lastEmpty = state
+    if (state is UiLoadState.Error) lastError = state
+
+    val stateKey = when (state) {
+        is UiLoadState.Loading -> 0
+        is UiLoadState.Empty -> 1
+        is UiLoadState.Error -> 2
+        is UiLoadState.Content -> 3
+    }
+
+    Crossfade(
+        targetState = stateKey,
+        animationSpec = tween(
+            durationMillis = if (reduceMotion) RvMotion.INSTANT else RvMotion.QUICK,
+            easing = RvMotion.Easing
+        ),
+        modifier = modifier
+    ) { key ->
+        when (key) {
+            0 -> loadingContent()
+            1 -> (state as? UiLoadState.Empty ?: lastEmpty)?.let { emptyContent(it) }
+            2 -> (state as? UiLoadState.Error ?: lastError)?.let { errorContent(it) }
+            else -> (state as? UiLoadState.Content<T>)?.let { content(it.data) }
+        }
+    }
 }
 
 @Composable

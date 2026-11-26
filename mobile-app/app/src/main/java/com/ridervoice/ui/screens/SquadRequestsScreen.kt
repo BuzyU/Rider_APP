@@ -30,6 +30,8 @@ import com.ridervoice.models.IncomingSquadRequest
 import com.ridervoice.ui.components.CapChromeFontScale
 import com.ridervoice.ui.components.InlineError
 import com.ridervoice.ui.components.RvPullToRefreshContainer
+import com.ridervoice.ui.components.RvStateHost
+import com.ridervoice.ui.components.UiLoadState
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.SquadViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -124,15 +126,34 @@ fun SquadRequestsScreen(
             }
         }
 
-        uiState.errorMessage?.let { err ->
-            InlineError(
-                message = err,
+        if (uiState.incomingRequests.isNotEmpty()) {
+            uiState.errorMessage?.let { err ->
+                InlineError(
+                    message = err,
+                    onRetry = {
+                        viewModel.clearError()
+                        currentUserId?.let { viewModel.pullToRefresh(it) }
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
+        }
+
+        val requestsLoadState: UiLoadState<List<IncomingSquadRequest>> = when {
+            !uiState.hasLoadedOnce && uiState.isLoading && uiState.incomingRequests.isEmpty() -> UiLoadState.Loading
+            uiState.errorMessage != null && uiState.incomingRequests.isEmpty() -> UiLoadState.Error(
+                message = uiState.errorMessage!!,
                 onRetry = {
                     viewModel.clearError()
                     currentUserId?.let { viewModel.pullToRefresh(it) }
-                },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                }
             )
+            uiState.incomingRequests.isEmpty() -> UiLoadState.Empty(
+                title = stringResource(R.string.squad_requests_empty_title),
+                body = stringResource(R.string.squad_requests_empty_desc),
+                icon = RvIcons.MarkEmailRead
+            )
+            else -> UiLoadState.Content(uiState.incomingRequests)
         }
 
         RvPullToRefreshContainer(
@@ -140,65 +161,69 @@ fun SquadRequestsScreen(
             onRefresh = { currentUserId?.let { viewModel.pullToRefresh(it) } },
             modifier = Modifier.weight(1f)
         ) {
-            if (uiState.incomingRequests.isEmpty()) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    item {
-                        Surface(
-                            color = PaperRaised,
-                            shape = RoundedCornerShape(24.dp),
-                            border = BorderStroke(1.dp, InkHairline),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(28.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+            RvStateHost(
+                state = requestsLoadState,
+                modifier = Modifier.fillMaxSize(),
+                emptyContent = { empty ->
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        item {
+                            Surface(
+                                color = PaperRaised,
+                                shape = RoundedCornerShape(24.dp),
+                                border = BorderStroke(1.dp, InkHairline),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Box(
+                                Column(
                                     modifier = Modifier
-                                        .size(54.dp)
-                                        .clip(CircleShape)
-                                        .background(PaperSunken),
-                                    contentAlignment = Alignment.Center
+                                        .fillMaxWidth()
+                                        .padding(28.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Icon(
-                                        imageVector = RvIcons.MarkEmailRead,
-                                        contentDescription = null,
-                                        tint = InkSecondary,
-                                        modifier = Modifier.size(26.dp)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(54.dp)
+                                            .clip(CircleShape)
+                                            .background(PaperSunken),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = empty.icon,
+                                            contentDescription = null,
+                                            tint = InkSecondary,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(14.dp))
+                                    Text(
+                                        text = empty.title,
+                                        color = Ink,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = empty.body,
+                                        color = InkSecondary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        textAlign = TextAlign.Center
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(14.dp))
-                                Text(
-                                    text = stringResource(R.string.squad_requests_empty_title),
-                                    color = Ink,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = stringResource(R.string.squad_requests_empty_desc),
-                                    color = InkSecondary,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    textAlign = TextAlign.Center
-                                )
                             }
                         }
                     }
                 }
-            } else {
+            ) { requests ->
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(uiState.incomingRequests, key = { it.id }) { req ->
+                    items(requests, key = { it.id }) { req ->
                         val isProcessing = req.id in uiState.processingRequestIds
                         IncomingSquadRequestCard(
                             request = req,

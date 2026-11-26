@@ -33,8 +33,10 @@ fun RvScreen(
         modifier = Modifier
             .fillMaxSize()
             .imePadding(),
+        contentWindowInsets = ZeroWindowInsets,
         topBar = {
             TopAppBar(
+                modifier = Modifier.rvHorizontalSafeArea(),
                 title = {
                     Text(
                         text = title,
@@ -49,7 +51,7 @@ fun RvScreen(
                             onClick = onBack,
                             modifier = Modifier
                                 .padding(start = 8.dp, end = 4.dp)
-                                .size(44.dp)
+                                .size(RvTouchTarget.min)
                                 .clip(CircleShape)
                                 .background(PaperRaised)
                                 .border(1.dp, InkHairline, CircleShape)
@@ -77,7 +79,7 @@ fun RvScreen(
                     color = Paper,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
+                        .rvBottomSafeArea()
                 ) {
                     Box(
                         modifier = Modifier
@@ -91,17 +93,18 @@ fun RvScreen(
         },
         containerColor = Paper
     ) { innerPadding ->
+        val baseModifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+            .rvHorizontalSafeArea()
+            .let { if (bottomBar == null) it.navigationBarsPadding() else it }
         Column(
             modifier = if (scrollable) {
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
+                baseModifier
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = RvSpacing.lg)
             } else {
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
+                baseModifier
                     .padding(horizontal = RvSpacing.lg)
             }
         ) {

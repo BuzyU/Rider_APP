@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.platform.testTag
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -696,5 +698,67 @@ class UiLayoutMatrixTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun rvScreen_doesNotDoubleApplyStatusOrNavInsets() {
+        var hostView: View? = null
+        var densityPx = 1f
+        composeRule.setContent {
+            hostView = LocalView.current
+            densityPx = LocalDensity.current.density
+            RiderVoiceTheme {
+                Box(modifier = Modifier.size(width = 360.dp, height = 640.dp)) {
+                    com.ridervoice.ui.components.RvScreen(
+                        title = "Safe Area Check",
+                        onBack = {},
+                        bottomBar = {
+                            PrimaryButton(text = "Save", onClick = {}, modifier = Modifier.testTag("rv_screen_bottom_cta"))
+                        }
+                    ) {
+                        androidx.compose.material3.Text(
+                            text = "BodyTop",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("rv_screen_body_top")
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        val statusBarDp = 32f
+        val navBarDp = 48f
+        composeRule.runOnUiThread {
+            val view = hostView ?: error("Expected host view")
+            val insets = WindowInsetsCompat.Builder()
+                .setInsets(
+                    WindowInsetsCompat.Type.statusBars(),
+                    Insets.of(0, (statusBarDp * densityPx).toInt(), 0, 0)
+                )
+                .setInsets(
+                    WindowInsetsCompat.Type.navigationBars(),
+                    Insets.of(0, 0, 0, (navBarDp * densityPx).toInt())
+                )
+                .build()
+            ViewCompat.dispatchApplyWindowInsets(view, insets)
+        }
+        composeRule.waitForIdle()
+
+        val bodyBounds = composeRule.onNodeWithTag("rv_screen_body_top").getBoundsInRoot()
+        val ctaBounds = composeRule.onNodeWithTag("rv_screen_bottom_cta").getBoundsInRoot()
+        assertTrue(
+            "Body top (${bodyBounds.top}) should sit right below TopAppBar (64+32=96dp), not double-padded (>120dp)",
+            bodyBounds.top in 94.dp..110.dp
+        )
+        assertTrue(
+            "Bottom CTA bottom (${ctaBounds.bottom}) must be above nav bar (${640f - navBarDp}.dp)",
+            ctaBounds.bottom <= (640f - navBarDp + 0.5f).dp
+        )
+        assertTrue(
+            "Bottom CTA bottom (${ctaBounds.bottom}) must not be double-padded (${640f - navBarDp * 2}.dp)",
+            ctaBounds.bottom >= (640f - navBarDp - 24f).dp
+        )
     }
 }

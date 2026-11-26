@@ -314,7 +314,11 @@ fun SquadScreen(
                     .padding(end = 16.dp, bottom = 16.dp)
                     .defaultMinSize(minHeight = 52.dp)
                     .clip(RoundedCornerShape(RvRadius.pill))
-                    .clickable(role = Role.Button, onClick = onOpenRequests)
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = stringResource(R.string.cd_open_squad_requests),
+                        onClick = onOpenRequests
+                    )
                     .testTag("squad_requests_fab")
             ) {
                 Row(
@@ -424,7 +428,12 @@ private fun PendingSectionDashedDivider(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .defaultMinSize(minHeight = 48.dp).clickable(role = Role.Button, onClick = onClearRejected)
+                    .defaultMinSize(minHeight = 48.dp)
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = stringResource(R.string.squad_clear_rejected),
+                        onClick = onClearRejected
+                    )
                     .padding(horizontal = 6.dp, vertical = 4.dp)
                     .testTag("squad_clear_rejected_btn")
             )

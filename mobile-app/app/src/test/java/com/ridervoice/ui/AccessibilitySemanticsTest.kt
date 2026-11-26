@@ -339,4 +339,49 @@ class AccessibilitySemanticsTest {
             statusIdx < listIdx && listIdx < micIdx && micIdx < sosIdx && sosIdx < leaveIdx
         )
     }
+
+    @Test
+    fun allClickablesInNonFrozenUi_specifyExplicitRole() {
+        val javaRoot = listOf(
+            java.io.File("src/main/java/com/ridervoice"),
+            java.io.File("app/src/main/java/com/ridervoice"),
+            java.io.File("mobile-app/app/src/main/java/com/ridervoice")
+        ).firstOrNull { it.exists() } ?: error("Could not locate com/ridervoice source root")
+
+        val frozenRelative = setOf(
+            "ui/screens/RoomScreen.kt",
+            "ui/screens/room/AudioRouteSheet.kt",
+            "ui/screens/room/AudioVuMeter.kt",
+            "ui/screens/room/DiagnosticsDialog.kt",
+            "ui/screens/room/LeaveRideDialog.kt",
+            "ui/screens/room/SosAlertBanner.kt"
+        )
+
+        val scanRoots = listOf(java.io.File(javaRoot, "ui"), java.io.File(javaRoot, "mesh/ui"))
+        val violations = mutableListOf<String>()
+        val clickableRegex = Regex("""\.clickable\s*\(""")
+
+        for (root in scanRoots) {
+            if (!root.exists()) continue
+            root.walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { file ->
+                val rel = file.relativeTo(javaRoot).path.replace('\\', '/')
+                if (rel in frozenRelative) return@forEach
+
+                val text = file.readText()
+                clickableRegex.findAll(text).forEach { match ->
+                    val snippetEnd = (match.range.last + 220).coerceAtMost(text.length)
+                    val callWindow = text.substring(match.range.first, snippetEnd)
+                    if (!callWindow.contains("role =")) {
+                        val line = text.substring(0, match.range.first).count { it == '\n' } + 1
+                        violations += "$rel:$line missing explicit role = in .clickable(...)"
+                    }
+                }
+            }
+        }
+
+        assertTrue(
+            "Non-frozen .clickable(...) modifiers missing explicit role =:\n${violations.joinToString("\n")}",
+            violations.isEmpty()
+        )
+    }
 }

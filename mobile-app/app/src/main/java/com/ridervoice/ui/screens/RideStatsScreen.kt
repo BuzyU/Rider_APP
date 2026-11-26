@@ -263,7 +263,10 @@ fun RideStatsScreen(
                             border = BorderStroke(1.dp, InkHairline),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(role = Role.Button) { onReplayRide("latest") }
+                                .clickable(
+                                    role = Role.Button,
+                                    onClickLabel = stringResource(R.string.history_field_journal)
+                                ) { onReplayRide("latest") }
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
@@ -368,7 +371,10 @@ fun RideStatsScreen(
                         border = BorderStroke(1.dp, InkHairline),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(role = Role.Button) { onReplayRide("latest") }
+                            .clickable(
+                                role = Role.Button,
+                                onClickLabel = stringResource(R.string.history_field_journal)
+                            ) { onReplayRide("latest") }
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -573,7 +579,7 @@ private fun RideHistoryCard(
         border = BorderStroke(1.dp, InkHairline),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button, onClickLabel = displayTitle, onClick = onClick)
     ) {
         Row(
             modifier = Modifier

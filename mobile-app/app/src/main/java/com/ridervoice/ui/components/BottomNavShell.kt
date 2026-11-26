@@ -91,7 +91,7 @@ fun TabProfileAvatar(
             .size(RvTouchTarget.min)
             .testTag("tab_profile_avatar")
             .semantics { contentDescription = openAccountCd }
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(role = Role.Button, onClickLabel = openAccountCd, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Box(
@@ -352,7 +352,11 @@ fun MoreMenuBottomSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .background(RvScrim)
-                .clickable(role = Role.Button, onClick = onDismiss),
+                .clickable(
+                    role = Role.Button,
+                    onClickLabel = stringResource(R.string.cd_dismiss),
+                    onClick = onDismiss
+                ),
             contentAlignment = Alignment.BottomCenter
         ) {
             Surface(
@@ -492,7 +496,7 @@ private fun MoreSheetRow(
         modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 52.dp)
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button, onClickLabel = title, onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),

@@ -165,7 +165,10 @@ fun RideTopBar(
                             modifier = Modifier
                                 .requiredSize(48.dp)
                                 .semantics { traversalIndex = 4.5f }
-                                .clickable(role = Role.Button) { onAudioRouteClick() }
+                                .clickable(
+                                    role = Role.Button,
+                                    onClickLabel = stringResource(R.string.settings_audio_device)
+                                ) { onAudioRouteClick() }
                                 .testTag("ride_topbar_audio_badge"),
                             contentAlignment = Alignment.Center
                         ) {
@@ -225,7 +228,10 @@ fun RideTopBar(
                             .background(BrickContainer)
                             .border(1.dp, Brick, RoundedCornerShape(8.dp))
                             .semantics { traversalIndex = 4.8f }
-                            .clickable(role = Role.Button) { onDiagnosticsClick() }
+                            .clickable(
+                                role = Role.Button,
+                                onClickLabel = stringResource(R.string.settings_diag_dialog_title)
+                            ) { onDiagnosticsClick() }
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Box(

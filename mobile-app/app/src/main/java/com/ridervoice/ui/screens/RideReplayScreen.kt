@@ -779,7 +779,10 @@ fun RideReplayScreen(
                                 border = BorderStroke(1.dp, InkHairline),
                                 modifier = Modifier
                                     .defaultMinSize(minHeight = 48.dp)
-                                    .clickable(role = Role.Button) {
+                                    .clickable(
+                                        role = Role.Button,
+                                        onClickLabel = stringResource(R.string.replay_speed_profile)
+                                    ) {
                                         playbackSpeed = when (playbackSpeed) {
                                             1 -> 2
                                             2 -> 4

@@ -171,7 +171,10 @@ fun HomeScreen(
                     .height(176.dp)
                     .clip(RoundedCornerShape(28.dp))
                     .border(1.dp, InkHairline, RoundedCornerShape(28.dp))
-                    .clickable(role = Role.Button) { onHostRideClick() }
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = stringResource(R.string.home_create_ride_title)
+                    ) { onHostRideClick() }
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.hero_create_ride),
@@ -253,7 +256,10 @@ fun HomeScreen(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 142.dp)
-                        .clickable(role = Role.Button) { onJoinRideClick() }
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = stringResource(R.string.action_join_ride)
+                        ) { onJoinRideClick() }
                 ) {
                     Column(
                         modifier = Modifier
@@ -301,7 +307,10 @@ fun HomeScreen(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 142.dp)
-                        .clickable(role = Role.Button) { onInvitesInboxClick() }
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = stringResource(R.string.menu_inbox_title)
+                        ) { onInvitesInboxClick() }
                 ) {
                     Column(
                         modifier = Modifier
@@ -439,7 +448,10 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .then(
                             if (liveState.activeRideName.isNotBlank()) {
-                                Modifier.clickable(role = Role.Button) { onStartRideClick(liveState.activeRideName) }
+                                Modifier.clickable(
+                                    role = Role.Button,
+                                    onClickLabel = stringResource(R.string.home_join_convoy)
+                                ) { onStartRideClick(liveState.activeRideName) }
                             } else {
                                 Modifier
                             }
@@ -585,7 +597,10 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp)
-                        .clickable(role = Role.Button) { onSosClick() }
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = stringResource(R.string.cd_emergency_sos_button)
+                        ) { onSosClick() }
                 ) {
                     Row(
                         modifier = Modifier

@@ -379,7 +379,10 @@ fun RoutePlannerScreen(
             ) {
                 Row(
                     modifier = Modifier
-                        .clickable(role = Role.Button) {
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = stringResource(R.string.cd_switch_display_mode)
+                        ) {
                             if (useRadarMode && !hasValidToken) {
                                 inputTokenText = userCustomToken
                                 showTokenDialog = true
@@ -488,7 +491,10 @@ fun RoutePlannerScreen(
                             color = PaperRaised,
                             shape = RoundedCornerShape(16.dp),
                             border = BorderStroke(1.dp, InkHairline),
-                            modifier = Modifier.clickable(role = Role.Button) { viewModel.setDestinationFromRider(rider) }
+                            modifier = Modifier.clickable(
+                                role = Role.Button,
+                                onClickLabel = rider.handle
+                            ) { viewModel.setDestinationFromRider(rider) }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),

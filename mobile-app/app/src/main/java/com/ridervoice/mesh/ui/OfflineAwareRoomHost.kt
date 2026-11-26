@@ -257,7 +257,14 @@ private fun OfflineBackupChip(
     Surface(
         color = MeshColors.SurfaceDark,
         shape = RoundedCornerShape(12.dp),
-        modifier = if (onClick != null) modifier.clickable(role = Role.Button) { onClick() } else modifier
+        modifier = if (onClick != null) {
+            modifier.clickable(
+                role = Role.Button,
+                onClickLabel = stringResource(R.string.lobby_ride_code_label)
+            ) { onClick() }
+        } else {
+            modifier
+        }
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -352,7 +359,10 @@ fun TacticalBanner(
                 Surface(
                     color = MeshColors.SurfaceDark,
                     shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier.clickable(role = Role.Button) { onViewDiagnostics() }
+                    modifier = Modifier.clickable(
+                        role = Role.Button,
+                        onClickLabel = stringResource(R.string.mesh_diag_title)
+                    ) { onViewDiagnostics() }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),

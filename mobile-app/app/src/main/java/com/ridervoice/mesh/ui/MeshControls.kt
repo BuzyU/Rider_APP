@@ -343,7 +343,10 @@ fun MeshTopBar(
                         modifier = Modifier
                             .padding(end = 8.dp)
                             .semantics { traversalIndex = 5f }
-                            .clickable(role = Role.Button) { onSosClick() }
+                            .clickable(
+                                role = Role.Button,
+                                onClickLabel = stringResource(R.string.cd_emergency_sos_button)
+                            ) { onSosClick() }
                     ) {
                         Text(
                             text = stringResource(R.string.mesh_sos),
@@ -456,7 +459,10 @@ fun MeshBottomBar(
                         .weight(1f)
                         .heightIn(min = 48.dp)
                         .semantics { traversalIndex = 4.5f }
-                        .clickable(role = Role.Button) { onCycleAudioRoute() }
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = stringResource(R.string.settings_audio_device)
+                        ) { onCycleAudioRoute() }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
@@ -485,7 +491,10 @@ fun MeshBottomBar(
                         .weight(0.9f)
                         .heightIn(min = 48.dp)
                         .semantics { traversalIndex = 4.3f }
-                        .clickable(role = Role.Button) { onToggleVox() }
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = stringResource(R.string.talk_ptt_vox_active)
+                        ) { onToggleVox() }
                 ) {
                     Box(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
@@ -614,7 +623,10 @@ fun MeshBottomBar(
                         .widthIn(min = 64.dp)
                         .heightIn(min = 48.dp)
                         .semantics { traversalIndex = 6f }
-                        .clickable(role = Role.Button) { onLeave() }
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = stringResource(R.string.cd_leave_ride)
+                        ) { onLeave() }
                 ) {
                     Box(
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
@@ -795,11 +807,9 @@ fun MeshActiveOverlay(
                     }
                 }
             }
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {} // Consume all touches to prevent click-through to RoomScreen
-            )
+            .pointerInput(Unit) {
+                detectTapGestures { }
+            }
     ) {
         Scaffold(
             contentWindowInsets = ZeroWindowInsets,

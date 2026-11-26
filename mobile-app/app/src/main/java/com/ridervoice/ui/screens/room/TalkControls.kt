@@ -219,7 +219,10 @@ fun TalkControls(
                     .clip(RoundedCornerShape(14.dp))
                     .background(BrickContainer)
                     .border(2.dp, Brick, RoundedCornerShape(14.dp))
-                    .clickable(role = Role.Button) { onSosClick() }
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = stringResource(R.string.cd_emergency_sos_button)
+                    ) { onSosClick() }
                     .semantics {
                         contentDescription = sosBtnCd
                         traversalIndex = 5f

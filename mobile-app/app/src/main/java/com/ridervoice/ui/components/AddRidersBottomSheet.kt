@@ -71,7 +71,10 @@ fun AddRidersBottomSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .background(RvScrim)
-                .clickable(role = Role.Button) { onDismiss() },
+                .clickable(
+                    role = Role.Button,
+                    onClickLabel = stringResource(R.string.cd_dismiss)
+                ) { onDismiss() },
             contentAlignment = Alignment.BottomCenter
         ) {
             Surface(

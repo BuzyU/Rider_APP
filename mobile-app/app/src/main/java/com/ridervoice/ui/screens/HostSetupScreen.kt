@@ -293,7 +293,10 @@ fun HostSetupScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(role = Role.Button) { moreOptionsExpanded = !moreOptionsExpanded },
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = stringResource(R.string.create_ride_more_options)
+                        ) { moreOptionsExpanded = !moreOptionsExpanded },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {

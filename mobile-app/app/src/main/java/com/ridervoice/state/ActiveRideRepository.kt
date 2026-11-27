@@ -40,7 +40,8 @@ class ActiveRideRepository @Inject constructor(
         val testNumber: Int? = null,
         val joinCode: String? = null,
         val meshConfig: com.ridervoice.mesh.RoomMeshConfig? = null,
-        val voiceServiceError: String? = null
+        val voiceServiceError: String? = null,
+        val convoyMembershipSnapshot: com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot? = null
     )
 
     fun setMeshConfig(config: com.ridervoice.mesh.RoomMeshConfig) {
@@ -48,6 +49,12 @@ class ActiveRideRepository @Inject constructor(
             val updated = current?.copy(meshConfig = config)
             if (updated != null) persist(updated)
             updated
+        }
+    }
+
+    fun setConvoyMembershipSnapshot(snapshot: com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot?) {
+        _state.update { current ->
+            current?.copy(convoyMembershipSnapshot = snapshot)
         }
     }
 

@@ -391,6 +391,10 @@
     <string name="lobby_offline_step_transport">Mesh Transport</string>
     <string name="lobby_offline_retry_step">Retry</string>
     <string name="lobby_offline_hotspot_hint">Connect all phones to the same Wi-Fi or mobile hotspot for offline voice mesh</string>
+    <string name="lobby_p2p_status_forming">Setting up automatic phone-to-phone mesh…</string>
+    <string name="lobby_p2p_status_ready">Direct phone-to-phone mesh ready (no hotspot needed)</string>
+    <string name="lobby_p2p_status_wifi_off">Turn on your phone Wi-Fi switch (no router or hotspot needed) for offline mesh</string>
+    <string name="lobby_p2p_status_permission">Allow Nearby Wi-Fi permission for automatic offline mesh</string>
     <string name="lobby_offline_status_ready">Offline Ready</string>
     <string name="lobby_offline_status_timed_out">Timed Out</string>
     <string name="lobby_start_ride_with_count">Start ride (%1$d riders)</string>
@@ -940,5 +944,22 @@
     <string name="leave_dialog_participant_body">You will disconnect from group voice.</string>
     <string name="leave_dialog_leave_button">LEAVE RIDE</string>
     <string name="sos_navigate_to_rider">NAVIGATE TO %1$s</string>
+    <string name="mesh_convoy_banner_split_recovered">Convoy is back online. You are still on offline voice.</string>
+    <string name="mesh_convoy_banner_online_proposed">Confirming everyone is back online…</string>
+    <string name="mesh_convoy_banner_membership_mismatch">Group list changed — staying on offline voice</string>
+    <string name="mesh_convoy_banner_decision_conflict">Voice mode conflict detected — re-syncing</string>
+    <string name="mesh_convoy_unavailable_gt_six">Offline voice unavailable for &gt;6 mesh participants</string>
+    <string name="mesh_convoy_non_mesh_notice">Offline voice unavailable on this device — you will remain on internet voice when others switch</string>
+    <string name="mesh_convoy_lobby_tradeoff_disclosure">Group offline switching keeps eligible riders on the same voice channel: if any rider loses internet, the group switches together to offline voice.</string>
+    <string name="mesh_convoy_protocol_m_prompt">Background check unavailable — confirm if you have internet</string>
+    <string name="mesh_convoy_protocol_m_button">I have internet — return to online voice</string>
+    <string name="mesh_convoy_protocol_m_asserted">Internet confirmed — waiting for group to return online</string>
+    <string name="mesh_convoy_stuck_offline_banner">Waiting for %1$d rider(s) to regain internet</string>
+    <string name="mesh_convoy_stuck_return_online_action">Return online</string>
+    <string name="mesh_convoy_exclude_dialog_title">Return convoy to online voice?</string>
+    <string name="mesh_convoy_exclude_dialog_body">These riders do not have internet ready and will lose voice contact with online riders:\n\n%1$s</string>
+    <string name="mesh_convoy_exclude_dialog_stale_refresh">Rider readiness changed — review the updated list before confirming.</string>
+    <string name="mesh_convoy_exclude_dialog_confirm">Confirm return online</string>
+    <string name="mesh_convoy_exclude_dialog_cancel">Stay offline together</string>
 </resources>
 

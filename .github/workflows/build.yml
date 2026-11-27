@@ -29,6 +29,32 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      - name: Cache Robolectric SDKs
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-m2-${{ runner.os }}-${{ hashFiles('mobile-app/app/build.gradle') }}
+          restore-keys: |
+            robolectric-m2-${{ runner.os }}-
+
+      - name: Pre-fetch Robolectric SDK Artifacts (With Retry)
+        run: |
+          BASE_URL="https://repo1.maven.org/maven2/org/robolectric/android-all-instrumented"
+          for VER in "8.0.0_r4-robolectric-r1-i4" "11-robolectric-6757853-i4" "13-robolectric-9030017-i4"; do
+            DIR="$HOME/.m2/repository/org/robolectric/android-all-instrumented/$VER"
+            mkdir -p "$DIR"
+            for EXT in "jar" "jar.sha512" "pom" "pom.sha512"; do
+              FILE="android-all-instrumented-${VER}.${EXT}"
+              if [ ! -s "$DIR/$FILE" ]; then
+                echo "Fetching $FILE..."
+                curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+                  "${BASE_URL}/${VER}/${FILE}" -o "${DIR}/${FILE}.tmp" && \
+                  mv "${DIR}/${FILE}.tmp" "${DIR}/${FILE}" || \
+                  echo "Warning: pre-fetch failed for ${FILE}; Robolectric will retry at runtime."
+              fi
+            done
+          done
+
       - name: Grant Execute Permissions for Gradlew
         run: chmod +x mobile-app/gradlew
 

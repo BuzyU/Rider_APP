@@ -21,4 +21,6 @@ interface LiveKitPort {
     fun onNetworkRestored() {}
     fun stopVox() {}
     fun restartVoxIfPreviouslyRunning() {}
+    fun setSilentProbeMode(enabled: Boolean) {}
+    fun promoteFromSilentProbeToAudio() {}
 }

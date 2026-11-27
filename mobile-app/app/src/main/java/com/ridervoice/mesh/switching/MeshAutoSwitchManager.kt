@@ -1,9 +1,38 @@
 package com.ridervoice.mesh.switching
 
 import com.ridervoice.mesh.OfflineMeshGate
+import com.ridervoice.mesh.convoy.ConvoyHash
+import com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot
+import com.ridervoice.mesh.convoy.ConvoyModeState
+import com.ridervoice.mesh.convoy.ConvoyProtocolConfig
+import com.ridervoice.mesh.convoy.ConvoyReadinessWireRecord
+import com.ridervoice.mesh.convoy.ConvoyStateCodec
+import com.ridervoice.mesh.convoy.ConvoyStateDecodeResult
+import com.ridervoice.mesh.convoy.ConvoyStatePersistence
+import com.ridervoice.mesh.convoy.ConvoyStateWirePayload
+import com.ridervoice.mesh.convoy.ConvoyTransportCoordinator
+import com.ridervoice.mesh.convoy.CoordinatorInput
+import com.ridervoice.mesh.convoy.CoordinatorOutput
+import com.ridervoice.mesh.convoy.EncryptedConvoyStateStore
+import com.ridervoice.mesh.convoy.LiveKitReadiness
+import com.ridervoice.mesh.convoy.LocalModeWire
+import com.ridervoice.mesh.convoy.LocalTransportState
+import com.ridervoice.mesh.convoy.ManualExclusionRequest
+import com.ridervoice.mesh.convoy.MemberObservation
+import com.ridervoice.mesh.convoy.MonotonicClock
+import com.ridervoice.mesh.convoy.PromptKind
+import com.ridervoice.mesh.convoy.ReadinessSource
+import com.ridervoice.mesh.convoy.SingleFlightHandoffExecutor
+import com.ridervoice.mesh.convoy.TransportAction
+import com.ridervoice.mesh.convoy.TransportDecision
+import com.ridervoice.mesh.convoy.TransportMode
+import com.ridervoice.mesh.link.WifiDirectGroupController
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSecretProvider
+import com.ridervoice.mesh.transport.AudioOwner
 import com.ridervoice.mesh.transport.LiveKitVoiceTransport
+import com.ridervoice.mesh.transport.MeshCadence
+import com.ridervoice.mesh.transport.MeshControl
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.OnlineParticipant
 import com.ridervoice.mesh.transport.UnifiedVoicePeer
@@ -28,6 +57,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class MeshAutoSwitchManager(
     private val activeRideRepository: ActiveRideRepository,
@@ -41,7 +71,10 @@ class MeshAutoSwitchManager(
     private val isStandaloneSessionActive: () -> Boolean = { false },
     private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder? = null,
     private val localOnlineIdentity: () -> String? = { runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid }.getOrNull() },
-    private val meshRuntimeSettings: com.ridervoice.mesh.MeshRuntimeSettings? = null
+    private val meshRuntimeSettings: com.ridervoice.mesh.MeshRuntimeSettings? = null,
+    private val convoyPersistence: ConvoyStatePersistence? = null,
+    private val convoyConfig: ConvoyProtocolConfig = ConvoyProtocolConfig(),
+    private val wifiDirectGroupController: WifiDirectGroupController? = null
 ) {
 
     private var scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -51,6 +84,52 @@ class MeshAutoSwitchManager(
 
     private val _groupStatus = MutableStateFlow(GroupConnectivityStatus.ONLINE_ALL)
     val groupStatus: StateFlow<GroupConnectivityStatus> = _groupStatus.asStateFlow()
+
+    private val _convoyModeState = MutableStateFlow(ConvoyModeState.ONLINE)
+    val convoyModeState: StateFlow<ConvoyModeState> = _convoyModeState.asStateFlow()
+
+    private val _localTransportState = MutableStateFlow(LocalTransportState.ONLINE_ACTIVE)
+    val localTransportState: StateFlow<LocalTransportState> = _localTransportState.asStateFlow()
+
+    private val _stuckExclusionMemberIds = MutableStateFlow<List<String>>(emptyList())
+    val stuckExclusionMemberIds: StateFlow<List<String>> = _stuckExclusionMemberIds.asStateFlow()
+
+    private val _protocolMPromptActive = MutableStateFlow(false)
+    val protocolMPromptActive: StateFlow<Boolean> = _protocolMPromptActive.asStateFlow()
+
+    private val _moreThanSixParticipantsDisabled = MutableStateFlow(false)
+    val moreThanSixParticipantsDisabled: StateFlow<Boolean> = _moreThanSixParticipantsDisabled.asStateFlow()
+
+    private val _manualReadyAsserted = MutableStateFlow(false)
+    val manualReadyAsserted: StateFlow<Boolean> = _manualReadyAsserted.asStateFlow()
+
+    @Volatile private var pendingExclusionRequest: ManualExclusionRequest? = null
+    @Volatile private var convoyCoordinator: ConvoyTransportCoordinator? = null
+    @Volatile private var convoyExecutor: SingleFlightHandoffExecutor? = null
+    @Volatile private var activeConvoyMembership: ConvoyMembershipSnapshot? = null
+    @Volatile private var lastConvoyOutput: CoordinatorOutput? = null
+    @Volatile private var latestSignals: LocalHealthSignals? = null
+    @Volatile private var localIncarnation: Long = EncryptedConvoyStateStore.generateSenderIncarnation()
+    private val inboundDecisionQueue = ConcurrentLinkedQueue<TransportDecision>()
+    private val inboundObservationQueue = ConcurrentLinkedQueue<MemberObservation>()
+
+    fun assertManualReady(ready: Boolean) {
+        _manualReadyAsserted.value = ready
+    }
+
+    fun requestManualExclusion(excludedIds: Set<String>, expectedEligibleIds: Set<String>) {
+        pendingExclusionRequest = ManualExclusionRequest(
+            excludedMemberIds = excludedIds,
+            confirmedAtMs = clock.nowMs(),
+            expectedEligibleSnapshot = expectedEligibleIds
+        )
+    }
+
+    fun currentEligibleMemberIds(): Set<String> {
+        val snap = activeConvoyMembership ?: return emptySet()
+        val nonReady = _stuckExclusionMemberIds.value.toSet()
+        return snap.meshParticipants.filterTo(LinkedHashSet()) { it !in nonReady }
+    }
 
     val offlineAvailability: StateFlow<OfflineAvailability> = coordinator.offlineAvailability
 
@@ -108,9 +187,17 @@ class MeshAutoSwitchManager(
                         stateMachine.endSession()
                         currentLiveRideId = null
                     }
+                    if (ride == null ||
+                        ride.phase == ActiveRideRepository.Phase.ENDING ||
+                        ride.meshConfig?.optOut == true ||
+                        ride.meshConfig?.offlineMeshEnabled == false
+                    ) {
+                        wifiDirectGroupController?.stop()
+                    }
                     meshRuntimeSettings?.let { com.ridervoice.mesh.RoomMeshFlagMirror.sync(ride.toMirrorSnapshot(), it) }
                     coordinator.setOnlineSession(null)
                     _groupStatus.value = GroupConnectivityStatus.ONLINE_ALL
+                    clearConvoySessionState()
                     if (wasRideLive) {
                         coordinator.onOnlineRideEnded(keepStandaloneMesh = isStandaloneSessionActive())
                     } else if (!isStandaloneSessionActive() &&
@@ -127,6 +214,7 @@ class MeshAutoSwitchManager(
                     currentLiveRideId = ride.roomId
                     meshRuntimeSettings?.let { com.ridervoice.mesh.RoomMeshFlagMirror.sync(ride.toMirrorSnapshot(), it) }
                     stateMachine.beginSession(ride.roomId, clock.nowMs())
+                    initConvoySessionState(ride)
                 }
                 // Phase.LIVE (same rideId) -> continue
 
@@ -139,15 +227,30 @@ class MeshAutoSwitchManager(
                     )
                 )
 
+                var netLostSinceMs: Long? = null
+                var recoveryStableSinceMs: Long? = null
+                var validatedOnlineWithoutLkSinceMs: Long? = null
+                var probeFailedWithoutLkSinceMs: Long? = null
+
                 while (isActive &&
                     activeRideRepository.state.value?.roomId == ride.roomId &&
                     activeRideRepository.state.value?.phase == ActiveRideRepository.Phase.LIVE &&
                     OfflineMeshGate.isOfflineAllowed()
                 ) {
-                    val backup = secretProvider.getSessionForOnlineRide(ride.roomId)
-                    if ((OfflineMeshGate.isWarmStandbyAllowed() || OfflineMeshGate.isAutomaticFallbackAllowed()) &&
+                    val membership = activeRideRepository.state.value?.convoyMembershipSnapshot ?: activeConvoyMembership
+                    val isMeshCapExceeded = membership?.isMeshCapExceeded == true
+                    _moreThanSixParticipantsDisabled.value = isMeshCapExceeded
+
+                    val backup = if (isMeshCapExceeded) null else secretProvider.getSessionForOnlineRide(ride.roomId)
+                    if (!isMeshCapExceeded && backup != null && OfflineMeshGate.isBuildGateOpen()) {
+                        wifiDirectGroupController?.ensureActive(backup, isHost = ride.isHost)
+                    } else if (isMeshCapExceeded) {
+                        wifiDirectGroupController?.stop()
+                    }
+                    if (!isMeshCapExceeded &&
+                        (OfflineMeshGate.isWarmStandbyAllowed() || OfflineMeshGate.isAutomaticFallbackAllowed()) &&
                         backup != null &&
-                        meshTransport.state.value == VoiceTransportState.STOPPED
+                        meshTransport.state.value in setOf(VoiceTransportState.STOPPED, VoiceTransportState.FAILED)
                     ) {
                         coordinator.ensureWarmStandbyDiscovery(backup)
                     }
@@ -159,17 +262,227 @@ class MeshAutoSwitchManager(
                     }
 
                     val signals = healthSignalsProvider.sampleSignals()
+                    val nowSample = clock.nowMs()
+                    val probeAndLkDown = !signals.isLiveKitConnected && !signals.isHealthProbeSuccessful
+                    if (probeAndLkDown) {
+                        if (probeFailedWithoutLkSinceMs == null) probeFailedWithoutLkSinceMs = nowSample
+                    } else {
+                        probeFailedWithoutLkSinceMs = null
+                    }
+                    // On real hotspots / dead APs Android can keep NET_CAPABILITY_VALIDATED=true long after internet drops.
+                    // Once both LiveKit AND the HTTP /health probe have failed continuously, treat internet as unvalidated.
+                    val staleValidatedOverride = signals.isValidatedInternet &&
+                        probeAndLkDown &&
+                        probeFailedWithoutLkSinceMs != null &&
+                        (nowSample - probeFailedWithoutLkSinceMs >= 2_000L || signals.liveKitReconnectAttempts >= 2)
+                    val effectiveSignals = if (staleValidatedOverride) {
+                        signals.copy(isValidatedInternet = false)
+                    } else {
+                        signals
+                    }
+                    latestSignals = effectiveSignals
 
-                    if (stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE &&
+                    if (!isMeshCapExceeded &&
+                        (stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE ||
+                            _localTransportState.value == LocalTransportState.OFFLINE_ACTIVE) &&
                         signals.shouldTriggerBackgroundReconnect()
                     ) {
                         (coordinator.liveKitTransport as? LiveKitVoiceTransport)?.triggerBackgroundReconnect()
                     }
 
-                    val offlineAvailable = coordinator.offlineAvailability.value == OfflineAvailability.AVAILABLE
-                    stateMachine.evaluate(signals, offlineAvailable = offlineAvailable)
+                    val offlineAvailable = !isMeshCapExceeded &&
+                        coordinator.offlineAvailability.value == OfflineAvailability.AVAILABLE
 
-                    val isLocalOffline = stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE
+                    val convoyCoord = convoyCoordinator
+                    val localId = localOnlineIdentity()
+                    if (convoyCoord != null && membership != null && membership.isGroupFallbackEligible &&
+                        localId != null && membership.isMeshParticipant(localId) && !isMeshCapExceeded
+                    ) {
+                        val now = nowSample
+                        val localNetLost = !effectiveSignals.isValidatedInternet &&
+                            !effectiveSignals.isLiveKitConnected &&
+                            !effectiveSignals.isHealthProbeSuccessful
+                        if (localNetLost) {
+                            if (netLostSinceMs == null) netLostSinceMs = now
+                            recoveryStableSinceMs = null
+                        } else {
+                            netLostSinceMs = null
+                            val lkOk = effectiveSignals.isValidatedInternet &&
+                                effectiveSignals.isLiveKitConnected &&
+                                effectiveSignals.isHealthProbeSuccessful
+                            if (lkOk) {
+                                if (recoveryStableSinceMs == null) recoveryStableSinceMs = now
+                            } else {
+                                recoveryStableSinceMs = null
+                            }
+                        }
+                        val totalLossConfirmed = netLostSinceMs != null && (now - netLostSinceMs) >= convoyConfig.failureConfirmationMs
+                        val recoveryStable = recoveryStableSinceMs != null && (now - recoveryStableSinceMs) >= convoyConfig.recoveryStabilityMs
+
+                        val inOfflineMode = convoyCoord.currentAcceptedDecision()?.mode == TransportMode.OFFLINE
+                        if (inOfflineMode && !localNetLost && effectiveSignals.isValidatedInternet && !effectiveSignals.isLiveKitConnected) {
+                            if (validatedOnlineWithoutLkSinceMs == null) validatedOnlineWithoutLkSinceMs = now
+                        } else {
+                            validatedOnlineWithoutLkSinceMs = null
+                        }
+                        val probingUnavailable = inOfflineMode && !localNetLost && effectiveSignals.isValidatedInternet && (
+                            liveKitManager.connectionState.value == ConnectionState.FAILED ||
+                                (validatedOnlineWithoutLkSinceMs != null && (now - validatedOnlineWithoutLkSinceMs) >= convoyConfig.recoveryStabilityMs + 4_000L)
+                            )
+
+                        val decisionsIn = ArrayList<TransportDecision>()
+                        while (true) {
+                            decisionsIn.add(inboundDecisionQueue.poll() ?: break)
+                        }
+                        val obsIn = ArrayList<MemberObservation>()
+                        while (true) {
+                            obsIn.add(inboundObservationQueue.poll() ?: break)
+                        }
+
+                        val lkReadiness = when (liveKitManager.connectionState.value) {
+                            ConnectionState.CONNECTED -> if (recoveryStable) LiveKitReadiness.READY else LiveKitReadiness.CONNECTED_UNVERIFIED
+                            ConnectionState.CONNECTING, ConnectionState.RECONNECTING -> LiveKitReadiness.CONNECTING
+                            ConnectionState.FAILED -> LiveKitReadiness.FAILED
+                            ConnectionState.DISCONNECTED -> LiveKitReadiness.NOT_READY
+                        }
+
+                        val input = CoordinatorInput(
+                            localMemberId = localId,
+                            membership = membership,
+                            currentDecision = convoyCoord.currentAcceptedDecision(),
+                            observations = obsIn,
+                            localNetLost = localNetLost,
+                            localTotalLossConfirmed = totalLossConfirmed && offlineAvailable,
+                            localLiveKitReadiness = lkReadiness,
+                            localRecoveryStable = recoveryStable,
+                            localMeshRouteAvailable = effectiveSignals.hasValidMeshRoute && offlineAvailable,
+                            localExecutionState = _localTransportState.value,
+                            generationHighWater = convoyCoord.currentGenerationHighWater(),
+                            generationUnknown = convoyCoord.isGenerationUnknown(),
+                            manualReadyAsserted = _manualReadyAsserted.value,
+                            manualExclusionRequest = pendingExclusionRequest,
+                            probingUnavailable = probingUnavailable,
+                            incomingDecisions = decisionsIn
+                        )
+                        pendingExclusionRequest = null
+
+                        val out = convoyCoord.evaluate(input)
+                        lastConvoyOutput = out
+                        _convoyModeState.value = out.convoyModeState
+                        if (!localNetLost && _manualReadyAsserted.value && lkReadiness == LiveKitReadiness.READY) {
+                            // Keep manualReadyAsserted only while offline/recovering
+                        } else if (localNetLost) {
+                            _manualReadyAsserted.value = false
+                        }
+
+                        var stuckMembers: List<String> = emptyList()
+                        var showProtocolM = false
+                        var needsBurst = false
+                        var fallbackUnavailableReason: String? = null
+                        for (act in out.actions) {
+                            when (act) {
+                                is TransportAction.SendControlBurst, is TransportAction.AdvertiseDecision -> needsBurst = true
+                                is TransportAction.PromptRider -> {
+                                    if (act.kind == PromptKind.STUCK_OFFLINE_EXCLUSION) {
+                                        stuckMembers = act.memberIds
+                                    } else if (act.kind == PromptKind.PROTOCOL_M_MANUAL_RETURN) {
+                                        showProtocolM = true
+                                    }
+                                }
+                                is TransportAction.ReportFallbackUnavailable -> {
+                                    fallbackUnavailableReason = act.reason
+                                    _lastTransitionReason.value = if (act.reason == "NO_LOCAL_MESH_ROUTE") {
+                                        "ONLINE -> FALLBACK_UNAVAILABLE (no mesh route: ${act.reason})"
+                                    } else {
+                                        "ONLINE -> FALLBACK_UNAVAILABLE (${act.reason})"
+                                    }
+                                }
+                                else -> Unit
+                            }
+                        }
+                        _stuckExclusionMemberIds.value = stuckMembers
+                        _protocolMPromptActive.value = showProtocolM
+
+                        val executor = convoyExecutor
+                        if (executor != null) {
+                            out.acceptedDecision?.let { executor.onDesiredDecision(it) }
+                            val cmd = executor.pollNextCommand(
+                                nowMs = now,
+                                canFallbackToMesh = effectiveSignals.hasValidMeshRoute && offlineAvailable,
+                                canRecoverToLiveKit = effectiveSignals.isValidatedInternet &&
+                                    (effectiveSignals.isLiveKitConnected || (probingUnavailable && _manualReadyAsserted.value))
+                            )
+                            when (cmd) {
+                                is SingleFlightHandoffExecutor.Command.RunFallback -> {
+                                    _localTransportState.value = LocalTransportState.STARTING_OFFLINE
+                                    val ok = coordinator.fallbackToMesh()
+                                    executor.onHandoffFinished(cmd.decision.decisionId, ok, clock.nowMs())
+                                    if (ok) {
+                                        convoyCoord.recordActualAudioTransition(clock.nowMs())
+                                        _localTransportState.value = LocalTransportState.OFFLINE_ACTIVE
+                                        _lastTransitionReason.value = "Convoy fallback gen=${cmd.decision.generation}"
+                                    } else {
+                                        _localTransportState.value = LocalTransportState.FALLBACK_UNAVAILABLE
+                                        _lastTransitionReason.value = "Convoy fallback failed gen=${cmd.decision.generation}"
+                                    }
+                                }
+                                is SingleFlightHandoffExecutor.Command.RunRecovery -> {
+                                    _localTransportState.value = LocalTransportState.STARTING_ONLINE
+                                    val ok = coordinator.recoverToLiveKit()
+                                    executor.onHandoffFinished(cmd.decision.decisionId, ok, clock.nowMs())
+                                    if (ok) {
+                                        convoyCoord.recordActualAudioTransition(clock.nowMs())
+                                        _localTransportState.value = LocalTransportState.ONLINE_ACTIVE
+                                        _manualReadyAsserted.value = false
+                                        _lastTransitionReason.value = "Convoy recovery gen=${cmd.decision.generation}"
+                                    } else {
+                                        _localTransportState.value = LocalTransportState.RECOVERY_FAILED
+                                    }
+                                }
+                                null -> {
+                                    _localTransportState.value = deriveLocalTransportState(
+                                        convoyCoord = convoyCoord,
+                                        localNetLost = localNetLost,
+                                        owner = coordinator.audioOwnershipArbiter.owner.value,
+                                        fallbackUnavailable = fallbackUnavailableReason != null
+                                    )
+                                }
+                            }
+                        }
+
+                        if (needsBurst && effectiveSignals.isMeshTransportAlive) {
+                            buildControlPayloadBytes(membership, out, effectiveSignals, localId)?.let { bytes ->
+                                meshTransport.sendControlFrame(bytes)
+                            }
+                        }
+                    } else {
+                        stateMachine.evaluate(effectiveSignals, offlineAvailable = offlineAvailable)
+                        _localTransportState.value = mapLegacyStateToLocalTransport(stateMachine.state.value, isMeshCapExceeded)
+                    }
+
+                    // Accelerate mesh peer discovery as soon as local online loss starts so
+                    // nearby phones exchange HELLO routes before fallback confirmation expires.
+                    val isOwnerOffline = coordinator.audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH
+                    val isOwnerLiveKit = coordinator.audioOwnershipArbiter.owner.value == AudioOwner.LIVEKIT
+                    if (!isMeshCapExceeded && meshTransport.state.value == VoiceTransportState.CONNECTED && !isOwnerOffline) {
+                        val suspectOrUnavailable = probeAndLkDown ||
+                            (!effectiveSignals.isValidatedInternet && !effectiveSignals.isLiveKitConnected) ||
+                            stateMachine.state.value in setOf(AutoSwitchState.ONLINE_SUSPECT, AutoSwitchState.FALLBACK_UNAVAILABLE) ||
+                            _localTransportState.value in setOf(LocalTransportState.ONLINE_SUSPECT, LocalTransportState.FALLBACK_UNAVAILABLE)
+                        if (suspectOrUnavailable) {
+                            (meshTransport as? MeshControl)?.setCadence(MeshCadence.BOOST)
+                        } else if (isOwnerLiveKit &&
+                            effectiveSignals.isValidatedInternet &&
+                            effectiveSignals.isLiveKitConnected &&
+                            stateMachine.state.value == AutoSwitchState.ONLINE &&
+                            _localTransportState.value == LocalTransportState.ONLINE_ACTIVE
+                        ) {
+                            (meshTransport as? MeshControl)?.setCadence(MeshCadence.STANDBY)
+                        }
+                    }
+
+                    val isLocalOffline = stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE ||
+                        coordinator.audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH
                     val unifiedPeers = buildUnifiedParticipantList(isLocalOffline)
                     _groupStatus.value = computeGroupConnectivity(isLocalOffline, unifiedPeers)
 
@@ -241,6 +554,7 @@ class MeshAutoSwitchManager(
         healthSignalsProvider.stopWatching()
         drivingJob?.cancel()
         drivingJob = null
+        clearConvoySessionState()
         scope.launch {
             stateMachine.endSession()
         }
@@ -249,5 +563,165 @@ class MeshAutoSwitchManager(
     fun close() {
         stop()
         scope.cancel()
+    }
+
+    private fun initConvoySessionState(ride: ActiveRideRepository.ActiveRide) {
+        val persistedState = convoyPersistence?.load(ConvoyHash.stableSessionUuid(ride.roomId))
+        val snap = ride.convoyMembershipSnapshot ?: persistedState?.membership
+        activeConvoyMembership = snap
+        inboundDecisionQueue.clear()
+        inboundObservationQueue.clear()
+        lastConvoyOutput = null
+        pendingExclusionRequest = null
+        _stuckExclusionMemberIds.value = emptyList()
+        _protocolMPromptActive.value = false
+        _manualReadyAsserted.value = false
+
+        val localId = localOnlineIdentity()
+        if (snap == null || localId.isNullOrBlank()) {
+            convoyCoordinator = null
+            convoyExecutor = null
+            _convoyModeState.value = ConvoyModeState.ONLINE
+            _localTransportState.value = LocalTransportState.ONLINE_ACTIVE
+            return
+        }
+        _moreThanSixParticipantsDisabled.value = snap.isMeshCapExceeded
+        val coord = ConvoyTransportCoordinator(
+            localMemberId = localId,
+            clock = MonotonicClock { clock.nowMs() },
+            config = convoyConfig,
+            persistence = convoyPersistence
+        )
+        coord.restoreFromPersistence(snap.sessionId)
+        (convoyPersistence as? EncryptedConvoyStateStore)?.saveMembership(snap)
+        convoyCoordinator = coord
+        convoyExecutor = SingleFlightHandoffExecutor()
+        localIncarnation = EncryptedConvoyStateStore.generateSenderIncarnation()
+
+        meshTransport.onControlPacketReceived = { pkt ->
+            val currentSnap = activeConvoyMembership
+            if (currentSnap != null && !currentSnap.isMeshCapExceeded) {
+                val res = ConvoyStateCodec.decode(pkt.payload, currentSnap.meshParticipants.size)
+                if (res is ConvoyStateDecodeResult.Ok) {
+                    res.payload.decision?.let { inboundDecisionQueue.add(it) }
+                    val rxMs = clock.nowMs()
+                    for (rec in res.payload.records) {
+                        val originId = currentSnap.meshParticipants.getOrNull(rec.rosterIdx) ?: continue
+                        inboundObservationQueue.add(rec.toObservation(originId, rxMs))
+                    }
+                }
+            }
+        }
+        meshTransport.controlPayloadProvider = {
+            val currentSnap = activeConvoyMembership
+            val out = lastConvoyOutput
+            val uid = localOnlineIdentity()
+            val sig = latestSignals
+            if (currentSnap != null && !currentSnap.isMeshCapExceeded && out != null && uid != null && sig != null) {
+                buildControlPayloadBytes(currentSnap, out, sig, uid)
+            } else null
+        }
+    }
+
+    private fun clearConvoySessionState() {
+        convoyCoordinator = null
+        convoyExecutor = null
+        activeConvoyMembership = null
+        lastConvoyOutput = null
+        pendingExclusionRequest = null
+        inboundDecisionQueue.clear()
+        inboundObservationQueue.clear()
+        meshTransport.controlPayloadProvider = null
+        meshTransport.onControlPacketReceived = null
+        _convoyModeState.value = ConvoyModeState.ONLINE
+        _localTransportState.value = LocalTransportState.ONLINE_ACTIVE
+        _stuckExclusionMemberIds.value = emptyList()
+        _protocolMPromptActive.value = false
+        _moreThanSixParticipantsDisabled.value = false
+        _manualReadyAsserted.value = false
+    }
+
+    private fun buildControlPayloadBytes(
+        membership: ConvoyMembershipSnapshot,
+        out: CoordinatorOutput,
+        signals: LocalHealthSignals,
+        localId: String
+    ): ByteArray? {
+        val coord = convoyCoordinator ?: return null
+        if (membership.isMeshCapExceeded) return null
+        val meshIdx = membership.indexOfMeshParticipant(localId)
+        if (meshIdx !in 0 until ConvoyMembershipSnapshot.MAX_MESH_PARTICIPANTS) return null
+        val seq = coord.nextOwnReadinessSeq()
+        val ackFor8 = out.ackFor ?: ByteArray(8)
+        val ownRec = ConvoyReadinessWireRecord(
+            rosterIdx = meshIdx,
+            senderIncarnation = localIncarnation,
+            seq = seq,
+            livekitReady = signals.isLiveKitConnected && signals.isValidatedInternet,
+            recoveryEligible = out.localRecoveryEligible,
+            meshReady = signals.hasValidMeshRoute,
+            netLost = !signals.isValidatedInternet && !signals.isLiveKitConnected,
+            localMode = LocalModeWire.fromLocalTransportState(_localTransportState.value),
+            readinessSource = out.readinessSource,
+            baseGen = out.baseOfflineGen,
+            ackFor = ackFor8,
+            ageTenthsSec = 0,
+            hops = 0
+        )
+        val now = clock.nowMs()
+        val relays = coord.getReAdvertisableObservations(now).mapNotNull { obs ->
+            val idx = membership.indexOfMeshParticipant(obs.memberId)
+            if (idx !in 0 until ConvoyMembershipSnapshot.MAX_MESH_PARTICIPANTS || idx == meshIdx) return@mapNotNull null
+            ConvoyReadinessWireRecord(
+                rosterIdx = idx,
+                senderIncarnation = obs.senderIncarnation,
+                seq = obs.readinessSeq,
+                livekitReady = obs.livekitReadiness == LiveKitReadiness.READY,
+                recoveryEligible = obs.recoveryEligible,
+                meshReady = obs.meshReadiness == com.ridervoice.mesh.convoy.MeshReadiness.ROUTE_AVAILABLE,
+                netLost = obs.netState != com.ridervoice.mesh.convoy.NetState.HEALTHY,
+                localMode = LocalModeWire.fromLocalTransportState(obs.localExecutionState),
+                readinessSource = obs.readinessSource,
+                baseGen = obs.baseGen,
+                ackFor = obs.ackFor ?: ByteArray(8),
+                ageTenthsSec = (obs.ageMs / 100).coerceIn(0, 0xFFFF),
+                hops = obs.hops
+            )
+        }
+        val allRecs = (listOf(ownRec) + relays).distinctBy { it.rosterIdx }.take(ConvoyMembershipSnapshot.MAX_MESH_PARTICIPANTS)
+        return ConvoyStateCodec.encode(
+            ConvoyStateWirePayload(
+                decision = out.decisionToAdvertise,
+                records = allRecs
+            )
+        )
+    }
+
+    private fun deriveLocalTransportState(
+        convoyCoord: ConvoyTransportCoordinator,
+        localNetLost: Boolean,
+        owner: AudioOwner,
+        fallbackUnavailable: Boolean = false
+    ): LocalTransportState = when {
+        convoyCoord.isGenerationUnknown() -> LocalTransportState.GENERATION_UNKNOWN
+        convoyCoord.isGenerationExhausted() -> LocalTransportState.GENERATION_EXHAUSTED
+        owner == AudioOwner.OFFLINE_MESH -> LocalTransportState.OFFLINE_ACTIVE
+        fallbackUnavailable -> LocalTransportState.FALLBACK_UNAVAILABLE
+        owner == AudioOwner.LIVEKIT && localNetLost -> LocalTransportState.ONLINE_SUSPECT
+        owner == AudioOwner.LIVEKIT -> LocalTransportState.ONLINE_ACTIVE
+        else -> LocalTransportState.ONLINE_ACTIVE
+    }
+
+    private fun mapLegacyStateToLocalTransport(
+        state: AutoSwitchState,
+        moreThanSix: Boolean
+    ): LocalTransportState = when (state) {
+        AutoSwitchState.ONLINE -> LocalTransportState.ONLINE_ACTIVE
+        AutoSwitchState.ONLINE_SUSPECT -> LocalTransportState.ONLINE_SUSPECT
+        AutoSwitchState.STARTING_OFFLINE_MESH -> LocalTransportState.STARTING_OFFLINE
+        AutoSwitchState.OFFLINE_ACTIVE -> LocalTransportState.OFFLINE_ACTIVE
+        AutoSwitchState.ONLINE_RECOVERING, AutoSwitchState.HANDING_BACK_TO_LIVEKIT -> LocalTransportState.STARTING_ONLINE
+        AutoSwitchState.FALLBACK_UNAVAILABLE -> if (moreThanSix) LocalTransportState.VOICE_UNAVAILABLE else LocalTransportState.FALLBACK_UNAVAILABLE
+        AutoSwitchState.SESSION_ENDED -> LocalTransportState.ONLINE_ACTIVE
     }
 }

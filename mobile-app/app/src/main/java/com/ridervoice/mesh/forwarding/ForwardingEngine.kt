@@ -88,7 +88,8 @@ class ForwardingEngine(
     private val suppressRedundantRelays: Boolean = MeshConfig.SUPPRESS_REDUNDANT_RELAYS,
     private val peerFilterPort: PeerFilterPort? = null,
     private val onlineIdentitySupplier: () -> String? = { null },
-    private val monotonicClock: () -> Long = clock
+    private val monotonicClock: () -> Long = clock,
+    private val onLocalControlPacket: (MeshPacket) -> Unit = {}
 ) {
     constructor(
         selfId: String,
@@ -104,7 +105,8 @@ class ForwardingEngine(
         suppressRedundantRelays: Boolean = MeshConfig.SUPPRESS_REDUNDANT_RELAYS,
         peerFilterPort: PeerFilterPort? = null,
         onlineIdentitySupplier: () -> String? = { null },
-        monotonicClock: () -> Long = clock
+        monotonicClock: () -> Long = clock,
+        onLocalControlPacket: (MeshPacket) -> Unit = {}
     ) : this(
         selfId = selfId,
         selfName = selfName,
@@ -121,7 +123,8 @@ class ForwardingEngine(
         suppressRedundantRelays = suppressRedundantRelays,
         peerFilterPort = peerFilterPort,
         onlineIdentitySupplier = onlineIdentitySupplier,
-        monotonicClock = monotonicClock
+        monotonicClock = monotonicClock,
+        onLocalControlPacket = onLocalControlPacket
     )
 
     private val voiceSeqGen = AtomicInteger(0)
@@ -132,6 +135,7 @@ class ForwardingEngine(
     private val selfShort: Int = shortIdDirectory.registerSelf(selfId)
 
     private val pinnedEpochs = ConcurrentHashMap<Int, Int>()
+    private val retiredEpochs = ConcurrentHashMap<Int, LinkedHashSet<Int>>()
 
     private fun dedupKind(typeCode: Int, hop: Int): Int =
         if (typeCode == MeshPacketType.HELLO.codeV4 && hop == 0) DIRECT_HELLO_KIND else typeCode
@@ -449,6 +453,41 @@ class ForwardingEngine(
     }
 
     /**
+     * Originates a convoy switching CONTROL packet (v7 Section 11.4).
+     * Authenticated/encrypted via V4 AEAD and forwarded up to DEFAULT_TTL hops.
+     */
+    fun originateControl(payload: ByteArray, broadcastEndpoints: List<MeshEndpoint> = emptyList()): MeshPacket {
+        require(payload.size <= MeshConfig.MAX_CONTROL_PAYLOAD_BYTES) {
+            "Control payload ${payload.size} exceeds MAX_CONTROL_PAYLOAD_BYTES (${MeshConfig.MAX_CONTROL_PAYLOAD_BYTES})"
+        }
+        val seq = controlSeqGen.incrementAndGet() and 0xFFFFFF
+        val packet = MeshPacket(
+            type = MeshPacketType.CONTROL,
+            sessionId = sessionId,
+            sourceId = selfId,
+            sourceShortId = selfShort,
+            sequence = seq,
+            ttl = MeshConfig.DEFAULT_TTL,
+            hopCount = 0,
+            previousHopId = selfId,
+            previousHopShortId = selfShort,
+            audioFormat = AudioFormatId.NONE,
+            epoch = localEpoch,
+            payload = payload
+        )
+        replayWindow.accept(selfShort, localEpoch, MeshPacketType.CONTROL.codeV4, seq)
+        val wire = MeshPacketCodec.encode(packet, payloadKey)
+        val endpoints = LinkedHashSet<MeshEndpoint>()
+        graphRepository.directNeighbors().forEach { endpoints.add(it.endpoint) }
+        endpoints.addAll(link.endpoints())
+        endpoints.addAll(broadcastEndpoints)
+        for (ep in endpoints) {
+            link.send(ep, wire)
+        }
+        return packet
+    }
+
+    /**
      * Processes an incoming raw [MeshFrame] through the validation and forwarding pipeline.
      */
     fun onIncomingFrame(frame: MeshFrame): ReceiveOutcome {
@@ -574,6 +613,11 @@ class ForwardingEngine(
             droppedInvalid.incrementAndGet()
             return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.BAD_PAYLOAD)
         }
+        if (type == MeshPacketType.CONTROL && plain.size > MeshConfig.MAX_CONTROL_PAYLOAD_BYTES) {
+            droppedOversize.incrementAndGet()
+            droppedInvalid.incrementAndGet()
+            return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.OVERSIZE)
+        }
 
         // Pre-validate plain formats
         var sourceFullId: String? = null
@@ -601,7 +645,8 @@ class ForwardingEngine(
                 decodedHello = h
             }
             MeshPacketType.VOICE,
-            MeshPacketType.BYE -> {
+            MeshPacketType.BYE,
+            MeshPacketType.CONTROL -> {
                 val resolvedSrc = shortIdDirectory.resolve(srcShort)
                 if (resolvedSrc == null) {
                     droppedUnknownSource.incrementAndGet()
@@ -618,9 +663,26 @@ class ForwardingEngine(
             }
         }
 
-        // Epoch pinning validation
+        // Epoch pinning validation with retired-epoch guard
         val pinned = pinnedEpochs[srcShort]
         if (type == MeshPacketType.HELLO) {
+            val retired = retiredEpochs[srcShort]
+            val isRetired = retired != null && synchronized(retired) { epoch in retired }
+            if (isRetired && pinned != epoch) {
+                droppedStaleEpoch.incrementAndGet()
+                droppedInvalid.incrementAndGet()
+                return ReceiveOutcome.Dropped(ReceiveOutcome.DropReason.STALE_EPOCH)
+            }
+            if (pinned != null && pinned != epoch) {
+                val set = retiredEpochs.getOrPut(srcShort) { LinkedHashSet() }
+                synchronized(set) {
+                    set.add(pinned)
+                    while (set.size > 16) {
+                        val first = set.firstOrNull() ?: break
+                        set.remove(first)
+                    }
+                }
+            }
             pinnedEpochs[srcShort] = epoch
         } else {
             if (pinned == null) {
@@ -751,6 +813,10 @@ class ForwardingEngine(
                 receivedVoice.incrementAndGet()
                 sessionManager.touch(sourceFullId)
                 onLocalVoicePacket(decodedPacket)
+            }
+            MeshPacketType.CONTROL -> {
+                sessionManager.touch(sourceFullId)
+                onLocalControlPacket(decodedPacket)
             }
         }
 

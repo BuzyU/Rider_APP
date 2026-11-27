@@ -19,6 +19,7 @@ fun mapTransitionReasonToFallbackReason(
             lastTransitionReason?.contains("no backup", ignoreCase = true) == true ->
             FallbackReason.NO_BACKUP_CODE
         lastTransitionReason?.contains("no mesh route", ignoreCase = true) == true ||
+            lastTransitionReason?.contains("NO_LOCAL_MESH_ROUTE", ignoreCase = true) == true ||
             lastTransitionReason?.contains("no riders", ignoreCase = true) == true ->
             FallbackReason.NO_RIDERS_NEARBY
         lastTransitionReason?.contains("failed", ignoreCase = true) == true ||

@@ -1,3 +1,59 @@
+## RiderVoice v0.0.3.23 Release Notes
+
+RiderVoice **v0.0.3.23** adds **automatic silent Wi-Fi Direct peer-to-peer group formation** when rooms are created or joined (eliminating manual hotspot setup) and fixes real-phone switching stalls that could leave rides stuck on **Reconnecting** instead of transitioning to offline mesh or status feedback.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.23` |
+| **Version Code** | `3023` |
+| **Release Tag** | `v0.0.3.23` |
+| **Download APK** | `Rider_APP-v0.0.3.23.apk` |
+
+### What's new
+- Added **automatic Wi-Fi Direct (`WifiP2pManager`)** group creation for ride hosts and silent connection for riders (`WifiP2pConfig.Builder` on Android 10+) in Lobby/Live Ride using credentials deterministically derived from the room's synchronized offline backup session (`DIRECT-RV-...`)
+- Added P2P-aware UDP socket routing and Group Owner (`192.168.49.1`) discovery endpoints in `UdpMeshLink`, `AndroidNetworkLocks`, and `AndroidWifiNetworkWatcher` so phones keep cellular online voice while staying locally linked over `p2p-wlan0`
+- Added automatic Nearby Wi-Fi / Location permission requesting in Lobby (`PermissionManager` / `LobbyScreen`) with localized English, Hindi, and Marathi readiness hints
+
+### Improvements
+- Accelerated offline mesh `HELLO` discovery immediately from 5s `STANDBY` to 750ms `BOOST` whenever local internet loss or LiveKit reconnection begins, waking the heartbeat loop cleanly via `cadenceWakeSignal`
+- Updated `OfflineAwareRoomHost` and `TacticalBanner` to reflect convoy execution states (`Checking connection`, `No nearby riders`, recovery status) instead of staying hidden behind online LiveKit banners
+
+### Bug fixes
+- Fixed `NavGraph` non-reactive `OfflineMeshGate` check and synchronous mirror sync on `goLive()` so `OfflineAwareRoomHost` always mounts reliably when starting a ride
+- Fixed real-phone hotspot/dead-router stalls where Android caches `NET_CAPABILITY_VALIDATED = true` or a 5-second stale `/health` probe result while LiveKit stays in `RECONNECTING`
+- Fixed dropped `ReportFallbackUnavailable` (`NO_LOCAL_MESH_ROUTE`) actions in convoy mode so riders always receive accurate fallback status
+
+---
+
+## RiderVoice v0.0.3.22 Release Notes
+
+RiderVoice **v0.0.3.22** introduces convoy-wide coordinated online and offline voice switching so an entire riding group stays on the same voice channel when any single rider loses cellular internet, along with audio-silent background recovery probing, manual readiness and exclusion controls, and localized room notices.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.22` |
+| **Version Code** | `3022` |
+| **Release Tag** | `v0.0.3.22` |
+| **Download APK** | `Rider_APP-v0.0.3.22.apk` |
+
+### What's new
+- Added leaderless convoy-wide online/offline voice coordination so when one rider loses internet, all up-to-6 eligible riders move together to offline mesh voice while unsupported or opted-out riders remain undisturbed on internet voice
+- Added two-phase return-to-online coordination requiring verified readiness acknowledgements across all required riders, a 1.5-second commit hold, and deterministic commit certificate validation before switching the convoy back online
+- Added audio-silent background LiveKit probing during offline voice so internet recovery checks never hijack microphone, speaker, or Bluetooth audio routes while offline mesh owns audio
+- Added manual recovery controls including Protocol M manual readiness confirmation when background probing stalls and an explicit modal Return Online confirmation listing excluded offline riders
+
+### Improvements
+- Added compact binary control state frames relayed over multi-hop mesh networking within the 400-byte budget alongside 64-bit restart incarnation tracking and replay window hardening
+- Added encrypted write-ahead persistence with integrity checks so monotonic decision generations and frozen membership rosters recover safely after an app restart
+- Updated lobby and in-room screens across English, Hindi, and Marathi to disclose group switching behavior and distinguish convoy decisions from individual phone transport states
+- Cached and pre-fetched Robolectric SDK artifacts in Android CI builds for reliable automated unit verification
+
+### Bug fixes
+- Fixed cold restart recovery into a live ride so saved convoy membership snapshots restore even when in-memory ride state is cleared
+- Fixed manual return recovery stalls when background probing is unavailable so validated internet lets confirmed riders transition back to online voice
+
+---
+
 ## RiderVoice v0.0.3.21 Release Notes
 
 RiderVoice **v0.0.3.21** introduces the complete Roadside Paper & Obsidian Carbon redesign, offline bundled typography, full Hindi and Marathi localization, a redesigned My Squad and Requests experience, floating animated bottom navigation, hardened in-app updates with categorized release notes, and ride history naming fixes.

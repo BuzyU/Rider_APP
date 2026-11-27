@@ -16,6 +16,7 @@ object PermissionManager {
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 list.add(Manifest.permission.POST_NOTIFICATIONS)
+                list.add(Manifest.permission.NEARBY_WIFI_DEVICES)
             }
             return list.toTypedArray()
         }
@@ -32,7 +33,18 @@ object PermissionManager {
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 list.add(Manifest.permission.POST_NOTIFICATIONS)
+                list.add(Manifest.permission.NEARBY_WIFI_DEVICES)
             }
             return list.toTypedArray()
+        }
+
+    val nearbyWifiPermissions: Array<String>
+        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES)
+        } else {
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
         }
 }

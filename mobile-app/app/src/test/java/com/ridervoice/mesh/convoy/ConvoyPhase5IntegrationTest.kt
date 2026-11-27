@@ -164,4 +164,28 @@ class ConvoyPhase5IntegrationTest {
         assertTrue(snap.isGroupFallbackEligible)
         @Suppress("UNUSED_VARIABLE") val s = SavedStateHandle()
     }
+
+    @Test
+    fun encryptedConvoyStateStore_restoresMembershipSnapshotUsingStableRoomUuidAfterProcessRestart() {
+        val backend = InMemoryConvoyKeyValueBackend()
+        val store = EncryptedConvoyStateStore(backend)
+        val roomId = "room-non-uuid-restart-test"
+        val sid = ConvoyHash.stableSessionUuid(roomId)
+
+        val snap = ConvoyMembershipSnapshot.create(
+            sid,
+            listOf(
+                ConvoyMember("u-1", MemberRole.MESH_PARTICIPANT),
+                ConvoyMember("u-2", MemberRole.MESH_PARTICIPANT)
+            )
+        )
+        assertTrue(store.saveMembership(snap))
+
+        // Simulate cold restart where ActiveRideRepository has roomId but null in-memory snapshot
+        val freshStore = EncryptedConvoyStateStore(backend)
+        val restored = freshStore.load(ConvoyHash.stableSessionUuid(roomId))
+        assertNotNull(restored)
+        assertEquals(snap.meshParticipants, restored!!.membership?.meshParticipants)
+        assertArrayEquals(snap.rosterHash, restored.membership?.rosterHash)
+    }
 }

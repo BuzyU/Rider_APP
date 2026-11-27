@@ -78,11 +78,7 @@ class LobbyViewModel @Inject constructor(
         val roomId = status?.roomId?.takeIf { it.isNotBlank() }
             ?: activeRideRepository.state.value?.roomId?.takeIf { it.isNotBlank() }
             ?: return null
-        val sessionUuid = try {
-            java.util.UUID.fromString(roomId)
-        } catch (_: IllegalArgumentException) {
-            java.util.UUID.nameUUIDFromBytes(roomId.toByteArray(Charsets.UTF_8))
-        }
+        val sessionUuid = com.ridervoice.mesh.convoy.ConvoyHash.stableSessionUuid(roomId)
         val roomOfflineEnabled = status?.offlineMeshEnabled
             ?: (activeRideRepository.state.value?.meshConfig?.offlineMeshEnabled != false)
         val isLocalHost = status?.isHost ?: (activeRideRepository.state.value?.isHost == true)

@@ -17,6 +17,12 @@ object ConvoyHash {
     private val TAG_DEC_ONLINE_PROPOSED = "rvdec/v1/online_proposed".toByteArray(Charsets.US_ASCII)
     private val TAG_DEC_ONLINE_COMMITTED = "rvdec/v1/online_committed".toByteArray(Charsets.US_ASCII)
 
+    fun stableSessionUuid(roomId: String): UUID = try {
+        UUID.fromString(roomId.trim())
+    } catch (_: IllegalArgumentException) {
+        UUID.nameUUIDFromBytes(normalizeNfcString(roomId).toByteArray(Charsets.UTF_8))
+    }
+
     fun normalizeNfcString(input: String): String =
         Normalizer.normalize(input.trim(), Normalizer.Form.NFC)
 

@@ -1,6 +1,7 @@
 package com.ridervoice.mesh.switching
 
 import com.ridervoice.mesh.OfflineMeshGate
+import com.ridervoice.mesh.convoy.ConvoyHash
 import com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot
 import com.ridervoice.mesh.convoy.ConvoyModeState
 import com.ridervoice.mesh.convoy.ConvoyProtocolConfig
@@ -217,6 +218,7 @@ class MeshAutoSwitchManager(
 
                 var netLostSinceMs: Long? = null
                 var recoveryStableSinceMs: Long? = null
+                var validatedOnlineWithoutLkSinceMs: Long? = null
 
                 while (isActive &&
                     activeRideRepository.state.value?.roomId == ride.roomId &&
@@ -278,6 +280,17 @@ class MeshAutoSwitchManager(
                         val totalLossConfirmed = netLostSinceMs != null && (now - netLostSinceMs) >= convoyConfig.failureConfirmationMs
                         val recoveryStable = recoveryStableSinceMs != null && (now - recoveryStableSinceMs) >= convoyConfig.recoveryStabilityMs
 
+                        val inOfflineMode = convoyCoord.currentAcceptedDecision()?.mode == TransportMode.OFFLINE
+                        if (inOfflineMode && !localNetLost && signals.isValidatedInternet && !signals.isLiveKitConnected) {
+                            if (validatedOnlineWithoutLkSinceMs == null) validatedOnlineWithoutLkSinceMs = now
+                        } else {
+                            validatedOnlineWithoutLkSinceMs = null
+                        }
+                        val probingUnavailable = inOfflineMode && !localNetLost && signals.isValidatedInternet && (
+                            liveKitManager.connectionState.value == ConnectionState.FAILED ||
+                                (validatedOnlineWithoutLkSinceMs != null && (now - validatedOnlineWithoutLkSinceMs) >= convoyConfig.recoveryStabilityMs + 4_000L)
+                            )
+
                         val decisionsIn = ArrayList<TransportDecision>()
                         while (true) {
                             decisionsIn.add(inboundDecisionQueue.poll() ?: break)
@@ -309,6 +322,7 @@ class MeshAutoSwitchManager(
                             generationUnknown = convoyCoord.isGenerationUnknown(),
                             manualReadyAsserted = _manualReadyAsserted.value,
                             manualExclusionRequest = pendingExclusionRequest,
+                            probingUnavailable = probingUnavailable,
                             incomingDecisions = decisionsIn
                         )
                         pendingExclusionRequest = null
@@ -347,7 +361,8 @@ class MeshAutoSwitchManager(
                             val cmd = executor.pollNextCommand(
                                 nowMs = now,
                                 canFallbackToMesh = signals.hasValidMeshRoute && offlineAvailable,
-                                canRecoverToLiveKit = signals.isLiveKitConnected && signals.isValidatedInternet
+                                canRecoverToLiveKit = signals.isValidatedInternet &&
+                                    (signals.isLiveKitConnected || (probingUnavailable && _manualReadyAsserted.value))
                             )
                             when (cmd) {
                                 is SingleFlightHandoffExecutor.Command.RunFallback -> {
@@ -480,7 +495,8 @@ class MeshAutoSwitchManager(
     }
 
     private fun initConvoySessionState(ride: ActiveRideRepository.ActiveRide) {
-        val snap = ride.convoyMembershipSnapshot
+        val persistedState = convoyPersistence?.load(ConvoyHash.stableSessionUuid(ride.roomId))
+        val snap = ride.convoyMembershipSnapshot ?: persistedState?.membership
         activeConvoyMembership = snap
         inboundDecisionQueue.clear()
         inboundObservationQueue.clear()

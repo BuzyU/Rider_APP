@@ -126,6 +126,20 @@ class LobbyViewModel @Inject constructor(
         }
     }
 
+    private fun syncLiveMeshGateMirror() {
+        val ride = activeRideRepository.state.value ?: return
+        val cfg = ride.meshConfig ?: com.ridervoice.mesh.RoomMeshConfig.DEFAULT
+        com.ridervoice.mesh.OfflineMeshGate.syncMirror(
+            com.ridervoice.mesh.RoomMeshMirrorSnapshot(
+                isLive = ride.phase == com.ridervoice.state.ActiveRideRepository.Phase.LIVE,
+                offlineMeshEnabled = cfg.offlineMeshEnabled,
+                optOut = cfg.optOut,
+                automaticFallbackEnabled = cfg.automaticFallbackEnabled,
+                warmStandbyEnabled = cfg.warmStandbyEnabled
+            )
+        )
+    }
+
     private fun computeBackoff(attempt: Int): Long {
         return when (attempt) {
             1 -> 2000L
@@ -230,6 +244,7 @@ class LobbyViewModel @Inject constructor(
 
                         if (body.isRideStarted == true) {
                             activeRideRepository.goLive()
+                            syncLiveMeshGateMirror()
                             if (activeRideRepository.state.value?.token.isNullOrBlank()) {
                                 try {
                                     val tokenRes = apiService.getJoinToken(
@@ -554,6 +569,7 @@ class LobbyViewModel @Inject constructor(
                     )
                     syncConvoyMembershipSnapshot(_lobbyStatus.value)
                     activeRideRepository.goLive()
+                    syncLiveMeshGateMirror()
                     onStartSuccess()
                 } else {
                     val raw = try { res.errorBody()?.string() } catch (_: Exception) { null }

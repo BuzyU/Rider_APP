@@ -29,6 +29,11 @@ object OfflineMeshGate {
 
     fun install(s: MeshRuntimeSettings) { settings = s }
 
+    /** Synchronously mirrors the active ride's room-level flags into runtime settings. */
+    fun syncMirror(snapshot: RoomMeshMirrorSnapshot?) {
+        RoomMeshFlagMirror.sync(snapshot, settings)
+    }
+
     /** Returns whether the build-level gate allows offline mesh (independent of user preferences). */
     fun isBuildGateOpen(): Boolean = FeatureFlags.OFFLINE_MESH_ENABLED
 

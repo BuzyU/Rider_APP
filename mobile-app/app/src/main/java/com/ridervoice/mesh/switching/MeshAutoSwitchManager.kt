@@ -30,6 +30,8 @@ import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSecretProvider
 import com.ridervoice.mesh.transport.AudioOwner
 import com.ridervoice.mesh.transport.LiveKitVoiceTransport
+import com.ridervoice.mesh.transport.MeshCadence
+import com.ridervoice.mesh.transport.MeshControl
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
 import com.ridervoice.mesh.transport.OnlineParticipant
 import com.ridervoice.mesh.transport.UnifiedVoicePeer
@@ -219,6 +221,7 @@ class MeshAutoSwitchManager(
                 var netLostSinceMs: Long? = null
                 var recoveryStableSinceMs: Long? = null
                 var validatedOnlineWithoutLkSinceMs: Long? = null
+                var probeFailedWithoutLkSinceMs: Long? = null
 
                 while (isActive &&
                     activeRideRepository.state.value?.roomId == ride.roomId &&
@@ -233,7 +236,7 @@ class MeshAutoSwitchManager(
                     if (!isMeshCapExceeded &&
                         (OfflineMeshGate.isWarmStandbyAllowed() || OfflineMeshGate.isAutomaticFallbackAllowed()) &&
                         backup != null &&
-                        meshTransport.state.value == VoiceTransportState.STOPPED
+                        meshTransport.state.value in setOf(VoiceTransportState.STOPPED, VoiceTransportState.FAILED)
                     ) {
                         coordinator.ensureWarmStandbyDiscovery(backup)
                     }
@@ -245,7 +248,25 @@ class MeshAutoSwitchManager(
                     }
 
                     val signals = healthSignalsProvider.sampleSignals()
-                    latestSignals = signals
+                    val nowSample = clock.nowMs()
+                    val probeAndLkDown = !signals.isLiveKitConnected && !signals.isHealthProbeSuccessful
+                    if (probeAndLkDown) {
+                        if (probeFailedWithoutLkSinceMs == null) probeFailedWithoutLkSinceMs = nowSample
+                    } else {
+                        probeFailedWithoutLkSinceMs = null
+                    }
+                    // On real hotspots / dead APs Android can keep NET_CAPABILITY_VALIDATED=true long after internet drops.
+                    // Once both LiveKit AND the HTTP /health probe have failed continuously, treat internet as unvalidated.
+                    val staleValidatedOverride = signals.isValidatedInternet &&
+                        probeAndLkDown &&
+                        probeFailedWithoutLkSinceMs != null &&
+                        (nowSample - probeFailedWithoutLkSinceMs >= 2_000L || signals.liveKitReconnectAttempts >= 2)
+                    val effectiveSignals = if (staleValidatedOverride) {
+                        signals.copy(isValidatedInternet = false)
+                    } else {
+                        signals
+                    }
+                    latestSignals = effectiveSignals
 
                     if (!isMeshCapExceeded &&
                         (stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE ||
@@ -263,14 +284,18 @@ class MeshAutoSwitchManager(
                     if (convoyCoord != null && membership != null && membership.isGroupFallbackEligible &&
                         localId != null && membership.isMeshParticipant(localId) && !isMeshCapExceeded
                     ) {
-                        val now = clock.nowMs()
-                        val localNetLost = !signals.isValidatedInternet && !signals.isLiveKitConnected && !signals.isHealthProbeSuccessful
+                        val now = nowSample
+                        val localNetLost = !effectiveSignals.isValidatedInternet &&
+                            !effectiveSignals.isLiveKitConnected &&
+                            !effectiveSignals.isHealthProbeSuccessful
                         if (localNetLost) {
                             if (netLostSinceMs == null) netLostSinceMs = now
                             recoveryStableSinceMs = null
                         } else {
                             netLostSinceMs = null
-                            val lkOk = signals.isValidatedInternet && signals.isLiveKitConnected && signals.isHealthProbeSuccessful
+                            val lkOk = effectiveSignals.isValidatedInternet &&
+                                effectiveSignals.isLiveKitConnected &&
+                                effectiveSignals.isHealthProbeSuccessful
                             if (lkOk) {
                                 if (recoveryStableSinceMs == null) recoveryStableSinceMs = now
                             } else {
@@ -281,12 +306,12 @@ class MeshAutoSwitchManager(
                         val recoveryStable = recoveryStableSinceMs != null && (now - recoveryStableSinceMs) >= convoyConfig.recoveryStabilityMs
 
                         val inOfflineMode = convoyCoord.currentAcceptedDecision()?.mode == TransportMode.OFFLINE
-                        if (inOfflineMode && !localNetLost && signals.isValidatedInternet && !signals.isLiveKitConnected) {
+                        if (inOfflineMode && !localNetLost && effectiveSignals.isValidatedInternet && !effectiveSignals.isLiveKitConnected) {
                             if (validatedOnlineWithoutLkSinceMs == null) validatedOnlineWithoutLkSinceMs = now
                         } else {
                             validatedOnlineWithoutLkSinceMs = null
                         }
-                        val probingUnavailable = inOfflineMode && !localNetLost && signals.isValidatedInternet && (
+                        val probingUnavailable = inOfflineMode && !localNetLost && effectiveSignals.isValidatedInternet && (
                             liveKitManager.connectionState.value == ConnectionState.FAILED ||
                                 (validatedOnlineWithoutLkSinceMs != null && (now - validatedOnlineWithoutLkSinceMs) >= convoyConfig.recoveryStabilityMs + 4_000L)
                             )
@@ -316,7 +341,7 @@ class MeshAutoSwitchManager(
                             localTotalLossConfirmed = totalLossConfirmed && offlineAvailable,
                             localLiveKitReadiness = lkReadiness,
                             localRecoveryStable = recoveryStable,
-                            localMeshRouteAvailable = signals.hasValidMeshRoute && offlineAvailable,
+                            localMeshRouteAvailable = effectiveSignals.hasValidMeshRoute && offlineAvailable,
                             localExecutionState = _localTransportState.value,
                             generationHighWater = convoyCoord.currentGenerationHighWater(),
                             generationUnknown = convoyCoord.isGenerationUnknown(),
@@ -339,6 +364,7 @@ class MeshAutoSwitchManager(
                         var stuckMembers: List<String> = emptyList()
                         var showProtocolM = false
                         var needsBurst = false
+                        var fallbackUnavailableReason: String? = null
                         for (act in out.actions) {
                             when (act) {
                                 is TransportAction.SendControlBurst, is TransportAction.AdvertiseDecision -> needsBurst = true
@@ -347,6 +373,14 @@ class MeshAutoSwitchManager(
                                         stuckMembers = act.memberIds
                                     } else if (act.kind == PromptKind.PROTOCOL_M_MANUAL_RETURN) {
                                         showProtocolM = true
+                                    }
+                                }
+                                is TransportAction.ReportFallbackUnavailable -> {
+                                    fallbackUnavailableReason = act.reason
+                                    _lastTransitionReason.value = if (act.reason == "NO_LOCAL_MESH_ROUTE") {
+                                        "ONLINE -> FALLBACK_UNAVAILABLE (no mesh route: ${act.reason})"
+                                    } else {
+                                        "ONLINE -> FALLBACK_UNAVAILABLE (${act.reason})"
                                     }
                                 }
                                 else -> Unit
@@ -360,9 +394,9 @@ class MeshAutoSwitchManager(
                             out.acceptedDecision?.let { executor.onDesiredDecision(it) }
                             val cmd = executor.pollNextCommand(
                                 nowMs = now,
-                                canFallbackToMesh = signals.hasValidMeshRoute && offlineAvailable,
-                                canRecoverToLiveKit = signals.isValidatedInternet &&
-                                    (signals.isLiveKitConnected || (probingUnavailable && _manualReadyAsserted.value))
+                                canFallbackToMesh = effectiveSignals.hasValidMeshRoute && offlineAvailable,
+                                canRecoverToLiveKit = effectiveSignals.isValidatedInternet &&
+                                    (effectiveSignals.isLiveKitConnected || (probingUnavailable && _manualReadyAsserted.value))
                             )
                             when (cmd) {
                                 is SingleFlightHandoffExecutor.Command.RunFallback -> {
@@ -375,6 +409,7 @@ class MeshAutoSwitchManager(
                                         _lastTransitionReason.value = "Convoy fallback gen=${cmd.decision.generation}"
                                     } else {
                                         _localTransportState.value = LocalTransportState.FALLBACK_UNAVAILABLE
+                                        _lastTransitionReason.value = "Convoy fallback failed gen=${cmd.decision.generation}"
                                     }
                                 }
                                 is SingleFlightHandoffExecutor.Command.RunRecovery -> {
@@ -394,20 +429,42 @@ class MeshAutoSwitchManager(
                                     _localTransportState.value = deriveLocalTransportState(
                                         convoyCoord = convoyCoord,
                                         localNetLost = localNetLost,
-                                        owner = coordinator.audioOwnershipArbiter.owner.value
+                                        owner = coordinator.audioOwnershipArbiter.owner.value,
+                                        fallbackUnavailable = fallbackUnavailableReason != null
                                     )
                                 }
                             }
                         }
 
-                        if (needsBurst && signals.isMeshTransportAlive) {
-                            buildControlPayloadBytes(membership, out, signals, localId)?.let { bytes ->
+                        if (needsBurst && effectiveSignals.isMeshTransportAlive) {
+                            buildControlPayloadBytes(membership, out, effectiveSignals, localId)?.let { bytes ->
                                 meshTransport.sendControlFrame(bytes)
                             }
                         }
                     } else {
-                        stateMachine.evaluate(signals, offlineAvailable = offlineAvailable)
+                        stateMachine.evaluate(effectiveSignals, offlineAvailable = offlineAvailable)
                         _localTransportState.value = mapLegacyStateToLocalTransport(stateMachine.state.value, isMeshCapExceeded)
+                    }
+
+                    // Accelerate mesh peer discovery as soon as local online loss starts so
+                    // nearby phones exchange HELLO routes before fallback confirmation expires.
+                    val isOwnerOffline = coordinator.audioOwnershipArbiter.owner.value == AudioOwner.OFFLINE_MESH
+                    val isOwnerLiveKit = coordinator.audioOwnershipArbiter.owner.value == AudioOwner.LIVEKIT
+                    if (!isMeshCapExceeded && meshTransport.state.value == VoiceTransportState.CONNECTED && !isOwnerOffline) {
+                        val suspectOrUnavailable = probeAndLkDown ||
+                            (!effectiveSignals.isValidatedInternet && !effectiveSignals.isLiveKitConnected) ||
+                            stateMachine.state.value in setOf(AutoSwitchState.ONLINE_SUSPECT, AutoSwitchState.FALLBACK_UNAVAILABLE) ||
+                            _localTransportState.value in setOf(LocalTransportState.ONLINE_SUSPECT, LocalTransportState.FALLBACK_UNAVAILABLE)
+                        if (suspectOrUnavailable) {
+                            (meshTransport as? MeshControl)?.setCadence(MeshCadence.BOOST)
+                        } else if (isOwnerLiveKit &&
+                            effectiveSignals.isValidatedInternet &&
+                            effectiveSignals.isLiveKitConnected &&
+                            stateMachine.state.value == AutoSwitchState.ONLINE &&
+                            _localTransportState.value == LocalTransportState.ONLINE_ACTIVE
+                        ) {
+                            (meshTransport as? MeshControl)?.setCadence(MeshCadence.STANDBY)
+                        }
                     }
 
                     val isLocalOffline = stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE ||
@@ -629,11 +686,13 @@ class MeshAutoSwitchManager(
     private fun deriveLocalTransportState(
         convoyCoord: ConvoyTransportCoordinator,
         localNetLost: Boolean,
-        owner: AudioOwner
+        owner: AudioOwner,
+        fallbackUnavailable: Boolean = false
     ): LocalTransportState = when {
         convoyCoord.isGenerationUnknown() -> LocalTransportState.GENERATION_UNKNOWN
         convoyCoord.isGenerationExhausted() -> LocalTransportState.GENERATION_EXHAUSTED
         owner == AudioOwner.OFFLINE_MESH -> LocalTransportState.OFFLINE_ACTIVE
+        fallbackUnavailable -> LocalTransportState.FALLBACK_UNAVAILABLE
         owner == AudioOwner.LIVEKIT && localNetLost -> LocalTransportState.ONLINE_SUSPECT
         owner == AudioOwner.LIVEKIT -> LocalTransportState.ONLINE_ACTIVE
         else -> LocalTransportState.ONLINE_ACTIVE

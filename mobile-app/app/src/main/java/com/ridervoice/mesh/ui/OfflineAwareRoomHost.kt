@@ -177,8 +177,26 @@ fun OfflineAwareRoomHost(
         )
     )
 
+    val effectiveBannerState = when {
+        autoSwitchState != AutoSwitchState.ONLINE -> autoSwitchState
+        else -> when (localTransportState) {
+            LocalTransportState.ONLINE_SUSPECT -> AutoSwitchState.ONLINE_SUSPECT
+            LocalTransportState.STARTING_OFFLINE -> AutoSwitchState.STARTING_OFFLINE_MESH
+            LocalTransportState.OFFLINE_ACTIVE -> AutoSwitchState.OFFLINE_ACTIVE
+            LocalTransportState.STARTING_ONLINE,
+            LocalTransportState.RECOVERY_FAILED -> AutoSwitchState.ONLINE_RECOVERING
+            LocalTransportState.FALLBACK_UNAVAILABLE,
+            LocalTransportState.VOICE_UNAVAILABLE,
+            LocalTransportState.GENERATION_UNKNOWN,
+            LocalTransportState.GENERATION_EXHAUSTED,
+            LocalTransportState.MEMBERSHIP_MISMATCH -> AutoSwitchState.FALLBACK_UNAVAILABLE
+            LocalTransportState.LIVEKIT_PROBE_UNAVAILABLE -> AutoSwitchState.ONLINE_RECOVERING
+            LocalTransportState.ONLINE_ACTIVE -> AutoSwitchState.ONLINE
+        }
+    }
+
     val showTacticalBanner = isMeshGateOpen && !isMeshOverlayActive && (
-        autoSwitchState != AutoSwitchState.ONLINE ||
+        effectiveBannerState != AutoSwitchState.ONLINE ||
         groupStatus == GroupConnectivityStatus.MIXED ||
         moreThanSixDisabled ||
         convoyModeState == ConvoyModeState.DECISION_CONFLICT ||
@@ -189,7 +207,7 @@ fun OfflineAwareRoomHost(
         !isMeshOverlayActive &&
         settingsSnapshot.automaticFallbackEnabled &&
         offlineAvailability == OfflineAvailability.NO_SHARED_SECRET &&
-        autoSwitchState == AutoSwitchState.ONLINE
+        effectiveBannerState == AutoSwitchState.ONLINE
 
     val fallbackReason = remember(lastTransitionReason, offlineAvailability) {
         mapTransitionReasonToFallbackReason(lastTransitionReason, offlineAvailability)
@@ -256,7 +274,7 @@ fun OfflineAwareRoomHost(
 
             if (showTacticalBanner) {
                 TacticalBanner(
-                    state = autoSwitchState,
+                    state = effectiveBannerState,
                     groupStatus = groupStatus,
                     peerCount = meshParticipants.count { it.isOnline },
                     maxHops = meshParticipants.maxOfOrNull { it.hopCount } ?: 0,

@@ -71,6 +71,7 @@ class LocalHealthSignalsProvider(
 
     private var lastProbeTimeMs: Long = 0L
     private var lastProbeResult: Boolean = true
+    private var wasHealthyWhenLastSampled: Boolean = false
 
     suspend fun sampleSignals(): LocalHealthSignals {
         val validatedInternet = isInternetValidated?.invoke() ?: false
@@ -86,10 +87,16 @@ class LocalHealthSignalsProvider(
         // - Probe on probeDispatcher (Dispatchers.IO) only.
         // - Probe at most once per 5000 ms.
         // - Do not probe when internet + LiveKit are healthy; stop probing when recovered.
+        // - Force an immediate probe on healthy -> unhealthy transitions instead of returning stale true.
         val probeOk: Boolean = if (validatedInternet && isLkConnected) {
+            wasHealthyWhenLastSampled = true
             lastProbeResult = true
             true
         } else {
+            if (wasHealthyWhenLastSampled) {
+                wasHealthyWhenLastSampled = false
+                lastProbeTimeMs = 0L
+            }
             if (now - lastProbeTimeMs >= 5_000L || lastProbeTimeMs == 0L) {
                 lastProbeTimeMs = now
                 val result = withContext(probeDispatcher) {

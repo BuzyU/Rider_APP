@@ -132,8 +132,12 @@ class OfflineMeshVoiceTransport(
     override val isLinkAlive: StateFlow<Boolean> = _isLinkAlive.asStateFlow()
 
     val helloIntervalMs = java.util.concurrent.atomic.AtomicLong(MeshConfig.HELLO_INTERVAL_MS)
+    private val cadenceWakeSignal = Channel<Unit>(Channel.CONFLATED)
     override fun setHelloIntervalMs(intervalMs: Long) {
-        helloIntervalMs.set(intervalMs)
+        val prev = helloIntervalMs.getAndSet(intervalMs)
+        if (intervalMs < prev) {
+            cadenceWakeSignal.trySend(Unit)
+        }
     }
 
     private val _audioRoute = MutableStateFlow(AudioRoute.SPEAKER)
@@ -401,7 +405,9 @@ class OfflineMeshVoiceTransport(
                         }
                     }
                     com.ridervoice.diagnostics.PowerProbe.recordMeshPacket()
-                    delay(helloIntervalMs.get())
+                    kotlinx.coroutines.withTimeoutOrNull(helloIntervalMs.get()) {
+                        cadenceWakeSignal.receive()
+                    }
                 }
             }
 

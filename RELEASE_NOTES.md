@@ -1,3 +1,32 @@
+## RiderVoice v0.0.3.22 Release Notes
+
+RiderVoice **v0.0.3.22** introduces convoy-wide coordinated online and offline voice switching so an entire riding group stays on the same voice channel when any single rider loses cellular internet, along with audio-silent background recovery probing, manual readiness and exclusion controls, and localized room notices.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.22` |
+| **Version Code** | `3022` |
+| **Release Tag** | `v0.0.3.22` |
+| **Download APK** | `Rider_APP-v0.0.3.22.apk` |
+
+### What's new
+- Added leaderless convoy-wide online/offline voice coordination so when one rider loses internet, all up-to-6 eligible riders move together to offline mesh voice while unsupported or opted-out riders remain undisturbed on internet voice
+- Added two-phase return-to-online coordination requiring verified readiness acknowledgements across all required riders, a 1.5-second commit hold, and deterministic commit certificate validation before switching the convoy back online
+- Added audio-silent background LiveKit probing during offline voice so internet recovery checks never hijack microphone, speaker, or Bluetooth audio routes while offline mesh owns audio
+- Added manual recovery controls including Protocol M manual readiness confirmation when background probing stalls and an explicit modal Return Online confirmation listing excluded offline riders
+
+### Improvements
+- Added compact binary control state frames relayed over multi-hop mesh networking within the 400-byte budget alongside 64-bit restart incarnation tracking and replay window hardening
+- Added encrypted write-ahead persistence with integrity checks so monotonic decision generations and frozen membership rosters recover safely after an app restart
+- Updated lobby and in-room screens across English, Hindi, and Marathi to disclose group switching behavior and distinguish convoy decisions from individual phone transport states
+- Cached and pre-fetched Robolectric SDK artifacts in Android CI builds for reliable automated unit verification
+
+### Bug fixes
+- Fixed cold restart recovery into a live ride so saved convoy membership snapshots restore even when in-memory ride state is cleared
+- Fixed manual return recovery stalls when background probing is unavailable so validated internet lets confirmed riders transition back to online voice
+
+---
+
 ## RiderVoice v0.0.3.21 Release Notes
 
 RiderVoice **v0.0.3.21** introduces the complete Roadside Paper & Obsidian Carbon redesign, offline bundled typography, full Hindi and Marathi localization, a redesigned My Squad and Requests experience, floating animated bottom navigation, hardened in-app updates with categorized release notes, and ride history naming fixes.

@@ -391,6 +391,10 @@
     <string name="lobby_offline_step_transport">Mesh Transport</string>
     <string name="lobby_offline_retry_step">Retry</string>
     <string name="lobby_offline_hotspot_hint">Connect all phones to the same Wi-Fi or mobile hotspot for offline voice mesh</string>
+    <string name="lobby_p2p_status_forming">Setting up automatic phone-to-phone mesh…</string>
+    <string name="lobby_p2p_status_ready">Direct phone-to-phone mesh ready (no hotspot needed)</string>
+    <string name="lobby_p2p_status_wifi_off">Turn on your phone Wi-Fi switch (no router or hotspot needed) for offline mesh</string>
+    <string name="lobby_p2p_status_permission">Allow Nearby Wi-Fi permission for automatic offline mesh</string>
     <string name="lobby_offline_status_ready">Offline Ready</string>
     <string name="lobby_offline_status_timed_out">Timed Out</string>
     <string name="lobby_start_ride_with_count">Start ride (%1$d riders)</string>

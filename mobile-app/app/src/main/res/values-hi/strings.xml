@@ -391,6 +391,10 @@
     <string name="lobby_offline_step_transport">मेश ट्रांसपोर्ट</string>
     <string name="lobby_offline_retry_step">पुनः प्रयास करें</string>
     <string name="lobby_offline_hotspot_hint">ऑफ़लाइन वॉयस मेश के लिए सभी फ़ोनों को एक ही वाई-फ़ाई या मोबाइल हॉटस्पॉट से कनेक्ट करें</string>
+    <string name="lobby_p2p_status_forming">स्वचालित फ़ोन-से-फ़ोन मेश सेट हो रहा है…</string>
+    <string name="lobby_p2p_status_ready">सीधा फ़ोन-से-फ़ोन मेश तैयार है (हॉटस्पॉट आवश्यक नहीं)</string>
+    <string name="lobby_p2p_status_wifi_off">ऑफ़लाइन मेश के लिए अपने फ़ोन का वाई-फ़ाई स्विच चालू करें (राउटर या हॉटस्पॉट की आवश्यकता नहीं)</string>
+    <string name="lobby_p2p_status_permission">स्वचालित ऑफ़लाइन मेश के लिए आस-पास के वाई-फ़ाई की अनुमति दें</string>
     <string name="lobby_offline_status_ready">ऑफ़लाइन तैयार</string>
     <string name="lobby_offline_status_timed_out">समय समाप्त</string>
     <string name="lobby_start_ride_with_count">राइड शुरू करें (%1$d राइडर्स)</string>

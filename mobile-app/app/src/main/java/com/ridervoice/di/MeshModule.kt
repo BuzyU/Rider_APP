@@ -20,9 +20,11 @@ import com.ridervoice.mesh.identity.MeshIdentityRepository
 import com.ridervoice.mesh.identity.RiderNameProvider
 import com.ridervoice.mesh.identity.SharedPrefsMeshKeyValueStore
 import com.ridervoice.mesh.link.AndroidNetworkLocks
+import com.ridervoice.mesh.link.AndroidWifiDirectGroupController
 import com.ridervoice.mesh.link.AndroidWifiNetworkWatcher
 import com.ridervoice.mesh.link.NetworkLocks
 import com.ridervoice.mesh.link.UdpMeshLink
+import com.ridervoice.mesh.link.WifiDirectGroupController
 import com.ridervoice.mesh.link.WifiNetworkWatcher
 import com.ridervoice.mesh.session.EncryptedPrefsBackupSessionStore
 import com.ridervoice.mesh.session.HolderOfflineSecretProvider
@@ -158,9 +160,16 @@ object MeshModule {
 
     @Provides
     @Singleton
-    fun provideWifiNetworkWatcher(
+    fun provideWifiDirectGroupController(
         @ApplicationContext context: Context
-    ): WifiNetworkWatcher = AndroidWifiNetworkWatcher(context)
+    ): WifiDirectGroupController = AndroidWifiDirectGroupController(context)
+
+    @Provides
+    @Singleton
+    fun provideWifiNetworkWatcher(
+        @ApplicationContext context: Context,
+        wifiDirectGroupController: WifiDirectGroupController
+    ): WifiNetworkWatcher = AndroidWifiNetworkWatcher(context, wifiDirectGroupController.p2pEvents)
 
     @Provides
     @Singleton
@@ -260,7 +269,8 @@ object MeshModule {
         secretProvider: OfflineSecretProvider,
         sessionHolder: OfflineSessionHolder,
         runtimeSettings: com.ridervoice.mesh.MeshRuntimeSettings,
-        convoyStateStore: com.ridervoice.mesh.convoy.EncryptedConvoyStateStore
+        convoyStateStore: com.ridervoice.mesh.convoy.EncryptedConvoyStateStore,
+        wifiDirectGroupController: WifiDirectGroupController
     ): MeshAutoSwitchManager = MeshAutoSwitchManager(
         activeRideRepository = activeRideRepository,
         liveKitManager = liveKitManager,
@@ -271,7 +281,8 @@ object MeshModule {
         isStandaloneSessionActive = { sessionHolder.current.value != null },
         sessionHolder = sessionHolder,
         meshRuntimeSettings = runtimeSettings,
-        convoyPersistence = convoyStateStore
+        convoyPersistence = convoyStateStore,
+        wifiDirectGroupController = wifiDirectGroupController
     )
 
     @Provides

@@ -4,7 +4,13 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.ridervoice.mesh.link.WifiDirectStatus
+import com.ridervoice.permissions.PermissionManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,8 +60,30 @@ fun LobbyScreen(
     val lobbyStatus by viewModel.lobbyStatus.collectAsStateWithLifecycle()
     val loadState by viewModel.loadState.collectAsStateWithLifecycle()
     val activeRide by viewModel.activeRideState.collectAsStateWithLifecycle()
+    val wifiDirectFlow: kotlinx.coroutines.flow.StateFlow<*> = viewModel.wifiDirectStatus
+    val rawWifiDirectStatus by wifiDirectFlow.collectAsStateWithLifecycle()
+    val wifiDirectStatus = (rawWifiDirectStatus as? WifiDirectStatus) ?: WifiDirectStatus.IDLE
     val error by viewModel.error.collectAsStateWithLifecycle()
     val terminal by viewModel.terminal.collectAsStateWithLifecycle()
+
+    val nearbyWifiLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        viewModel.retryWifiDirect()
+    }
+    LaunchedEffect(lobbyStatus?.roomId, lobbyStatus?.offlineMeshEnabled, activeRide?.meshConfig?.optOut) {
+        val wantMesh = (lobbyStatus?.offlineMeshEnabled ?: true) && (activeRide?.meshConfig?.optOut != true)
+        if (wantMesh) {
+            val missing = PermissionManager.nearbyWifiPermissions.filter { perm ->
+                ContextCompat.checkSelfPermission(context, perm) != PackageManager.PERMISSION_GRANTED
+            }
+            if (missing.isNotEmpty()) {
+                nearbyWifiLauncher.launch(missing.toTypedArray())
+            } else {
+                viewModel.retryWifiDirect()
+            }
+        }
+    }
 
     var showExitDialog by remember { mutableStateOf(false) }
     var showStartAloneDialog by remember { mutableStateOf(false) }
@@ -641,7 +669,8 @@ fun LobbyScreen(
                         isConfiguring = isConfiguring,
                         onOptOut = { viewModel.optOutOfOfflineMesh() },
                         onOptIn = { viewModel.optInToOfflineMesh() },
-                        onRetryStep = { viewModel.retryOfflineStep(it) }
+                        onRetryStep = { viewModel.retryOfflineStep(it) },
+                        wifiDirectStatus = wifiDirectStatus
                     )
                 }
 
@@ -788,7 +817,8 @@ fun OfflineConfigCard(
     isConfiguring: Boolean,
     onOptOut: () -> Unit = {},
     onOptIn: () -> Unit = {},
-    onRetryStep: (com.ridervoice.mesh.offline.OfflineConfigStep) -> Unit = {}
+    onRetryStep: (com.ridervoice.mesh.offline.OfflineConfigStep) -> Unit = {},
+    wifiDirectStatus: WifiDirectStatus = WifiDirectStatus.IDLE
 ) {
     Card(
         modifier = Modifier
@@ -887,7 +917,7 @@ fun OfflineConfigCard(
                     }
                 }
 
-                // Hotspot hint & convoy switching trade-off disclosure (v7 Section 13.1)
+                // Automatic Wi-Fi Direct / hotspot status & convoy switching trade-off disclosure (v7 Section 13.1)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.mesh_convoy_lobby_tradeoff_disclosure),
@@ -895,10 +925,21 @@ fun OfflineConfigCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+                val p2pHintRes = when (wifiDirectStatus) {
+                    WifiDirectStatus.CONNECTED -> R.string.lobby_p2p_status_ready
+                    WifiDirectStatus.CREATING_GROUP, WifiDirectStatus.CONNECTING -> R.string.lobby_p2p_status_forming
+                    WifiDirectStatus.DISABLED_WIFI_OFF -> R.string.lobby_p2p_status_wifi_off
+                    WifiDirectStatus.MISSING_PERMISSION -> R.string.lobby_p2p_status_permission
+                    else -> R.string.lobby_offline_hotspot_hint
+                }
                 Text(
-                    text = stringResource(R.string.lobby_offline_hotspot_hint),
+                    text = stringResource(p2pHintRes),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = when (wifiDirectStatus) {
+                        WifiDirectStatus.CONNECTED -> MaterialTheme.colorScheme.primary
+                        WifiDirectStatus.DISABLED_WIFI_OFF, WifiDirectStatus.MISSING_PERMISSION -> Brick
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
 
                 // Rider opt out / in control

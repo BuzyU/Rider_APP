@@ -26,6 +26,7 @@ import com.ridervoice.mesh.convoy.SingleFlightHandoffExecutor
 import com.ridervoice.mesh.convoy.TransportAction
 import com.ridervoice.mesh.convoy.TransportDecision
 import com.ridervoice.mesh.convoy.TransportMode
+import com.ridervoice.mesh.link.WifiDirectGroupController
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSecretProvider
 import com.ridervoice.mesh.transport.AudioOwner
@@ -72,7 +73,8 @@ class MeshAutoSwitchManager(
     private val localOnlineIdentity: () -> String? = { runCatching { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid }.getOrNull() },
     private val meshRuntimeSettings: com.ridervoice.mesh.MeshRuntimeSettings? = null,
     private val convoyPersistence: ConvoyStatePersistence? = null,
-    private val convoyConfig: ConvoyProtocolConfig = ConvoyProtocolConfig()
+    private val convoyConfig: ConvoyProtocolConfig = ConvoyProtocolConfig(),
+    private val wifiDirectGroupController: WifiDirectGroupController? = null
 ) {
 
     private var scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -185,6 +187,13 @@ class MeshAutoSwitchManager(
                         stateMachine.endSession()
                         currentLiveRideId = null
                     }
+                    if (ride == null ||
+                        ride.phase == ActiveRideRepository.Phase.ENDING ||
+                        ride.meshConfig?.optOut == true ||
+                        ride.meshConfig?.offlineMeshEnabled == false
+                    ) {
+                        wifiDirectGroupController?.stop()
+                    }
                     meshRuntimeSettings?.let { com.ridervoice.mesh.RoomMeshFlagMirror.sync(ride.toMirrorSnapshot(), it) }
                     coordinator.setOnlineSession(null)
                     _groupStatus.value = GroupConnectivityStatus.ONLINE_ALL
@@ -233,6 +242,11 @@ class MeshAutoSwitchManager(
                     _moreThanSixParticipantsDisabled.value = isMeshCapExceeded
 
                     val backup = if (isMeshCapExceeded) null else secretProvider.getSessionForOnlineRide(ride.roomId)
+                    if (!isMeshCapExceeded && backup != null && OfflineMeshGate.isBuildGateOpen()) {
+                        wifiDirectGroupController?.ensureActive(backup, isHost = ride.isHost)
+                    } else if (isMeshCapExceeded) {
+                        wifiDirectGroupController?.stop()
+                    }
                     if (!isMeshCapExceeded &&
                         (OfflineMeshGate.isWarmStandbyAllowed() || OfflineMeshGate.isAutomaticFallbackAllowed()) &&
                         backup != null &&

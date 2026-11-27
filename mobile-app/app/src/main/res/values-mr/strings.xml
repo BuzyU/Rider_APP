@@ -391,6 +391,10 @@
     <string name="lobby_offline_step_transport">मेश ट्रान्सपोर्ट</string>
     <string name="lobby_offline_retry_step">पुन्हा प्रयत्न करा</string>
     <string name="lobby_offline_hotspot_hint">ऑफलाइन व्हॉइस मेशसाठी सर्व फोन एकाच वाय-फाय किंवा मोबाइल हॉटस्पॉटशी कनेक्ट करा</string>
+    <string name="lobby_p2p_status_forming">स्वयंचलित फोन-टू-फोन मेश सेट होत आहे…</string>
+    <string name="lobby_p2p_status_ready">थेट फोन-टू-फोन मेश तयार आहे (हॉटस्पॉटची गरज नाही)</string>
+    <string name="lobby_p2p_status_wifi_off">ऑफलाइन मेशसाठी तुमच्या फोनचा वाय-फाय स्विच सुरू करा (राउटर किंवा हॉटस्पॉटची गरज नाही)</string>
+    <string name="lobby_p2p_status_permission">स्वयंचलित ऑफलाइन मेशसाठी जवळच्या वाय-फायची परवानगी द्या</string>
     <string name="lobby_offline_status_ready">ऑफलाइन तयार</string>
     <string name="lobby_offline_status_timed_out">वेळ संपली</string>
     <string name="lobby_start_ride_with_count">राइड सुरू करा (%1$d रायडर्स)</string>

@@ -10,7 +10,8 @@ import javax.crypto.spec.SecretKeySpec
 enum class MeshPacketType(val code: Int, val codeV4: Int) {
     VOICE(2, 0),
     HELLO(1, 1),
-    BYE(3, 2);
+    BYE(3, 2),
+    CONTROL(4, 3);
 
     companion object {
         fun fromCode(c: Int): MeshPacketType? = values().firstOrNull { it.code == c }

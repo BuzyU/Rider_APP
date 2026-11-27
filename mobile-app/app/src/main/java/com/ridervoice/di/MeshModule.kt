@@ -244,6 +244,13 @@ object MeshModule {
 
     @Provides
     @Singleton
+    fun provideEncryptedConvoyStateStore(
+        @ApplicationContext context: Context
+    ): com.ridervoice.mesh.convoy.EncryptedConvoyStateStore =
+        com.ridervoice.mesh.convoy.EncryptedConvoyStateStore(context)
+
+    @Provides
+    @Singleton
     fun provideMeshAutoSwitchManager(
         activeRideRepository: ActiveRideRepository,
         liveKitManager: LiveKitManager,
@@ -252,7 +259,8 @@ object MeshModule {
         healthSignalsProvider: LocalHealthSignalsProvider,
         secretProvider: OfflineSecretProvider,
         sessionHolder: OfflineSessionHolder,
-        runtimeSettings: com.ridervoice.mesh.MeshRuntimeSettings
+        runtimeSettings: com.ridervoice.mesh.MeshRuntimeSettings,
+        convoyStateStore: com.ridervoice.mesh.convoy.EncryptedConvoyStateStore
     ): MeshAutoSwitchManager = MeshAutoSwitchManager(
         activeRideRepository = activeRideRepository,
         liveKitManager = liveKitManager,
@@ -262,7 +270,8 @@ object MeshModule {
         secretProvider = secretProvider,
         isStandaloneSessionActive = { sessionHolder.current.value != null },
         sessionHolder = sessionHolder,
-        meshRuntimeSettings = runtimeSettings
+        meshRuntimeSettings = runtimeSettings,
+        convoyPersistence = convoyStateStore
     )
 
     @Provides

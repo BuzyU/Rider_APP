@@ -9,7 +9,7 @@ import java.util.UUID
  * Protocol v4 compact wire codec.
  *
  * Wire layout (17-byte header, all big-endian):
- * 0:   vtf (1 B)       version(3 bits)=4 | type(2 bits: 0=VOICE, 1=HELLO, 2=BYE) | fmt(3 bits: 0=none, 1=PCM, 2=OPUS16)
+ * 0:   vtf (1 B)       version(3 bits)=4 | type(2 bits: 0=VOICE, 1=HELLO, 2=BYE, 3=CONTROL) | fmt(3 bits: 0=none, 1=PCM, 2=OPUS16)
  * 1:   ttlHop (1 B)    ttl(4 bits) | hop(4 bits)            [MUTABLE - not authenticated]
  * 2:   srcShort (4 B)  first 4 bytes of origin deviceId
  * 6:   prevShort (4 B) first 4 bytes of transmitting deviceId [MUTABLE]

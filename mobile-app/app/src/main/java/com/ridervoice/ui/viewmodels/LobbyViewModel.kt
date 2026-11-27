@@ -62,6 +62,73 @@ class LobbyViewModel @Inject constructor(
 
     private var pollingJob: Job? = null
     private var configObserverJob: Job? = null
+    internal var fallbackUserIdProvider: () -> String? = {
+        try {
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    internal fun buildConvoyMembershipSnapshot(
+        status: LobbyStatus?,
+        localUserId: String? = fallbackUserIdProvider(),
+        localOptOut: Boolean = activeRideRepository.state.value?.meshConfig?.optOut == true
+    ): com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot? {
+        val roomId = status?.roomId?.takeIf { it.isNotBlank() }
+            ?: activeRideRepository.state.value?.roomId?.takeIf { it.isNotBlank() }
+            ?: return null
+        val sessionUuid = try {
+            java.util.UUID.fromString(roomId)
+        } catch (_: IllegalArgumentException) {
+            java.util.UUID.nameUUIDFromBytes(roomId.toByteArray(Charsets.UTF_8))
+        }
+        val roomOfflineEnabled = status?.offlineMeshEnabled
+            ?: (activeRideRepository.state.value?.meshConfig?.offlineMeshEnabled != false)
+        val isLocalHost = status?.isHost ?: (activeRideRepository.state.value?.isHost == true)
+        val seen = HashSet<String>()
+        val rawMembers = ArrayList<com.ridervoice.mesh.convoy.ConvoyMember>()
+
+        val hostId = status?.host?.id?.takeIf { it.isNotBlank() } ?: localUserId?.takeIf { isLocalHost && it.isNotBlank() }
+        if (!hostId.isNullOrBlank() && seen.add(hostId)) {
+            val hostRole = if (roomOfflineEnabled && !(isLocalHost && localOptOut)) {
+                com.ridervoice.mesh.convoy.MemberRole.MESH_PARTICIPANT
+            } else {
+                com.ridervoice.mesh.convoy.MemberRole.NON_MESH_PARTICIPANT
+            }
+            rawMembers.add(com.ridervoice.mesh.convoy.ConvoyMember(hostId, hostRole))
+        }
+
+        status?.invites
+            ?.filter { it.status == "ACCEPTED" }
+            ?.forEach { inv ->
+                val uid = inv.invitee.id
+                if (uid.isNotBlank() && seen.add(uid)) {
+                    val isSelf = localUserId != null && uid == localUserId
+                    val isReady = if (isSelf && localOptOut) {
+                        false
+                    } else {
+                        inv.offlineConfigStatus == "READY"
+                    }
+                    val role = if (roomOfflineEnabled && isReady) {
+                        com.ridervoice.mesh.convoy.MemberRole.MESH_PARTICIPANT
+                    } else {
+                        com.ridervoice.mesh.convoy.MemberRole.NON_MESH_PARTICIPANT
+                    }
+                    rawMembers.add(com.ridervoice.mesh.convoy.ConvoyMember(uid, role))
+                }
+            }
+
+        if (rawMembers.isEmpty()) return null
+        return com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot.create(sessionUuid, rawMembers)
+    }
+
+    private fun syncConvoyMembershipSnapshot(status: LobbyStatus?) {
+        val snap = buildConvoyMembershipSnapshot(status)
+        if (snap != null) {
+            activeRideRepository.setConvoyMembershipSnapshot(snap)
+        }
+    }
 
     private fun computeBackoff(attempt: Int): Long {
         return when (attempt) {
@@ -163,6 +230,7 @@ class LobbyViewModel @Inject constructor(
                             isHost = body.isHost ?: false,
                             joinCode = body.joinCode
                         )
+                        syncConvoyMembershipSnapshot(body)
 
                         if (body.isRideStarted == true) {
                             activeRideRepository.goLive()
@@ -488,6 +556,7 @@ class LobbyViewModel @Inject constructor(
                             testNumber = body.testNumber
                         )
                     )
+                    syncConvoyMembershipSnapshot(_lobbyStatus.value)
                     activeRideRepository.goLive()
                     onStartSuccess()
                 } else {

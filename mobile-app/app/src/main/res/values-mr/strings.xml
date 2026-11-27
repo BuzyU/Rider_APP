@@ -940,4 +940,21 @@
     <string name="leave_dialog_participant_body">तुम्ही ग्रुप व्हॉइसमधून डिस्कनेक्ट व्हाल.</string>
     <string name="leave_dialog_leave_button">राइड सोडा</string>
     <string name="sos_navigate_to_rider">%1$s पर्यंत नेव्हिगेट करा</string>
+    <string name="mesh_convoy_banner_split_recovered">ताफा परत ऑनलाइन आहे. तुम्ही अजूनही ऑफलाइन व्हॉइसवर आहात.</string>
+    <string name="mesh_convoy_banner_online_proposed">सर्वजण परत ऑनलाइन असल्याची खात्री करत आहे…</string>
+    <string name="mesh_convoy_banner_membership_mismatch">गटाची यादी बदलली — ऑफलाइन व्हॉइसवर राहिले</string>
+    <string name="mesh_convoy_banner_decision_conflict">व्हॉइस मोड संघर्ष आढळला — पुन्हा सिंक करत आहे</string>
+    <string name="mesh_convoy_unavailable_gt_six">&gt;6 मेश सहभागींसाठी ऑफलाइन व्हॉइस अनुपलब्ध आहे</string>
+    <string name="mesh_convoy_non_mesh_notice">या डिव्हाइसवर ऑफलाइन व्हॉइस अनुपलब्ध आहे — इतर स्विच झाल्यावर तुम्ही इंटरनेटवर जोडलेले राहाल</string>
+    <string name="mesh_convoy_lobby_tradeoff_disclosure">गट ऑफलाइन स्विचिंग पात्र रायडर्सना एकाच व्हॉइस चॅनेलवर ठेवते: एकाही रायडरचे इंटरनेट गेल्यास, संपूर्ण गट एकत्र ऑफलाइन व्हॉइसवर स्विच होतो.</string>
+    <string name="mesh_convoy_protocol_m_prompt">बॅकग्राउंड तपासणी अनुपलब्ध — इंटरनेट असल्याची पुष्टी करा</string>
+    <string name="mesh_convoy_protocol_m_button">माझ्याकडे इंटरनेट आहे — ऑनलाइन व्हॉइसवर परत या</string>
+    <string name="mesh_convoy_protocol_m_asserted">इंटरनेटची पुष्टी झाली — गट परत ऑनलाइन येण्याची प्रतीक्षा</string>
+    <string name="mesh_convoy_stuck_offline_banner">%1$d रायडरचे इंटरनेट परत येण्याची प्रतीक्षा</string>
+    <string name="mesh_convoy_stuck_return_online_action">ऑनलाइन परत या</string>
+    <string name="mesh_convoy_exclude_dialog_title">ताफा परत ऑनलाइन व्हॉइसवर आणायचा का?</string>
+    <string name="mesh_convoy_exclude_dialog_body">या रायडर्सकडे इंटरनेट तयार नाही आणि ऑनलाइन रायडर्ससोबतचा त्यांचा व्हॉइस संपर्क तुटेल:\n\n%1$s</string>
+    <string name="mesh_convoy_exclude_dialog_stale_refresh">रायडरची तयारी बदलली — पुष्टी करण्यापूर्वी अद्ययावत यादी तपासा.</string>
+    <string name="mesh_convoy_exclude_dialog_confirm">ऑनलाइन परत येण्याची पुष्टी करा</string>
+    <string name="mesh_convoy_exclude_dialog_cancel">एकत्र ऑफलाइन राहा</string>
 </resources>

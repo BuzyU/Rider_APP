@@ -940,4 +940,21 @@
     <string name="leave_dialog_participant_body">आप ग्रुप वॉइस से डिस्कनेक्ट हो जाएंगे।</string>
     <string name="leave_dialog_leave_button">राइड छोड़ें</string>
     <string name="sos_navigate_to_rider">%1$s तक नेविगेट करें</string>
+    <string name="mesh_convoy_banner_split_recovered">काफिला वापस ऑनलाइन है। आप अभी भी ऑफ़लाइन वॉइस पर हैं।</string>
+    <string name="mesh_convoy_banner_online_proposed">पुष्टि की जा रही है कि सभी वापस ऑनलाइन हैं…</string>
+    <string name="mesh_convoy_banner_membership_mismatch">समूह सूची बदल गई — ऑफ़लाइन वॉइस पर बने हैं</string>
+    <string name="mesh_convoy_banner_decision_conflict">वॉइस मोड टकराव — पुनः सिंक हो रहा है</string>
+    <string name="mesh_convoy_unavailable_gt_six">&gt;6 मेश प्रतिभागियों के लिए ऑफ़लाइन वॉइस अनुपलब्ध है</string>
+    <string name="mesh_convoy_non_mesh_notice">इस डिवाइस पर ऑफ़लाइन वॉइस अनुपलब्ध है — अन्य लोगों के स्विच करने पर आप इंटरनेट से जुड़े रहेंगे</string>
+    <string name="mesh_convoy_lobby_tradeoff_disclosure">ग्रुप ऑफ़लाइन स्विचिंग योग्य राइडर्स को एक ही वॉइस चैनल पर रखती है: यदि किसी एक राइडर का इंटरनेट चला जाता है, तो पूरा समूह एक साथ ऑफ़लाइन वॉइस पर स्विच हो जाता है।</string>
+    <string name="mesh_convoy_protocol_m_prompt">बैकग्राउंड जांच अनुपलब्ध — पुष्टि करें कि आपके पास इंटरनेट है</string>
+    <string name="mesh_convoy_protocol_m_button">मेरे पास इंटरनेट है — ऑनलाइन वॉइस पर लौटें</string>
+    <string name="mesh_convoy_protocol_m_asserted">इंटरनेट की पुष्टि हुई — समूह के ऑनलाइन लौटने की प्रतीक्षा में</string>
+    <string name="mesh_convoy_stuck_offline_banner">%1$d राइडर के इंटरनेट वापस आने की प्रतीक्षा</string>
+    <string name="mesh_convoy_stuck_return_online_action">ऑनलाइन लौटें</string>
+    <string name="mesh_convoy_exclude_dialog_title">काफिले को ऑनलाइन वॉइस पर लौटाएं?</string>
+    <string name="mesh_convoy_exclude_dialog_body">इन राइडर्स का इंटरनेट तैयार नहीं है और ऑनलाइन राइडर्स से इनका वॉइस संपर्क टूट जाएगा:\n\n%1$s</string>
+    <string name="mesh_convoy_exclude_dialog_stale_refresh">राइडर की स्थिति बदल गई — पुष्टि करने से पहले अद्यतन सूची देखें।</string>
+    <string name="mesh_convoy_exclude_dialog_confirm">ऑनलाइन लौटने की पुष्टि करें</string>
+    <string name="mesh_convoy_exclude_dialog_cancel">एक साथ ऑफ़लाइन रहें</string>
 </resources>

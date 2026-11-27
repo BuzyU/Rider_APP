@@ -55,6 +55,8 @@ class LiveKitManagerPort(
             voxRestarter() // never start VOX while disconnected
         }
     }
+    override fun setSilentProbeMode(enabled: Boolean) = m.setSilentProbeMode(enabled)
+    override fun promoteFromSilentProbeToAudio() = m.promoteFromSilentProbeToAudio()
 }
 
 /**
@@ -290,6 +292,7 @@ class LiveKitVoiceTransport(
         explicitMicOverrideWhilePaused = null
         pausedByCoordinator = true
         _micState.value = MicState.MUTED
+        liveKitPort.setSilentProbeMode(true)
         liveKitPort.onVoiceGate(false)
         liveKitPort.stopVox()
         liveKitPort.setDeafened(true)
@@ -299,6 +302,8 @@ class LiveKitVoiceTransport(
     override suspend fun resume() {
         if (!pausedByCoordinator) return
         pausedByCoordinator = false
+        liveKitPort.setSilentProbeMode(false)
+        liveKitPort.promoteFromSilentProbeToAudio()
         // Order: reverse of pause
         val overrideEnabled = explicitMicOverrideWhilePaused
         explicitMicOverrideWhilePaused = null

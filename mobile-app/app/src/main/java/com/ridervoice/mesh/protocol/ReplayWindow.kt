@@ -81,7 +81,7 @@ data class ReplayKey(
     val type: Int
 )
 
-class ReplayWindow(private val maxEntries: Int = 16) {
+class ReplayWindow(private val maxEntries: Int = 64) {
     private val windows = object : LinkedHashMap<ReplayKey, SingleReplayWindow>(maxEntries, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<ReplayKey, SingleReplayWindow>?): Boolean {
             return size > maxEntries

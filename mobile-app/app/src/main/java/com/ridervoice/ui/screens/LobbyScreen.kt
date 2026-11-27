@@ -253,6 +253,16 @@ fun LobbyScreen(
                         if (isHost) {
                             val meshConfig = activeRide?.meshConfig
                             val isOfflineEnabled = meshConfig?.offlineMeshEnabled ?: (status?.offlineMeshEnabled ?: true)
+                            val readyMeshCount = (if (isOfflineEnabled && meshConfig?.optOut != true) 1 else 0) +
+                                accepted.count { isOfflineEnabled && it.offlineConfigStatus == "READY" }
+                            if (readyMeshCount > com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot.MAX_MESH_PARTICIPANTS) {
+                                Text(
+                                    text = stringResource(R.string.mesh_convoy_unavailable_gt_six),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Brick,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                             val riderStatuses = accepted.map { inv ->
                                 com.ridervoice.mesh.offline.LobbyRiderStatus(
                                     riderId = inv.invitee.id,
@@ -877,7 +887,13 @@ fun OfflineConfigCard(
                     }
                 }
 
-                // Hotspot hint notice (Q4 / D2 / A4)
+                // Hotspot hint & convoy switching trade-off disclosure (v7 Section 13.1)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.mesh_convoy_lobby_tradeoff_disclosure),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.lobby_offline_hotspot_hint),
@@ -888,6 +904,12 @@ fun OfflineConfigCard(
                 // Rider opt out / in control
                 Spacer(modifier = Modifier.height(8.dp))
                 if (meshConfig.optOut) {
+                    Text(
+                        text = stringResource(R.string.mesh_convoy_non_mesh_notice),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
                     OutlinedButton(
                         onClick = onOptIn,
                         modifier = Modifier.fillMaxWidth()

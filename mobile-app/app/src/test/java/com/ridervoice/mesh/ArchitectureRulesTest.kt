@@ -92,8 +92,8 @@ class ArchitectureRulesTest {
             File("mobile-app/app/src/main/AndroidManifest.xml")
         ).first { it.exists() }
         val manifest = manifestFile.readText()
-        assertFalse("CHANGE_WIFI_STATE must be removed from manifest", manifest.contains("android.permission.CHANGE_WIFI_STATE"))
-        assertFalse("NEARBY_WIFI_DEVICES must be removed from manifest", manifest.contains("android.permission.NEARBY_WIFI_DEVICES"))
+        assertTrue("CHANGE_WIFI_STATE must be declared for Wi-Fi Direct", manifest.contains("android.permission.CHANGE_WIFI_STATE"))
+        assertTrue("NEARBY_WIFI_DEVICES must be declared for Android 13+ Wi-Fi Direct", manifest.contains("android.permission.NEARBY_WIFI_DEVICES"))
         assertTrue("ACCESS_WIFI_STATE must be retained", manifest.contains("android.permission.ACCESS_WIFI_STATE"))
         assertTrue("CHANGE_WIFI_MULTICAST_STATE must be retained", manifest.contains("android.permission.CHANGE_WIFI_MULTICAST_STATE"))
     }

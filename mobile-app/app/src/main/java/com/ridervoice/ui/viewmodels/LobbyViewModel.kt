@@ -34,10 +34,12 @@ class LobbyViewModel @Inject constructor(
     private val apiService: ApiService,
     private val activeRideRepository: com.ridervoice.state.ActiveRideRepository,
     private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder = com.ridervoice.mesh.session.OfflineSessionHolder(),
-    private val configCoordinator: com.ridervoice.mesh.offline.OfflineConfigCoordinator = com.ridervoice.mesh.offline.OfflineConfigCoordinator(sessionHolder = sessionHolder)
+    private val configCoordinator: com.ridervoice.mesh.offline.OfflineConfigCoordinator = com.ridervoice.mesh.offline.OfflineConfigCoordinator(sessionHolder = sessionHolder),
+    private val wifiDirectGroupController: com.ridervoice.mesh.link.WifiDirectGroupController = com.ridervoice.mesh.link.NoOpWifiDirectGroupController
 ) : ViewModel() {
 
     val offlineConfigState = configCoordinator.state
+    val wifiDirectStatus: StateFlow<com.ridervoice.mesh.link.WifiDirectStatus> = wifiDirectGroupController.status
     private var lastKnownBackupCode: String? = null
 
     private val _loadState = MutableStateFlow<LobbyLoadState>(LobbyLoadState.Loading)
@@ -62,6 +64,107 @@ class LobbyViewModel @Inject constructor(
 
     private var pollingJob: Job? = null
     private var configObserverJob: Job? = null
+    internal var fallbackUserIdProvider: () -> String? = {
+        try {
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    internal fun buildConvoyMembershipSnapshot(
+        status: LobbyStatus?,
+        localUserId: String? = fallbackUserIdProvider(),
+        localOptOut: Boolean = activeRideRepository.state.value?.meshConfig?.optOut == true
+    ): com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot? {
+        val roomId = status?.roomId?.takeIf { it.isNotBlank() }
+            ?: activeRideRepository.state.value?.roomId?.takeIf { it.isNotBlank() }
+            ?: return null
+        val sessionUuid = com.ridervoice.mesh.convoy.ConvoyHash.stableSessionUuid(roomId)
+        val roomOfflineEnabled = status?.offlineMeshEnabled
+            ?: (activeRideRepository.state.value?.meshConfig?.offlineMeshEnabled != false)
+        val isLocalHost = status?.isHost ?: (activeRideRepository.state.value?.isHost == true)
+        val seen = HashSet<String>()
+        val rawMembers = ArrayList<com.ridervoice.mesh.convoy.ConvoyMember>()
+
+        val hostId = status?.host?.id?.takeIf { it.isNotBlank() } ?: localUserId?.takeIf { isLocalHost && it.isNotBlank() }
+        if (!hostId.isNullOrBlank() && seen.add(hostId)) {
+            val hostRole = if (roomOfflineEnabled && !(isLocalHost && localOptOut)) {
+                com.ridervoice.mesh.convoy.MemberRole.MESH_PARTICIPANT
+            } else {
+                com.ridervoice.mesh.convoy.MemberRole.NON_MESH_PARTICIPANT
+            }
+            rawMembers.add(com.ridervoice.mesh.convoy.ConvoyMember(hostId, hostRole))
+        }
+
+        status?.invites
+            ?.filter { it.status == "ACCEPTED" }
+            ?.forEach { inv ->
+                val uid = inv.invitee.id
+                if (uid.isNotBlank() && seen.add(uid)) {
+                    val isSelf = localUserId != null && uid == localUserId
+                    val isReady = if (isSelf && localOptOut) {
+                        false
+                    } else {
+                        inv.offlineConfigStatus == "READY"
+                    }
+                    val role = if (roomOfflineEnabled && isReady) {
+                        com.ridervoice.mesh.convoy.MemberRole.MESH_PARTICIPANT
+                    } else {
+                        com.ridervoice.mesh.convoy.MemberRole.NON_MESH_PARTICIPANT
+                    }
+                    rawMembers.add(com.ridervoice.mesh.convoy.ConvoyMember(uid, role))
+                }
+            }
+
+        if (rawMembers.isEmpty()) return null
+        return com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot.create(sessionUuid, rawMembers)
+    }
+
+    private fun syncConvoyMembershipSnapshot(status: LobbyStatus?) {
+        val snap = buildConvoyMembershipSnapshot(status)
+        if (snap != null) {
+            activeRideRepository.setConvoyMembershipSnapshot(snap)
+        }
+    }
+
+    private fun syncLiveMeshGateMirror() {
+        val ride = activeRideRepository.state.value ?: return
+        val cfg = ride.meshConfig ?: com.ridervoice.mesh.RoomMeshConfig.DEFAULT
+        com.ridervoice.mesh.OfflineMeshGate.syncMirror(
+            com.ridervoice.mesh.RoomMeshMirrorSnapshot(
+                isLive = ride.phase == com.ridervoice.state.ActiveRideRepository.Phase.LIVE,
+                offlineMeshEnabled = cfg.offlineMeshEnabled,
+                optOut = cfg.optOut,
+                automaticFallbackEnabled = cfg.automaticFallbackEnabled,
+                warmStandbyEnabled = cfg.warmStandbyEnabled
+            )
+        )
+    }
+
+    private fun syncWifiDirectForLobby(
+        offlineEnabled: Boolean = _lobbyStatus.value?.offlineMeshEnabled
+            ?: (activeRideRepository.state.value?.meshConfig?.offlineMeshEnabled != false),
+        isHost: Boolean = _lobbyStatus.value?.isHost
+            ?: (activeRideRepository.state.value?.isHost == true)
+    ) {
+        val ride = activeRideRepository.state.value
+        val optOut = ride?.meshConfig?.optOut == true
+        val session = sessionHolder.backup.value
+        if (com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen() &&
+            offlineEnabled &&
+            !optOut &&
+            session != null
+        ) {
+            wifiDirectGroupController.ensureActive(session = session, isHost = isHost)
+        } else if (!offlineEnabled || optOut) {
+            wifiDirectGroupController.stop()
+        }
+    }
+
+    fun retryWifiDirect() {
+        syncWifiDirectForLobby()
+    }
 
     private fun computeBackoff(attempt: Int): Long {
         return when (attempt) {
@@ -94,6 +197,11 @@ class LobbyViewModel @Inject constructor(
                         optOut = cfgState.optOut
                     )
                 )
+                if (!cfgState.optOut) {
+                    syncWifiDirectForLobby()
+                } else {
+                    wifiDirectGroupController.stop()
+                }
 
                 val wireStatus = cfgState.status.wireName
                 if (wireStatus != lastReportedStatus) {
@@ -138,6 +246,9 @@ class LobbyViewModel @Inject constructor(
                         val statusBackupCode = body.offlineBackupCode
                         lastKnownBackupCode = statusBackupCode
                         val hostMeshEnabled = body.offlineMeshEnabled
+                        if (!statusBackupCode.isNullOrBlank() && statusBackupCode.length == 16 && sessionHolder.backup.value == null) {
+                            sessionHolder.provisionFromBackupCode(statusBackupCode)
+                        }
 
                         if (activeRideRepository.state.value?.meshConfig == null) {
                             activeRideRepository.setMeshConfig(
@@ -163,9 +274,15 @@ class LobbyViewModel @Inject constructor(
                             isHost = body.isHost ?: false,
                             joinCode = body.joinCode
                         )
+                        syncConvoyMembershipSnapshot(body)
+                        syncWifiDirectForLobby(
+                            offlineEnabled = hostMeshEnabled,
+                            isHost = body.isHost ?: false
+                        )
 
                         if (body.isRideStarted == true) {
                             activeRideRepository.goLive()
+                            syncLiveMeshGateMirror()
                             if (activeRideRepository.state.value?.token.isNullOrBlank()) {
                                 try {
                                     val tokenRes = apiService.getJoinToken(
@@ -200,6 +317,7 @@ class LobbyViewModel @Inject constructor(
                         val code = response.code()
                         when (code) {
                             410 -> {
+                                wifiDirectGroupController.stop()
                                 activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.ENDED_BY_HOST)
                                 _terminal.value = Terminal.ENDED
                                 _loadState.value = LobbyLoadState.Terminal(Terminal.ENDED)
@@ -209,6 +327,7 @@ class LobbyViewModel @Inject constructor(
                                 break
                             }
                             403 -> {
+                                wifiDirectGroupController.stop()
                                 activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.REMOVED)
                                 _terminal.value = Terminal.REMOVED
                                 _loadState.value = LobbyLoadState.Terminal(Terminal.REMOVED)
@@ -218,6 +337,7 @@ class LobbyViewModel @Inject constructor(
                                 break
                             }
                             404 -> {
+                                wifiDirectGroupController.stop()
                                 activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.NOT_FOUND)
                                 _terminal.value = Terminal.NOT_FOUND
                                 _loadState.value = LobbyLoadState.Terminal(Terminal.NOT_FOUND)
@@ -371,6 +491,7 @@ class LobbyViewModel @Inject constructor(
     fun endRide(roomName: String, onEnded: () -> Unit) {
         viewModelScope.launch {
             try {
+                wifiDirectGroupController.stop()
                 sessionHolder.clearAll()
                 configCoordinator.reset()
                 apiService.endRideForEveryone(roomName)
@@ -411,12 +532,14 @@ class LobbyViewModel @Inject constructor(
             )
             configCoordinator.optIn(viewModelScope, lastKnownBackupCode)
         } else {
+            wifiDirectGroupController.stop()
             activeRideRepository.setMeshConfig(com.ridervoice.mesh.RoomMeshConfig.DISABLED)
             configCoordinator.optOut()
         }
     }
 
     fun optOutOfOfflineMesh() {
+        wifiDirectGroupController.stop()
         val current = activeRideRepository.state.value?.meshConfig ?: com.ridervoice.mesh.RoomMeshConfig.DEFAULT
         activeRideRepository.setMeshConfig(
             current.copy(
@@ -488,7 +611,10 @@ class LobbyViewModel @Inject constructor(
                             testNumber = body.testNumber
                         )
                     )
+                    syncConvoyMembershipSnapshot(_lobbyStatus.value)
                     activeRideRepository.goLive()
+                    syncLiveMeshGateMirror()
+                    syncWifiDirectForLobby(offlineEnabled = true, isHost = true)
                     onStartSuccess()
                 } else {
                     val raw = try { res.errorBody()?.string() } catch (_: Exception) { null }
@@ -506,6 +632,7 @@ class LobbyViewModel @Inject constructor(
     fun leaveRoom(roomRef: String, onLeaveSuccess: () -> Unit) {
         viewModelScope.launch {
             try {
+                wifiDirectGroupController.stop()
                 sessionHolder.clearAll()
                 configCoordinator.reset()
                 apiService.leaveLobby(roomRef)

@@ -241,6 +241,19 @@ class UdpMeshLink(
     }
 
     companion object {
+        private const val P2P_OWNER_IP = "192.168.49.1"
+
+        fun hasActiveP2pInterface(): Boolean {
+            return runCatching {
+                NetworkInterface.getNetworkInterfaces()?.asSequence()
+                    ?.any { nif ->
+                        nif.isUp && !nif.isLoopback && !nif.isVirtual &&
+                            nif.name.startsWith("p2p", ignoreCase = true) &&
+                            nif.interfaceAddresses.any { it.address is Inet4Address }
+                    } == true
+            }.getOrDefault(false)
+        }
+
         fun getLocalIpAddress(): String? {
             return runCatching {
                 NetworkInterface.getNetworkInterfaces()?.asSequence()
@@ -260,17 +273,32 @@ class UdpMeshLink(
 
         fun discoverBroadcastEndpoints(port: Int = MeshConfig.MESH_PORT): List<MeshEndpoint> {
             return runCatching {
-                NetworkInterface.getNetworkInterfaces()?.asSequence()
+                val nifs = NetworkInterface.getNetworkInterfaces()?.asSequence()
                     ?.filter { it.isUp && !it.isLoopback && !it.isVirtual }
-                    ?.flatMap { nif ->
+                    ?.toList()
+                    .orEmpty()
+                val broadcasts = nifs
+                    .flatMap { nif ->
                         nif.interfaceAddresses.asSequence()
                             .filter { it.address is Inet4Address }
                             .mapNotNull { it.broadcast?.hostAddress }
                     }
-                    ?.distinct()
-                    ?.map { MeshEndpoint(it, port) }
-                    ?.toList()
-                    .orEmpty()
+                val p2pClientNeedsOwnerTarget = nifs.any { nif ->
+                    nif.name.startsWith("p2p", ignoreCase = true) &&
+                        nif.interfaceAddresses.any { ia ->
+                            val host = (ia.address as? Inet4Address)?.hostAddress
+                            host != null && host.startsWith("192.168.49.") && host != P2P_OWNER_IP
+                        }
+                }
+                val combined = if (p2pClientNeedsOwnerTarget) {
+                    broadcasts + P2P_OWNER_IP
+                } else {
+                    broadcasts
+                }
+                combined
+                    .distinct()
+                    .map { MeshEndpoint(it, port) }
+                    .toList()
             }.getOrDefault(emptyList())
                 .ifEmpty { listOf(MeshEndpoint("255.255.255.255", port)) }
         }

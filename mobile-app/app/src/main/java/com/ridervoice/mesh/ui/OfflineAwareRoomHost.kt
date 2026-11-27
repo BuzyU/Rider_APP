@@ -59,6 +59,11 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import com.ridervoice.mesh.convoy.ConvoyModeState
+import com.ridervoice.mesh.convoy.LocalTransportState
 import com.ridervoice.ui.theme.RvIcons
 import com.ridervoice.ui.theme.rememberRvSafeTopPadding
 import com.ridervoice.ui.theme.rvHorizontalSafeArea
@@ -75,6 +80,12 @@ class OfflineAwareRoomViewModel @Inject constructor(
 
     val autoSwitchState: StateFlow<AutoSwitchState> get() = autoSwitchManager.autoSwitchState
     val groupStatus: StateFlow<GroupConnectivityStatus> get() = autoSwitchManager.groupStatus
+    val convoyModeState: StateFlow<ConvoyModeState> get() = autoSwitchManager.convoyModeState
+    val localTransportState: StateFlow<LocalTransportState> get() = autoSwitchManager.localTransportState
+    val stuckExclusionMemberIds: StateFlow<List<String>> get() = autoSwitchManager.stuckExclusionMemberIds
+    val protocolMPromptActive: StateFlow<Boolean> get() = autoSwitchManager.protocolMPromptActive
+    val moreThanSixParticipantsDisabled: StateFlow<Boolean> get() = autoSwitchManager.moreThanSixParticipantsDisabled
+    val manualReadyAsserted: StateFlow<Boolean> get() = autoSwitchManager.manualReadyAsserted
     val meshParticipants get() = meshTransport.participants
     val meshDiagSnapshot get() = meshTransport.diagnostics
     val lastTransitionReason: StateFlow<String?> get() = autoSwitchManager.lastTransitionReason
@@ -88,6 +99,11 @@ class OfflineAwareRoomViewModel @Inject constructor(
     val backupSession get() = coordinator.secretProvider.backupSession
     val micController get() = meshTransport.micController
     val voxBridge get() = meshTransport.voxBridge
+
+    fun assertManualReady(ready: Boolean) = autoSwitchManager.assertManualReady(ready)
+    fun currentEligibleMemberIds(): Set<String> = autoSwitchManager.currentEligibleMemberIds()
+    fun confirmManualExclusion(excludedIds: Set<String>, expectedEligibleIds: Set<String>) =
+        autoSwitchManager.requestManualExclusion(excludedIds, expectedEligibleIds)
 
     fun setMicrophoneEnabled(enabled: Boolean) {
         viewModelScope.launch {
@@ -120,6 +136,12 @@ fun OfflineAwareRoomHost(
 ) {
     val autoSwitchState by viewModel.autoSwitchState.collectAsStateWithLifecycle()
     val groupStatus by viewModel.groupStatus.collectAsStateWithLifecycle()
+    val convoyModeState by viewModel.convoyModeState.collectAsStateWithLifecycle()
+    val localTransportState by viewModel.localTransportState.collectAsStateWithLifecycle()
+    val stuckExclusionMemberIds by viewModel.stuckExclusionMemberIds.collectAsStateWithLifecycle()
+    val protocolMPromptActive by viewModel.protocolMPromptActive.collectAsStateWithLifecycle()
+    val moreThanSixDisabled by viewModel.moreThanSixParticipantsDisabled.collectAsStateWithLifecycle()
+    val manualReadyAsserted by viewModel.manualReadyAsserted.collectAsStateWithLifecycle()
     val meshParticipants by viewModel.meshParticipants.collectAsStateWithLifecycle()
     val diagSnapshot by viewModel.meshDiagSnapshot.collectAsStateWithLifecycle()
     val lastTransitionReason by viewModel.lastTransitionReason.collectAsStateWithLifecycle()
@@ -137,27 +159,55 @@ fun OfflineAwareRoomHost(
     val isPttActive by micController.pttHeld.collectAsStateWithLifecycle()
 
     var showDiagDialog by remember { mutableStateOf(false) }
+    var pendingExclusionSnapshot by remember { mutableStateOf<Pair<List<String>, Set<String>>?>(null) }
 
     val settingsSnapshot by OfflineMeshGate.settingsFlow.collectAsStateWithLifecycle()
     val isMeshGateOpen = OfflineMeshGate.isOfflineAllowed(offlineMeshEnabled = settingsSnapshot.offlineMeshEnabled)
 
-    val isMeshOverlayActive = isMeshGateOpen && autoSwitchState in setOf(
-        AutoSwitchState.STARTING_OFFLINE_MESH,
-        AutoSwitchState.OFFLINE_ACTIVE,
-        AutoSwitchState.ONLINE_RECOVERING,
-        AutoSwitchState.HANDING_BACK_TO_LIVEKIT
+    val isMeshOverlayActive = isMeshGateOpen && (
+        autoSwitchState in setOf(
+            AutoSwitchState.STARTING_OFFLINE_MESH,
+            AutoSwitchState.OFFLINE_ACTIVE,
+            AutoSwitchState.ONLINE_RECOVERING,
+            AutoSwitchState.HANDING_BACK_TO_LIVEKIT
+        ) || localTransportState in setOf(
+            LocalTransportState.STARTING_OFFLINE,
+            LocalTransportState.OFFLINE_ACTIVE,
+            LocalTransportState.STARTING_ONLINE
+        )
     )
 
+    val effectiveBannerState = when {
+        autoSwitchState != AutoSwitchState.ONLINE -> autoSwitchState
+        else -> when (localTransportState) {
+            LocalTransportState.ONLINE_SUSPECT -> AutoSwitchState.ONLINE_SUSPECT
+            LocalTransportState.STARTING_OFFLINE -> AutoSwitchState.STARTING_OFFLINE_MESH
+            LocalTransportState.OFFLINE_ACTIVE -> AutoSwitchState.OFFLINE_ACTIVE
+            LocalTransportState.STARTING_ONLINE,
+            LocalTransportState.RECOVERY_FAILED -> AutoSwitchState.ONLINE_RECOVERING
+            LocalTransportState.FALLBACK_UNAVAILABLE,
+            LocalTransportState.VOICE_UNAVAILABLE,
+            LocalTransportState.GENERATION_UNKNOWN,
+            LocalTransportState.GENERATION_EXHAUSTED,
+            LocalTransportState.MEMBERSHIP_MISMATCH -> AutoSwitchState.FALLBACK_UNAVAILABLE
+            LocalTransportState.LIVEKIT_PROBE_UNAVAILABLE -> AutoSwitchState.ONLINE_RECOVERING
+            LocalTransportState.ONLINE_ACTIVE -> AutoSwitchState.ONLINE
+        }
+    }
+
     val showTacticalBanner = isMeshGateOpen && !isMeshOverlayActive && (
-        autoSwitchState != AutoSwitchState.ONLINE ||
-        groupStatus == GroupConnectivityStatus.MIXED
+        effectiveBannerState != AutoSwitchState.ONLINE ||
+        groupStatus == GroupConnectivityStatus.MIXED ||
+        moreThanSixDisabled ||
+        convoyModeState == ConvoyModeState.DECISION_CONFLICT ||
+        convoyModeState == ConvoyModeState.MEMBERSHIP_MISMATCH
     )
 
     val showBackupNotReadyChip = isMeshGateOpen &&
         !isMeshOverlayActive &&
         settingsSnapshot.automaticFallbackEnabled &&
         offlineAvailability == OfflineAvailability.NO_SHARED_SECRET &&
-        autoSwitchState == AutoSwitchState.ONLINE
+        effectiveBannerState == AutoSwitchState.ONLINE
 
     val fallbackReason = remember(lastTransitionReason, offlineAvailability) {
         mapTransitionReasonToFallbackReason(lastTransitionReason, offlineAvailability)
@@ -224,7 +274,7 @@ fun OfflineAwareRoomHost(
 
             if (showTacticalBanner) {
                 TacticalBanner(
-                    state = autoSwitchState,
+                    state = effectiveBannerState,
                     groupStatus = groupStatus,
                     peerCount = meshParticipants.count { it.isOnline },
                     maxHops = meshParticipants.maxOfOrNull { it.hopCount } ?: 0,
@@ -244,6 +294,179 @@ fun OfflineAwareRoomHost(
                 snapshot = diagSnapshot,
                 onDismiss = { showDiagDialog = false }
             )
+        }
+
+        // Convoy-wide mode vs local execution status bar, Protocol M manual return, & stuck-offline escape hatch
+        val showConvoyActionCard = isMeshGateOpen && (
+            moreThanSixDisabled ||
+            (convoyModeState == ConvoyModeState.ONLINE_COMMITTED && localTransportState == LocalTransportState.OFFLINE_ACTIVE) ||
+            convoyModeState == ConvoyModeState.ONLINE_PROPOSED ||
+            convoyModeState == ConvoyModeState.MEMBERSHIP_MISMATCH ||
+            convoyModeState == ConvoyModeState.DECISION_CONFLICT ||
+            protocolMPromptActive ||
+            manualReadyAsserted ||
+            stuckExclusionMemberIds.isNotEmpty()
+        )
+        if (showConvoyActionCard) {
+            ConvoyStatusActionCard(
+                convoyModeState = convoyModeState,
+                localTransportState = localTransportState,
+                moreThanSixDisabled = moreThanSixDisabled,
+                protocolMPromptActive = protocolMPromptActive,
+                manualReadyAsserted = manualReadyAsserted,
+                stuckExclusionMemberIds = stuckExclusionMemberIds,
+                onAssertManualReady = { viewModel.assertManualReady(true) },
+                onRequestReturnOnline = {
+                    val frozenExcluded = stuckExclusionMemberIds.toList()
+                    val frozenEligible = viewModel.currentEligibleMemberIds()
+                    pendingExclusionSnapshot = frozenExcluded to frozenEligible
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .rvHorizontalSafeArea()
+                    .padding(horizontal = 12.dp, vertical = 124.dp)
+            )
+        }
+
+        val pendingExcl = pendingExclusionSnapshot
+        if (pendingExcl != null) {
+            val (frozenExcluded, frozenEligible) = pendingExcl
+            val drifted = stuckExclusionMemberIds.toSet() != frozenExcluded.toSet()
+            AlertDialog(
+                onDismissRequest = { pendingExclusionSnapshot = null },
+                title = { Text(text = stringResource(R.string.mesh_convoy_exclude_dialog_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val namesList = frozenExcluded.joinToString(separator = "\n") { "• $it" }
+                        Text(text = stringResource(R.string.mesh_convoy_exclude_dialog_body, namesList))
+                        if (drifted) {
+                            Text(
+                                text = stringResource(R.string.mesh_convoy_exclude_dialog_stale_refresh),
+                                color = MeshColors.AmberYellow,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (drifted) {
+                                pendingExclusionSnapshot = stuckExclusionMemberIds.toList() to viewModel.currentEligibleMemberIds()
+                            } else {
+                                pendingExclusionSnapshot = null
+                                viewModel.confirmManualExclusion(frozenExcluded.toSet(), frozenEligible)
+                            }
+                        }
+                    ) {
+                        Text(
+                            text = if (drifted) {
+                                stringResource(R.string.mesh_convoy_stuck_return_online_action)
+                            } else {
+                                stringResource(R.string.mesh_convoy_exclude_dialog_confirm)
+                            }
+                        )
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { pendingExclusionSnapshot = null }) {
+                        Text(text = stringResource(R.string.mesh_convoy_exclude_dialog_cancel))
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ConvoyStatusActionCard(
+    convoyModeState: ConvoyModeState,
+    localTransportState: LocalTransportState,
+    moreThanSixDisabled: Boolean,
+    protocolMPromptActive: Boolean,
+    manualReadyAsserted: Boolean,
+    stuckExclusionMemberIds: List<String>,
+    onAssertManualReady: () -> Unit,
+    onRequestReturnOnline: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MeshColors.CardBackground),
+        shape = RoundedCornerShape(10.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            when {
+                moreThanSixDisabled -> Text(
+                    text = stringResource(R.string.mesh_convoy_unavailable_gt_six),
+                    color = MeshColors.AmberYellow,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                convoyModeState == ConvoyModeState.ONLINE_COMMITTED && localTransportState == LocalTransportState.OFFLINE_ACTIVE -> Text(
+                    text = stringResource(R.string.mesh_convoy_banner_split_recovered),
+                    color = MeshColors.AmberYellow,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                convoyModeState == ConvoyModeState.ONLINE_PROPOSED -> Text(
+                    text = stringResource(R.string.mesh_convoy_banner_online_proposed),
+                    color = MeshColors.Cyan,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                convoyModeState == ConvoyModeState.MEMBERSHIP_MISMATCH -> Text(
+                    text = stringResource(R.string.mesh_convoy_banner_membership_mismatch),
+                    color = MeshColors.AmberYellow,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                convoyModeState == ConvoyModeState.DECISION_CONFLICT -> Text(
+                    text = stringResource(R.string.mesh_convoy_banner_decision_conflict),
+                    color = MeshColors.Red,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            if (manualReadyAsserted) {
+                Text(
+                    text = stringResource(R.string.mesh_convoy_protocol_m_asserted),
+                    color = MeshColors.Emerald,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            } else if (protocolMPromptActive) {
+                Text(
+                    text = stringResource(R.string.mesh_convoy_protocol_m_prompt),
+                    color = MeshColors.AmberYellow,
+                    style = MaterialTheme.typography.labelSmall
+                )
+                OutlinedButton(
+                    onClick = onAssertManualReady,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = stringResource(R.string.mesh_convoy_protocol_m_button))
+                }
+            }
+
+            if (stuckExclusionMemberIds.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.mesh_convoy_stuck_offline_banner, stuckExclusionMemberIds.size),
+                        color = MeshColors.Slate,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = onRequestReturnOnline) {
+                        Text(text = stringResource(R.string.mesh_convoy_stuck_return_online_action))
+                    }
+                }
+            }
         }
     }
 }

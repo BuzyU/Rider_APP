@@ -35,6 +35,11 @@ class AndroidNetworkLocks(private val context: Context) : NetworkLocks {
     private var loggedNoWifiClient = false
 
     override fun bindSocketToWifi(socket: DatagramSocket): Boolean {
+        if (UdpMeshLink.hasActiveP2pInterface()) {
+            // Wi-Fi Direct interfaces (p2p-wlan0) are not registered as managed TRANSPORT_WIFI networks;
+            // keep socket unbound (0.0.0.0) so it reaches both p2p-wlan0 and wlan0.
+            return false
+        }
         val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         val wifiNetwork = cm?.allNetworks?.firstOrNull { net ->
             cm.getNetworkCapabilities(net)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true

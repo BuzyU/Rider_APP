@@ -122,6 +122,59 @@ class LiveKitManager @Inject constructor(
 
     private val processedAlertIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
+    @Volatile var silentProbeMode: Boolean = false
+        private set
+
+    fun setSilentProbeMode(enabled: Boolean) {
+        silentProbeMode = enabled
+    }
+
+    fun promoteFromSilentProbeToAudio() {
+        silentProbeMode = false
+        if (_connectionState.value != ConnectionState.CONNECTED) return
+        val sessionId = currentSessionId
+        scope.launch {
+            if (silentProbeMode || _connectionState.value != ConnectionState.CONNECTED || sessionId != currentSessionId) return@launch
+            startAudioRoutingAndCollectors()
+            withTimeoutOrNull(5000) {
+                audioDeviceRouter.routerState.first { state ->
+                    state == RouterState.ACTIVE || state == RouterState.FAILED
+                }
+            }
+            if (silentProbeMode || _connectionState.value != ConnectionState.CONNECTED || sessionId != currentSessionId) return@launch
+            publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
+            ensureRemoteAudioTracksEnabled()
+            startVoxSafely()
+        }
+    }
+
+    private fun startAudioRoutingAndCollectors() {
+        audioDeviceRouter.start()
+        voxEngine.onMicStateChange = { open -> onVoiceGate(open) }
+        audioDeviceRouter.onFocusRegained = { restartVox() }
+
+        deviceJob?.cancel()
+        deviceJob = audioDeviceRouter.activeDevice
+            .drop(1)
+            .distinctUntilChanged()
+            .debounce(400)
+            .onEach { device ->
+                scope.launch {
+                    applyRouteOptions(device)
+                    voxEngine.updatePreferredDevice()
+                }
+            }
+            .launchIn(scope)
+
+        republishJob?.cancel()
+        republishJob = scope.launch {
+            audioDeviceRouter.republishRequests.collect {
+                applyRouteOptions(audioDeviceRouter.activeDevice.value)
+                voxEngine.updatePreferredDevice()
+            }
+        }
+    }
+
     var onP2pPingResult: ((peer: String, rttMs: Long) -> Unit)? = null
     private var pingJob: Job? = null
 
@@ -335,11 +388,6 @@ class LiveKitManager @Inject constructor(
 
         _connectionState.value = ConnectionState.CONNECTING
 
-        audioDeviceRouter.start()
-
-        voxEngine.onMicStateChange = { open -> onVoiceGate(open) }
-        audioDeviceRouter.onFocusRegained = { restartVox() }
-
         eventsJob?.cancel()
         runCatching { room?.disconnect() }
         runCatching { room?.release() }
@@ -347,25 +395,8 @@ class LiveKitManager @Inject constructor(
         localAudioTrack = null
         lastOptions = null
 
-        deviceJob?.cancel()
-        deviceJob = audioDeviceRouter.activeDevice
-            .drop(1)
-            .distinctUntilChanged()
-            .debounce(400)
-            .onEach { device ->
-                scope.launch {
-                    applyRouteOptions(device)
-                    voxEngine.updatePreferredDevice()
-                }
-            }
-            .launchIn(scope)
-
-        republishJob?.cancel()
-        republishJob = scope.launch {
-            audioDeviceRouter.republishRequests.collect {
-                applyRouteOptions(audioDeviceRouter.activeDevice.value)
-                voxEngine.updatePreferredDevice()
-            }
+        if (!silentProbeMode) {
+            startAudioRoutingAndCollectors()
         }
 
         try {
@@ -377,7 +408,7 @@ class LiveKitManager @Inject constructor(
                         javaAudioDeviceModuleCustomizer = { builder ->
                             builder.setSamplesReadyCallback { audioSamples ->
                                 val data = audioSamples.data
-                                if (data != null && data.isNotEmpty()) {
+                                if (!silentProbeMode && data != null && data.isNotEmpty()) {
                                     voxEngine.onTxFrame(data, audioSamples.sampleRate)
                                 }
                             }
@@ -430,32 +461,35 @@ class LiveKitManager @Inject constructor(
                 return
             }
 
-            withTimeoutOrNull(5000) {
-                audioDeviceRouter.routerState.first { state ->
-                    state == RouterState.ACTIVE || state == RouterState.FAILED
+            if (!silentProbeMode) {
+                withTimeoutOrNull(5000) {
+                    audioDeviceRouter.routerState.first { state ->
+                        state == RouterState.ACTIVE || state == RouterState.FAILED
+                    }
                 }
-            }
 
-            if (sessionId != currentSessionId) {
-                runCatching { newRoom.disconnect() }
-                runCatching { newRoom.release() }
-                return
-            }
+                if (sessionId != currentSessionId) {
+                    runCatching { newRoom.disconnect() }
+                    runCatching { newRoom.release() }
+                    return
+                }
 
-            publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
+                publishAudioTrack(audioDeviceRouter.activeDevice.value, force = true)
 
-            if (sessionId != currentSessionId) {
-                runCatching { newRoom.disconnect() }
-                runCatching { newRoom.release() }
-                return
+                if (sessionId != currentSessionId) {
+                    runCatching { newRoom.disconnect() }
+                    runCatching { newRoom.release() }
+                    return
+                }
             }
 
             _connectionState.value = ConnectionState.CONNECTED
             reconnectAttempts = 0
             updateParticipantList()
-            ensureRemoteAudioTracksEnabled()
-
-            startVoxSafely()
+            if (!silentProbeMode) {
+                ensureRemoteAudioTracksEnabled()
+                startVoxSafely()
+            }
 
         } catch (ce: kotlinx.coroutines.CancellationException) {
             throw ce
@@ -479,7 +513,7 @@ class LiveKitManager @Inject constructor(
     }
 
     private fun restartVox() {
-        if (_connectionState.value != ConnectionState.CONNECTED) return
+        if (silentProbeMode || _connectionState.value != ConnectionState.CONNECTED) return
         scope.launch {
             voxEngine.updatePreferredDevice()
         }
@@ -498,6 +532,7 @@ class LiveKitManager @Inject constructor(
     }
 
     private suspend fun applyMic() {
+        if (silentProbeMode) return
         val want = voiceGateOpen && !userMuted
         if (room?.localParticipant == null) return
         if (localAudioTrack == null) {
@@ -513,6 +548,7 @@ class LiveKitManager @Inject constructor(
     }
 
     private suspend fun publishAudioTrack(device: AudioDevice, force: Boolean = false) {
+        if (silentProbeMode) return
         currentAudioDevice = device
         val published = publishMutex.withLock {
             val lp = room?.localParticipant ?: return@withLock false
@@ -663,7 +699,7 @@ class LiveKitManager @Inject constructor(
     }
 
     private fun ensureRemoteAudioTracksEnabled() {
-        if (_connectionState.value != ConnectionState.CONNECTED) return
+        if (silentProbeMode || _connectionState.value != ConnectionState.CONNECTED) return
         val v = if (_deafened.value) 0.0 else 1.0
         room?.remoteParticipants?.values?.forEach { p ->
             p.audioTrackPublications.forEach { (pub, track) ->
@@ -704,7 +740,7 @@ class LiveKitManager @Inject constructor(
                 updateParticipantList()
             }
             is RoomEvent.TrackPublished -> {
-                if (_connectionState.value == ConnectionState.CONNECTED) {
+                if (!silentProbeMode && _connectionState.value == ConnectionState.CONNECTED) {
                     (event.publication as? RemoteTrackPublication)?.let { remotePub ->
                         if (remotePub.kind == Track.Kind.AUDIO && !remotePub.subscribed) {
                             remotePub.setSubscribed(true)
@@ -721,10 +757,12 @@ class LiveKitManager @Inject constructor(
                 _connectionState.value = ConnectionState.CONNECTED
                 reconnectAttempts = 0
                 com.ridervoice.utils.RvLog.lk("state=CONNECTED room=$currentRoomId")
-                scope.launch {
-                    applyMic()
-                    ensureRemoteAudioTracksEnabled()
-                    restartVox()
+                if (!silentProbeMode) {
+                    scope.launch {
+                        applyMic()
+                        ensureRemoteAudioTracksEnabled()
+                        restartVox()
+                    }
                 }
             }
             is RoomEvent.Connected -> {

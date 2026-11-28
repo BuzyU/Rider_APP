@@ -166,6 +166,32 @@ class ConvoyPhase5IntegrationTest {
     }
 
     @Test
+    fun lobbyViewModel_incapableHost_marksHostAsNonMeshParticipant() {
+        val api = mockk<ApiService>(relaxed = true)
+        val repo = ActiveRideRepository(prefs = null, api = api)
+        val sessionHolder = OfflineSessionHolder()
+        val vm = LobbyViewModel(api, repo, sessionHolder)
+
+        val sid = UUID.randomUUID().toString()
+        val status = LobbyStatus(
+            roomId = sid,
+            convoyName = "Api27HostConvoy",
+            invites = listOf(
+                LobbyInviteEntry("inv1", "ACCEPTED", LobbyRiderInfo("u-peer1", "r2", "Rider 2", null), offlineConfigStatus = "READY"),
+                LobbyInviteEntry("inv2", "ACCEPTED", LobbyRiderInfo("u-peer2", "r3", "Rider 3", null), offlineConfigStatus = "READY")
+            ),
+            isHost = false,
+            host = LobbyHost(id = "u-host-api27", displayName = "Host", offlineConfigStatus = "UNAVAILABLE_DEVICE"),
+            offlineMeshEnabled = true
+        )
+
+        val snap = vm.buildConvoyMembershipSnapshot(status, localUserId = "u-peer1", localOptOut = false)
+        assertNotNull(snap)
+        assertEquals(listOf("u-peer1", "u-peer2"), snap!!.meshParticipants)
+        assertTrue(snap.isGroupFallbackEligible)
+    }
+
+    @Test
     fun encryptedConvoyStateStore_restoresMembershipSnapshotUsingStableRoomUuidAfterProcessRestart() {
         val backend = InMemoryConvoyKeyValueBackend()
         val store = EncryptedConvoyStateStore(backend)

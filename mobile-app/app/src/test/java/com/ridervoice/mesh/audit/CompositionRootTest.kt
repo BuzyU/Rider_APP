@@ -42,7 +42,7 @@ class CompositionRootTest {
         val wifiDirectController = MeshModule.provideWifiDirectGroupController(mockContext)
         val wifiWatcher = MeshModule.provideWifiNetworkWatcher(mockContext, wifiDirectController)
         val diagnosticsRepo = MeshModule.provideMeshDiagnosticsRepository()
-        val meshTransport = MeshModule.provideOfflineMeshVoiceTransport(identityRepo, arbiter, locks, routeController, hardwarePttPort, wifiWatcher, diagnosticsRepo, mockContext)
+        val meshTransport = MeshModule.provideOfflineMeshVoiceTransport(identityRepo, arbiter, locks, routeController, hardwarePttPort, wifiWatcher, diagnosticsRepo, mockContext, wifiDirectController)
         val liveKitManager = mockk<LiveKitManager>(relaxed = true)
         val voxEngine = mockk<com.ridervoice.audio.VoxEngine>(relaxed = true)
         val lkTransport = MeshModule.provideLiveKitVoiceTransport(liveKitManager, arbiter, voxEngine, mockk(relaxed = true))

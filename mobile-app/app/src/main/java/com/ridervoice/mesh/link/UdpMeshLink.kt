@@ -50,6 +50,12 @@ class UdpMeshLink(
 
     private val endpointTimestamps = ConcurrentHashMap<MeshEndpoint, Long>()
     private val resolvedAddresses = ConcurrentHashMap<String, InetAddress>()
+    @Volatile
+    private var expiryWindowProvider: () -> Long = { expiryWindowMs }
+
+    fun setExpiryWindowProvider(provider: () -> Long) {
+        expiryWindowProvider = provider
+    }
 
     private val exceptionHandler = kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
         if (throwable is kotlinx.coroutines.CancellationException) throw throwable
@@ -223,7 +229,8 @@ class UdpMeshLink(
 
     override fun endpoints(): Set<MeshEndpoint> {
         val now = monotonicClock()
-        endpointTimestamps.entries.removeIf { now - it.value > expiryWindowMs }
+        val windowMs = expiryWindowProvider()
+        endpointTimestamps.entries.removeIf { now - it.value > windowMs }
         return endpointTimestamps.keys.toSet()
     }
 
@@ -271,29 +278,40 @@ class UdpMeshLink(
             return discoverBroadcastEndpoints().firstOrNull()?.host ?: "255.255.255.255"
         }
 
-        fun discoverBroadcastEndpoints(port: Int = MeshConfig.MESH_PORT): List<MeshEndpoint> {
+        fun discoverBroadcastEndpoints(
+            port: Int = MeshConfig.MESH_PORT,
+            p2pGoAddress: String? = null
+        ): List<MeshEndpoint> {
             return runCatching {
                 val nifs = NetworkInterface.getNetworkInterfaces()?.asSequence()
                     ?.filter { it.isUp && !it.isLoopback && !it.isVirtual }
                     ?.toList()
                     .orEmpty()
+                val allLocalIpv4Addrs = nifs
+                    .flatMap { nif ->
+                        nif.interfaceAddresses.asSequence()
+                            .filter { it.address is Inet4Address }
+                            .mapNotNull { it.address?.hostAddress }
+                    }
+                    .toSet()
                 val broadcasts = nifs
                     .flatMap { nif ->
                         nif.interfaceAddresses.asSequence()
                             .filter { it.address is Inet4Address }
                             .mapNotNull { it.broadcast?.hostAddress }
                     }
-                val p2pClientNeedsOwnerTarget = nifs.any { nif ->
-                    nif.name.startsWith("p2p", ignoreCase = true) &&
-                        nif.interfaceAddresses.any { ia ->
-                            val host = (ia.address as? Inet4Address)?.hostAddress
-                            host != null && host.startsWith("192.168.49.") && host != P2P_OWNER_IP
-                        }
-                }
-                val combined = if (p2pClientNeedsOwnerTarget) {
-                    broadcasts + P2P_OWNER_IP
+                val targetGoIp = p2pGoAddress?.takeIf { it.isNotBlank() }
+                val combined = if (targetGoIp != null) {
+                    if (targetGoIp !in allLocalIpv4Addrs) broadcasts + targetGoIp else broadcasts
                 } else {
-                    broadcasts
+                    val p2pClientNeedsOwnerTarget = nifs.any { nif ->
+                        nif.name.startsWith("p2p", ignoreCase = true) &&
+                            nif.interfaceAddresses.any { ia ->
+                                val host = (ia.address as? Inet4Address)?.hostAddress
+                                host != null && host.startsWith("192.168.49.") && host != P2P_OWNER_IP
+                            }
+                    }
+                    if (p2pClientNeedsOwnerTarget) broadcasts + P2P_OWNER_IP else broadcasts
                 }
                 combined
                     .distinct()

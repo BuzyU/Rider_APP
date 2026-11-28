@@ -1,3 +1,26 @@
+## RiderVoice v0.0.3.26 Release Notes
+
+RiderVoice **v0.0.3.26** delivers faster convoy-wide ONLINE ↔ OFFLINE voice switching, deterministic automatic Wi-Fi Direct Group Owner selection and mid-ride failover, cadence-aware neighbor/report timeouts, helmet-audible transition alerts, and multi-endpoint daisy-hop / bus topology foundations.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.26` |
+| **Version Code** | `3026` |
+| **Release Tag** | `v0.0.3.26` |
+| **Download APK** | `Rider_APP-v0.0.3.26.apk` |
+
+### What's new
+- **Fast Convoy-Wide Switching (`3s` Fallback / `4s` Recovery)**: Accelerated suspect and recovery sampling to `200 ms`, enabled non-blocking `1.5 s` `/health` probes in fast-probe mode, lowered stale-`VALIDATED` override threshold to `1 s` (`STALE_VALIDATED_OVERRIDE_MS`), reduced `proposalStaggerMs` to `150 ms` and `reachableNotReadyPromptMs` to `60 s`, and added immediate `inboundWakeSignal` wakeups on incoming convoy decisions and readiness observations
+- **Automatic Wi-Fi Direct Hub Selection & Failover**: Added `StarGroupOwnerSelector`, dynamic Group Owner IP propagation (`p2pOwnerAddress` via `WifiP2pInfo` into `UdpMeshLink`), bounded P2P setup retries (`MAX_SETUP_ATTEMPTS = 8` with `60 s` cooldown and client cooldown reset on GO failover), startup split-brain guard during initial `CONNECTING`, and symmetric host/peer capability sync (`host.offlineConfigStatus` + `ActiveRide.hostUserId`)
+- **Cadence-Aware Timeouts & Helmet Alerts**: Added `CadenceTimeoutPolicy` (`BOOST` `2.5s` / `ACTIVE` `5s` / `STANDBY` `15s` with `6s` tighten grace window), `MeshAudioAlertPlayer` (`STREAM_VOICE_CALL` offline TTS + `ToneGenerator` fallback), `MeshStatusNotifier` haptics/notifications, localized EN/HI/MR UI strings, and P2P link diagnostics metadata
+- **Bus / Daisy-Hop Topology Foundations**: Added orientation-independent `TopologyEngine` (`n <= 6` exact Hamiltonian path), `MeshControlExtension` (`0x81` `POSITION` & `0x82` `GO_ANNOUNCE`), `MeshPositionBridge`, order-invariant `WifiDirectCredentialsFactory.deriveForSegment`, per-`/24` subnet DHCP replacement & individual endpoint expiry in `MeshGraphRepository`, and incoming-endpoint loop prevention in `ForwardingEngine`
+
+### Bug fixes & CI
+- Fixed `WifiDirectGroupManager` setup retry infinite loop on `FAILED`, `[NewApi]`/`[InlinedApi]` lint issues, stale `convoyMembershipSnapshot` sync in `LobbyViewModel`, and pre-handoff `STARTING_OFFLINE` / `STARTING_ONLINE` alerts
+- Integrated `.github/test-census-floor` enforcement (`1028` unit tests) into [`.github/workflows/build.yml`](.github/workflows/build.yml) and updated protocol/state-machine/security/UX docs
+
+---
+
 ## RiderVoice v0.0.3.25 Release Notes
 
 RiderVoice **v0.0.3.25** resolves the offline `IllegalStateException: session closed` crash reported on device testing, upgrades convoy routing so **Starting Point, Meet-up Point, Destination, road polylines, and turn-by-turn guidance stay 100% inside the app**, and enforces **mandatory GPS/location access** before creating or joining any ride.

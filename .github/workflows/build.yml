@@ -104,6 +104,17 @@ jobs:
           if fail > 0 or err > 0:
               sys.exit(1)
 
+          import os, subprocess
+          if os.path.exists('.github/test-census-floor'):
+              with open('.github/test-census-floor', 'r') as ff:
+                  floor = int(ff.read().strip())
+              if total < floor:
+                  commit_msg = subprocess.check_output(['git', 'log', '-1', '--format=%B'], text=True)
+                  if 'TEST-REMOVAL:' not in commit_msg:
+                      print(f'ERROR: Unit test total {total} is below census floor {floor} without TEST-REMOVAL: in commit message')
+                      sys.exit(1)
+              print(f'Census floor verified: {total} >= {floor}')
+
           with open('.github/plan-test-matrix.md', 'r') as f:
               matrix = f.read()
 

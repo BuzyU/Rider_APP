@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.switching
 
+import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.OfflineMeshGate
 import com.ridervoice.mesh.convoy.ConvoyHash
 import com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot
@@ -26,9 +27,20 @@ import com.ridervoice.mesh.convoy.SingleFlightHandoffExecutor
 import com.ridervoice.mesh.convoy.TransportAction
 import com.ridervoice.mesh.convoy.TransportDecision
 import com.ridervoice.mesh.convoy.TransportMode
+import com.ridervoice.mesh.link.AndroidWifiDirectGroupController
+import com.ridervoice.mesh.link.StarGroupOwnerSelector
 import com.ridervoice.mesh.link.WifiDirectGroupController
+import com.ridervoice.mesh.link.WifiDirectStatus
+import com.ridervoice.mesh.notification.MeshStatusEvent
+import com.ridervoice.mesh.notification.MeshStatusNotifier
+import com.ridervoice.mesh.offline.RiderLinkLevel
+import com.ridervoice.mesh.protocol.PayloadCrypto
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSecretProvider
+import com.ridervoice.mesh.topology.MeshControlExtension
+import com.ridervoice.mesh.topology.MeshPositionBridge
+import com.ridervoice.mesh.topology.TopologyEngine
+import com.ridervoice.mesh.topology.TopologyPlan
 import com.ridervoice.mesh.transport.AudioOwner
 import com.ridervoice.mesh.transport.LiveKitVoiceTransport
 import com.ridervoice.mesh.transport.MeshCadence
@@ -49,6 +61,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,7 +70,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentLinkedQueue
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MeshAutoSwitchManager(
     private val activeRideRepository: ActiveRideRepository,
@@ -74,8 +87,16 @@ class MeshAutoSwitchManager(
     private val meshRuntimeSettings: com.ridervoice.mesh.MeshRuntimeSettings? = null,
     private val convoyPersistence: ConvoyStatePersistence? = null,
     private val convoyConfig: ConvoyProtocolConfig = ConvoyProtocolConfig(),
-    private val wifiDirectGroupController: WifiDirectGroupController? = null
+    private val wifiDirectGroupController: WifiDirectGroupController? = null,
+    private val statusNotifier: MeshStatusNotifier? = null,
+    private val positionBridge: MeshPositionBridge? = null,
+    private val dualP2pCapableIdsProvider: () -> Set<String> = { emptySet() }
 ) {
+
+    companion object {
+        const val MAX_DECISION_QUEUE_SIZE = MeshConfig.MAX_DEVICES * 3
+        const val MAX_OBSERVATION_QUEUE_SIZE = MeshConfig.MAX_DEVICES * 5
+    }
 
     private var scope = CoroutineScope(SupervisorJob() + dispatcher)
 
@@ -103,6 +124,9 @@ class MeshAutoSwitchManager(
     private val _manualReadyAsserted = MutableStateFlow(false)
     val manualReadyAsserted: StateFlow<Boolean> = _manualReadyAsserted.asStateFlow()
 
+    private val _topologyPlan = MutableStateFlow<TopologyPlan?>(null)
+    val topologyPlan: StateFlow<TopologyPlan?> = _topologyPlan.asStateFlow()
+
     @Volatile private var pendingExclusionRequest: ManualExclusionRequest? = null
     @Volatile private var convoyCoordinator: ConvoyTransportCoordinator? = null
     @Volatile private var convoyExecutor: SingleFlightHandoffExecutor? = null
@@ -110,8 +134,77 @@ class MeshAutoSwitchManager(
     @Volatile private var lastConvoyOutput: CoordinatorOutput? = null
     @Volatile private var latestSignals: LocalHealthSignals? = null
     @Volatile private var localIncarnation: Long = EncryptedConvoyStateStore.generateSenderIncarnation()
-    private val inboundDecisionQueue = ConcurrentLinkedQueue<TransportDecision>()
-    private val inboundObservationQueue = ConcurrentLinkedQueue<MemberObservation>()
+    private val queueLock = Any()
+    private val inboundDecisionQueue = ArrayDeque<TransportDecision>()
+    private val inboundObservationQueue = ArrayDeque<MemberObservation>()
+    private val inboundWakeSignal = Channel<Unit>(Channel.CONFLATED)
+    @Volatile internal var pendingControlBurst: Boolean = false
+    @Volatile private var lastSelectedGoId: String? = null
+    private val excludedGoIds = HashMap<String, Long>()
+    private var goAbsentSinceMs: Long? = null
+    private var lastNotifiedTransportState: LocalTransportState? = null
+    private var lastNotifiedP2pStatus: WifiDirectStatus? = null
+    @Volatile private var adoptedGoAnnounce: MeshControlExtension.GoAnnounce? = null
+    private var topologyElectionEpoch: Int = 0
+    private var hasConnectedToCurrentGo: Boolean = false
+    private var lastGoAnnounceSentMs: Long = 0L
+
+    internal fun enqueueBoundedDecision(decision: TransportDecision) {
+        synchronized(queueLock) {
+            while (inboundDecisionQueue.size >= MAX_DECISION_QUEUE_SIZE) {
+                inboundDecisionQueue.removeFirst()
+            }
+            inboundDecisionQueue.addLast(decision)
+        }
+        inboundWakeSignal.trySend(Unit)
+    }
+
+    internal fun enqueueBoundedObservation(observation: MemberObservation) {
+        synchronized(queueLock) {
+            while (inboundObservationQueue.size >= MAX_OBSERVATION_QUEUE_SIZE) {
+                inboundObservationQueue.removeFirst()
+            }
+            inboundObservationQueue.addLast(observation)
+        }
+        if (observation.recoveryEligible || observation.ackFor != null) {
+            inboundWakeSignal.trySend(Unit)
+        }
+    }
+
+    internal fun drainBoundedDecisions(): List<TransportDecision> = synchronized(queueLock) {
+        val out = inboundDecisionQueue.toList()
+        inboundDecisionQueue.clear()
+        out
+    }
+
+    internal fun drainBoundedObservations(): List<MemberObservation> = synchronized(queueLock) {
+        val out = inboundObservationQueue.toList()
+        inboundObservationQueue.clear()
+        out
+    }
+
+    internal suspend fun awaitNextTickOrWakeForTest(tickDelayMs: Long): Boolean =
+        withTimeoutOrNull(tickDelayMs) { inboundWakeSignal.receive() } != null
+
+    internal fun flushControlBurstIfAlive(
+        membership: ConvoyMembershipSnapshot,
+        out: CoordinatorOutput,
+        signals: LocalHealthSignals,
+        localId: String,
+        needsBurst: Boolean
+    ): Boolean {
+        if (needsBurst && !signals.isMeshTransportAlive) {
+            pendingControlBurst = true
+            return false
+        }
+        if ((needsBurst || pendingControlBurst) && signals.isMeshTransportAlive) {
+            val bytes = buildControlPayloadBytes(membership, out, signals, localId) ?: return false
+            meshTransport.sendControlFrame(bytes)
+            pendingControlBurst = false
+            return true
+        }
+        return false
+    }
 
     fun assertManualReady(ready: Boolean) {
         _manualReadyAsserted.value = ready
@@ -243,7 +336,13 @@ class MeshAutoSwitchManager(
 
                     val backup = if (isMeshCapExceeded) null else secretProvider.getSessionForOnlineRide(ride.roomId)
                     if (!isMeshCapExceeded && backup != null && OfflineMeshGate.isBuildGateOpen()) {
-                        wifiDirectGroupController?.ensureActive(backup, isHost = ride.isHost)
+                        ensureP2pGroupWithSelector(
+                            ride = ride,
+                            membership = membership,
+                            backup = backup,
+                            localId = localOnlineIdentity(),
+                            nowMs = clock.nowMs()
+                        )
                     } else if (isMeshCapExceeded) {
                         wifiDirectGroupController?.stop()
                     }
@@ -274,7 +373,8 @@ class MeshAutoSwitchManager(
                     val staleValidatedOverride = signals.isValidatedInternet &&
                         probeAndLkDown &&
                         probeFailedWithoutLkSinceMs != null &&
-                        (nowSample - probeFailedWithoutLkSinceMs >= 2_000L || signals.liveKitReconnectAttempts >= 2)
+                        (nowSample - probeFailedWithoutLkSinceMs >= MeshConfig.STALE_VALIDATED_OVERRIDE_MS ||
+                            signals.liveKitReconnectAttempts >= 2)
                     val effectiveSignals = if (staleValidatedOverride) {
                         signals.copy(isValidatedInternet = false)
                     } else {
@@ -330,14 +430,8 @@ class MeshAutoSwitchManager(
                                 (validatedOnlineWithoutLkSinceMs != null && (now - validatedOnlineWithoutLkSinceMs) >= convoyConfig.recoveryStabilityMs + 4_000L)
                             )
 
-                        val decisionsIn = ArrayList<TransportDecision>()
-                        while (true) {
-                            decisionsIn.add(inboundDecisionQueue.poll() ?: break)
-                        }
-                        val obsIn = ArrayList<MemberObservation>()
-                        while (true) {
-                            obsIn.add(inboundObservationQueue.poll() ?: break)
-                        }
+                        val decisionsIn = drainBoundedDecisions()
+                        val obsIn = drainBoundedObservations()
 
                         val lkReadiness = when (liveKitManager.connectionState.value) {
                             ConnectionState.CONNECTED -> if (recoveryStable) LiveKitReadiness.READY else LiveKitReadiness.CONNECTED_UNVERIFIED
@@ -415,6 +509,7 @@ class MeshAutoSwitchManager(
                             when (cmd) {
                                 is SingleFlightHandoffExecutor.Command.RunFallback -> {
                                     _localTransportState.value = LocalTransportState.STARTING_OFFLINE
+                                    emitEdgeStatusNotifications()
                                     val ok = coordinator.fallbackToMesh()
                                     executor.onHandoffFinished(cmd.decision.decisionId, ok, clock.nowMs())
                                     if (ok) {
@@ -428,6 +523,7 @@ class MeshAutoSwitchManager(
                                 }
                                 is SingleFlightHandoffExecutor.Command.RunRecovery -> {
                                     _localTransportState.value = LocalTransportState.STARTING_ONLINE
+                                    emitEdgeStatusNotifications()
                                     val ok = coordinator.recoverToLiveKit()
                                     executor.onHandoffFinished(cmd.decision.decisionId, ok, clock.nowMs())
                                     if (ok) {
@@ -450,15 +546,13 @@ class MeshAutoSwitchManager(
                             }
                         }
 
-                        if (needsBurst && effectiveSignals.isMeshTransportAlive) {
-                            buildControlPayloadBytes(membership, out, effectiveSignals, localId)?.let { bytes ->
-                                meshTransport.sendControlFrame(bytes)
-                            }
-                        }
+                        flushControlBurstIfAlive(membership, out, effectiveSignals, localId, needsBurst)
                     } else {
                         stateMachine.evaluate(effectiveSignals, offlineAvailable = offlineAvailable)
                         _localTransportState.value = mapLegacyStateToLocalTransport(stateMachine.state.value, isMeshCapExceeded)
                     }
+
+                    emitEdgeStatusNotifications()
 
                     // Accelerate mesh peer discovery as soon as local online loss starts so
                     // nearby phones exchange HELLO routes before fallback confirmation expires.
@@ -486,9 +580,24 @@ class MeshAutoSwitchManager(
                     val unifiedPeers = buildUnifiedParticipantList(isLocalOffline)
                     _groupStatus.value = computeGroupConnectivity(isLocalOffline, unifiedPeers)
 
-                    val tickDelayMs = 1_000L
-                    delay(tickDelayMs)
+                    val isCurrentlyOffline = isLocalOffline ||
+                        convoyCoord?.currentAcceptedDecision()?.mode == TransportMode.OFFLINE ||
+                        _localTransportState.value == LocalTransportState.OFFLINE_ACTIVE
+                    val isSuspectOrStarting =
+                        _localTransportState.value == LocalTransportState.ONLINE_SUSPECT ||
+                        _localTransportState.value == LocalTransportState.STARTING_OFFLINE ||
+                        stateMachine.state.value == AutoSwitchState.ONLINE_SUSPECT ||
+                        stateMachine.state.value == AutoSwitchState.STARTING_OFFLINE_MESH
+                    val isRecoveringFast =
+                        (isCurrentlyOffline && recoveryStableSinceMs != null) ||
+                        _convoyModeState.value == ConvoyModeState.ONLINE_PROPOSED ||
+                        _localTransportState.value == LocalTransportState.STARTING_ONLINE ||
+                        stateMachine.state.value == AutoSwitchState.ONLINE_RECOVERING
+                    healthSignalsProvider.setFastProbeMode(isSuspectOrStarting)
+                    val tickDelayMs = if (isSuspectOrStarting || isRecoveringFast) MeshConfig.SUSPECT_TICK_MS else 1_000L
+                    withTimeoutOrNull(tickDelayMs) { inboundWakeSignal.receive() }
                 }
+                healthSignalsProvider.setFastProbeMode(false)
 
                 if (!OfflineMeshGate.isOfflineAllowed()) {
                     val wasOffOnline = stateMachine.state.value != AutoSwitchState.ONLINE
@@ -566,6 +675,7 @@ class MeshAutoSwitchManager(
 
     fun close() {
         stop()
+        statusNotifier?.release()
         scope.cancel()
     }
 
@@ -573,8 +683,22 @@ class MeshAutoSwitchManager(
         val persistedState = convoyPersistence?.load(ConvoyHash.stableSessionUuid(ride.roomId))
         val snap = ride.convoyMembershipSnapshot ?: persistedState?.membership
         activeConvoyMembership = snap
-        inboundDecisionQueue.clear()
-        inboundObservationQueue.clear()
+        synchronized(queueLock) {
+            inboundDecisionQueue.clear()
+            inboundObservationQueue.clear()
+        }
+        pendingControlBurst = false
+        lastSelectedGoId = null
+        excludedGoIds.clear()
+        goAbsentSinceMs = null
+        lastNotifiedTransportState = null
+        lastNotifiedP2pStatus = null
+        adoptedGoAnnounce = null
+        topologyElectionEpoch = 0
+        hasConnectedToCurrentGo = false
+        lastGoAnnounceSentMs = 0L
+        positionBridge?.clear()
+        _topologyPlan.value = null
         lastConvoyOutput = null
         pendingExclusionRequest = null
         _stuckExclusionMemberIds.value = emptyList()
@@ -605,13 +729,35 @@ class MeshAutoSwitchManager(
         meshTransport.onControlPacketReceived = { pkt ->
             val currentSnap = activeConvoyMembership
             if (currentSnap != null && !currentSnap.isMeshCapExceeded) {
-                val res = ConvoyStateCodec.decode(pkt.payload, currentSnap.meshParticipants.size)
-                if (res is ConvoyStateDecodeResult.Ok) {
-                    res.payload.decision?.let { inboundDecisionQueue.add(it) }
-                    val rxMs = clock.nowMs()
-                    for (rec in res.payload.records) {
-                        val originId = currentSnap.meshParticipants.getOrNull(rec.rosterIdx) ?: continue
-                        inboundObservationQueue.add(rec.toObservation(originId, rxMs))
+                val discriminator = pkt.payload.firstOrNull()
+                if (discriminator == MeshControlExtension.DISCRIMINATOR_POSITION) {
+                    val senderUid = resolveOnlineMemberId(pkt.sourceId, currentSnap)
+                    if (senderUid != null) {
+                        MeshControlExtension.decodePosition(pkt.payload, senderUid)?.let { fix ->
+                            positionBridge?.recordRemotePosition(fix)
+                        }
+                    }
+                } else if (discriminator == MeshControlExtension.DISCRIMINATOR_GO_ANNOUNCE) {
+                    MeshControlExtension.decodeGoAnnounce(pkt.payload)?.let { announce ->
+                        val isLiveOffline = _localTransportState.value == LocalTransportState.OFFLINE_ACTIVE ||
+                            stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE
+                        val cur = adoptedGoAnnounce
+                        if (cur == null || (!isLiveOffline && announce.beats(cur))) {
+                            adoptedGoAnnounce = announce
+                            if (announce.electionEpoch > topologyElectionEpoch) {
+                                topologyElectionEpoch = announce.electionEpoch
+                            }
+                        }
+                    }
+                } else {
+                    val res = ConvoyStateCodec.decode(pkt.payload, currentSnap.meshParticipants.size)
+                    if (res is ConvoyStateDecodeResult.Ok) {
+                        res.payload.decision?.let { enqueueBoundedDecision(it) }
+                        val rxMs = clock.nowMs()
+                        for (rec in res.payload.records) {
+                            val originId = currentSnap.meshParticipants.getOrNull(rec.rosterIdx) ?: continue
+                            enqueueBoundedObservation(rec.toObservation(originId, rxMs))
+                        }
                     }
                 }
             }
@@ -633,8 +779,22 @@ class MeshAutoSwitchManager(
         activeConvoyMembership = null
         lastConvoyOutput = null
         pendingExclusionRequest = null
-        inboundDecisionQueue.clear()
-        inboundObservationQueue.clear()
+        synchronized(queueLock) {
+            inboundDecisionQueue.clear()
+            inboundObservationQueue.clear()
+        }
+        pendingControlBurst = false
+        lastSelectedGoId = null
+        excludedGoIds.clear()
+        goAbsentSinceMs = null
+        lastNotifiedTransportState = null
+        lastNotifiedP2pStatus = null
+        adoptedGoAnnounce = null
+        topologyElectionEpoch = 0
+        hasConnectedToCurrentGo = false
+        lastGoAnnounceSentMs = 0L
+        positionBridge?.clear()
+        _topologyPlan.value = null
         meshTransport.controlPayloadProvider = null
         meshTransport.onControlPacketReceived = null
         _convoyModeState.value = ConvoyModeState.ONLINE
@@ -727,5 +887,224 @@ class MeshAutoSwitchManager(
         AutoSwitchState.ONLINE_RECOVERING, AutoSwitchState.HANDING_BACK_TO_LIVEKIT -> LocalTransportState.STARTING_ONLINE
         AutoSwitchState.FALLBACK_UNAVAILABLE -> if (moreThanSix) LocalTransportState.VOICE_UNAVAILABLE else LocalTransportState.FALLBACK_UNAVAILABLE
         AutoSwitchState.SESSION_ENDED -> LocalTransportState.ONLINE_ACTIVE
+    }
+
+    private fun resolveOnlineMemberId(
+        meshDeviceId: String,
+        membership: ConvoyMembershipSnapshot
+    ): String? {
+        if (meshDeviceId in membership.meshParticipants) return meshDeviceId
+        val peerTag = meshTransport.participants.value
+            .filterIsInstance<UnifiedVoicePeer>()
+            .firstOrNull { it.id == meshDeviceId }
+            ?.onlineIdTag ?: return null
+        if (peerTag in membership.meshParticipants) return peerTag
+        val session = secretProvider.backupSession.value
+        val key = if (session != null && !session.isClosed) {
+            runCatching { session.payloadKey() }.getOrNull()
+        } else null
+        key ?: return null
+        return membership.meshParticipants.firstOrNull { uid ->
+            PayloadCrypto.computeOnlineIdTag(key, uid) == peerTag
+        }
+    }
+
+    private fun isMemberPresentOnMesh(
+        memberId: String,
+        meshPeers: List<UnifiedVoicePeer>
+    ): Boolean {
+        val rawIds = meshPeers.mapNotNull { it.onlineIdTag ?: it.id }
+        if (memberId in rawIds || meshPeers.any { it.id == memberId }) return true
+        val session = secretProvider.backupSession.value
+        val key = if (session != null && !session.isClosed) {
+            runCatching { session.payloadKey() }.getOrNull()
+        } else null
+        key ?: return false
+        val expectedTag = PayloadCrypto.computeOnlineIdTag(key, memberId)
+        return expectedTag in rawIds
+    }
+
+    private fun ensureP2pGroupWithSelector(
+        ride: ActiveRideRepository.ActiveRide,
+        membership: ConvoyMembershipSnapshot?,
+        backup: com.ridervoice.mesh.session.OfflineSession,
+        localId: String?,
+        nowMs: Long
+    ) {
+        val controller = wifiDirectGroupController ?: return
+        val localLinkLevel = ride.meshConfig?.linkLevel
+        if (localLinkLevel != null && localLinkLevel != RiderLinkLevel.AUTO_P2P) {
+            lastSelectedGoId = null
+            _topologyPlan.value = null
+            controller.stop()
+            return
+        }
+
+        if (membership == null || localId == null || !membership.isMeshParticipant(localId)) {
+            controller.ensureActive(backup, isHost = ride.isHost)
+            return
+        }
+
+        excludedGoIds.entries.removeIf { it.value <= nowMs }
+        val isLiveOfflineVoice = _localTransportState.value == LocalTransportState.OFFLINE_ACTIVE ||
+            _localTransportState.value == LocalTransportState.FALLBACK_UNAVAILABLE ||
+            stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE
+        val p2pConnected = controller.isGroupConnected.value
+        if (p2pConnected) {
+            hasConnectedToCurrentGo = true
+        }
+        val prevGoId = lastSelectedGoId
+
+        val meshPeers = meshTransport.participants.value.filterIsInstance<UnifiedVoicePeer>()
+        var forceReelect = false
+        if (prevGoId != null && prevGoId != localId && !p2pConnected) {
+            if (controller.status.value == WifiDirectStatus.FAILED) {
+                excludedGoIds[prevGoId] = nowMs + MeshConfig.GO_EXCLUSION_TTL_MS
+                goAbsentSinceMs = null
+                forceReelect = true
+            } else if (isLiveOfflineVoice || hasConnectedToCurrentGo) {
+                val goPresent = controller.status.value == WifiDirectStatus.CONNECTED ||
+                    isMemberPresentOnMesh(prevGoId, meshPeers)
+                if (goPresent) {
+                    goAbsentSinceMs = null
+                } else {
+                    val firstAbsent = goAbsentSinceMs ?: nowMs.also { goAbsentSinceMs = it }
+                    if (nowMs - firstAbsent >= MeshConfig.GO_LOSS_DETECTION_MS) {
+                        excludedGoIds[prevGoId] = nowMs + MeshConfig.GO_EXCLUSION_TTL_MS
+                        goAbsentSinceMs = null
+                        forceReelect = true
+                    }
+                }
+            } else {
+                // Initial connection setup before first group formation: do not prematurely exclude host
+                goAbsentSinceMs = null
+            }
+        } else {
+            goAbsentSinceMs = null
+        }
+
+        val positionsMap = positionBridge?.snapshotPositions(localId).orEmpty()
+        val plan = TopologyEngine.computePlan(
+            meshParticipants = membership.meshParticipants,
+            positions = positionsMap,
+            dualP2pCapableIds = dualP2pCapableIdsProvider(),
+            currentHostId = ride.hostUserId,
+            electionEpoch = topologyElectionEpoch
+        )
+        _topologyPlan.value = plan
+
+        val selectorGoId = StarGroupOwnerSelector.selectGoId(
+            StarGroupOwnerSelector.Input(
+                meshParticipants = membership.meshParticipants,
+                hostUserId = ride.hostUserId,
+                previousGoId = prevGoId,
+                isP2pConnected = p2pConnected,
+                isLiveOfflineVoiceActive = isLiveOfflineVoice,
+                excludedGoIds = excludedGoIds.keys,
+                positions = positionsMap.mapValues { it.value.latDeg to it.value.lonDeg },
+                forceReelect = forceReelect
+            )
+        )
+        val adopted = adoptedGoAnnounce
+        val adoptedGoId = if (!isLiveOfflineVoice && !forceReelect && adopted != null) {
+            val candidate = membership.meshParticipants.getOrNull(adopted.electedRosterIdx)
+            val expectedTag = candidate?.let { ConvoyHash.computeProposerTag(membership.sessionId, it) }
+            if (candidate != null &&
+                candidate !in excludedGoIds.keys &&
+                expectedTag != null &&
+                expectedTag.contentEquals(adopted.electedGoTag)
+            ) {
+                candidate
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+        val selectedGoId = adoptedGoId ?: selectorGoId
+        lastSelectedGoId = selectedGoId
+        if (selectedGoId != null && prevGoId != null && selectedGoId != prevGoId) {
+            hasConnectedToCurrentGo = false
+            controller.resetFailureCooldown()
+            topologyElectionEpoch++
+        }
+        val isGo = selectedGoId != null && selectedGoId == localId
+        controller.ensureActive(backup, isHost = isGo)
+
+        val linkAlive = runCatching { meshTransport.isLinkAlive.value }.getOrDefault(false)
+        if (linkAlive) {
+            if (positionBridge != null) {
+                positionBridge.maybeBuildPositionBroadcast(localId)?.let { posFrame ->
+                    meshTransport.sendControlFrame(posFrame)
+                }
+            }
+            if (isGo && selectedGoId != null &&
+                (selectedGoId != prevGoId || (nowMs - lastGoAnnounceSentMs) >= MeshConfig.TOPOLOGY_SETTLE_MS)
+            ) {
+                val rosterIdx = membership.indexOfMeshParticipant(selectedGoId)
+                if (rosterIdx in 0..255) {
+                    val goTag = ConvoyHash.computeProposerTag(membership.sessionId, selectedGoId)
+                    val goFrame = MeshControlExtension.encodeGoAnnounce(
+                        MeshControlExtension.GoAnnounce(
+                            electionEpoch = topologyElectionEpoch,
+                            electedGoTag = goTag,
+                            electedRosterIdx = rosterIdx
+                        )
+                    )
+                    meshTransport.sendControlFrame(goFrame)
+                    lastGoAnnounceSentMs = nowMs
+                }
+            }
+        }
+
+        runCatching {
+            meshTransport.diagnosticsRepo.updateLinkMetadata(
+                linkLevel = (localLinkLevel ?: RiderLinkLevel.AUTO_P2P).wireName,
+                p2pStatus = controller.status.value.name,
+                p2pGoIp = controller.p2pOwnerAddress.value.orEmpty(),
+                selectedGoId = selectedGoId.orEmpty()
+            )
+        }
+    }
+
+    private fun emitEdgeStatusNotifications() {
+        val notifier = statusNotifier ?: return
+        val deafened = runCatching { meshTransport.deafened.value }.getOrDefault(false)
+        val curState = _localTransportState.value
+        val prevState = lastNotifiedTransportState
+        if (curState != prevState) {
+            lastNotifiedTransportState = curState
+            val event = when (curState) {
+                LocalTransportState.STARTING_OFFLINE -> MeshStatusEvent.STARTING_OFFLINE
+                LocalTransportState.OFFLINE_ACTIVE -> MeshStatusEvent.OFFLINE_ACTIVE
+                LocalTransportState.STARTING_ONLINE -> MeshStatusEvent.STARTING_ONLINE
+                LocalTransportState.ONLINE_ACTIVE -> if (prevState in setOf(
+                        LocalTransportState.OFFLINE_ACTIVE,
+                        LocalTransportState.STARTING_ONLINE,
+                        LocalTransportState.RECOVERY_FAILED
+                    )
+                ) MeshStatusEvent.ONLINE_RECOVERED else null
+                else -> null
+            }
+            event?.let { notifier.notify(it, isDeafened = deafened) }
+        }
+
+        val curP2p = wifiDirectGroupController?.status?.value
+        val prevP2p = lastNotifiedP2pStatus
+        if (curP2p != null && curP2p != prevP2p) {
+            lastNotifiedP2pStatus = curP2p
+            when (curP2p) {
+                WifiDirectStatus.DISABLED_WIFI_OFF -> notifier.notify(
+                    MeshStatusEvent.WIFI_OFF,
+                    isDeafened = deafened
+                )
+                WifiDirectStatus.FAILED -> notifier.notify(
+                    MeshStatusEvent.LINK_FAILED,
+                    isDeafened = deafened,
+                    attempts = AndroidWifiDirectGroupController.MAX_SETUP_ATTEMPTS
+                )
+                else -> Unit
+            }
+        }
     }
 }

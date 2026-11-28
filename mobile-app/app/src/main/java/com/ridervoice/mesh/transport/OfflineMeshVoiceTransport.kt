@@ -132,12 +132,22 @@ class OfflineMeshVoiceTransport(
     override val isLinkAlive: StateFlow<Boolean> = _isLinkAlive.asStateFlow()
 
     val helloIntervalMs = java.util.concurrent.atomic.AtomicLong(MeshConfig.HELLO_INTERVAL_MS)
+    private val _cadence = MutableStateFlow(MeshCadence.STANDBY)
+    override val cadence: StateFlow<MeshCadence> = _cadence.asStateFlow()
+    @Volatile
+    private var timeoutPolicy: CadenceTimeoutPolicy? = null
     private val cadenceWakeSignal = Channel<Unit>(Channel.CONFLATED)
     override fun setHelloIntervalMs(intervalMs: Long) {
         val prev = helloIntervalMs.getAndSet(intervalMs)
         if (intervalMs < prev) {
             cadenceWakeSignal.trySend(Unit)
         }
+    }
+
+    override fun setCadence(cadence: MeshCadence) {
+        _cadence.value = cadence
+        timeoutPolicy?.onCadenceChanged(cadence)
+        setHelloIntervalMs(cadence.intervalMs)
     }
 
     private val _audioRoute = MutableStateFlow(AudioRoute.SPEAKER)
@@ -249,11 +259,16 @@ class OfflineMeshVoiceTransport(
             val sManager = SessionManager(session, currentIdentity.deviceId, clock, monotonicClock)
             sessionManager = sManager
 
+            val policy = CadenceTimeoutPolicy(monotonicClock).also { timeoutPolicy = it }
+            _cadence.value = MeshCadence.STANDBY
+
             val gRepo = MeshGraphRepository(
                 selfId = currentIdentity.deviceId,
                 selfName = currentIdentity.displayName,
                 clock = clock,
-                monotonicClock = monotonicClock
+                monotonicClock = monotonicClock,
+                neighborTimeoutMsProvider = { policy.directTimeoutMs() },
+                remoteReportTimeoutMsProvider = { policy.remoteReportTimeoutMs() }
             ).apply {
                 selfOnlineTagProvider = {
                     if (session.isClosed) {
@@ -286,6 +301,7 @@ class OfflineMeshVoiceTransport(
             jitterManager = jManager
 
             val uLink = linkFactory()
+            (uLink as? UdpMeshLink)?.setExpiryWindowProvider { policy.directTimeoutMs() }
             link = uLink
 
             val fEngine = ForwardingEngine(
@@ -307,7 +323,8 @@ class OfflineMeshVoiceTransport(
                 onlineIdentitySupplier = { onlineIdentitySupplier() },
                 onLocalControlPacket = { pkt ->
                     onControlPacketReceived?.invoke(pkt)
-                }
+                },
+                neighborTimeoutMsProvider = { policy.directTimeoutMs() }
             )
             fEngine.onFormatChangedListener = {
                 jManager.resetAll()
@@ -731,7 +748,7 @@ class OfflineMeshVoiceTransport(
         _audioFailure.value = null
         try {
             startDiscoveryOnly(offlineSession)
-            helloIntervalMs.set(MeshConfig.HELLO_INTERVAL_MS)
+            setCadence(MeshCadence.ACTIVE)
             if (_state.value == VoiceTransportState.CONNECTED) {
                 val audioRes = runCatchingCancellable { enableAudio() }.getOrElse { err ->
                     EnableAudioResult.Failure(EnableAudioResult.Failure.Code.UNEXPECTED, err.javaClass.simpleName)

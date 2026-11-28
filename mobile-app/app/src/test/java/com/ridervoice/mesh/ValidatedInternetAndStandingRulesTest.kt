@@ -1,5 +1,6 @@
 package com.ridervoice.mesh
 
+import com.ridervoice.mesh.switching.AntiFlappingConfig
 import com.ridervoice.mesh.switching.AutoSwitchState
 import com.ridervoice.mesh.switching.AutomaticSwitchStateMachine
 import com.ridervoice.mesh.switching.LocalHealthSignals
@@ -148,6 +149,7 @@ class ValidatedInternetAndStandingRulesTest {
         var now = 100_000L
         val sm = AutomaticSwitchStateMachine(
             isGateAllowed = { true },
+            config = AntiFlappingConfig(failureConfirmationMs = 10_000L),
             clock = { now },
             onHandoffToOffline = { true }
         )

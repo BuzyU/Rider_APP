@@ -106,6 +106,13 @@ class NetworkProtocolHardeningTest {
     }
 
     @Test
+    fun discoverBroadcastEndpoints_prefersDynamicGoAddressOverDefault() {
+        val dynamicIp = "192.168.49.77"
+        val withDynamic = UdpMeshLink.discoverBroadcastEndpoints(MeshConfig.MESH_PORT, dynamicIp)
+        assertTrue("Dynamic GO IP $dynamicIp must be included", withDynamic.any { it.host == dynamicIp })
+    }
+
+    @Test
     fun routingTable_concurrentReadWrite() {
         val table = RoutingTable()
         val numThreads = 8

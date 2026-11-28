@@ -3,6 +3,7 @@ package com.ridervoice.di
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.content.ContextCompat
 import com.google.firebase.auth.FirebaseAuth
 import com.ridervoice.audio.HardwarePTTManager
@@ -26,6 +27,11 @@ import com.ridervoice.mesh.link.NetworkLocks
 import com.ridervoice.mesh.link.UdpMeshLink
 import com.ridervoice.mesh.link.WifiDirectGroupController
 import com.ridervoice.mesh.link.WifiNetworkWatcher
+import com.ridervoice.mesh.notification.AndroidMeshAudioCuePlayer
+import com.ridervoice.mesh.notification.MeshAudioCuePlayer
+import com.ridervoice.mesh.notification.MeshStatusNotifier
+import com.ridervoice.mesh.topology.AndroidPositionSource
+import com.ridervoice.mesh.topology.MeshPositionBridge
 import com.ridervoice.mesh.session.EncryptedPrefsBackupSessionStore
 import com.ridervoice.mesh.session.HolderOfflineSecretProvider
 import com.ridervoice.mesh.session.NullOfflineSecretProvider
@@ -185,7 +191,8 @@ object MeshModule {
         hardwarePttPort: HardwarePttPort,
         wifiWatcher: WifiNetworkWatcher,
         diagnosticsRepo: MeshDiagnosticsRepository,
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
+        wifiDirectGroupController: WifiDirectGroupController
     ): OfflineMeshVoiceTransport = OfflineMeshVoiceTransport(
         identityProvider = { identityRepo.get() },
         audioOwnershipArbiter = arbiter,
@@ -194,6 +201,12 @@ object MeshModule {
         hardwarePttPort = hardwarePttPort,
         wifiWatcher = wifiWatcher,
         diagnosticsRepo = diagnosticsRepo,
+        broadcastProvider = {
+            UdpMeshLink.discoverBroadcastEndpoints(
+                port = MeshConfig.MESH_PORT,
+                p2pGoAddress = wifiDirectGroupController.p2pOwnerAddress.value
+            )
+        },
         peerFilterPort = com.ridervoice.mesh.forwarding.PeerFilterHolder.delegating,
         linkFactory = {
             UdpMeshLink(
@@ -260,6 +273,28 @@ object MeshModule {
 
     @Provides
     @Singleton
+    fun provideMeshAudioCuePlayer(
+        @ApplicationContext context: Context
+    ): MeshAudioCuePlayer = AndroidMeshAudioCuePlayer(context)
+
+    @Provides
+    @Singleton
+    fun provideMeshStatusNotifier(
+        @ApplicationContext context: Context,
+        audioCuePlayer: MeshAudioCuePlayer
+    ): MeshStatusNotifier = MeshStatusNotifier(
+        context = context,
+        audioCuePlayer = audioCuePlayer
+    )
+
+    @Provides
+    @Singleton
+    fun provideMeshPositionBridge(
+        @ApplicationContext context: Context
+    ): MeshPositionBridge = MeshPositionBridge(AndroidPositionSource(context))
+
+    @Provides
+    @Singleton
     fun provideMeshAutoSwitchManager(
         activeRideRepository: ActiveRideRepository,
         liveKitManager: LiveKitManager,
@@ -270,7 +305,9 @@ object MeshModule {
         sessionHolder: OfflineSessionHolder,
         runtimeSettings: com.ridervoice.mesh.MeshRuntimeSettings,
         convoyStateStore: com.ridervoice.mesh.convoy.EncryptedConvoyStateStore,
-        wifiDirectGroupController: WifiDirectGroupController
+        wifiDirectGroupController: WifiDirectGroupController,
+        statusNotifier: MeshStatusNotifier,
+        positionBridge: MeshPositionBridge
     ): MeshAutoSwitchManager = MeshAutoSwitchManager(
         activeRideRepository = activeRideRepository,
         liveKitManager = liveKitManager,
@@ -282,7 +319,9 @@ object MeshModule {
         sessionHolder = sessionHolder,
         meshRuntimeSettings = runtimeSettings,
         convoyPersistence = convoyStateStore,
-        wifiDirectGroupController = wifiDirectGroupController
+        wifiDirectGroupController = wifiDirectGroupController,
+        statusNotifier = statusNotifier,
+        positionBridge = positionBridge
     )
 
     @Provides
@@ -304,13 +343,36 @@ object MeshModule {
         @ApplicationContext context: Context
     ): com.ridervoice.mesh.offline.OfflineConfigCoordinator = com.ridervoice.mesh.offline.OfflineConfigCoordinator(
         sessionHolder = sessionHolder,
-        deviceCapabilityChecker = com.ridervoice.mesh.offline.DefaultDeviceCapabilityChecker(),
-        permissionChecker = com.ridervoice.mesh.offline.DefaultPermissionChecker {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.RECORD_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED
-        },
+        deviceCapabilityChecker = com.ridervoice.mesh.offline.DefaultDeviceCapabilityChecker(
+            sdkInt = Build.VERSION.SDK_INT,
+            hasWifiDirectFeature = {
+                context.packageManager?.hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT) == true
+            }
+        ),
+        permissionChecker = com.ridervoice.mesh.offline.DefaultPermissionChecker(
+            checkAudio = {
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+            },
+            checkP2p = {
+                val hasChangeWifi = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.CHANGE_WIFI_STATE
+                ) == PackageManager.PERMISSION_GRANTED
+                val p2pPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    Manifest.permission.NEARBY_WIFI_DEVICES
+                } else {
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                }
+                val hasP2pPerm = ContextCompat.checkSelfPermission(
+                    context,
+                    p2pPerm
+                ) == PackageManager.PERMISSION_GRANTED
+                hasChangeWifi && hasP2pPerm
+            }
+        ),
         batteryOptimizationChecker = com.ridervoice.mesh.offline.DefaultBatteryOptimizationChecker {
             val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
             pm?.isIgnoringBatteryOptimizations(context.packageName) ?: true

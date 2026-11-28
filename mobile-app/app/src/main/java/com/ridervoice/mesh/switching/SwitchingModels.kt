@@ -121,10 +121,10 @@ data class LocalHealthSignals(
  * Anti-flapping configuration parameters.
  */
 data class AntiFlappingConfig(
-    val failureConfirmationMs: Long = 10_000L,
-    val recoveryStabilityMs: Long = 8_000L,
+    val failureConfirmationMs: Long = 3_000L,
+    val recoveryStabilityMs: Long = 4_000L,
     val minDwellMs: Long = 20_000L,
     val maxTransitionsPerWindow: Int = 3,
     val windowMs: Long = 120_000L,
-    val offlineRetryBaseMs: Long = failureConfirmationMs
+    val offlineRetryBaseMs: Long = 10_000L
 )

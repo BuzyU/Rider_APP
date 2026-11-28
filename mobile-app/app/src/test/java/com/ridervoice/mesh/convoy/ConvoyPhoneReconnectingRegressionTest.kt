@@ -16,6 +16,7 @@ import com.ridervoice.mesh.switching.LocalHealthSignals
 import com.ridervoice.mesh.switching.LocalHealthSignalsProvider
 import com.ridervoice.mesh.switching.MeshAutoSwitchManager
 import com.ridervoice.mesh.switching.OfflineAvailability
+import com.ridervoice.mesh.transport.AudioOwner
 import com.ridervoice.mesh.transport.AudioOwnershipArbiter
 import com.ridervoice.mesh.transport.MeshCadence
 import com.ridervoice.mesh.transport.OfflineMeshVoiceTransport
@@ -336,6 +337,103 @@ class ConvoyPhoneReconnectingRegressionTest {
                 FallbackReason.NO_RIDERS_NEARBY,
                 mapTransitionReasonToFallbackReason(manager.lastTransitionReason.value, OfflineAvailability.AVAILABLE)
             )
+        } finally {
+            manager.close()
+        }
+    }
+
+    @Test
+    fun convoyFallback_default3sConfigWith200msSuspectTick() = runTest(timeout = 5.seconds) {
+        val settings = InMemorySettings(initialEnabled = true)
+        OfflineMeshGate.install(settings)
+
+        var now = 300_000L
+        val clock = Clock { now }
+        val roomId = "convoy-room-fast-3s"
+        val sid = ConvoyHash.stableSessionUuid(roomId)
+        val membership = ConvoyMembershipSnapshot.create(
+            sid,
+            listOf(
+                ConvoyMember("u-host", MemberRole.MESH_PARTICIPANT),
+                ConvoyMember("u-rider", MemberRole.MESH_PARTICIPANT)
+            )
+        )
+
+        val rideRepo = mockk<ActiveRideRepository>(relaxed = true)
+        every { rideRepo.state } returns MutableStateFlow(
+            ActiveRideRepository.ActiveRide(
+                roomId = roomId,
+                displayName = "Fast 3s Convoy",
+                isHost = true,
+                phase = ActiveRideRepository.Phase.LIVE,
+                convoyMembershipSnapshot = membership,
+                hostUserId = "u-host"
+            )
+        )
+
+        val lkManager = mockk<LiveKitManager>(relaxed = true)
+        every { lkManager.connectionState } returns MutableStateFlow(ConnectionState.RECONNECTING)
+        every { lkManager.participants } returns MutableStateFlow(emptyList())
+
+        val arbiter = AudioOwnershipArbiter()
+        arbiter.claimLiveKit()
+
+        val coordinator = mockk<VoiceSessionCoordinator>(relaxed = true)
+        every { coordinator.audioOwnershipArbiter } returns arbiter
+        every { coordinator.offlineAvailability } returns MutableStateFlow(OfflineAvailability.AVAILABLE)
+        coEvery { coordinator.fallbackToMesh() } coAnswers {
+            arbiter.release(AudioOwner.LIVEKIT)
+            arbiter.tryClaimOfflineMesh()
+            true
+        }
+
+        val meshTransport = mockk<OfflineMeshVoiceTransport>(relaxed = true)
+        every { meshTransport.state } returns MutableStateFlow(VoiceTransportState.CONNECTED)
+        every { meshTransport.hasValidRoute } returns MutableStateFlow(true)
+        every { meshTransport.isLinkAlive } returns MutableStateFlow(true)
+        every { meshTransport.participants } returns MutableStateFlow(emptyList())
+
+        val holder = OfflineSessionHolder()
+        holder.setBackup(OfflineSession.create(now))
+        val secretProvider = HolderOfflineSecretProvider(holder) { now }
+
+        val healthSignalsProvider = mockk<LocalHealthSignalsProvider>(relaxed = true)
+        coEvery { healthSignalsProvider.sampleSignals() } returns LocalHealthSignals(
+            isValidatedInternet = true,
+            isLiveKitConnected = false,
+            isLiveKitReconnecting = true,
+            liveKitReconnectAttempts = 2,
+            isHealthProbeSuccessful = false,
+            hasValidMeshRoute = true,
+            isMeshTransportAlive = true
+        )
+
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val manager = MeshAutoSwitchManager(
+            activeRideRepository = rideRepo,
+            liveKitManager = lkManager,
+            coordinator = coordinator,
+            meshTransport = meshTransport,
+            healthSignalsProvider = healthSignalsProvider,
+            secretProvider = secretProvider,
+            localOnlineIdentity = { "u-host" },
+            clock = clock,
+            dispatcher = dispatcher
+        )
+
+        try {
+            manager.start()
+            runCurrent()
+            assertEquals(LocalTransportState.ONLINE_SUSPECT, manager.localTransportState.value)
+
+            repeat(18) {
+                now += 200L
+                advanceTimeBy(200L)
+                runCurrent()
+            }
+
+            coVerify(exactly = 1) { coordinator.fallbackToMesh() }
+            assertEquals(LocalTransportState.OFFLINE_ACTIVE, manager.localTransportState.value)
         } finally {
             manager.close()
         }

@@ -81,6 +81,36 @@ class DiagnosticsTelemetryProjectionTest {
         assertEquals("jitterConcealed", 7L, diag.jitterConcealed)
         assertEquals("activeSourceCount", 3, diag.activeSourceCount)
         assertEquals("playoutUnderruns", 9L, diag.playoutUnderruns)
+
+        // Link metadata survives subsequent 500ms projector cycles and clears on reset()
+        diagRepo.updateLinkMetadata(
+            linkLevel = "AUTO_P2P",
+            p2pStatus = "CONNECTED",
+            p2pGoIp = "192.168.49.77",
+            selectedGoId = "rider-1"
+        )
+        projector.project(
+            snapshot = snapshot,
+            sessionManager = sessionManager,
+            routingTable = routingTable,
+            forwardingEngine = forwardingEngine,
+            speakers = emptySet(),
+            linkState = MeshLinkState.RUNNING,
+            localIp = "192.168.49.2",
+            broadcastAddress = "192.168.49.255",
+            authenticatedNeighborsLast10s = 1,
+            secondsWithZeroNeighbours = 0L,
+            selfIdOverride = identity.deviceId
+        )
+        val afterProject = diagRepo.snapshot.value
+        assertEquals("AUTO_P2P", afterProject.linkLevel)
+        assertEquals("CONNECTED", afterProject.p2pStatus)
+        assertEquals("192.168.49.77", afterProject.p2pGoIp)
+        assertEquals("rider-1", afterProject.selectedGoId)
+
+        diagRepo.reset()
+        assertEquals("", diagRepo.snapshot.value.linkLevel)
+        assertEquals("", diagRepo.snapshot.value.p2pStatus)
     }
 }
 

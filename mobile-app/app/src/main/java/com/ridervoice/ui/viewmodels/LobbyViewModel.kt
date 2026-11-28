@@ -40,6 +40,8 @@ class LobbyViewModel @Inject constructor(
 
     val offlineConfigState = configCoordinator.state
     val wifiDirectStatus: StateFlow<com.ridervoice.mesh.link.WifiDirectStatus> = wifiDirectGroupController.status
+    private val _selectedGoId = MutableStateFlow<String?>(null)
+    val selectedGoId: StateFlow<String?> = _selectedGoId.asStateFlow()
     private var lastKnownBackupCode: String? = null
 
     private val _loadState = MutableStateFlow<LobbyLoadState>(LobbyLoadState.Loading)
@@ -89,7 +91,15 @@ class LobbyViewModel @Inject constructor(
 
         val hostId = status?.host?.id?.takeIf { it.isNotBlank() } ?: localUserId?.takeIf { isLocalHost && it.isNotBlank() }
         if (!hostId.isNullOrBlank() && seen.add(hostId)) {
-            val hostRole = if (roomOfflineEnabled && !(isLocalHost && localOptOut)) {
+            val hostOfflineStatus = if (isLocalHost) {
+                configCoordinator.state.value.status
+                    .takeIf { it != com.ridervoice.mesh.offline.OfflineConfigStatus.NOT_STARTED }
+                    ?.wireName ?: status?.host?.offlineConfigStatus
+            } else {
+                status?.host?.offlineConfigStatus
+            }
+            val hostCapable = hostOfflineStatus == null || hostOfflineStatus == "READY"
+            val hostRole = if (roomOfflineEnabled && !(isLocalHost && localOptOut) && hostCapable) {
                 com.ridervoice.mesh.convoy.MemberRole.MESH_PARTICIPANT
             } else {
                 com.ridervoice.mesh.convoy.MemberRole.NON_MESH_PARTICIPANT
@@ -150,14 +160,41 @@ class LobbyViewModel @Inject constructor(
     ) {
         val ride = activeRideRepository.state.value
         val optOut = ride?.meshConfig?.optOut == true
+        val cfgState = configCoordinator.state.value
+        val autoP2pAllowed = cfgState.linkLevel == com.ridervoice.mesh.offline.RiderLinkLevel.AUTO_P2P
         val session = sessionHolder.backup.value
         if (com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen() &&
             offlineEnabled &&
             !optOut &&
+            autoP2pAllowed &&
             session != null
         ) {
-            wifiDirectGroupController.ensureActive(session = session, isHost = isHost)
-        } else if (!offlineEnabled || optOut) {
+            val snap = ride?.convoyMembershipSnapshot ?: buildConvoyMembershipSnapshot(_lobbyStatus.value)
+            val localUid = fallbackUserIdProvider()?.takeIf { it.isNotBlank() }
+            val hostUid = _lobbyStatus.value?.host?.id?.takeIf { it.isNotBlank() }
+                ?: ride?.hostUserId?.takeIf { it.isNotBlank() }
+                ?: if (isHost) localUid else null
+            val electedGoId = if (snap != null && !snap.isMeshCapExceeded) {
+                com.ridervoice.mesh.link.StarGroupOwnerSelector.selectGoId(
+                    com.ridervoice.mesh.link.StarGroupOwnerSelector.Input(
+                        meshParticipants = snap.meshParticipants,
+                        hostUserId = hostUid,
+                        previousGoId = _selectedGoId.value,
+                        isP2pConnected = wifiDirectGroupController.isGroupConnected.value
+                    )
+                )
+            } else {
+                hostUid
+            }
+            _selectedGoId.value = electedGoId
+            val effectiveIsGo = if (localUid != null && electedGoId != null) {
+                localUid == electedGoId
+            } else {
+                isHost
+            }
+            wifiDirectGroupController.ensureActive(session = session, isHost = effectiveIsGo)
+        } else if (!offlineEnabled || optOut || !autoP2pAllowed) {
+            _selectedGoId.value = null
             wifiDirectGroupController.stop()
         }
     }
@@ -194,9 +231,11 @@ class LobbyViewModel @Inject constructor(
                         configCompleted = cfgState.isReady,
                         status = cfgState.status,
                         stepResults = cfgState.stepResults,
-                        optOut = cfgState.optOut
+                        optOut = cfgState.optOut,
+                        linkLevel = cfgState.linkLevel
                     )
                 )
+                syncConvoyMembershipSnapshot(_lobbyStatus.value)
                 if (!cfgState.optOut) {
                     syncWifiDirectForLobby()
                 } else {
@@ -279,7 +318,8 @@ class LobbyViewModel @Inject constructor(
                             name = body.convoyName ?: roomName,
                             isHost = body.isHost ?: false,
                             joinCode = body.joinCode,
-                            route = lobbyRoute
+                            route = lobbyRoute,
+                            hostUserId = body.host?.id
                         )
                         syncConvoyMembershipSnapshot(body)
                         syncWifiDirectForLobby(

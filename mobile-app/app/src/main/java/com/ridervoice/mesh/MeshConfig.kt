@@ -11,10 +11,33 @@ object MeshConfig {
     const val STANDBY_HELLO_INTERVAL_MS = 5_000L
     const val ACTIVE_NEIGHBOR_TIMEOUT_MS = 5_000L
     const val STANDBY_NEIGHBOR_TIMEOUT_MS = 15_000L
+    @Deprecated("Use CadenceTimeoutPolicy or ACTIVE_NEIGHBOR_TIMEOUT_MS")
     const val NEIGHBOR_TIMEOUT_MS = 5_000L
     /** Remote (multi-hop) adjacency reports live slightly longer: they arrive via relays. */
+    @Deprecated("Use CadenceTimeoutPolicy or ACTIVE_REMOTE_REPORT_TIMEOUT_MS")
     const val REMOTE_REPORT_TIMEOUT_MS = 8_000L
     const val MEMBER_TIMEOUT_MS = 30_000L
+
+    // Cadence-aware timeout & fast switching constants
+    const val BOOST_NEIGHBOR_TIMEOUT_MS = 2_500L
+    const val CADENCE_TIGHTEN_GRACE_MS = 6_000L
+    const val BOOST_REMOTE_REPORT_TIMEOUT_MS = 4_000L
+    const val ACTIVE_REMOTE_REPORT_TIMEOUT_MS = 8_000L
+    const val STANDBY_REMOTE_REPORT_TIMEOUT_MS = 18_000L
+    const val SUSPECT_TICK_MS = 200L
+    const val FAST_PROBE_THROTTLE_MS = 1_000L
+    const val HEALTH_PROBE_TIMEOUT_MS = 1_500L
+    const val STALE_VALIDATED_OVERRIDE_MS = 1_000L
+    const val GO_LOSS_DETECTION_MS = 10_000L
+    const val GO_EXCLUSION_TTL_MS = 60_000L
+    const val MESH_STATUS_CHANNEL_ID = "rv_mesh_status"
+    const val MESH_STATUS_NOTIF_ID = 9821
+
+    // Group B chain topology constants (gated on hardware spikes SP-7..SP-10)
+    const val MAX_CHAIN_HOPS = 3
+    const val POSITION_BROADCAST_INTERVAL_MS = 2_000L
+    const val TOPOLOGY_SETTLE_MS = 10_000L
+    const val STAR_RANGE_THRESHOLD_M = 50.0
 
     /**
      * When true, a relay does not forward a packet to a neighbor that is already a (fresh, bidirectional) radio

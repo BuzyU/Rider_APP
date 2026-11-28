@@ -67,13 +67,13 @@ class Stage3AutomaticSwitchingTest {
         sm.evaluate(failingOnlineWithMesh)
         assertEquals(AutoSwitchState.ONLINE_SUSPECT, sm.state.value)
 
-        // 5 seconds pass (less than 10s failure confirmation delay)
-        now += 5_000L
+        // 2 seconds pass (less than 3s failure confirmation delay)
+        now += 2_000L
         sm.evaluate(failingOnlineWithMesh)
         assertEquals(AutoSwitchState.ONLINE_SUSPECT, sm.state.value)
 
-        // Connection recovers before 10s window expires
-        now += 2_000L
+        // Connection recovers before 3s window expires
+        now += 500L
         sm.evaluate(healthyOnline)
         assertEquals(AutoSwitchState.ONLINE, sm.state.value)
     }
@@ -128,6 +128,10 @@ class Stage3AutomaticSwitchingTest {
         var now = 400_000L
         var onlineHandoffCalled = false
         val sm = AutomaticSwitchStateMachine(
+            config = AntiFlappingConfig(
+                failureConfirmationMs = 10_000L,
+                recoveryStabilityMs = 8_000L
+            ),
             isGateAllowed = { true },
             clock = { now },
             onHandoffToOffline = { true },
@@ -161,6 +165,49 @@ class Stage3AutomaticSwitchingTest {
 
         // Full 8s satisfied -> hands back to LiveKit and enters ONLINE
         now += 4_001L
+        sm.evaluate(healthyOnline)
+        assertTrue(onlineHandoffCalled)
+        assertEquals(AutoSwitchState.ONLINE, sm.state.value)
+    }
+
+    @Test
+    fun `recovery requires 4-second default stability window and respects 20-second dwell time`() = runTest {
+        var now = 400_000L
+        var onlineHandoffCalled = false
+        val sm = AutomaticSwitchStateMachine(
+            isGateAllowed = { true },
+            clock = { now },
+            onHandoffToOffline = { true },
+            onHandoffToOnline = {
+                onlineHandoffCalled = true
+                true
+            }
+        )
+
+        // Trigger fallback to mesh (3s default confirm)
+        sm.evaluate(failingOnlineWithMesh)
+        now += 3_001L
+        sm.evaluate(failingOnlineWithMesh)
+        assertEquals(AutoSwitchState.OFFLINE_ACTIVE, sm.state.value)
+
+        // Inside 20s dwell -> stays offline
+        now += 10_000L
+        sm.evaluate(healthyOnline)
+        assertEquals(AutoSwitchState.OFFLINE_ACTIVE, sm.state.value)
+
+        // Past 20s dwell -> enters ONLINE_RECOVERING
+        now += 10_001L
+        sm.evaluate(healthyOnline)
+        assertEquals(AutoSwitchState.ONLINE_RECOVERING, sm.state.value)
+
+        // 2s into 4s default recovery window -> remains in recovering
+        now += 2_000L
+        sm.evaluate(healthyOnline)
+        assertEquals(AutoSwitchState.ONLINE_RECOVERING, sm.state.value)
+        assertFalse(onlineHandoffCalled)
+
+        // Full 4s default stability satisfied -> hands back to LiveKit
+        now += 2_001L
         sm.evaluate(healthyOnline)
         assertTrue(onlineHandoffCalled)
         assertEquals(AutoSwitchState.ONLINE, sm.state.value)

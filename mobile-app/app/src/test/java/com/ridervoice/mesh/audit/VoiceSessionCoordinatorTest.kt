@@ -316,4 +316,22 @@ class VoiceSessionCoordinatorTest {
 
         assertTrue("Job must be cancelled without swallowing CancellationException (B11)", job.isCancelled)
     }
+
+    @Test
+    fun fallbackToMesh_usesParameterizedVerifyLiveKitQuietTimeout() = runTest {
+        val arbiter = AudioOwnershipArbiter()
+        val liveKit = FakeLiveKitTransport()
+        val mesh = FakeMeshTransport()
+        mesh._hasValidRoute.value = true
+
+        val coordinator = VoiceSessionCoordinator(
+            liveKitTransport = liveKit,
+            meshTransport = mesh,
+            audioOwnershipArbiter = arbiter,
+            verifyLiveKitQuietTimeoutMs = 800L
+        )
+        assertTrue(coordinator.fallbackToMesh())
+        assertEquals(PeerTransportKind.OFFLINE_MESH, coordinator.activeKind.value)
+        assertTrue(mesh.audioEnabled)
+    }
 }

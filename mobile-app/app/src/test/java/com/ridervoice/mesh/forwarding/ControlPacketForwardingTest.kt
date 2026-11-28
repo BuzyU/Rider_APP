@@ -210,4 +210,128 @@ class ControlPacketForwardingTest {
             }
         }
     }
+
+    @Test
+    fun multiEndpointBridge_forwardsAcrossFourNodeBusWithoutIncomingInterfaceBounceBack() {
+        val now = 200_000L
+        val clock = { now }
+        val session = OfflineSession.create(now)
+
+        val idA = UUID.randomUUID().toString()
+        val idB = UUID.randomUUID().toString()
+        val idC = UUID.randomUUID().toString()
+        val idD = UUID.randomUUID().toString()
+
+        // Bus segments: (A -49- B), (B -50- C), (C -51- D)
+        val epAOn49 = MeshEndpoint("192.168.49.1", 45454)
+        val epBOn49 = MeshEndpoint("192.168.49.2", 45454)
+        val epBOn50 = MeshEndpoint("192.168.50.1", 45454)
+        val epCOn50 = MeshEndpoint("192.168.50.2", 45454)
+        val epCOn51 = MeshEndpoint("192.168.51.1", 45454)
+        val epDOn51 = MeshEndpoint("192.168.51.2", 45454)
+
+        val repoB = MeshGraphRepository(idB, "B", clock)
+        val linkB = RecordingLink("B")
+        val engB = ForwardingEngine(
+            idB, "B", SessionManager(session, idB, clock), repoB,
+            RoutingTable(), TtlPolicy(clock = clock), linkB, clock, localEpoch = 2
+        )
+
+        // B hears A on 192.168.49.1 and hears C on BOTH 192.168.50.2 and an alternate local iface 192.168.52.2
+        val helloA = MeshPacketCodec.encode(
+            MeshPacket(type = MeshPacketType.HELLO, sourceId = idA, previousHopId = idA, sequence = 1, epoch = 1, payload = HelloCodec.encode(HelloPayload(idA, "A", 1, listOf(idB)))),
+            session.payloadKey()
+        )
+        val helloC = MeshPacketCodec.encode(
+            MeshPacket(type = MeshPacketType.HELLO, sourceId = idC, previousHopId = idC, sequence = 1, epoch = 3, payload = HelloCodec.encode(HelloPayload(idC, "C", 1, listOf(idB, idD)))),
+            session.payloadKey()
+        )
+        val epCAlt = MeshEndpoint("192.168.52.2", 45454)
+        engB.onIncomingFrame(MeshFrame(epAOn49, helloA))
+        engB.onIncomingFrame(MeshFrame(epCOn50, helloC))
+        repoB.onHello(idC, "C", 0, epCAlt, listOf(idB, idD), sequence = 2, epoch = 3)
+        assertEquals(2, repoB.neighbor(idC)!!.endpoints.size)
+
+        linkB.sent.clear()
+        // Voice frame from C arriving on epCOn50 must relay to A (epAOn49), and NOT bounce back to epCOn50
+        val voiceFromC = MeshPacketCodec.encode(
+            MeshPacket(
+                type = MeshPacketType.VOICE,
+                sourceId = idC,
+                previousHopId = idC,
+                sequence = 10,
+                ttl = MeshConfig.DEFAULT_TTL,
+                hopCount = 0,
+                audioFormat = AudioFormatId.PCM16_16K_MONO,
+                epoch = 3,
+                payload = ByteArray(MeshConfig.BYTES_PER_FRAME)
+            ),
+            session.payloadKey()
+        )
+        val outcome = engB.onIncomingFrame(MeshFrame(epCOn50, voiceFromC))
+        assertTrue(outcome is ReceiveOutcome.Accepted)
+        assertTrue(linkB.sent.any { it.first == epAOn49 })
+        assertTrue(linkB.sent.none { it.first == epCOn50 })
+
+        // Sanity check unused endpoint references for 4-node bus test clarity
+        assertTrue(epBOn49 != epBOn50 && epCOn51 != epDOn51)
+    }
+
+    @Test
+    fun sameSubnetDhcpIpChange_replacesOldEndpointWithoutDuplicateForwarding() {
+        var now = 100_000L
+        val clock = { now }
+        val selfId = UUID.randomUUID().toString()
+        val peerId = UUID.randomUUID().toString()
+        val repo = MeshGraphRepository(selfId, "Self", clock)
+
+        val oldEp = MeshEndpoint("192.168.49.2", 45454)
+        val newEpSameSubnet = MeshEndpoint("192.168.49.55", 45454)
+        val altIfaceEp = MeshEndpoint("192.168.50.55", 45454)
+
+        repo.onHello(peerId, "Peer", 0, oldEp, emptyList(), sequence = 1, epoch = 1)
+        assertEquals(listOf(oldEp), repo.neighbor(peerId)!!.endpoints)
+
+        // DHCP lease change on same /24 subnet replaces stale .2 instead of duplicating
+        now += 1_000L
+        repo.onHello(peerId, "Peer", 0, newEpSameSubnet, emptyList(), sequence = 2, epoch = 1)
+        assertEquals(listOf(newEpSameSubnet), repo.neighbor(peerId)!!.endpoints)
+
+        // Distinct subnet interface coexists cleanly (max 2)
+        now += 500L
+        repo.onHello(peerId, "Peer", 0, altIfaceEp, emptyList(), sequence = 3, epoch = 1)
+        assertEquals(2, repo.neighbor(peerId)!!.endpoints.size)
+        assertTrue(repo.neighbor(peerId)!!.endpoints.contains(newEpSameSubnet))
+        assertTrue(repo.neighbor(peerId)!!.endpoints.contains(altIfaceEp))
+    }
+
+    @Test
+    fun multiEndpoint_expiresStaleSecondaryEndpointIndividually() {
+        var now = 100_000L
+        val clock = { now }
+        val selfId = UUID.randomUUID().toString()
+        val peerId = UUID.randomUUID().toString()
+        val repo = MeshGraphRepository(
+            selfId = selfId,
+            selfName = "Self",
+            clock = clock,
+            monotonicClock = clock,
+            neighborTimeoutMsProvider = { 5_000L }
+        )
+
+        val ep1 = MeshEndpoint("192.168.49.10", 45454)
+        val ep2 = MeshEndpoint("192.168.50.10", 45454)
+
+        repo.onHello(peerId, "Peer", 0, ep1, emptyList(), sequence = 1, epoch = 1)
+        now += 4_000L
+        repo.onHello(peerId, "Peer", 0, ep2, emptyList(), sequence = 2, epoch = 1)
+        assertEquals(2, repo.neighbor(peerId)!!.endpoints.size)
+
+        // At t=105_500, ep1 is 5.5s old (> 5s timeout) while ep2 is 1.5s old
+        now += 1_500L
+        assertTrue(repo.expire())
+        val surviving = repo.neighbor(peerId)!!
+        assertEquals(listOf(ep2), surviving.endpoints)
+        assertEquals(ep2, surviving.endpoint)
+    }
 }

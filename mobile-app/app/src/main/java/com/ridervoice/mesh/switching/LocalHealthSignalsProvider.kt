@@ -1,5 +1,6 @@
 package com.ridervoice.mesh.switching
 
+import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.transport.MeshControl
 import com.ridervoice.mesh.transport.VoiceSessionCoordinator
 import com.ridervoice.network.ConnectionState
@@ -15,6 +16,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Stage 3 Health Signals Provider.
@@ -22,7 +24,7 @@ import java.util.concurrent.TimeUnit
  * Samples local connectivity signals:
  * - validated Internet capability (via NetworkObserver / ValidatedInternetSource)
  * - LiveKit connection state & reconnect attempts
- * - Active 3s HEAD health probe to backend (throttled to at most once per 5s on IO dispatcher)
+ * - Active 1.5s HEAD health probe to backend (throttled to at most once per 5s on IO dispatcher)
  * - Mesh routing state (via MeshControl)
  *
  * Drives AutomaticSwitchStateMachine once per second while active.
@@ -63,15 +65,21 @@ class LocalHealthSignalsProvider(
 
     private val probeClient by lazy {
         OkHttpClient.Builder()
-            .connectTimeout(3, TimeUnit.SECONDS)
-            .readTimeout(3, TimeUnit.SECONDS)
-            .callTimeout(3, TimeUnit.SECONDS)
+            .connectTimeout(MeshConfig.HEALTH_PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            .readTimeout(MeshConfig.HEALTH_PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            .callTimeout(MeshConfig.HEALTH_PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
             .build()
     }
 
-    private var lastProbeTimeMs: Long = 0L
-    private var lastProbeResult: Boolean = true
+    @Volatile private var lastProbeTimeMs: Long = 0L
+    @Volatile private var lastProbeResult: Boolean = true
+    @Volatile private var fastProbeMode: Boolean = false
+    private val probeInFlight = AtomicBoolean(false)
     private var wasHealthyWhenLastSampled: Boolean = false
+
+    fun setFastProbeMode(enabled: Boolean) {
+        fastProbeMode = enabled
+    }
 
     suspend fun sampleSignals(): LocalHealthSignals {
         val validatedInternet = isInternetValidated?.invoke() ?: false
@@ -85,9 +93,9 @@ class LocalHealthSignalsProvider(
 
         // Rule 5:
         // - Probe on probeDispatcher (Dispatchers.IO) only.
-        // - Probe at most once per 5000 ms.
-        // - Do not probe when internet + LiveKit are healthy; stop probing when recovered.
-        // - Force an immediate probe on healthy -> unhealthy transitions instead of returning stale true.
+        // - Synchronously run the first unhealthy transition probe for deterministic detection.
+        // - In fastProbeMode (ONLINE_SUSPECT / STARTING_OFFLINE), run follow-up probes asynchronously
+        //   on watcherScope guarded by probeInFlight so 200ms ticks never stall behind blackholes.
         val probeOk: Boolean = if (validatedInternet && isLkConnected) {
             wasHealthyWhenLastSampled = true
             lastProbeResult = true
@@ -97,7 +105,32 @@ class LocalHealthSignalsProvider(
                 wasHealthyWhenLastSampled = false
                 lastProbeTimeMs = 0L
             }
-            if (now - lastProbeTimeMs >= 5_000L || lastProbeTimeMs == 0L) {
+            if (lastProbeTimeMs == 0L) {
+                lastProbeTimeMs = now
+                val result = withContext(probeDispatcher) {
+                    healthProbe?.invoke() ?: executeActiveProbe()
+                }
+                lastProbeResult = result
+                result
+            } else if (fastProbeMode) {
+                if (now - lastProbeTimeMs >= MeshConfig.FAST_PROBE_THROTTLE_MS &&
+                    probeInFlight.compareAndSet(false, true)
+                ) {
+                    lastProbeTimeMs = now
+                    watcherScope.launch {
+                        try {
+                            lastProbeResult = healthProbe?.invoke() ?: executeActiveProbe()
+                        } catch (ce: kotlinx.coroutines.CancellationException) {
+                            throw ce
+                        } catch (_: Exception) {
+                            lastProbeResult = false
+                        } finally {
+                            probeInFlight.set(false)
+                        }
+                    }
+                }
+                lastProbeResult
+            } else if (now - lastProbeTimeMs >= 5_000L) {
                 lastProbeTimeMs = now
                 val result = withContext(probeDispatcher) {
                     healthProbe?.invoke() ?: executeActiveProbe()

@@ -271,14 +271,14 @@ class StateMachineLifecycleTest {
         sm.evaluate(totalLossSignals)
         assertEquals(AutoSwitchState.ONLINE_SUSPECT, sm.state.value)
 
-        // t=5s: Before 10s confirmation window
-        now += 5_000L
+        // t=2s: Before 3s confirmation window
+        now += 2_000L
         sm.evaluate(totalLossSignals)
         assertEquals(AutoSwitchState.ONLINE_SUSPECT, sm.state.value)
         assertFalse(offlineHandoffDone)
 
-        // t=10.001s: Hysteresis window satisfied
-        now += 5_001L
+        // t=3.001s: Hysteresis window satisfied
+        now += 1_001L
         sm.evaluate(totalLossSignals)
         assertTrue(offlineHandoffDone)
         assertEquals(AutoSwitchState.OFFLINE_ACTIVE, sm.state.value)
@@ -410,17 +410,78 @@ class StateMachineLifecycleTest {
         sm.evaluate(healthySignals)
         assertEquals(AutoSwitchState.ONLINE_RECOVERING, sm.state.value)
 
-        // Inside 8s recovery window (e.g. 4s): must remain ONLINE_RECOVERING
-        now += 4_000L
+        // Inside 4s recovery window (e.g. 2s): must remain ONLINE_RECOVERING
+        now += 2_000L
         sm.evaluate(healthySignals)
         assertEquals(AutoSwitchState.ONLINE_RECOVERING, sm.state.value)
         assertFalse(handbackCalled)
 
-        // Satisfy 8s window
-        now += 4_001L
+        // Satisfy 4s window
+        now += 2_001L
         sm.evaluate(healthySignals)
         assertTrue(handbackCalled)
         assertEquals(AutoSwitchState.ONLINE, sm.state.value)
+    }
+
+    @Test
+    fun fastProbeMode_runsFollowUpProbeAsynchronouslyWithoutBlocking() = runTest {
+        var virtualTime = 10_000L
+        var probeCount = 0
+        val dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val provider = LocalHealthSignalsProvider(
+            isInternetValidated = { false },
+            liveKitConnectionState = MutableStateFlow(ConnectionState.DISCONNECTED),
+            healthProbe = {
+                probeCount++
+                false
+            },
+            clock = { virtualTime },
+            dispatcher = dispatcher
+        )
+        provider.setFastProbeMode(true)
+        try {
+            // Initial transition probe runs synchronously
+            provider.sampleSignals()
+            assertEquals(1, probeCount)
+
+            // Follow-up at >= 1_000ms schedules async refresh without blocking caller
+            virtualTime += 1_000L
+            provider.sampleSignals()
+            assertEquals(1, probeCount) // not executed inline before scheduler advances
+
+            testScheduler.advanceUntilIdle()
+            assertEquals(2, probeCount)
+        } finally {
+            provider.close()
+        }
+    }
+
+    @Test
+    fun fastProbeMode_catchesProbeExceptionWithoutCrashing() = runTest {
+        var virtualTime = 10_000L
+        var calls = 0
+        val dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val provider = LocalHealthSignalsProvider(
+            isInternetValidated = { false },
+            liveKitConnectionState = MutableStateFlow(ConnectionState.DISCONNECTED),
+            healthProbe = {
+                calls++
+                if (calls == 1) false else throw IllegalStateException("simulated socket boom")
+            },
+            clock = { virtualTime },
+            dispatcher = dispatcher
+        )
+        provider.setFastProbeMode(true)
+        try {
+            provider.sampleSignals()
+            virtualTime += 1_000L
+            provider.sampleSignals()
+            testScheduler.advanceUntilIdle()
+            val afterBoom = provider.sampleSignals()
+            assertEquals(false, afterBoom.isHealthProbeSuccessful)
+        } finally {
+            provider.close()
+        }
     }
 
     @Test

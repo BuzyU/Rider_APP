@@ -273,8 +273,8 @@ data class ManualExclusionRequest(
 data class ConvoyProtocolConfig(
     val extVersion: Int = EXT_VERSION,
     val configVersion: Int = CONFIG_VERSION,
-    val failureConfirmationMs: Long = 10_000L,
-    val recoveryStabilityMs: Long = 8_000L,
+    val failureConfirmationMs: Long = 3_000L,
+    val recoveryStabilityMs: Long = 4_000L,
     val minDwellMs: Long = 20_000L,
     val maxTransitionsPerWindow: Int = 3,
     val transitionWindowMs: Long = 120_000L,
@@ -284,9 +284,9 @@ data class ConvoyProtocolConfig(
     val seqResyncMs: Long = 10 * 60_000L,
     val proposalTtlMs: Long = 6_000L,
     val commitHoldMs: Long = 1_500L,
-    val proposalStaggerMs: Long = 300L,
+    val proposalStaggerMs: Long = 150L,
     val refallbackCooldownMs: Long = 60_000L,
-    val reachableNotReadyPromptMs: Long = 120_000L,
+    val reachableNotReadyPromptMs: Long = 60_000L,
     val activeHelloIntervalMs: Long = 1_500L,
     val maxHops: Int = 5,
     val allowAutomaticExclusionT2: Boolean = false

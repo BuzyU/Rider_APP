@@ -1,5 +1,10 @@
 package com.ridervoice.mesh.link
 
+import android.content.Context
+import android.net.wifi.WifiManager
+import android.net.wifi.p2p.WifiP2pConfig
+import android.net.wifi.p2p.WifiP2pInfo
+import android.net.wifi.p2p.WifiP2pManager
 import com.ridervoice.di.MeshModule
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.OfflineSessionHolder
@@ -12,6 +17,8 @@ import com.ridervoice.ui.viewmodels.LobbyViewModel
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import java.net.InetAddress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -148,5 +155,185 @@ class WifiDirectGroupManagerTest {
         val endpoints = UdpMeshLink.discoverBroadcastEndpoints(45454)
         assertTrue(endpoints.isNotEmpty())
         assertTrue(PermissionManager.ridePermissions.isNotEmpty())
+    }
+
+    @Test
+    fun launchSetupLoop_terminatesAfter8AttemptsWithFailed_andRespectsCooldown() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var virtualTime = 1_000_000L
+        val context = mockk<Context>(relaxed = true)
+        every { context.applicationContext } returns context
+        val p2pMgr = mockk<WifiP2pManager>(relaxed = true)
+        val channel = mockk<WifiP2pManager.Channel>(relaxed = true)
+        val wifiMgr = mockk<WifiManager>(relaxed = true)
+        every { wifiMgr.isWifiEnabled } returns true
+
+        var connectCalls = 0
+        every { p2pMgr.connect(any(), any(), any()) } answers {
+            connectCalls++
+        }
+
+        val controller = AndroidWifiDirectGroupController(
+            context = context,
+            gateOpen = { true },
+            dispatcher = dispatcher,
+            clock = { virtualTime },
+            sdkInt = 33,
+            p2pManagerOverride = p2pMgr,
+            wifiManagerOverride = wifiMgr,
+            hasPermissionsOverride = { true },
+            registerReceiverOverride = { _, _ -> },
+            unregisterReceiverOverride = { _ -> },
+            initializeChannelOverride = { channel },
+            buildConfigOverride = { mockk<WifiP2pConfig>(relaxed = true) }
+        )
+
+        val session = OfflineSession.create(virtualTime)
+        controller.ensureActive(session, isHost = false)
+        // Advance beyond initial 1.5s + 8 attempts of backoff (3s + 6s + 6*12s = 82.5s)
+        advanceTimeBy(100_000L)
+        runCurrent()
+
+        assertEquals(WifiDirectStatus.FAILED, controller.status.value)
+        assertEquals(AndroidWifiDirectGroupController.MAX_SETUP_ATTEMPTS, connectCalls)
+
+        // Ensure another tick inside 60s cooldown does NOT relaunch setup attempts
+        virtualTime += 10_000L
+        controller.ensureActive(session, isHost = false)
+        advanceTimeBy(5_000L)
+        runCurrent()
+        assertEquals(AndroidWifiDirectGroupController.MAX_SETUP_ATTEMPTS, connectCalls)
+
+        // Once 60s cooldown passes, ensureActive launches a new cycle
+        virtualTime += 60_000L
+        controller.ensureActive(session, isHost = false)
+        advanceTimeBy(5_000L)
+        runCurrent()
+        assertTrue("Expected new attempts after 60s cooldown", connectCalls > AndroidWifiDirectGroupController.MAX_SETUP_ATTEMPTS)
+        controller.stop()
+    }
+
+    @Test
+    fun stop_neverCallsSetWifiEnabled_andApiBelow29ReturnsUnsupported() {
+        val context = mockk<Context>(relaxed = true)
+        every { context.applicationContext } returns context
+        val p2pMgr = mockk<WifiP2pManager>(relaxed = true)
+        val channel = mockk<WifiP2pManager.Channel>(relaxed = true)
+        val wifiMgr = mockk<WifiManager>(relaxed = true)
+        every { wifiMgr.isWifiEnabled } returns false
+
+        val controller29 = AndroidWifiDirectGroupController(
+            context = context,
+            gateOpen = { true },
+            sdkInt = 33,
+            p2pManagerOverride = p2pMgr,
+            wifiManagerOverride = wifiMgr,
+            hasPermissionsOverride = { true },
+            registerReceiverOverride = { _, _ -> },
+            unregisterReceiverOverride = { _ -> },
+            initializeChannelOverride = { channel },
+            buildConfigOverride = { mockk<WifiP2pConfig>(relaxed = true) }
+        )
+        controller29.ensureActive(OfflineSession.create(10_000L), isHost = true)
+        controller29.stop()
+        verify(exactly = 0) { wifiMgr.setWifiEnabled(any()) }
+
+        val controller28 = AndroidWifiDirectGroupController(
+            context = context,
+            gateOpen = { true },
+            sdkInt = 28,
+            p2pManagerOverride = p2pMgr,
+            wifiManagerOverride = wifiMgr
+        )
+        controller28.ensureActive(OfflineSession.create(10_000L), isHost = true)
+        assertEquals(WifiDirectStatus.UNSUPPORTED, controller28.status.value)
+        controller28.stop()
+        verify(exactly = 0) { wifiMgr.setWifiEnabled(any()) }
+    }
+
+    @Test
+    fun resetFailureCooldown_allowsImmediateReconnectAfterNewGoElected() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var virtualTime = 1_000_000L
+        val context = mockk<Context>(relaxed = true)
+        every { context.applicationContext } returns context
+        val p2pMgr = mockk<WifiP2pManager>(relaxed = true)
+        val channel = mockk<WifiP2pManager.Channel>(relaxed = true)
+        val wifiMgr = mockk<WifiManager>(relaxed = true)
+        every { wifiMgr.isWifiEnabled } returns true
+
+        var connectCalls = 0
+        every { p2pMgr.connect(any(), any(), any()) } answers { connectCalls++ }
+
+        val controller = AndroidWifiDirectGroupController(
+            context = context,
+            gateOpen = { true },
+            dispatcher = dispatcher,
+            clock = { virtualTime },
+            sdkInt = 33,
+            p2pManagerOverride = p2pMgr,
+            wifiManagerOverride = wifiMgr,
+            hasPermissionsOverride = { true },
+            registerReceiverOverride = { _, _ -> },
+            unregisterReceiverOverride = { _ -> },
+            initializeChannelOverride = { channel },
+            buildConfigOverride = { mockk<WifiP2pConfig>(relaxed = true) }
+        )
+        val session = OfflineSession.create(virtualTime)
+        controller.ensureActive(session, isHost = false)
+        advanceTimeBy(100_000L)
+        runCurrent()
+        assertEquals(WifiDirectStatus.FAILED, controller.status.value)
+        assertEquals(AndroidWifiDirectGroupController.MAX_SETUP_ATTEMPTS, connectCalls)
+
+        // New GO elected while remaining a client: resetFailureCooldown() unblocks immediately inside 60s
+        virtualTime += 5_000L
+        controller.resetFailureCooldown()
+        controller.ensureActive(session, isHost = false)
+        advanceTimeBy(5_000L)
+        runCurrent()
+        assertTrue(connectCalls > AndroidWifiDirectGroupController.MAX_SETUP_ATTEMPTS)
+        controller.stop()
+    }
+
+    @Test
+    fun deriveForSegment_producesDistinctValidCredsPerSegment_andOrderInvariant() {
+        val session = OfflineSession.create(10_000L)
+        val seg01 = WifiDirectCredentialsFactory.deriveForSegment(session, 0, 1)!!
+        val seg10 = WifiDirectCredentialsFactory.deriveForSegment(session, 1, 0)!!
+        val seg12 = WifiDirectCredentialsFactory.deriveForSegment(session, 1, 2)!!
+
+        assertEquals(seg01, seg10)
+        assertTrue(seg01.networkName.startsWith("DIRECT-RV-"))
+        assertEquals(16, seg01.passphrase.length)
+        assertTrue(seg01 != seg12)
+    }
+
+    @Test
+    fun controller_defaultAndPopulatedP2pOwnerAddress() {
+        val recording = RecordingWifiDirectController()
+        assertEquals(null, recording.p2pOwnerAddress.value)
+        assertEquals(null, recording.connectionInfo())
+
+        val context = mockk<Context>(relaxed = true)
+        every { context.applicationContext } returns context
+        val controller = AndroidWifiDirectGroupController(
+            context = context,
+            gateOpen = { true },
+            sdkInt = 33,
+            p2pManagerOverride = mockk(relaxed = true),
+            wifiManagerOverride = mockk(relaxed = true)
+        )
+        val info = WifiP2pInfo().apply {
+            groupFormed = true
+            isGroupOwner = false
+            groupOwnerAddress = InetAddress.getByName("192.168.49.77")
+        }
+        controller.onConnectionInfoUpdateForTest(info)
+        assertEquals("192.168.49.77", controller.p2pOwnerAddress.value)
+        assertEquals(WifiDirectStatus.CONNECTED, controller.status.value)
+
+        controller.stop()
+        assertEquals(null, controller.p2pOwnerAddress.value)
     }
 }

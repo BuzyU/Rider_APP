@@ -140,6 +140,10 @@ fun MeshDiagnosticsDialog(
                     DiagRow(stringResource(R.string.mesh_diag_link_state), snapshot.linkState)
                     DiagRow(stringResource(R.string.mesh_diag_local_ip), if (snapshot.localIp.isNotBlank()) snapshot.localIp else stringResource(R.string.mesh_value_none))
                     DiagRow(stringResource(R.string.mesh_diag_broadcast), if (snapshot.broadcastAddress.isNotBlank()) snapshot.broadcastAddress else stringResource(R.string.mesh_value_none))
+                    DiagRow(stringResource(R.string.mesh_diag_link_level), if (snapshot.linkLevel.isNotBlank()) snapshot.linkLevel else stringResource(R.string.mesh_value_none))
+                    DiagRow(stringResource(R.string.mesh_diag_p2p_status), if (snapshot.p2pStatus.isNotBlank()) snapshot.p2pStatus else stringResource(R.string.mesh_value_none))
+                    DiagRow(stringResource(R.string.mesh_diag_p2p_go_ip), if (snapshot.p2pGoIp.isNotBlank()) snapshot.p2pGoIp else stringResource(R.string.mesh_value_none))
+                    DiagRow(stringResource(R.string.mesh_diag_selected_go), if (snapshot.selectedGoId.isNotBlank()) snapshot.selectedGoId else stringResource(R.string.mesh_value_none))
                     if (snapshot.memberCount == 0 && snapshot.droppedBadVersion > 0) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(

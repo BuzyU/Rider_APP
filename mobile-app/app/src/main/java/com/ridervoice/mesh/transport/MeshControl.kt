@@ -3,6 +3,7 @@ package com.ridervoice.mesh.transport
 import com.ridervoice.mesh.MeshConfig
 import com.ridervoice.mesh.audio.MicController
 import com.ridervoice.mesh.session.OfflineSession
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 enum class MeshCadence(val intervalMs: Long) {
@@ -44,6 +45,9 @@ interface MeshControl {
     /** Whether the underlying mesh network link is currently active/running. */
     val isLinkAlive: StateFlow<Boolean> get() = kotlinx.coroutines.flow.MutableStateFlow(true)
 
+    /** Current periodic HELLO beacon cadence. */
+    val cadence: StateFlow<MeshCadence> get() = DEFAULT_CADENCE_FLOW
+
     /** Sets the periodic discovery HELLO beacon interval. */
     fun setHelloIntervalMs(intervalMs: Long) {}
 
@@ -75,4 +79,8 @@ interface MeshControl {
 
     /** Resumes offline AudioRecord capture if recovery to LiveKit fails or times out. */
     suspend fun resumeCaptureOnly()
+
+    companion object {
+        private val DEFAULT_CADENCE_FLOW: StateFlow<MeshCadence> = MutableStateFlow(MeshCadence.STANDBY)
+    }
 }

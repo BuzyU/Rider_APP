@@ -158,3 +158,16 @@ Inputs:
 ```
 90501111111111111111000000010000017f49d34882e571ae898a49d6
 ```
+
+---
+
+## 6. Automatic Link Discovery, Dynamic GO Address & Cadence Timeouts
+
+- **Wi-Fi Direct Star Link (API 29+):** Eligible devices automatically derive deterministic `DIRECT-RV-...` WPA2 credentials via `WifiDirectCredentialsFactory.derive(session)`. `StarGroupOwnerSelector` selects one eligible Group Owner (`RiderLinkLevel.AUTO_P2P`), freezing selection during live offline voice unless GO absence reaches `GO_LOSS_DETECTION_MS` (`10_000 ms`, `60_000 ms` exclusion TTL). API 26–28 or missing-hardware phones classify as `MANUAL_HOTSPOT` / `NON_MESH_PARTICIPANT` consistently across host and peers (`host.offlineConfigStatus`).
+- **Dynamic GO Unicast Target:** `AndroidWifiDirectGroupController` exposes `p2pOwnerAddress` from `WifiP2pInfo.groupOwnerAddress` and `UdpMeshLink.discoverBroadcastEndpoints()` appends it dynamically rather than assuming `192.168.49.1` (retaining `192.168.49.1` only when `p2pGoAddress == null`).
+- **Cadence-Aware Neighbor & Report Timeouts (`CadenceTimeoutPolicy`):**
+  - `BOOST` (`750 ms` HELLO): `2_500 ms` direct neighbor / `4_000 ms` remote report timeout.
+  - `ACTIVE` (`1_500 ms` HELLO): `5_000 ms` direct neighbor / `8_000 ms` remote report timeout.
+  - `STANDBY` (`5_000 ms` HELLO): `15_000 ms` direct neighbor / `18_000 ms` remote report timeout.
+  - Tightening (`STANDBY` -> `BOOST`/`ACTIVE`) holds the previous timeout for `CADENCE_TIGHTEN_GRACE_MS` (`6_000 ms`) while sending an immediate HELLO wakeup via `cadenceWakeSignal`.
+- **Reserved Group B Control Discriminators:** Future chain-topology packets will use high-bit byte-0 discriminators (`0x81` POSITION, `0x82` GO_ANNOUNCE), keeping `ConvoyProtocolConfig.EXT_VERSION = 1` (`0x01`) untouched.

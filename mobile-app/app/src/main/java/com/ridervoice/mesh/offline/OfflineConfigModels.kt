@@ -45,11 +45,18 @@ enum class OfflineConfigStatus(val wireName: String) {
     )
 }
 
+enum class RiderLinkLevel(val wireName: String) {
+    AUTO_P2P("AUTO_P2P"),
+    MANUAL_HOTSPOT("MANUAL_HOTSPOT"),
+    INELIGIBLE("INELIGIBLE")
+}
+
 data class OfflineConfigState(
     val status: OfflineConfigStatus = OfflineConfigStatus.NOT_STARTED,
     val stepResults: Map<OfflineConfigStep, StepResult> = emptyMap(),
     val optOut: Boolean = false,
-    val failureReason: String? = null
+    val failureReason: String? = null,
+    val linkLevel: RiderLinkLevel = RiderLinkLevel.AUTO_P2P
 ) {
     val isReady: Boolean get() = status == OfflineConfigStatus.READY
     val isTerminal: Boolean get() = status.isTerminal()

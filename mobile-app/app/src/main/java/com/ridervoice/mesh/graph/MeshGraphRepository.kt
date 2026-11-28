@@ -39,7 +39,13 @@ data class MeshGraphSnapshot(
             .distinct().sorted()
 }
 
-data class DirectNeighbor(val deviceId: String, val name: String, val endpoint: MeshEndpoint, val lastSeen: Long)
+data class DirectNeighbor(
+    val deviceId: String,
+    val name: String,
+    val endpoint: MeshEndpoint,
+    val lastSeen: Long,
+    val endpoints: List<MeshEndpoint> = listOf(endpoint)
+)
 
 data class ForwardingView(
     val version: Long,
@@ -67,12 +73,32 @@ class MeshGraphRepository(
     private val selfId: String,
     private val selfName: String,
     private val clock: () -> Long,
-    private val monotonicClock: () -> Long
+    private val monotonicClock: () -> Long,
+    private val neighborTimeoutMsProvider: () -> Long = { MeshConfig.ACTIVE_NEIGHBOR_TIMEOUT_MS },
+    private val remoteReportTimeoutMsProvider: () -> Long = { MeshConfig.ACTIVE_REMOTE_REPORT_TIMEOUT_MS }
 ) {
-    constructor(selfId: String, selfName: String, clock: () -> Long) :
-        this(selfId, selfName, clock, clock)
+    constructor(
+        selfId: String,
+        selfName: String,
+        clock: () -> Long
+    ) : this(
+        selfId = selfId,
+        selfName = selfName,
+        clock = clock,
+        monotonicClock = clock
+    )
     var selfOnlineTagProvider: () -> String? = { null }
     var selfSupportedFormatsProvider: () -> Int = { AudioFormatId.BITMASK_ALL }
+
+    companion object {
+        const val MAX_ENDPOINTS_PER_NEIGHBOR = 2
+
+        private fun ipv4Subnet24(host: String): String? {
+            val parts = host.split('.')
+            if (parts.size != 4) return null
+            return "${parts[0]}.${parts[1]}.${parts[2]}"
+        }
+    }
 
     private class Neighbor(
         var name: String,
@@ -80,8 +106,33 @@ class MeshGraphRepository(
         var lastSeen: Long,
         var onlineIdTag: String? = null,
         var supportedFormats: Int? = null,
-        val firstSeen: Long = lastSeen
-    )
+        val firstSeen: Long = lastSeen,
+        val endpoints: LinkedHashMap<MeshEndpoint, Long> = linkedMapOf(endpoint to lastSeen)
+    ) {
+        fun recordEndpoint(ep: MeshEndpoint, seenAt: Long): Boolean {
+            val subnet = ipv4Subnet24(ep.host)
+            var removedStaleSameSubnet = false
+            if (subnet != null) {
+                val iter = endpoints.entries.iterator()
+                while (iter.hasNext()) {
+                    val existing = iter.next().key
+                    if (existing != ep && ipv4Subnet24(existing.host) == subnet) {
+                        iter.remove()
+                        removedStaleSameSubnet = true
+                    }
+                }
+            }
+            val wasPresent = endpoints.remove(ep) != null
+            endpoints[ep] = seenAt
+            while (endpoints.size > MAX_ENDPOINTS_PER_NEIGHBOR) {
+                val oldest = endpoints.keys.firstOrNull() ?: break
+                endpoints.remove(oldest)
+            }
+            val primaryChanged = endpoint != ep
+            endpoint = ep
+            return !wasPresent || removedStaleSameSubnet || primaryChanged
+        }
+    }
     private class Report(
         var name: String,
         var neighbors: Set<String>,
@@ -130,8 +181,9 @@ class MeshGraphRepository(
             if (n == null) {
                 neighbors[sourceId] = Neighbor(name, endpoint, now, onlineIdTag, supportedFormats, now); changed = true
             } else {
-                if (n.endpoint != endpoint || n.name != name || n.onlineIdTag != onlineIdTag || (supportedFormats != null && n.supportedFormats != supportedFormats)) changed = true
-                n.endpoint = endpoint; n.name = name; n.lastSeen = now; n.onlineIdTag = onlineIdTag
+                val epChanged = n.recordEndpoint(endpoint, now)
+                if (epChanged || n.name != name || n.onlineIdTag != onlineIdTag || (supportedFormats != null && n.supportedFormats != supportedFormats)) changed = true
+                n.name = name; n.lastSeen = now; n.onlineIdTag = onlineIdTag
                 if (supportedFormats != null) n.supportedFormats = supportedFormats
             }
         }
@@ -162,18 +214,20 @@ class MeshGraphRepository(
             val updated = cur.neighbors.map { n ->
                 val live = neighbors[n.deviceId]
                 if (live != null && live.lastSeen != n.lastSeen) {
-                    DirectNeighbor(n.deviceId, n.name, n.endpoint, live.lastSeen)
+                    DirectNeighbor(n.deviceId, n.name, n.endpoint, live.lastSeen, live.endpoints.keys.toList())
                 } else n
             }
             val updatedEdges = snap.edges.map { edge ->
                 if (edge.from == sourceId || edge.to == sourceId) {
                     val other = if (edge.from == sourceId) edge.to else edge.from
+                    val directTimeoutMs = neighborTimeoutMsProvider()
+                    val remoteTimeoutMs = remoteReportTimeoutMsProvider()
                     val directClaim = if (sourceId == selfId || other == selfId) {
                         val peerId = if (sourceId == selfId) other else sourceId
-                        neighbors[peerId]?.let { it.lastSeen to (it.lastSeen + MeshConfig.NEIGHBOR_TIMEOUT_MS) }
+                        neighbors[peerId]?.let { it.lastSeen to (it.lastSeen + directTimeoutMs) }
                     } else null
-                    val reportClaim = reports[sourceId]?.let { it.lastSeen to (it.lastSeen + MeshConfig.REMOTE_REPORT_TIMEOUT_MS) }
-                    val reportOtherClaim = reports[other]?.let { it.lastSeen to (it.lastSeen + MeshConfig.REMOTE_REPORT_TIMEOUT_MS) }
+                    val reportClaim = reports[sourceId]?.let { it.lastSeen to (it.lastSeen + remoteTimeoutMs) }
+                    val reportOtherClaim = reports[other]?.let { it.lastSeen to (it.lastSeen + remoteTimeoutMs) }
                     val newLastSeen = maxOf(edge.lastSeenAt, directClaim?.first ?: 0L, reportClaim?.first ?: 0L, reportOtherClaim?.first ?: 0L)
                     val newExpiresAt = maxOf(edge.expiresAt, directClaim?.second ?: 0L, reportClaim?.second ?: 0L, reportOtherClaim?.second ?: 0L)
                     edge.copy(lastSeenAt = newLastSeen, expiresAt = newExpiresAt)
@@ -205,13 +259,33 @@ class MeshGraphRepository(
     fun expire(): Boolean {
         val now = monotonicClock()
         var changed = false
-        val dead = neighbors.filter { now - it.value.lastSeen > MeshConfig.NEIGHBOR_TIMEOUT_MS }.keys.toList()
+        val directTimeoutMs = neighborTimeoutMsProvider()
+        val remoteTimeoutMs = remoteReportTimeoutMsProvider()
+        val dead = neighbors.filter { now - it.value.lastSeen > directTimeoutMs }.keys.toList()
         for (id in dead) {
             neighbors.remove(id)
             reports.remove(id)
             changed = true
         }
-        val staleReports = reports.filter { now - it.value.lastSeen > MeshConfig.REMOTE_REPORT_TIMEOUT_MS }.keys.toList()
+        for ((_, n) in neighbors) {
+            val epIter = n.endpoints.entries.iterator()
+            var prunedEp = false
+            while (epIter.hasNext()) {
+                val entry = epIter.next()
+                if (now - entry.value > directTimeoutMs && n.endpoints.size > 1) {
+                    epIter.remove()
+                    prunedEp = true
+                }
+            }
+            if (prunedEp) {
+                val latestEp = n.endpoints.keys.lastOrNull()
+                if (latestEp != null) {
+                    n.endpoint = latestEp
+                }
+                changed = true
+            }
+        }
+        val staleReports = reports.filter { now - it.value.lastSeen > remoteTimeoutMs }.keys.toList()
         for (id in staleReports) { reports.remove(id); changed = true }
         if (changed) publish()
         return changed
@@ -219,14 +293,14 @@ class MeshGraphRepository(
 
     @Synchronized
     fun directNeighbors(): List<DirectNeighbor> =
-        neighbors.entries.sortedBy { it.key }.map { DirectNeighbor(it.key, it.value.name, it.value.endpoint, it.value.lastSeen) }
+        neighbors.entries.sortedBy { it.key }.map { DirectNeighbor(it.key, it.value.name, it.value.endpoint, it.value.lastSeen, it.value.endpoints.keys.toList()) }
 
     @Synchronized
     fun directNeighborIds(): List<String> = neighbors.keys.sorted()
 
     @Synchronized
     fun neighbor(id: String): DirectNeighbor? =
-        neighbors[id]?.let { DirectNeighbor(id, it.name, it.endpoint, it.lastSeen) }
+        neighbors[id]?.let { DirectNeighbor(id, it.name, it.endpoint, it.lastSeen, it.endpoints.keys.toList()) }
 
     @Synchronized
     fun reset() {
@@ -245,7 +319,7 @@ class MeshGraphRepository(
 
     private fun buildForwardingView(snap: MeshGraphSnapshot = buildSnapshot()): ForwardingView {
         val sorted = neighbors.entries.sortedBy { it.key }.map {
-            DirectNeighbor(it.key, it.value.name, it.value.endpoint, it.value.lastSeen)
+            DirectNeighbor(it.key, it.value.name, it.value.endpoint, it.value.lastSeen, it.value.endpoints.keys.toList())
         }
         return ForwardingView(
             version = version,
@@ -275,12 +349,14 @@ class MeshGraphRepository(
         // reporter -> reported neighbor, with freshness
         class Claim(val lastSeen: Long, val expiresAt: Long, val endpoint: MeshEndpoint?)
         val claims = HashMap<Pair<String, String>, Claim>()
+        val directTimeoutMs = neighborTimeoutMsProvider()
+        val remoteTimeoutMs = remoteReportTimeoutMsProvider()
         neighbors.forEach { (id, n) ->
-            claims[selfId to id] = Claim(n.lastSeen, n.lastSeen + MeshConfig.NEIGHBOR_TIMEOUT_MS, n.endpoint)
+            claims[selfId to id] = Claim(n.lastSeen, n.lastSeen + directTimeoutMs, n.endpoint)
         }
         reports.forEach { (rid, r) ->
             r.neighbors.forEach { nid ->
-                if (rid != selfId) claims[rid to nid] = Claim(r.lastSeen, r.lastSeen + MeshConfig.REMOTE_REPORT_TIMEOUT_MS, null)
+                if (rid != selfId) claims[rid to nid] = Claim(r.lastSeen, r.lastSeen + remoteTimeoutMs, null)
             }
         }
 

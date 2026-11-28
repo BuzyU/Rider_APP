@@ -18,10 +18,12 @@ import java.net.NetworkInterface
 
 interface DeviceCapabilityChecker {
     fun hasMeshNetworkingCapability(): Boolean
+    fun hasAutomaticP2pCapability(): Boolean = true
 }
 
 interface PermissionChecker {
     fun hasRecordAudioPermission(): Boolean
+    fun hasP2pPermissions(): Boolean = true
 }
 
 interface BatteryOptimizationChecker {
@@ -32,7 +34,10 @@ interface TransportReadinessChecker {
     fun canBindMeshTransport(): Boolean
 }
 
-class DefaultDeviceCapabilityChecker : DeviceCapabilityChecker {
+class DefaultDeviceCapabilityChecker(
+    private val sdkInt: Int = android.os.Build.VERSION.SDK_INT,
+    private val hasWifiDirectFeature: () -> Boolean = { true }
+) : DeviceCapabilityChecker {
     override fun hasMeshNetworkingCapability(): Boolean {
         return try {
             val interfaces = NetworkInterface.getNetworkInterfaces()
@@ -41,10 +46,19 @@ class DefaultDeviceCapabilityChecker : DeviceCapabilityChecker {
             false
         }
     }
+
+    override fun hasAutomaticP2pCapability(): Boolean =
+        hasMeshNetworkingCapability() &&
+            (sdkInt == 0 || sdkInt >= android.os.Build.VERSION_CODES.Q) &&
+            hasWifiDirectFeature()
 }
 
-class DefaultPermissionChecker(private val checkAudio: () -> Boolean = { true }) : PermissionChecker {
+class DefaultPermissionChecker(
+    private val checkAudio: () -> Boolean = { true },
+    private val checkP2p: () -> Boolean = { true }
+) : PermissionChecker {
     override fun hasRecordAudioPermission(): Boolean = checkAudio()
+    override fun hasP2pPermissions(): Boolean = checkP2p()
 }
 
 class DefaultBatteryOptimizationChecker(private val isIgnoring: () -> Boolean = { true }) : BatteryOptimizationChecker {
@@ -94,7 +108,8 @@ class OfflineConfigCoordinator(
             executionJob?.cancel()
             _state.value = OfflineConfigState(
                 status = OfflineConfigStatus.OPTED_OUT,
-                optOut = true
+                optOut = true,
+                linkLevel = RiderLinkLevel.INELIGIBLE
             )
             return
         }
@@ -121,11 +136,20 @@ class OfflineConfigCoordinator(
         )
 
         // Step 1: DEVICE_CAPABILITY
+        var step1LinkLevel = RiderLinkLevel.AUTO_P2P
         val capResult = executeWithStepTimeout(OfflineConfigStep.DEVICE_CAPABILITY) {
-            if (deviceCapabilityChecker.hasMeshNetworkingCapability()) {
-                StepResult(OfflineConfigStep.DEVICE_CAPABILITY, StepState.PASSED)
-            } else {
+            if (!deviceCapabilityChecker.hasMeshNetworkingCapability()) {
+                step1LinkLevel = RiderLinkLevel.INELIGIBLE
                 StepResult(OfflineConfigStep.DEVICE_CAPABILITY, StepState.FAILED, "OFFLINE BACKUP UNAVAILABLE ON THIS DEVICE")
+            } else if (!deviceCapabilityChecker.hasAutomaticP2pCapability()) {
+                step1LinkLevel = RiderLinkLevel.MANUAL_HOTSPOT
+                StepResult(
+                    OfflineConfigStep.DEVICE_CAPABILITY,
+                    StepState.FAILED,
+                    "AUTOMATIC P2P LINK REQUIRES ANDROID 10+ WITH WI-FI DIRECT; MANUAL HOTSPOT ONLY"
+                )
+            } else {
+                StepResult(OfflineConfigStep.DEVICE_CAPABILITY, StepState.PASSED)
             }
         }
         currentSteps[OfflineConfigStep.DEVICE_CAPABILITY] = capResult
@@ -133,17 +157,24 @@ class OfflineConfigCoordinator(
             _state.value = _state.value.copy(
                 status = OfflineConfigStatus.UNAVAILABLE_DEVICE,
                 stepResults = currentSteps,
-                failureReason = capResult.detail
+                failureReason = capResult.detail,
+                linkLevel = step1LinkLevel
             )
             return
         }
 
         // Step 2: PERMISSIONS
         val permResult = executeWithStepTimeout(OfflineConfigStep.PERMISSIONS) {
-            if (permissionChecker.hasRecordAudioPermission()) {
-                StepResult(OfflineConfigStep.PERMISSIONS, StepState.PASSED)
-            } else {
-                StepResult(OfflineConfigStep.PERMISSIONS, StepState.FAILED, "RECORD_AUDIO permission required")
+            val hasAudio = permissionChecker.hasRecordAudioPermission()
+            val hasP2p = permissionChecker.hasP2pPermissions()
+            when {
+                !hasAudio -> StepResult(OfflineConfigStep.PERMISSIONS, StepState.FAILED, "RECORD_AUDIO permission required")
+                !hasP2p -> StepResult(
+                    OfflineConfigStep.PERMISSIONS,
+                    StepState.FAILED,
+                    "CHANGE_WIFI_STATE and NEARBY_WIFI_DEVICES / ACCESS_FINE_LOCATION permission required"
+                )
+                else -> StepResult(OfflineConfigStep.PERMISSIONS, StepState.PASSED)
             }
         }
         currentSteps[OfflineConfigStep.PERMISSIONS] = permResult
@@ -151,7 +182,8 @@ class OfflineConfigCoordinator(
             _state.value = _state.value.copy(
                 status = OfflineConfigStatus.NEEDS_PERMISSION,
                 stepResults = currentSteps,
-                failureReason = permResult.detail
+                failureReason = permResult.detail,
+                linkLevel = RiderLinkLevel.INELIGIBLE
             )
             return
         }
@@ -244,7 +276,8 @@ class OfflineConfigCoordinator(
         _state.value = _state.value.copy(
             status = OfflineConfigStatus.READY,
             stepResults = currentSteps,
-            failureReason = null
+            failureReason = null,
+            linkLevel = RiderLinkLevel.AUTO_P2P
         )
     }
 
@@ -263,7 +296,8 @@ class OfflineConfigCoordinator(
         _state.value = _state.value.copy(
             status = OfflineConfigStatus.OPTED_OUT,
             optOut = true,
-            failureReason = null
+            failureReason = null,
+            linkLevel = RiderLinkLevel.INELIGIBLE
         )
     }
 

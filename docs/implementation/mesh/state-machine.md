@@ -71,19 +71,19 @@ Anti-flapping parameters prevent rapid ping-pong oscillation when traveling on c
 
 ```kotlin
 data class AntiFlappingConfig(
-    val failureConfirmationMs: Long = 10_000L,
-    val recoveryStabilityMs: Long = 8_000L,
+    val failureConfirmationMs: Long = 3_000L,
+    val recoveryStabilityMs: Long = 4_000L,
     val minDwellMs: Long = 20_000L,
-    val maxTransitionsPerWindow: Int = 4,
+    val maxTransitionsPerWindow: Int = 3,
     val windowMs: Long = 120_000L,
-    val offlineRetryBaseMs: Long = 5_000L
+    val offlineRetryBaseMs: Long = 10_000L
 )
 ```
 
-- **Failure Confirmation (`10,000 ms`):** Internet/LiveKit failure must persist continuously for 10 seconds before initiating mesh fallback.
-- **Recovery Stability (`8,000 ms`):** Internet health signals must be stable and verified for 8 seconds before initiating recovery to LiveKit.
+- **Failure Confirmation (`3,000 ms`):** Internet/LiveKit failure must persist continuously for 3 seconds before initiating mesh fallback (`SUSPECT_TICK_MS = 200 ms` adaptive loop while in `ONLINE_SUSPECT` or `STARTING_OFFLINE`).
+- **Recovery Stability (`4,000 ms`):** Internet health signals must be stable and verified for 4 seconds before initiating recovery to LiveKit.
 - **Minimum Dwell (`20,000 ms`):** Must remain in current transport for at least 20 seconds before allowing another transition (except when the active mesh transport dies while online is recoverable).
-- **Transition Rate Cap (`4 per 120s`):** At most 4 transitions allowed within any sliding 2-minute window (`windowMs`), with exponential retry backoff (`offlineRetryBaseMs = 5,000 ms` doubling up to 8x).
+- **Transition Rate Cap (`3 per 120s`):** At most 3 transitions allowed within any sliding 2-minute window (`windowMs`), with retry backoff (`offlineRetryBaseMs = 10,000 ms`).
 
 ---
 
@@ -114,8 +114,14 @@ data class LocalHealthSignals(
 - **Gate:** `isMeshRouteAvailable == true` and an offline session secret is available in `OfflineSessionHolder`.
 - **Session Lifecycle & Phase Gating:** `AutomaticSwitchStateMachine` evaluates switching rules only when in `Phase.LIVE` (initiated via `beginSession()` and terminated via `endSession()`). If the session is ended or uninitialized, transitions are inhibited.
 
-### 3.2 Independent HTTP Probe Throttling
-- The health probe performs lightweight HTTP requests throttled to at least 5-second intervals, executing strictly on `Dispatchers.IO` to ensure zero blocking on main or state evaluation threads.
+### 3.2 Independent HTTP Probe Throttling & Stale-Validated Override
+- The backend `/health` HTTP probe uses `HEALTH_PROBE_TIMEOUT_MS` (`1,500 ms` connect/read/call timeout) on `Dispatchers.IO`.
+- On an immediate healthy → unhealthy transition, the initial probe executes immediately; subsequent follow-up probes while in `fastProbeMode` (`ONLINE_SUSPECT` / `STARTING_OFFLINE`) are throttled to `FAST_PROBE_THROTTLE_MS` (`1,000 ms`) and dispatched asynchronously on `watcherScope` (`probeInFlight` guarded) so the `200 ms` suspect tick never blocks behind a hung blackhole socket. Outside suspect mode, follow-up probes remain throttled at `5,000 ms`.
+- If OS `NET_CAPABILITY_VALIDATED` remains stale `true` while both `/health` and LiveKit fail continuously for `>= STALE_VALIDATED_OVERRIDE_MS` (`1,000 ms`) or `liveKitReconnectAttempts >= 2`, `MeshAutoSwitchManager` overrides `isValidatedInternet = false`.
+
+### 3.10 Wi-Fi Direct Link Cooldown & Star GO Failover
+- `AndroidWifiDirectGroupController` terminates `launchSetupLoopLocked()` at `MAX_SETUP_ATTEMPTS = 8` (`WifiDirectStatus.FAILED`) and enforces a `FAILED_COOLDOWN_MS` (`60,000 ms`) cooldown unless the session or GO role changes.
+- While live offline voice is active (`OFFLINE_ACTIVE`), `StarGroupOwnerSelector` freezes the active P2P GO until GO absence exceeds `GO_LOSS_DETECTION_MS` (`10,000 ms`) or `WifiDirectStatus.FAILED`, then excludes the dead GO for `GO_EXCLUSION_TTL_MS` (`60,000 ms`) and deterministically promotes the next canonical `MESH_PARTICIPANT`.
 
 ### 3.3 Internet Recovery & Non-Disruptive Handback (`OFFLINE_ACTIVE` -> `ONLINE_RECOVERING` -> `ONLINE`)
 - **Recovery Condition:** `isValidatedInternet == true && isHealthProbeSuccessful == true`.

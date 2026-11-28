@@ -48,13 +48,39 @@ data class MeshDiagnosticsSnapshot(
     val trackUnderrunCount: Long = 0L,
     val concealedMidTalkspurt: Long = 0L,
     val captureToSendMs: Double = 0.0,
-    val rxToPlayoutMs: Double = 0.0
+    val rxToPlayoutMs: Double = 0.0,
+    val linkLevel: String = "",
+    val p2pStatus: String = "",
+    val p2pGoIp: String = "",
+    val selectedGoId: String = ""
 )
 
 class MeshDiagnosticsRepository {
     private val _snapshot = MutableStateFlow(MeshDiagnosticsSnapshot())
     val snapshot: StateFlow<MeshDiagnosticsSnapshot> = _snapshot.asStateFlow()
     private val _droppedAtLinkBuffer = AtomicLong(0L)
+    @Volatile private var metaLinkLevel: String = ""
+    @Volatile private var metaP2pStatus: String = ""
+    @Volatile private var metaP2pGoIp: String = ""
+    @Volatile private var metaSelectedGoId: String = ""
+
+    fun updateLinkMetadata(
+        linkLevel: String,
+        p2pStatus: String,
+        p2pGoIp: String,
+        selectedGoId: String
+    ) {
+        metaLinkLevel = linkLevel
+        metaP2pStatus = p2pStatus
+        metaP2pGoIp = p2pGoIp
+        metaSelectedGoId = selectedGoId
+        _snapshot.value = _snapshot.value.copy(
+            linkLevel = linkLevel,
+            p2pStatus = p2pStatus,
+            p2pGoIp = p2pGoIp,
+            selectedGoId = selectedGoId
+        )
+    }
 
     fun recordBufferDrop() {
         _droppedAtLinkBuffer.incrementAndGet()
@@ -146,12 +172,20 @@ class MeshDiagnosticsRepository {
             trackUnderrunCount = trackUnderrunCount,
             concealedMidTalkspurt = concealedMidTalkspurt,
             captureToSendMs = captureToSendMs,
-            rxToPlayoutMs = rxToPlayoutMs
+            rxToPlayoutMs = rxToPlayoutMs,
+            linkLevel = metaLinkLevel,
+            p2pStatus = metaP2pStatus,
+            p2pGoIp = metaP2pGoIp,
+            selectedGoId = metaSelectedGoId
         )
     }
 
     fun reset() {
         _droppedAtLinkBuffer.set(0L)
+        metaLinkLevel = ""
+        metaP2pStatus = ""
+        metaP2pGoIp = ""
+        metaSelectedGoId = ""
         _snapshot.value = MeshDiagnosticsSnapshot()
     }
 }

@@ -1021,4 +1021,20 @@
     <string name="location_gate_gps_off_title">डिव्हाइस GPS सुरू करा</string>
     <string name="location_gate_gps_off_body">राइड रूम तयार करण्यापूर्वी किंवा सामील होण्यापूर्वी कृपया डिव्हाइस स्थान (GPS) सुरू करा.</string>
     <string name="location_gate_open_gps_cta">GPS सुरू करा</string>
+
+    <string name="mesh_status_notif_channel_name">ताफा स्थिती सूचना</string>
+    <string name="mesh_convoy_offline_active">ताफा ऑफलाइन व्हॉइसवर स्विच झाला</string>
+    <string name="mesh_convoy_starting_offline">ताफा ऑफलाइन व्हॉइसवर स्विच होत आहे…</string>
+    <string name="mesh_convoy_starting_online">ताफा परत ऑनलाइन व्हॉइसशी जोडत आहे…</string>
+    <string name="mesh_convoy_online_active">ताफा परत ऑनलाइन व्हॉइसवर आला</string>
+    <string name="mesh_convoy_unavailable">ऑफलाइन व्हॉइस अनुपलब्ध आहे</string>
+    <string name="mesh_convoy_wifi_off">Wi-Fi बंद आहे — ऑफलाइन व्हॉइस थांबला</string>
+    <string name="mesh_convoy_p2p_unsupported">स्वयंचलित लिंकसाठी Android %1$d+ आवश्यक आहे. मॅन्युअल हॉटस्पॉट उपलब्ध आहे.</string>
+    <string name="mesh_convoy_link_failed">%1$d प्रयत्नांनंतर स्वयंचलित लिंक अयशस्वी झाली</string>
+    <string name="mesh_link_level_auto_p2p">ऑटो P2P लिंक</string>
+    <string name="mesh_link_level_manual_hotspot">फक्त मॅन्युअल हॉटस्पॉट</string>
+    <string name="mesh_diag_link_level">लिंक पातळी</string>
+    <string name="mesh_diag_p2p_status">P2P स्थिती</string>
+    <string name="mesh_diag_p2p_go_ip">P2P GO IP</string>
+    <string name="mesh_diag_selected_go">निवडलेला P2P हब</string>
 </resources>

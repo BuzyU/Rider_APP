@@ -70,6 +70,31 @@ object WifiDirectCredentialsFactory {
         )
     }
 
+    fun deriveForSegment(
+        session: OfflineSession,
+        goRosterIdx: Int,
+        clientRosterIdx: Int
+    ): WifiDirectCredentials? {
+        if (session.isClosed) return null
+        val authKeyBytes = try {
+            session.authKey()
+        } catch (_: IllegalStateException) {
+            return null
+        }
+        val a = minOf(goRosterIdx, clientRosterIdx)
+        val b = maxOf(goRosterIdx, clientRosterIdx)
+        val mac = Mac.getInstance("HmacSHA256").apply {
+            init(SecretKeySpec(authKeyBytes, "HmacSHA256"))
+        }
+        val digest = mac.doFinal("RV-P2P-V2-SEG|${session.sessionId}|$a-$b".toByteArray(Charsets.UTF_8))
+        val suffix = encodeAlnum(digest, offset = 0, length = 8)
+        val passphrase = encodeAlnum(digest, offset = 8, length = 16)
+        return WifiDirectCredentials(
+            networkName = "DIRECT-RV-$suffix",
+            passphrase = passphrase
+        )
+    }
+
     private fun encodeAlnum(bytes: ByteArray, offset: Int, length: Int): String {
         val sb = StringBuilder(length)
         for (i in 0 until length) {
@@ -95,9 +120,16 @@ interface WifiDirectGroupController {
     val status: StateFlow<WifiDirectStatus>
     val isGroupConnected: StateFlow<Boolean>
     val p2pEvents: Flow<WifiChangeEvent>
+    val p2pOwnerAddress: StateFlow<String?> get() = DEFAULT_EMPTY_OWNER_ADDRESS
+    fun connectionInfo(): WifiP2pInfo? = null
 
     fun ensureActive(session: OfflineSession, isHost: Boolean)
+    fun resetFailureCooldown() {}
     fun stop()
+
+    companion object {
+        private val DEFAULT_EMPTY_OWNER_ADDRESS: StateFlow<String?> = MutableStateFlow(null)
+    }
 }
 
 object NoOpWifiDirectGroupController : WifiDirectGroupController {
@@ -116,13 +148,29 @@ object NoOpWifiDirectGroupController : WifiDirectGroupController {
 class AndroidWifiDirectGroupController(
     private val context: Context,
     private val gateOpen: () -> Boolean = { OfflineMeshGate.isBuildGateOpen() },
-    dispatcher: CoroutineDispatcher = Dispatchers.Default
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val clock: () -> Long = { System.currentTimeMillis() },
+    private val sdkInt: Int = Build.VERSION.SDK_INT,
+    private val p2pManagerOverride: WifiP2pManager? = null,
+    private val wifiManagerOverride: WifiManager? = null,
+    private val hasPermissionsOverride: (() -> Boolean)? = null,
+    private val registerReceiverOverride: ((BroadcastReceiver, IntentFilter) -> Unit)? = null,
+    private val unregisterReceiverOverride: ((BroadcastReceiver) -> Unit)? = null,
+    private val initializeChannelOverride: (() -> WifiP2pManager.Channel?)? = null,
+    private val buildConfigOverride: ((WifiDirectCredentials) -> WifiP2pConfig)? = null
 ) : WifiDirectGroupController {
 
-    private val appContext = context.applicationContext
+    companion object {
+        const val MAX_SETUP_ATTEMPTS = 8
+        const val FAILED_COOLDOWN_MS = 60_000L
+    }
+
+    private val appContext = context.applicationContext ?: context
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
-    private val p2pManager = appContext.getSystemService(Context.WIFI_P2P_SERVICE) as? WifiP2pManager
-    private val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+    private val p2pManager = p2pManagerOverride
+        ?: (appContext.getSystemService(Context.WIFI_P2P_SERVICE) as? WifiP2pManager)
+    private val wifiManager = wifiManagerOverride
+        ?: (appContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager)
 
     private val _status = MutableStateFlow(WifiDirectStatus.IDLE)
     override val status: StateFlow<WifiDirectStatus> = _status.asStateFlow()
@@ -133,6 +181,13 @@ class AndroidWifiDirectGroupController(
     private val _p2pEvents = MutableSharedFlow<WifiChangeEvent>(extraBufferCapacity = 16)
     override val p2pEvents: Flow<WifiChangeEvent> = _p2pEvents.asSharedFlow()
 
+    private val _p2pOwnerAddress = MutableStateFlow<String?>(null)
+    override val p2pOwnerAddress: StateFlow<String?> = _p2pOwnerAddress.asStateFlow()
+
+    @Volatile
+    private var lastConnectionInfo: WifiP2pInfo? = null
+    override fun connectionInfo(): WifiP2pInfo? = lastConnectionInfo
+
     private val stateLock = Any()
     private var channel: WifiP2pManager.Channel? = null
     private var receiverRegistered = false
@@ -140,6 +195,32 @@ class AndroidWifiDirectGroupController(
     private var activeCreds: WifiDirectCredentials? = null
     private var activeIsHost: Boolean = false
     private var retryJob: Job? = null
+    private var failedCooldownUntilMs: Long = 0L
+
+    override fun resetFailureCooldown() {
+        synchronized(stateLock) {
+            failedCooldownUntilMs = 0L
+        }
+    }
+
+    private fun recordConnectionInfo(info: WifiP2pInfo?) {
+        if (info?.groupFormed == true) {
+            lastConnectionInfo = info
+            _p2pOwnerAddress.value = info.groupOwnerAddress?.hostAddress
+        } else {
+            lastConnectionInfo = null
+            _p2pOwnerAddress.value = null
+        }
+    }
+
+    internal fun onConnectionInfoUpdateForTest(info: WifiP2pInfo?) {
+        recordConnectionInfo(info)
+        if (info?.groupFormed == true) {
+            markConnected()
+        } else {
+            _isGroupConnected.value = false
+        }
+    }
 
     private val p2pReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
@@ -154,6 +235,7 @@ class AndroidWifiDirectGroupController(
                         retriggerIfWaiting()
                     } else {
                         _isGroupConnected.value = false
+                        recordConnectionInfo(null)
                         if (activeCreds != null) {
                             _status.value = WifiDirectStatus.DISABLED_WIFI_OFF
                         }
@@ -172,6 +254,7 @@ class AndroidWifiDirectGroupController(
                         retriggerIfWaiting()
                     } else if (wifiState == WifiManager.WIFI_STATE_DISABLED) {
                         _isGroupConnected.value = false
+                        recordConnectionInfo(null)
                         if (activeCreds != null) {
                             _status.value = WifiDirectStatus.DISABLED_WIFI_OFF
                         }
@@ -183,7 +266,7 @@ class AndroidWifiDirectGroupController(
 
     @Suppress("DEPRECATION")
     private fun extractP2pInfo(intent: Intent): WifiP2pInfo? {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && sdkInt >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_INFO, WifiP2pInfo::class.java)
         } else {
             intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_INFO)
@@ -192,16 +275,23 @@ class AndroidWifiDirectGroupController(
 
     override fun ensureActive(session: OfflineSession, isHost: Boolean) {
         if (!gateOpen()) return
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || p2pManager == null) {
+        if (sdkInt < Build.VERSION_CODES.Q || p2pManager == null) {
             _status.value = WifiDirectStatus.UNSUPPORTED
             return
         }
         val creds = WifiDirectCredentialsFactory.derive(session) ?: return
         synchronized(stateLock) {
             registerReceiverLocked()
-            val unchanged = activeSessionId == session.sessionId &&
-                activeIsHost == isHost &&
-                activeCreds == creds &&
+            val sessionChanged = activeSessionId != session.sessionId ||
+                activeIsHost != isHost ||
+                activeCreds != creds
+            if (sessionChanged) {
+                failedCooldownUntilMs = 0L
+            } else if (_status.value == WifiDirectStatus.FAILED && clock() < failedCooldownUntilMs) {
+                return
+            }
+
+            val unchanged = !sessionChanged &&
                 (_isGroupConnected.value || retryJob?.isActive == true)
             if (unchanged) return
 
@@ -209,7 +299,8 @@ class AndroidWifiDirectGroupController(
             activeCreds = creds
             activeIsHost = isHost
             if (channel == null) {
-                channel = p2pManager.initialize(appContext, Looper.getMainLooper(), null)
+                channel = initializeChannelOverride?.invoke()
+                    ?: p2pManager.initialize(appContext, Looper.getMainLooper(), null)
             }
             launchSetupLoopLocked(creds, isHost)
         }
@@ -222,9 +313,11 @@ class AndroidWifiDirectGroupController(
             retryJob = null
             activeSessionId = null
             activeCreds = null
+            failedCooldownUntilMs = 0L
             ch = channel
             unregisterReceiverLocked()
         }
+        recordConnectionInfo(null)
         _isGroupConnected.value = false
         _status.value = WifiDirectStatus.IDLE
         val mgr = p2pManager
@@ -284,8 +377,12 @@ class AndroidWifiDirectGroupController(
 
                 delay(backoffMs)
                 backoffMs = (backoffMs * 2).coerceAtMost(12_000L)
-                if (attempts >= 8 && !_isGroupConnected.value) {
+                if (attempts >= MAX_SETUP_ATTEMPTS && !_isGroupConnected.value) {
+                    synchronized(stateLock) {
+                        failedCooldownUntilMs = clock() + FAILED_COOLDOWN_MS
+                    }
                     _status.value = WifiDirectStatus.FAILED
+                    return@launch
                 }
             }
         }
@@ -299,11 +396,12 @@ class AndroidWifiDirectGroupController(
     ) {
         mgr.requestGroupInfo(ch) { group ->
             if (group != null && group.networkName == creds.networkName) {
+                mgr.requestConnectionInfo(ch) { info -> recordConnectionInfo(info) }
                 markConnected()
                 return@requestGroupInfo
             }
             val startGroup = {
-                val cfg = WifiP2pConfig.Builder()
+                val cfg = buildConfigOverride?.invoke(creds) ?: WifiP2pConfig.Builder()
                     .setNetworkName(creds.networkName)
                     .setPassphrase(creds.passphrase)
                     .build()
@@ -311,6 +409,7 @@ class AndroidWifiDirectGroupController(
                     override fun onSuccess() {
                         MeshLog.d("WifiDirect", "Host P2P group initiated (${creds.networkName})")
                         mgr.requestConnectionInfo(ch) { info ->
+                            recordConnectionInfo(info)
                             if (info?.groupFormed == true) markConnected()
                         }
                     }
@@ -342,7 +441,7 @@ class AndroidWifiDirectGroupController(
         ch: WifiP2pManager.Channel,
         creds: WifiDirectCredentials
     ) {
-        val cfg = WifiP2pConfig.Builder()
+        val cfg = buildConfigOverride?.invoke(creds) ?: WifiP2pConfig.Builder()
             .setNetworkName(creds.networkName)
             .setPassphrase(creds.passphrase)
             .build()
@@ -364,12 +463,14 @@ class AndroidWifiDirectGroupController(
         val targetCreds = activeCreds ?: return
 
         if (info?.groupFormed == true) {
+            recordConnectionInfo(info)
             mgr.requestGroupInfo(ch) { group ->
                 if (group == null || group.networkName == targetCreds.networkName) {
                     markConnected()
                 }
             }
         } else {
+            recordConnectionInfo(null)
             val wasConnected = _isGroupConnected.getAndSetFalse()
             if (wasConnected) {
                 _p2pEvents.tryEmit(WifiChangeEvent.Changed)
@@ -391,14 +492,16 @@ class AndroidWifiDirectGroupController(
 
     private fun isWifiRadioEnabled(): Boolean = wifiManager?.isWifiEnabled != false
 
+    @android.annotation.SuppressLint("InlinedApi")
     private fun hasRequiredPermissions(): Boolean {
+        hasPermissionsOverride?.let { return it() }
         val hasChangeWifi = ContextCompat.checkSelfPermission(
             appContext,
             Manifest.permission.CHANGE_WIFI_STATE
         ) == PackageManager.PERMISSION_GRANTED
         if (!hasChangeWifi) return false
 
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        return if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(
                 appContext,
                 Manifest.permission.NEARBY_WIFI_DEVICES
@@ -418,18 +521,28 @@ class AndroidWifiDirectGroupController(
             addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION)
             addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
         }
-        ContextCompat.registerReceiver(
-            appContext,
-            p2pReceiver,
-            filter,
-            ContextCompat.RECEIVER_NOT_EXPORTED
-        )
+        val override = registerReceiverOverride
+        if (override != null) {
+            override(p2pReceiver, filter)
+        } else {
+            ContextCompat.registerReceiver(
+                appContext,
+                p2pReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        }
         receiverRegistered = true
     }
 
     private fun unregisterReceiverLocked() {
         if (!receiverRegistered) return
-        runCatching { appContext.unregisterReceiver(p2pReceiver) }
+        val override = unregisterReceiverOverride
+        if (override != null) {
+            runCatching { override(p2pReceiver) }
+        } else {
+            runCatching { appContext.unregisterReceiver(p2pReceiver) }
+        }
         receiverRegistered = false
     }
 

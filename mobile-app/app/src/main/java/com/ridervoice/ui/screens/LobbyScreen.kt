@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.ridervoice.mesh.link.WifiDirectStatus
+import com.ridervoice.mesh.offline.RiderLinkLevel
 import com.ridervoice.permissions.PermissionManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -67,6 +68,9 @@ fun LobbyScreen(
     val wifiDirectFlow: kotlinx.coroutines.flow.StateFlow<*> = viewModel.wifiDirectStatus
     val rawWifiDirectStatus by wifiDirectFlow.collectAsStateWithLifecycle()
     val wifiDirectStatus = (rawWifiDirectStatus as? WifiDirectStatus) ?: WifiDirectStatus.IDLE
+    val selectedGoFlow: kotlinx.coroutines.flow.StateFlow<*> = viewModel.selectedGoId
+    val rawSelectedGoId by selectedGoFlow.collectAsStateWithLifecycle()
+    val selectedGoId = rawSelectedGoId as? String
     val error by viewModel.error.collectAsStateWithLifecycle()
     val terminal by viewModel.terminal.collectAsStateWithLifecycle()
 
@@ -727,7 +731,8 @@ fun LobbyScreen(
                         onOptOut = { viewModel.optOutOfOfflineMesh() },
                         onOptIn = { viewModel.optInToOfflineMesh() },
                         onRetryStep = { viewModel.retryOfflineStep(it) },
-                        wifiDirectStatus = wifiDirectStatus
+                        wifiDirectStatus = wifiDirectStatus,
+                        selectedGoId = selectedGoId
                     )
                 }
 
@@ -1021,7 +1026,8 @@ fun OfflineConfigCard(
     onOptOut: () -> Unit = {},
     onOptIn: () -> Unit = {},
     onRetryStep: (com.ridervoice.mesh.offline.OfflineConfigStep) -> Unit = {},
-    wifiDirectStatus: WifiDirectStatus = WifiDirectStatus.IDLE
+    wifiDirectStatus: WifiDirectStatus = WifiDirectStatus.IDLE,
+    selectedGoId: String? = null
 ) {
     Card(
         modifier = Modifier
@@ -1121,6 +1127,42 @@ fun OfflineConfigCard(
                 }
 
                 // Automatic Wi-Fi Direct / hotspot status & convoy switching trade-off disclosure (v7 Section 13.1)
+                Spacer(modifier = Modifier.height(4.dp))
+                val linkLevelRes = when (meshConfig.linkLevel) {
+                    RiderLinkLevel.AUTO_P2P -> R.string.mesh_link_level_auto_p2p
+                    RiderLinkLevel.MANUAL_HOTSPOT -> R.string.mesh_link_level_manual_hotspot
+                    RiderLinkLevel.INELIGIBLE -> R.string.mesh_convoy_unavailable
+                }
+                val linkLevelLabel = stringResource(R.string.mesh_diag_link_level)
+                val linkLevelValue = stringResource(linkLevelRes)
+                val linkLevelSummary = "$linkLevelLabel: $linkLevelValue"
+                Text(
+                    text = linkLevelSummary,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (meshConfig.linkLevel == RiderLinkLevel.AUTO_P2P) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+                if (meshConfig.linkLevel == RiderLinkLevel.MANUAL_HOTSPOT) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.mesh_convoy_p2p_unsupported, 10),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (!selectedGoId.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    val selectedGoLabel = stringResource(R.string.mesh_diag_selected_go)
+                    val selectedGoSummary = "$selectedGoLabel: $selectedGoId"
+                    Text(
+                        text = selectedGoSummary,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.mesh_convoy_lobby_tradeoff_disclosure),

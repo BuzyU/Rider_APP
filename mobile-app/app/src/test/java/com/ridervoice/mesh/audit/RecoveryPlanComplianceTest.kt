@@ -4,6 +4,7 @@ import com.ridervoice.mesh.audio.MicController
 import com.ridervoice.mesh.session.HolderOfflineSecretProvider
 import com.ridervoice.mesh.session.OfflineSession
 import com.ridervoice.mesh.session.OfflineSessionHolder
+import com.ridervoice.mesh.switching.AntiFlappingConfig
 import com.ridervoice.mesh.switching.AutoSwitchState
 import com.ridervoice.mesh.switching.AutomaticSwitchStateMachine
 import com.ridervoice.mesh.switching.LocalHealthSignals
@@ -124,6 +125,7 @@ class RecoveryPlanComplianceTest {
         var handbackCalled = false
         val sm = AutomaticSwitchStateMachine(
             isGateAllowed = { true },
+            config = AntiFlappingConfig(recoveryStabilityMs = 8_000L),
             clock = { now },
             onHandoffToOffline = { true },
             onHandoffToOnline = {

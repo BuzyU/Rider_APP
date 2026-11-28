@@ -586,12 +586,17 @@ router.get('/:roomRef/status', async (req, res, next) => {
         const isRideStarted = room.status === 'ACTIVE' || Boolean(room.startedAt)
 
         const hostCallsign = room.owner ? riderCallsign(room.owner) : 'Host'
+        const hostId = room.owner?.id || room.ownerId
+        const hostConfigCache = hostId ? cacheService.get(`offline_config:${room.id}:${hostId}`) : null
         const host = {
-            id: room.owner?.id || room.ownerId,
+            id: hostId,
             callsign: hostCallsign,
             handle: room.owner?.handle || null,
             displayName: room.owner?.displayName || null,
-            bikeModel: room.owner?.bikeModel || null
+            bikeModel: room.owner?.bikeModel || null,
+            offlineConfigStatus: room.offlineMeshEnabled === false
+                ? 'OPTED_OUT'
+                : (hostConfigCache?.status || null)
         }
 
         const payload = {

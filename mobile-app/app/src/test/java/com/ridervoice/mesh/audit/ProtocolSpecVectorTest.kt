@@ -1,6 +1,7 @@
 package com.ridervoice.mesh.audit
 
 import com.ridervoice.mesh.MeshConfig
+import com.ridervoice.mesh.convoy.ConvoyProtocolConfig
 import com.ridervoice.mesh.discovery.HelloCodec
 import com.ridervoice.mesh.discovery.HelloPayload
 import com.ridervoice.mesh.protocol.AudioFormatId
@@ -194,11 +195,19 @@ class ProtocolSpecVectorTest {
     @Test
     fun antiFlappingConfigAndStateCountMatchSpec() {
         val config = AntiFlappingConfig()
-        assertEquals("Failure confirmation must be 10,000ms", 10_000L, config.failureConfirmationMs)
-        assertEquals("Recovery stability must be 8,000ms", 8_000L, config.recoveryStabilityMs)
+        assertEquals("Failure confirmation must be 3,000ms", 3_000L, config.failureConfirmationMs)
+        assertEquals("Recovery stability must be 4,000ms", 4_000L, config.recoveryStabilityMs)
         assertEquals("Min dwell must be 20,000ms", 20_000L, config.minDwellMs)
+        assertEquals("Offline retry base must stay pinned to 10,000ms", 10_000L, config.offlineRetryBaseMs)
         assertEquals("Max transitions in window must be 3", 3, config.maxTransitionsPerWindow)
         assertEquals("Transition window must be 120,000ms", 120_000L, config.windowMs)
+
+        // Cadence constants & untouched EXT_VERSION
+        assertEquals(750L, MeshConfig.BOOST_HELLO_INTERVAL_MS)
+        assertEquals(5_000L, MeshConfig.ACTIVE_NEIGHBOR_TIMEOUT_MS)
+        assertEquals(15_000L, MeshConfig.STANDBY_NEIGHBOR_TIMEOUT_MS)
+        assertEquals(1, ConvoyProtocolConfig.EXT_VERSION)
+        assertEquals(1, ConvoyProtocolConfig.CONFIG_VERSION)
 
         // Exactly 8 states
         val states = AutoSwitchState.values()

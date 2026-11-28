@@ -164,3 +164,16 @@ All vectors below use `sessionId = 11223344-5566-4777-8899-aabbccddeeff`.
   - `decisionId = ff8081a78e3f2b45`
   - Recomputed `proposalId` from commit fields = `dd6cc707da420d5d`
   - Bitmap check: `(0x03 & 0x00) == 0` (disjoint) and `(0x03 | 0x00) == 0x03` (`(1 shl 2) - 1`, complete).
+
+---
+
+## 7. Group A Timing Profile & Fast Wakeup Extensions (`EXT_VERSION = 1`, `CONFIG_VERSION = 1`)
+
+- **Default `ConvoyProtocolConfig` Timers:**
+  - `failureConfirmationMs = 3_000 ms`
+  - `recoveryStabilityMs = 4_000 ms`
+  - `proposalStaggerMs = 150 ms`
+  - `reachableNotReadyPromptMs = 60_000 ms`
+  - `minDwellMs = 20_000 ms` (unchanged), `commitHoldMs = 1_500 ms` (unchanged), `readinessLeaseMs = 6_000 ms` (unchanged), `epochWarmupMs = 6_000 ms` (unchanged).
+- **Zero-Break Wire Compatibility:** `EXT_VERSION` (`1`) and `CONFIG_VERSION` (`1`) remain unchanged so all OTA versions share identical decision codecs (`0x01`). Future topology control payloads (`0x81`/`0x82`) are ignored cleanly via `ConvoyStateDecodeResult.UnsupportedVersion` by `MeshAutoSwitchManager` and still relayed across hops by `ForwardingEngine`.
+- **Fast Peer Wakeup & Pre-Link Burst:** `MeshAutoSwitchManager` signals `inboundWakeSignal` on incoming decoded `TransportDecision` frames to unblock the tick wait (`< 5 ms` local reaction) and sets `pendingControlBurst` when a burst is deferred while `!isMeshTransportAlive`, regenerating fresh payload bytes once link liveness returns.

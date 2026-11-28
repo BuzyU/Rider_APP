@@ -1021,5 +1021,21 @@
     <string name="location_gate_gps_off_title">Turn on device GPS</string>
     <string name="location_gate_gps_off_body">Please enable device Location (GPS) before creating or joining a ride room.</string>
     <string name="location_gate_open_gps_cta">Turn on GPS</string>
+
+    <string name="mesh_status_notif_channel_name">Convoy Status Alerts</string>
+    <string name="mesh_convoy_offline_active">Convoy switched to offline voice</string>
+    <string name="mesh_convoy_starting_offline">Switching convoy to offline voice…</string>
+    <string name="mesh_convoy_starting_online">Reconnecting convoy to online voice…</string>
+    <string name="mesh_convoy_online_active">Convoy back on online voice</string>
+    <string name="mesh_convoy_unavailable">Offline voice unavailable</string>
+    <string name="mesh_convoy_wifi_off">Wi-Fi is off — offline voice stopped</string>
+    <string name="mesh_convoy_p2p_unsupported">Automatic link needs Android %1$d+. Manual hotspot still available.</string>
+    <string name="mesh_convoy_link_failed">Automatic link failed after %1$d attempts</string>
+    <string name="mesh_link_level_auto_p2p">Auto P2P Link</string>
+    <string name="mesh_link_level_manual_hotspot">Manual Hotspot Only</string>
+    <string name="mesh_diag_link_level">Link Level</string>
+    <string name="mesh_diag_p2p_status">P2P Status</string>
+    <string name="mesh_diag_p2p_go_ip">P2P GO IP</string>
+    <string name="mesh_diag_selected_go">Selected P2P Hub</string>
 </resources>
 

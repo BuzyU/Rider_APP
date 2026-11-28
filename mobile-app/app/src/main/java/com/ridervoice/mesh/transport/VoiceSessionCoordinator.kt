@@ -45,7 +45,8 @@ class VoiceSessionCoordinator(
     val audioOwnershipArbiter: AudioOwnershipArbiter,
     val secretProvider: OfflineSecretProvider = NullOfflineSecretProvider(),
     private val clock: () -> Long = { System.currentTimeMillis() },
-    dispatcher: CoroutineDispatcher = Dispatchers.Default
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val verifyLiveKitQuietTimeoutMs: Long = 2_000L
 ) {
     private val exceptionHandler = CoroutineExceptionHandler { _, exception ->
         if (exception is CancellationException) throw exception
@@ -165,7 +166,7 @@ class VoiceSessionCoordinator(
         var committed = false
         try {
             liveKitTransport.pause()
-            if (!verifyLiveKitQuiet(2_000L)) return@withLock false
+            if (!verifyLiveKitQuiet(verifyLiveKitQuietTimeoutMs)) return@withLock false
             if (!audioOwnershipArbiter.handoffLiveKitToOfflineMesh { }) return@withLock false
             val ok = runCatchingCancellable { mesh.enableAudio() }.getOrElse { EnableAudioResult.Failure(EnableAudioResult.Failure.Code.UNEXPECTED, it.javaClass.simpleName) } is EnableAudioResult.Success &&
                 meshTransport.micState.value != MicState.HARDWARE_BUSY

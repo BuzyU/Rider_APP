@@ -55,7 +55,8 @@ data class LobbyHost(
     val callsign: String? = null,
     val handle: String? = null,
     val displayName: String? = null,
-    val bikeModel: String? = null
+    val bikeModel: String? = null,
+    val offlineConfigStatus: String? = null
 )
 
 @Immutable

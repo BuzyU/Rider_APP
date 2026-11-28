@@ -47,3 +47,6 @@ docs/implementation/mesh/_readledger.tmp
 backend/.pg_data_*
 backend/exports/*.xlsx
 
+# Agent tooling / local skills
+.agents/
+

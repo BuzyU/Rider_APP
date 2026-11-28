@@ -43,7 +43,8 @@ class ActiveRideRepository @Inject constructor(
         val meshConfig: com.ridervoice.mesh.RoomMeshConfig? = null,
         val voiceServiceError: String? = null,
         val convoyMembershipSnapshot: com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot? = null,
-        val route: ConvoyRoute? = null
+        val route: ConvoyRoute? = null,
+        val hostUserId: String? = null
     )
 
     fun setMeshConfig(config: com.ridervoice.mesh.RoomMeshConfig) {
@@ -80,7 +81,8 @@ class ActiveRideRepository @Inject constructor(
         isHost: Boolean,
         joinCode: String? = null,
         lkRoomName: String? = null,
-        route: ConvoyRoute? = null
+        route: ConvoyRoute? = null,
+        hostUserId: String? = null
     ) {
         _state.update { current ->
             val sameRoom = current != null && current.roomId == roomId
@@ -90,6 +92,8 @@ class ActiveRideRepository @Inject constructor(
                 route != null -> route
                 else -> existingRoute
             }
+            val effectiveHostUserId = hostUserId?.takeIf { it.isNotBlank() }
+                ?: if (sameRoom) current?.hostUserId else null
             val ride = ActiveRide(
                 roomId = roomId,
                 displayName = name,
@@ -103,7 +107,8 @@ class ActiveRideRepository @Inject constructor(
                 testNumber = if (sameRoom) current?.testNumber else null,
                 joinCode = joinCode ?: if (sameRoom) current?.joinCode else null,
                 meshConfig = if (sameRoom) current?.meshConfig else null,
-                route = mergedRoute
+                route = mergedRoute,
+                hostUserId = effectiveHostUserId
             )
             persist(ride)
             ride
@@ -308,7 +313,9 @@ class ActiveRideRepository @Inject constructor(
                         diagnosticsEnabled = status.diagnosticsEnabled ?: false,
                         joinCode = status.joinCode,
                         meshConfig = effectiveConfig,
-                        route = mergedRoute
+                        route = mergedRoute,
+                        hostUserId = status.host?.id?.takeIf { it.isNotBlank() }
+                            ?: prefs?.getString("active_ride_host_user_id", "")?.takeIf { it.isNotBlank() }
                     )
                     persist(activeRide)
                     _state.update { activeRide }
@@ -323,7 +330,8 @@ class ActiveRideRepository @Inject constructor(
                     isHost = isHost,
                     phase = phase,
                     lkRoomName = savedLkRoom,
-                    meshConfig = restoredConfig
+                    meshConfig = restoredConfig,
+                    hostUserId = prefs?.getString("active_ride_host_user_id", "")?.takeIf { it.isNotBlank() }
                 )
             }
         }
@@ -339,13 +347,21 @@ class ActiveRideRepository @Inject constructor(
         val status = runCatching {
             com.ridervoice.mesh.offline.OfflineConfigStatus.valueOf(statusName)
         }.getOrDefault(com.ridervoice.mesh.offline.OfflineConfigStatus.NOT_STARTED)
+        val linkLevelName = p.getString(
+            "active_ride_mesh_link_level",
+            com.ridervoice.mesh.offline.RiderLinkLevel.AUTO_P2P.name
+        )
+        val linkLevel = runCatching {
+            com.ridervoice.mesh.offline.RiderLinkLevel.valueOf(linkLevelName)
+        }.getOrDefault(com.ridervoice.mesh.offline.RiderLinkLevel.AUTO_P2P)
         return com.ridervoice.mesh.RoomMeshConfig(
             offlineMeshEnabled = p.getBoolean("active_ride_mesh_enabled", true),
             automaticFallbackEnabled = p.getBoolean("active_ride_mesh_auto", true),
             warmStandbyEnabled = p.getBoolean("active_ride_mesh_warm", true),
             configCompleted = p.getBoolean("active_ride_mesh_completed", false),
             status = status,
-            optOut = p.getBoolean("active_ride_mesh_opt_out", false)
+            optOut = p.getBoolean("active_ride_mesh_opt_out", false),
+            linkLevel = linkLevel
         )
     }
 
@@ -358,6 +374,7 @@ class ActiveRideRepository @Inject constructor(
         val phase = runCatching { Phase.valueOf(phaseName) }.getOrDefault(Phase.LOBBY)
         val cfg = loadPersistedMeshConfig()
         val route = loadPersistedRoute()
+        val savedHostUserId = prefs?.getString("active_ride_host_user_id", "")?.takeIf { it.isNotBlank() }
         return ActiveRide(
             roomId = savedRoomId,
             displayName = savedDisplayName,
@@ -365,7 +382,8 @@ class ActiveRideRepository @Inject constructor(
             phase = phase,
             lkRoomName = savedLkRoom,
             meshConfig = cfg,
-            route = route
+            route = route,
+            hostUserId = savedHostUserId
         )
     }
 
@@ -389,6 +407,7 @@ class ActiveRideRepository @Inject constructor(
         prefs?.saveActiveRide(ride.roomId, ride.isHost, ride.lkRoomName)
         prefs?.saveString("active_ride_display_name", ride.displayName)
         prefs?.saveString("active_ride_phase", ride.phase.name)
+        prefs?.saveString("active_ride_host_user_id", ride.hostUserId ?: "")
         val cfg = ride.meshConfig
         if (cfg != null) {
             prefs?.saveBoolean("active_ride_mesh_present", true)
@@ -398,6 +417,7 @@ class ActiveRideRepository @Inject constructor(
             prefs?.saveBoolean("active_ride_mesh_completed", cfg.configCompleted)
             prefs?.saveBoolean("active_ride_mesh_opt_out", cfg.optOut)
             prefs?.saveString("active_ride_mesh_status", cfg.status.name)
+            prefs?.saveString("active_ride_mesh_link_level", cfg.linkLevel.name)
         } else {
             prefs?.saveBoolean("active_ride_mesh_present", false)
         }

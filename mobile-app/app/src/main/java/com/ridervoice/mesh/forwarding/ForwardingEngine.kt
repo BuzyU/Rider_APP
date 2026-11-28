@@ -89,7 +89,8 @@ class ForwardingEngine(
     private val peerFilterPort: PeerFilterPort? = null,
     private val onlineIdentitySupplier: () -> String? = { null },
     private val monotonicClock: () -> Long = clock,
-    private val onLocalControlPacket: (MeshPacket) -> Unit = {}
+    private val onLocalControlPacket: (MeshPacket) -> Unit = {},
+    private val neighborTimeoutMsProvider: () -> Long = { MeshConfig.ACTIVE_NEIGHBOR_TIMEOUT_MS }
 ) {
     constructor(
         selfId: String,
@@ -106,7 +107,8 @@ class ForwardingEngine(
         peerFilterPort: PeerFilterPort? = null,
         onlineIdentitySupplier: () -> String? = { null },
         monotonicClock: () -> Long = clock,
-        onLocalControlPacket: (MeshPacket) -> Unit = {}
+        onLocalControlPacket: (MeshPacket) -> Unit = {},
+        neighborTimeoutMsProvider: () -> Long = { MeshConfig.ACTIVE_NEIGHBOR_TIMEOUT_MS }
     ) : this(
         selfId = selfId,
         selfName = selfName,
@@ -124,7 +126,8 @@ class ForwardingEngine(
         peerFilterPort = peerFilterPort,
         onlineIdentitySupplier = onlineIdentitySupplier,
         monotonicClock = monotonicClock,
-        onLocalControlPacket = onLocalControlPacket
+        onLocalControlPacket = onLocalControlPacket,
+        neighborTimeoutMsProvider = neighborTimeoutMsProvider
     )
 
     private val voiceSeqGen = AtomicInteger(0)
@@ -354,7 +357,8 @@ class ForwardingEngine(
         avgVoiceDatagramBytes.set(if (curAvg == 0L) wireLen else (0.9 * curAvg + 0.1 * wireLen).toLong())
 
         val monoNow = monotonicClock()
-        val targets = graphRepository.forwardingView().neighbors.filter { (monoNow - it.lastSeen) <= MeshConfig.NEIGHBOR_TIMEOUT_MS }
+        val timeoutMs = neighborTimeoutMsProvider()
+        val targets = graphRepository.forwardingView().neighbors.filter { (monoNow - it.lastSeen) <= timeoutMs }
         var sentFirst = false
         for (neighbor in targets) {
             val sent = link.send(neighbor.endpoint, wire)
@@ -754,7 +758,7 @@ class ForwardingEngine(
                     now = now
                 )
                 for (neighbor in candidateNeighbors) {
-                    if (link.send(neighbor.endpoint, forwardedWire)) {
+                    if (sendToNeighbor(neighbor, forwardedWire, excludeEndpoint = frame.from)) {
                         forwardedTo.add(neighbor.deviceId)
                     }
                 }
@@ -799,7 +803,7 @@ class ForwardingEngine(
             }
             MeshPacketType.BYE -> {
                 val directNeighbor = graphRepository.neighbor(sourceFullId)
-                val heardDirectlyRecently = directNeighbor != null && (now - directNeighbor.lastSeen) <= MeshConfig.NEIGHBOR_TIMEOUT_MS
+                val heardDirectlyRecently = directNeighbor != null && (now - directNeighbor.lastSeen) <= neighborTimeoutMsProvider()
                 if (heardDirectlyRecently && hop > 0) {
                     // Ignored: cannot tear down an active direct neighbor with a relayed BYE
                 } else {
@@ -837,13 +841,29 @@ class ForwardingEngine(
                 now = now
             )
             for (neighbor in candidateNeighbors) {
-                if (link.send(neighbor.endpoint, forwardedWire)) {
+                if (sendToNeighbor(neighbor, forwardedWire, excludeEndpoint = frame.from)) {
                     forwardedTo.add(neighbor.deviceId)
                 }
             }
         }
 
         return ReceiveOutcome.Accepted(decodedPacket, forwardedTo)
+    }
+
+    private fun sendToNeighbor(
+        neighbor: com.ridervoice.mesh.graph.DirectNeighbor,
+        wire: ByteArray,
+        excludeEndpoint: MeshEndpoint? = null
+    ): Boolean {
+        val targets = neighbor.endpoints.filter { it != excludeEndpoint }
+        if (targets.isEmpty()) return false
+        var anySent = false
+        for (ep in targets) {
+            if (link.send(ep, wire)) {
+                anySent = true
+            }
+        }
+        return anySent
     }
 
     private fun selectForwardNeighbors(
@@ -855,11 +875,12 @@ class ForwardingEngine(
         val view = graphRepository.forwardingView()
         val alreadyCovered: Set<String> =
             if (suppressRedundantRelays) view.coveredBy(sourceId, previousHopId, monoNow) else emptySet()
+        val timeoutMs = neighborTimeoutMsProvider()
         return view.neighbors.filter { neighbor ->
             neighbor.deviceId != previousHopId &&
                 neighbor.deviceId != sourceId &&
                 neighbor.deviceId !in alreadyCovered &&
-                (monoNow - neighbor.lastSeen) <= MeshConfig.NEIGHBOR_TIMEOUT_MS
+                (monoNow - neighbor.lastSeen) <= timeoutMs
         }
     }
 

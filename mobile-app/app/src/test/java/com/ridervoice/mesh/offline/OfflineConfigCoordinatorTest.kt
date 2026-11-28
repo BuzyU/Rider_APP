@@ -201,5 +201,35 @@ class OfflineConfigCoordinatorTest {
         assertTrue(coordinator.state.value.stepResults.isEmpty())
         assertFalse(coordinator.state.value.optOut)
     }
+
+    @Test
+    fun apiBelow29_setsUnavailableDeviceWithManualHotspotLinkLevel() = testScope.runTest {
+        val coordinator = OfflineConfigCoordinator(
+            deviceCapabilityChecker = DefaultDeviceCapabilityChecker(sdkInt = 28) { true },
+            dispatcher = testDispatcher
+        )
+
+        coordinator.startConfig(this, validCode, isHostMeshEnabled = true)
+        advanceUntilIdle()
+
+        assertEquals(OfflineConfigStatus.UNAVAILABLE_DEVICE, coordinator.state.value.status)
+        assertEquals(RiderLinkLevel.MANUAL_HOTSPOT, coordinator.state.value.linkLevel)
+        assertFalse(coordinator.state.value.isReady)
+    }
+
+    @Test
+    fun deniedP2pPermission_setsNeedsPermissionWithIneligibleLinkLevel() = testScope.runTest {
+        val coordinator = OfflineConfigCoordinator(
+            permissionChecker = DefaultPermissionChecker(checkAudio = { true }, checkP2p = { false }),
+            dispatcher = testDispatcher
+        )
+
+        coordinator.startConfig(this, validCode, isHostMeshEnabled = true)
+        advanceUntilIdle()
+
+        assertEquals(OfflineConfigStatus.NEEDS_PERMISSION, coordinator.state.value.status)
+        assertEquals(RiderLinkLevel.INELIGIBLE, coordinator.state.value.linkLevel)
+        assertFalse(coordinator.state.value.isReady)
+    }
 }
 

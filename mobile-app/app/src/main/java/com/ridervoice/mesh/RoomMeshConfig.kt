@@ -2,6 +2,7 @@ package com.ridervoice.mesh
 
 import com.ridervoice.mesh.offline.OfflineConfigStatus
 import com.ridervoice.mesh.offline.OfflineConfigStep
+import com.ridervoice.mesh.offline.RiderLinkLevel
 import com.ridervoice.mesh.offline.StepResult
 
 /**
@@ -16,7 +17,8 @@ data class RoomMeshConfig(
     val configCompleted: Boolean = false,
     val status: OfflineConfigStatus = OfflineConfigStatus.NOT_STARTED,
     val stepResults: Map<OfflineConfigStep, StepResult> = emptyMap(),
-    val optOut: Boolean = false
+    val optOut: Boolean = false,
+    val linkLevel: RiderLinkLevel = RiderLinkLevel.AUTO_P2P
 ) {
     companion object {
         /** Default: offline disabled for this room */
@@ -26,7 +28,8 @@ data class RoomMeshConfig(
             warmStandbyEnabled = false,
             configCompleted = true,
             status = OfflineConfigStatus.OPTED_OUT,
-            optOut = true
+            optOut = true,
+            linkLevel = RiderLinkLevel.INELIGIBLE
         )
 
         /** Default: offline enabled for new rooms (Decision D10) */
@@ -36,7 +39,8 @@ data class RoomMeshConfig(
             warmStandbyEnabled = true,
             configCompleted = false,
             status = OfflineConfigStatus.NOT_STARTED,
-            optOut = false
+            optOut = false,
+            linkLevel = RiderLinkLevel.AUTO_P2P
         )
     }
 }

@@ -674,6 +674,21 @@ fun LobbyScreen(
                     )
                 }
 
+                val routeOrigin = status?.origin ?: activeRide?.route?.originName
+                val routeDest = status?.destination ?: activeRide?.route?.destinationName
+                val routeMeetup = status?.meetupPoint ?: activeRide?.route?.meetupPoint
+                val routeDurationMin = status?.estimatedDurationMin ?: activeRide?.route?.estimatedDurationMin
+                if (!routeOrigin.isNullOrBlank() || !routeDest.isNullOrBlank()) {
+                    item {
+                        LobbyRouteCard(
+                            origin = routeOrigin,
+                            destination = routeDest,
+                            meetupPoint = routeMeetup,
+                            durationMin = routeDurationMin
+                        )
+                    }
+                }
+
                 // Section 1: Joined (n)
                 item {
                     Text(
@@ -801,6 +816,112 @@ fun LobbyScreen(
                 item {
                     Spacer(modifier = Modifier.height(RvSpacing.xl))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LobbyRouteCard(
+    origin: String?,
+    destination: String?,
+    meetupPoint: String?,
+    durationMin: Int?
+) {
+    Surface(
+        color = PaperRaised,
+        shape = RoundedCornerShape(RvRadius.md),
+        border = BorderStroke(1.dp, InkHairline),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("lobby_route_card")
+    ) {
+        Column(
+            modifier = Modifier.padding(RvSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(RvSpacing.xs)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(RvSpacing.xs)
+                ) {
+                    Icon(
+                        imageVector = RvIcons.Map,
+                        contentDescription = null,
+                        tint = Pop,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.lobby_route_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Ink
+                    )
+                }
+                if (durationMin != null && durationMin > 0) {
+                    Text(
+                        text = stringResource(R.string.lobby_route_eta_min, durationMin),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Moss
+                    )
+                }
+            }
+            if (!origin.isNullOrBlank()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(RvSpacing.sm)
+                ) {
+                    Icon(
+                        imageVector = RvIcons.MyLocation,
+                        contentDescription = null,
+                        tint = Moss,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = origin,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Ink,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            if (!destination.isNullOrBlank()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(RvSpacing.sm)
+                ) {
+                    Icon(
+                        imageVector = RvIcons.LocationOn,
+                        contentDescription = null,
+                        tint = Brick,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = destination,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Ink,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            if (!meetupPoint.isNullOrBlank()) {
+                Text(
+                    text = stringResource(R.string.lobby_route_meetup_prefix, meetupPoint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = InkSecondary,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
             }
         }
     }

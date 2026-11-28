@@ -1,10 +1,14 @@
 package com.ridervoice.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,10 +16,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ridervoice.R
+import com.ridervoice.navigation.ComputedDirections
+import com.ridervoice.navigation.PlaceSuggestion
+import com.ridervoice.navigation.ResolvedPlace
 import com.ridervoice.ui.components.*
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.HostSetupViewModel
@@ -33,6 +41,7 @@ import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import com.ridervoice.ui.components.RvTextField
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,8 +54,16 @@ fun HostSetupScreen(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val createState by viewModel.createState.collectAsStateWithLifecycle()
+    val originSuggestions = collectSafeSuggestions(viewModel.originSuggestions)
+    val destinationSuggestions = collectSafeSuggestions(viewModel.destinationSuggestions)
+    val isSearchingOrigin = collectSafeBoolean(viewModel.isSearchingOrigin)
+    val isSearchingDestination = collectSafeBoolean(viewModel.isSearchingDestination)
+    val selectedOrigin = collectSafeTyped<ResolvedPlace>(viewModel.selectedOrigin)
+    val selectedDestination = collectSafeTyped<ResolvedPlace>(viewModel.selectedDestination)
+    val routePreview = collectSafeTyped<ComputedDirections>(viewModel.routePreview)
 
     val focusManager = LocalFocusManager.current
+    val feedback = LocalRvFeedback.current
     var convoyName by rememberSaveable { mutableStateOf("") }
     var meetupPoint by rememberSaveable { mutableStateOf("") }
     var destination by rememberSaveable { mutableStateOf("") }
@@ -56,12 +73,30 @@ fun HostSetupScreen(
     var showDiscardDialog by rememberSaveable { mutableStateOf(false) }
     var showLearnMoreSheet by rememberSaveable { mutableStateOf(false) }
 
+    val gpsUnavailableHint = stringResource(R.string.host_gps_unavailable_hint)
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val granted = grants[android.Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[android.Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            viewModel.useCurrentLocationAsOrigin(
+                onResolved = { resolvedName -> origin = resolvedName },
+                onUnavailable = { feedback.showInfo(gpsUnavailableHint) }
+            )
+        } else {
+            feedback.showInfo(gpsUnavailableHint)
+        }
+    }
+
     val clientRequestId = rememberSaveable { viewModel.getOrCreateClientRequestId() }
 
     val isDirty = convoyName.isNotBlank() || origin.isNotBlank() || destination.isNotBlank() || meetupPoint.isNotBlank()
     val isNameValid = convoyName.trim().length in 3..40
+    val isOriginValid = origin.trim().length >= 2
+    val isDestinationValid = destination.trim().length >= 2
     val isSubmitting = createState is HostSetupViewModel.CreateRideState.Submitting || isLoading
-    val canCreate = isNameValid && !isSubmitting
+    val canCreate = isNameValid && isOriginValid && isDestinationValid && !isSubmitting
 
     BackHandler {
         if (isDirty) {
@@ -204,7 +239,246 @@ fun HostSetupScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 2. Meet-up point (optional)
+        // 2. Destination * (with Google Maps location autocomplete)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = stringResource(R.string.host_route_section_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = Ink
+            )
+            TextButton(
+                onClick = {
+                    val tmp = origin
+                    origin = destination
+                    destination = tmp
+                    viewModel.swapEndpoints()
+                },
+                enabled = origin.isNotBlank() || destination.isNotBlank(),
+                contentPadding = PaddingValues(horizontal = RvSpacing.sm, vertical = 0.dp),
+                modifier = Modifier.heightIn(min = RvTouchTarget.min)
+            ) {
+                Icon(
+                    imageVector = RvIcons.SwapVert,
+                    contentDescription = stringResource(R.string.cd_swap_route),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(RvSpacing.xs))
+                Text(
+                    text = stringResource(R.string.route_invert_swap),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
+
+        RvTextField(
+            value = destination,
+            onValueChange = {
+                destination = it
+                viewModel.onDestinationQueryChanged(it)
+            },
+            label = { Text(stringResource(R.string.create_ride_destination_label)) },
+            placeholder = { Text(stringResource(R.string.host_dest_placeholder), color = InkSecondary) },
+            leadingIcon = {
+                Icon(
+                    imageVector = RvIcons.LocationOn,
+                    contentDescription = null,
+                    tint = Brick
+                )
+            },
+            trailingIcon = {
+                if (isSearchingDestination) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Pop
+                    )
+                } else if (selectedDestination != null) {
+                    Text(
+                        text = stringResource(R.string.host_route_pin_selected),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Moss,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(end = RvSpacing.sm)
+                    )
+                }
+            },
+            isError = destination.isNotBlank() && !isDestinationValid,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Next
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = {
+                    viewModel.dismissSuggestions()
+                    focusManager.moveFocus(FocusDirection.Down)
+                }
+            ),
+            modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("host_destination_field"),
+            shape = RoundedCornerShape(16.dp),
+            colors = fieldColors
+        )
+
+        if (destinationSuggestions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(6.dp))
+            PlaceSuggestionsDropdown(
+                suggestions = destinationSuggestions,
+                testTagPrefix = "host_dest_suggestion",
+                onSelect = { suggestion ->
+                    viewModel.selectDestinationSuggestion(suggestion) { resolved ->
+                        destination = resolved
+                    }
+                    focusManager.clearFocus()
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 3. Starting Point * (with Google Maps autocomplete + current GPS button)
+        RvTextField(
+            value = origin,
+            onValueChange = {
+                origin = it
+                viewModel.onOriginQueryChanged(it)
+            },
+            label = { Text(stringResource(R.string.host_start_label)) },
+            placeholder = { Text(stringResource(R.string.host_start_placeholder), color = InkSecondary) },
+            supportingText = {
+                Text(
+                    text = stringResource(R.string.host_route_required_hint),
+                    color = InkSecondary
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = RvIcons.MyLocation,
+                    contentDescription = null,
+                    tint = Moss
+                )
+            },
+            trailingIcon = {
+                if (isSearchingOrigin) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Pop
+                    )
+                } else {
+                    IconButton(
+                        onClick = {
+                            locationPermissionLauncher.launch(
+                                arrayOf(
+                                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                            )
+                        },
+                        modifier = Modifier.testTag("host_use_gps_start_btn")
+                    ) {
+                        Icon(
+                            imageVector = RvIcons.MyLocation,
+                            contentDescription = stringResource(R.string.cd_use_current_gps_start),
+                            tint = Pop
+                        )
+                    }
+                }
+            },
+            isError = origin.isNotBlank() && !isOriginValid,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                keyboardType = KeyboardType.Text,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    viewModel.dismissSuggestions()
+                    focusManager.clearFocus()
+                    if (canCreate) {
+                        viewModel.createConvoy(
+                            convoyName = convoyName.trim(),
+                            origin = origin.trim().ifBlank { null },
+                            destination = destination.trim().ifBlank { null },
+                            meetupPoint = meetupPoint.trim().ifBlank { null },
+                            diagnosticsEnabled = diagnosticsEnabled,
+                            clientRequestId = clientRequestId
+                        )
+                    }
+                }
+            ),
+            modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("host_origin_field"),
+            shape = RoundedCornerShape(16.dp),
+            colors = fieldColors
+        )
+
+        if (originSuggestions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(6.dp))
+            PlaceSuggestionsDropdown(
+                suggestions = originSuggestions,
+                testTagPrefix = "host_origin_suggestion",
+                onSelect = { suggestion ->
+                    viewModel.selectOriginSuggestion(suggestion) { resolved ->
+                        origin = resolved
+                    }
+                    focusManager.clearFocus()
+                }
+            )
+        }
+
+        if (routePreview != null || (selectedOrigin != null && selectedDestination != null)) {
+            Spacer(modifier = Modifier.height(10.dp))
+            val preview = routePreview
+            Surface(
+                color = MossContainer,
+                shape = RoundedCornerShape(RvRadius.md),
+                border = BorderStroke(1.dp, Moss.copy(alpha = 0.35f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("host_route_preview_card")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = RvSpacing.md, vertical = RvSpacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(RvSpacing.sm)
+                ) {
+                    Icon(
+                        imageVector = RvIcons.Map,
+                        contentDescription = null,
+                        tint = Moss,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    val summaryText = if (preview != null) {
+                        val km = ((preview.distanceMeters / 100.0).roundToInt() / 10.0).toString()
+                        stringResource(R.string.host_route_preview_summary, km, preview.durationMinutes)
+                    } else {
+                        "${selectedOrigin?.name ?: origin} → ${selectedDestination?.name ?: destination}"
+                    }
+                    Text(
+                        text = summaryText,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 4. Meet-up point (optional)
         RvTextField(
             value = meetupPoint,
             onValueChange = { meetupPoint = it },
@@ -220,62 +494,6 @@ fun HostSetupScreen(
                 onNext = { focusManager.moveFocus(FocusDirection.Down) }
             ),
             modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("host_meetup_field"),
-            shape = RoundedCornerShape(16.dp),
-            colors = fieldColors
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 3. Destination (optional)
-        RvTextField(
-            value = destination,
-            onValueChange = { destination = it },
-            label = { Text(stringResource(R.string.create_ride_destination_label)) },
-            placeholder = { Text(stringResource(R.string.host_dest_placeholder), color = InkSecondary) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words,
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Next
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-            ),
-            modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("host_destination_field"),
-            shape = RoundedCornerShape(16.dp),
-            colors = fieldColors
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 4. Start (optional)
-        RvTextField(
-            value = origin,
-            onValueChange = { origin = it },
-            label = { Text(stringResource(R.string.host_start_label)) },
-            placeholder = { Text(stringResource(R.string.host_start_placeholder), color = InkSecondary) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words,
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    focusManager.clearFocus()
-                    if (canCreate) {
-                        viewModel.createConvoy(
-                            convoyName = convoyName.trim(),
-                            origin = origin.trim().ifBlank { null },
-                            destination = destination.trim().ifBlank { null },
-                            meetupPoint = meetupPoint.trim().ifBlank { null },
-                            diagnosticsEnabled = diagnosticsEnabled,
-                            clientRequestId = clientRequestId
-                        )
-                    }
-                }
-            ),
-            modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("host_origin_field"),
             shape = RoundedCornerShape(16.dp),
             colors = fieldColors
         )
@@ -399,5 +617,96 @@ fun HostSetupScreen(
         }
 
         Spacer(modifier = Modifier.height(RvSpacing.xl))
+    }
+}
+
+@Composable
+private fun collectSafeBoolean(flow: kotlinx.coroutines.flow.Flow<Boolean>): Boolean {
+    val anyFlow: kotlinx.coroutines.flow.Flow<Any?> = flow
+    val raw by anyFlow.collectAsStateWithLifecycle(initialValue = false)
+    return raw as? Boolean ?: false
+}
+
+@Composable
+private fun collectSafeSuggestions(
+    flow: kotlinx.coroutines.flow.Flow<List<PlaceSuggestion>>
+): List<PlaceSuggestion> {
+    val anyFlow: kotlinx.coroutines.flow.Flow<Any?> = flow
+    val raw by anyFlow.collectAsStateWithLifecycle(initialValue = emptyList<PlaceSuggestion>())
+    return (raw as? List<*>)?.filterIsInstance<PlaceSuggestion>().orEmpty()
+}
+
+@Composable
+private inline fun <reified T : Any> collectSafeTyped(
+    flow: kotlinx.coroutines.flow.Flow<T?>
+): T? {
+    val anyFlow: kotlinx.coroutines.flow.Flow<Any?> = flow
+    val raw by anyFlow.collectAsStateWithLifecycle(initialValue = null)
+    return raw as? T
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlaceSuggestionsDropdown(
+    suggestions: List<PlaceSuggestion>,
+    testTagPrefix: String,
+    onSelect: (PlaceSuggestion) -> Unit
+) {
+    Surface(
+        color = PaperRaised,
+        shape = RoundedCornerShape(RvRadius.md),
+        border = BorderStroke(1.dp, InkHairline),
+        shadowElevation = 4.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            suggestions.take(5).forEachIndexed { idx, item ->
+                if (idx > 0) {
+                    Divider(color = InkHairline)
+                }
+                Surface(
+                    onClick = { onSelect(item) },
+                    color = PaperRaised,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = RvTouchTarget.min)
+                        .testTag("${testTagPrefix}_$idx")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = RvSpacing.md, vertical = RvSpacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(RvSpacing.sm)
+                    ) {
+                        Icon(
+                            imageVector = RvIcons.LocationOn,
+                            contentDescription = null,
+                            tint = Pop,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = item.primaryText,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Ink,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (item.secondaryText.isNotBlank()) {
+                                Text(
+                                    text = item.secondaryText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = InkSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

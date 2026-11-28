@@ -120,6 +120,9 @@ class LiveKitManager @Inject constructor(
     private val _inRideSosAlert = MutableStateFlow<InRideSosAlert?>(null)
     val inRideSosAlert: StateFlow<InRideSosAlert?> = _inRideSosAlert.asStateFlow()
 
+    private val _convoyRoute = MutableStateFlow<com.ridervoice.models.ConvoyRoute?>(null)
+    val convoyRoute: StateFlow<com.ridervoice.models.ConvoyRoute?> = _convoyRoute.asStateFlow()
+
     private val processedAlertIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     @Volatile var silentProbeMode: Boolean = false
@@ -897,6 +900,13 @@ class LiveKitManager @Inject constructor(
                                 _remoteLocations.update { it + (peerId to loc.copy(riderId = peerId)) }
                             }
                         }
+                        "CONVOY_ROUTE" -> {
+                            val parsedRoute = parseConvoyRouteJson(obj)
+                            if (parsedRoute != null && parsedRoute.hasAnyRouteInfo) {
+                                _convoyRoute.update { existing -> existing?.mergeWith(parsedRoute) ?: parsedRoute }
+                                activeRideRepository.updateRoute(parsedRoute)
+                            }
+                        }
                         else -> {
                             if (event.topic == "rv-ping") {
                                 handlePingPong(json, event.participant?.identity?.value)
@@ -1088,6 +1098,63 @@ class LiveKitManager @Inject constructor(
         }
     }
 
+    fun publishConvoyRoute(route: com.ridervoice.models.ConvoyRoute) {
+        if (!route.hasAnyRouteInfo) return
+        _convoyRoute.update { existing -> existing?.mergeWith(route) ?: route }
+        val targetRoom = room ?: return
+        scope.launch {
+            try {
+                val payload = JSONObject().apply {
+                    put("type", "CONVOY_ROUTE")
+                    route.originName?.let { put("originName", it) }
+                    route.originLat?.let { put("originLat", it) }
+                    route.originLng?.let { put("originLng", it) }
+                    route.destinationName?.let { put("destinationName", it) }
+                    route.destinationLat?.let { put("destinationLat", it) }
+                    route.destinationLng?.let { put("destinationLng", it) }
+                    route.meetupPoint?.let { put("meetupPoint", it) }
+                    route.estimatedDurationMin?.let { put("estimatedDurationMin", it) }
+                    route.distanceMeters?.let { put("distanceMeters", it) }
+                    route.encodedPolyline?.let { put("encodedPolyline", it) }
+                }.toString().toByteArray(Charsets.UTF_8)
+                targetRoom.localParticipant.publishData(
+                    data = payload,
+                    reliability = DataPublishReliability.RELIABLE,
+                    topic = "route"
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "Route publish notice: ${e.message}")
+            }
+        }
+    }
+
+    private fun parseConvoyRouteJson(obj: JSONObject): com.ridervoice.models.ConvoyRoute? {
+        return try {
+            fun optFiniteDouble(key: String): Double? {
+                if (!obj.has(key) || obj.isNull(key)) return null
+                val d = obj.optDouble(key, Double.NaN)
+                return if (d.isNaN() || d.isInfinite()) null else d
+            }
+            fun optCleanString(key: String): String? =
+                if (obj.has(key) && !obj.isNull(key)) obj.optString(key).takeIf { it.isNotBlank() } else null
+
+            com.ridervoice.models.ConvoyRoute(
+                originName = optCleanString("originName"),
+                originLat = optFiniteDouble("originLat"),
+                originLng = optFiniteDouble("originLng"),
+                destinationName = optCleanString("destinationName"),
+                destinationLat = optFiniteDouble("destinationLat"),
+                destinationLng = optFiniteDouble("destinationLng"),
+                meetupPoint = optCleanString("meetupPoint"),
+                estimatedDurationMin = if (obj.has("estimatedDurationMin") && !obj.isNull("estimatedDurationMin")) obj.optInt("estimatedDurationMin") else null,
+                distanceMeters = if (obj.has("distanceMeters") && !obj.isNull("distanceMeters")) obj.optInt("distanceMeters") else null,
+                encodedPolyline = optCleanString("encodedPolyline")
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     fun disconnect() {
         currentSessionId = sessionCounter.incrementAndGet()
         reconnectJob?.cancel()
@@ -1116,6 +1183,7 @@ class LiveKitManager @Inject constructor(
 
         stopPingScheduler()
         _inRideSosAlert.value = null
+        _convoyRoute.value = null
 
         runCatching { room?.release() }
         room = null

@@ -225,6 +225,21 @@ class RoomViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
+        combine(
+            liveKitManager.connectionState,
+            liveKitManager.participants,
+            activeRideRepository.state
+        ) { conn, parts, ride ->
+            Triple(conn, parts.size, ride)
+        }
+            .onEach { (conn, _, ride) ->
+                val route = ride?.route
+                if (conn == ConnectionState.CONNECTED && ride?.isHost == true && route != null && route.hasAnyRouteInfo) {
+                    liveKitManager.publishConvoyRoute(route)
+                }
+            }
+            .launchIn(viewModelScope)
+
         networkResilienceManager.networkHealth
             .onEach { health ->
                 locationService.setNetworkDegraded(health == NetworkHealth.DEGRADED)

@@ -1,6 +1,7 @@
 package com.ridervoice.state
 
 import android.content.Context
+import com.ridervoice.models.ConvoyRoute
 import com.ridervoice.models.PostRideSnapshot
 import com.ridervoice.models.RefreshTokenRequest
 import com.ridervoice.models.TokenPayload
@@ -41,7 +42,8 @@ class ActiveRideRepository @Inject constructor(
         val joinCode: String? = null,
         val meshConfig: com.ridervoice.mesh.RoomMeshConfig? = null,
         val voiceServiceError: String? = null,
-        val convoyMembershipSnapshot: com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot? = null
+        val convoyMembershipSnapshot: com.ridervoice.mesh.convoy.ConvoyMembershipSnapshot? = null,
+        val route: ConvoyRoute? = null
     )
 
     fun setMeshConfig(config: com.ridervoice.mesh.RoomMeshConfig) {
@@ -72,9 +74,22 @@ class ActiveRideRepository @Inject constructor(
         }
     }
 
-    fun enterLobby(roomId: String, name: String, isHost: Boolean, joinCode: String? = null, lkRoomName: String? = null) {
+    fun enterLobby(
+        roomId: String,
+        name: String,
+        isHost: Boolean,
+        joinCode: String? = null,
+        lkRoomName: String? = null,
+        route: ConvoyRoute? = null
+    ) {
         _state.update { current ->
             val sameRoom = current != null && current.roomId == roomId
+            val existingRoute = if (sameRoom) current?.route else null
+            val mergedRoute = when {
+                existingRoute != null && route != null -> existingRoute.mergeWith(route)
+                route != null -> route
+                else -> existingRoute
+            }
             val ride = ActiveRide(
                 roomId = roomId,
                 displayName = name,
@@ -87,10 +102,22 @@ class ActiveRideRepository @Inject constructor(
                 diagnosticsEnabled = if (sameRoom) current?.diagnosticsEnabled ?: false else false,
                 testNumber = if (sameRoom) current?.testNumber else null,
                 joinCode = joinCode ?: if (sameRoom) current?.joinCode else null,
-                meshConfig = if (sameRoom) current?.meshConfig else null
+                meshConfig = if (sameRoom) current?.meshConfig else null,
+                route = mergedRoute
             )
             persist(ride)
             ride
+        }
+    }
+
+    fun updateRoute(route: ConvoyRoute?) {
+        if (route == null || !route.hasAnyRouteInfo) return
+        _state.update { current ->
+            if (current == null) return@update null
+            val merged = current.route?.mergeWith(route) ?: route
+            val updated = current.copy(route = merged)
+            persist(updated)
+            updated
         }
     }
 
@@ -226,6 +253,7 @@ class ActiveRideRepository @Inject constructor(
         }
         _state.update { null }
         _voiceServiceError.value = null
+        prefs?.saveString("active_ride_route_json", "")
         prefs?.clearActiveRide()
     }
 
@@ -258,6 +286,19 @@ class ActiveRideRepository @Inject constructor(
                         !serverMeshEnabled -> com.ridervoice.mesh.RoomMeshConfig.DISABLED
                         else -> null
                     }
+                    val serverRoute = ConvoyRoute(
+                        originName = status.origin,
+                        destinationName = status.destination,
+                        meetupPoint = status.meetupPoint,
+                        estimatedDurationMin = status.estimatedDurationMin
+                    ).takeIf { it.hasAnyRouteInfo }
+                    val existingRoute = _state.value?.takeIf { it.roomId == (status.roomId ?: savedRoomId) }?.route
+                        ?: restoredRouteIfSameRoom(savedRoomId)
+                    val mergedRoute = when {
+                        existingRoute != null && serverRoute != null -> existingRoute.mergeWith(serverRoute)
+                        serverRoute != null -> serverRoute
+                        else -> existingRoute
+                    }
                     val activeRide = ActiveRide(
                         roomId = status.roomId ?: savedRoomId,
                         displayName = status.convoyName ?: savedRoomId,
@@ -266,7 +307,8 @@ class ActiveRideRepository @Inject constructor(
                         lkRoomName = status.lkRoomName ?: savedLkRoom,
                         diagnosticsEnabled = status.diagnosticsEnabled ?: false,
                         joinCode = status.joinCode,
-                        meshConfig = effectiveConfig
+                        meshConfig = effectiveConfig,
+                        route = mergedRoute
                     )
                     persist(activeRide)
                     _state.update { activeRide }
@@ -315,14 +357,32 @@ class ActiveRideRepository @Inject constructor(
         val phaseName = prefs?.getString("active_ride_phase", Phase.LOBBY.name) ?: Phase.LOBBY.name
         val phase = runCatching { Phase.valueOf(phaseName) }.getOrDefault(Phase.LOBBY)
         val cfg = loadPersistedMeshConfig()
+        val route = loadPersistedRoute()
         return ActiveRide(
             roomId = savedRoomId,
             displayName = savedDisplayName,
             isHost = isHost,
             phase = phase,
             lkRoomName = savedLkRoom,
-            meshConfig = cfg
+            meshConfig = cfg,
+            route = route
         )
+    }
+
+    private fun restoredRouteIfSameRoom(expectedRoomId: String): ConvoyRoute? {
+        val current = _state.value
+        if (current != null && current.roomId == expectedRoomId) return current.route
+        val restoredRoom = prefs?.getActiveRideRoom()?.takeIf { it == expectedRoomId } ?: return null
+        return if (restoredRoom == expectedRoomId) loadPersistedRoute() else null
+    }
+
+    private fun loadPersistedRoute(): ConvoyRoute? {
+        val raw = prefs?.getString("active_ride_route_json", "")?.takeIf { it.isNotBlank() } ?: return null
+        return try {
+            com.google.gson.Gson().fromJson(raw, ConvoyRoute::class.java)?.takeIf { it.hasAnyRouteInfo }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun persist(ride: ActiveRide) {
@@ -341,6 +401,10 @@ class ActiveRideRepository @Inject constructor(
         } else {
             prefs?.saveBoolean("active_ride_mesh_present", false)
         }
+        val routeJson = ride.route?.takeIf { it.hasAnyRouteInfo }?.let {
+            runCatching { com.google.gson.Gson().toJson(it) }.getOrNull()
+        } ?: ""
+        prefs?.saveString("active_ride_route_json", routeJson)
     }
 
     private fun parseEpochSec(isoString: String): Long? {

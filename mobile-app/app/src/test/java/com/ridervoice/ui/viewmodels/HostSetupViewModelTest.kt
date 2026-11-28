@@ -1,9 +1,17 @@
 package com.ridervoice.ui.viewmodels
 
 import com.ridervoice.models.*
+import com.ridervoice.navigation.ComputedDirections
+import com.ridervoice.navigation.GooglePlacesRouteService
+import com.ridervoice.navigation.PlaceSuggestion
+import com.ridervoice.navigation.ResolvedPlace
 import com.ridervoice.network.ApiService
 import com.ridervoice.security.SecurePreferences
+import com.ridervoice.services.LocationService
 import com.ridervoice.state.ActiveRideRepository
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -213,5 +221,75 @@ class HostSetupViewModelTest {
         assertTrue("State must be UnknownOutcome on 500, was $state", state is HostSetupViewModel.CreateRideState.UnknownOutcome)
         val outcome = state as HostSetupViewModel.CreateRideState.UnknownOutcome
         assertEquals(fixedRequestId, outcome.clientRequestId)
+    }
+
+    @Test
+    fun autocompleteRouteAndCreateConvoy_persistsResolvedOriginDestinationAndPolyline() = runTest(testDispatcher) {
+        val prefs = SecurePreferences(context = null)
+        val api = FakeApiService()
+        val repo = ActiveRideRepository(prefs = null, api = api)
+        val places = mockk<GooglePlacesRouteService>(relaxed = true)
+        val locService = mockk<LocationService>(relaxed = true) {
+            every { currentLocation } returns kotlinx.coroutines.flow.MutableStateFlow(null)
+        }
+
+        val startSuggestion = PlaceSuggestion(
+            placeId = "p-start",
+            primaryText = "Pune Station",
+            secondaryText = "Pune, MH",
+            fullText = "Pune Railway Station, Pune"
+        )
+        val destSuggestion = PlaceSuggestion(
+            placeId = "p-dest",
+            primaryText = "Lonavala",
+            secondaryText = "Maharashtra",
+            fullText = "Tiger Point, Lonavala"
+        )
+        coEvery { places.autocompletePlaces("Pune", any(), any()) } returns listOf(startSuggestion)
+        coEvery { places.autocompletePlaces("Tiger", any(), any()) } returns listOf(destSuggestion)
+        coEvery { places.resolveSuggestion(startSuggestion) } returns ResolvedPlace("Pune Railway Station, Pune", 18.5289, 73.8744)
+        coEvery { places.resolveSuggestion(destSuggestion) } returns ResolvedPlace("Tiger Point, Lonavala", 18.7052, 73.3924)
+        coEvery { places.fetchRoute(18.5289, 73.8744, 18.7052, 73.3924) } returns ComputedDirections(
+            encodedPolyline = "_p~iF~ps|U_ulLnnqC",
+            distanceMeters = 68_400,
+            durationMinutes = 84
+        )
+
+        val vm = HostSetupViewModel(api, prefs, repo, places, locService)
+
+        vm.onOriginQueryChanged("Pune")
+        vm.onDestinationQueryChanged("Tiger")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf(startSuggestion), vm.originSuggestions.value)
+        assertEquals(listOf(destSuggestion), vm.destinationSuggestions.value)
+
+        var originText = ""
+        var destText = ""
+        vm.selectOriginSuggestion(startSuggestion) { originText = it }
+        vm.selectDestinationSuggestion(destSuggestion) { destText = it }
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("Pune Railway Station, Pune", originText)
+        assertEquals("Tiger Point, Lonavala", destText)
+        assertEquals(84, vm.routePreview.value?.durationMinutes)
+
+        vm.createConvoy(
+            convoyName = "Sunday Ghat Ride",
+            origin = originText,
+            destination = destText,
+            meetupPoint = "Shell Hinjewadi"
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("Pune Railway Station, Pune", api.createRequestCaptured?.origin)
+        assertEquals("Tiger Point, Lonavala", api.createRequestCaptured?.destination)
+        assertEquals(84, api.createRequestCaptured?.estimatedDurationMin)
+
+        val savedRoute = repo.state.value?.route
+        assertNotNull(savedRoute)
+        assertEquals(18.5289, savedRoute!!.originLat!!, 0.0001)
+        assertEquals(18.7052, savedRoute.destinationLat!!, 0.0001)
+        assertEquals("_p~iF~ps|U_ulLnnqC", savedRoute.encodedPolyline)
     }
 }

@@ -88,6 +88,11 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- Google Maps API Key for in-room live rider map -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
         <!-- Disable default WorkManagerInitializer to use on-demand Hilt-configured WorkManager -->
         <provider
             android:name="androidx.startup.InitializationProvider"

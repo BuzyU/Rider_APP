@@ -53,6 +53,18 @@ def calculateVersionCode(String vName) {
 }
 
 def appVersionName = project.hasProperty('versionName') ? project.property('versionName').toString() : (System.getenv("VERSION_NAME") ?: "0.0.3.21")
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+def resolvedMapsApiKey = (
+    project.findProperty('MAPS_API_KEY')?.toString()?.trim()
+        ?: localProperties.getProperty('MAPS_API_KEY')?.trim()
+        ?: System.getenv('MAPS_API_KEY')?.trim()
+        ?: 'AIzaSyB94PEf468ETQmAZh1oJzG0VKH5yw95s20'
+)
 def appVersionCode = calculateVersionCode(appVersionName)
 
 android {
@@ -119,6 +131,7 @@ android {
         def enablePerRoomConfig = !project.hasProperty('perRoomOfflineConfigEnabled') || Boolean.parseBoolean(project.property('perRoomOfflineConfigEnabled').toString())
         buildConfigField "boolean", "PER_ROOM_OFFLINE_CONFIG_ENABLED", enablePerRoomConfig ? "true" : "false"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders = [MAPS_API_KEY: resolvedMapsApiKey]
 
         ndk {
             abiFilters 'arm64-v8a', 'armeabi-v7a'
@@ -222,6 +235,8 @@ dependencies {
     implementation "com.mapbox.maps:android:11.2.0"
     implementation "com.mapbox.extension:maps-compose:11.2.0"
 
+    implementation "com.google.maps.android:maps-compose:2.15.0"
+    implementation "com.google.android.gms:play-services-maps:18.2.0"
     implementation "com.google.android.gms:play-services-location:21.1.0"
     
     implementation "androidx.media:media:1.7.0"

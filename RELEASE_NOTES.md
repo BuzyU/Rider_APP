@@ -1,3 +1,30 @@
+## RiderVoice v0.0.3.24 Release Notes
+
+RiderVoice **v0.0.3.24** introduces the **live Google Maps convoy view** inside active voice rooms and **Google location auto-suggest route setup** when creating rides, so hosts set exact start-to-destination routes and every joined rider tracks teammates and the convoy path together in real time.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.24` |
+| **Version Code** | `3024` |
+| **Release Tag** | `v0.0.3.24` |
+| **Download APK** | `Rider_APP-v0.0.3.24.apk` |
+
+### What's new
+- Added a **live interactive Google Maps view** (`ConvoyLiveMapOverlay` & `ConvoyMapViewModel`) inside the active ride voice room via a floating `Map · X/Y` pill above the voice controls, keeping live voice audio and mesh state uninterrupted while exploring the map
+- Added **Google Location Auto-Suggest** (`GooglePlacesRouteService`) for **Starting Point** and **Destination** during Ride Creation (`HostSetupScreen` / `HostSetupViewModel`) with 1-tap GPS start fill, endpoint swap, live route distance/ETA preview, and Android `Geocoder` fallback
+- Added **distinct per-rider map blips**: your own position renders in **Royal Blue** with a translucent accuracy halo, remote riders render in distinct high-contrast colors (`Ember`, `Teal`, `Plum`, `Magenta`, `Sienna`) matching bottom rider chips, and active speakers highlight with a **green outer ring**
+- Added **hosted route persistence & live sync**: Start (`A`) and Destination (`B`) pins, Google Directions road `Polyline`, distance/ETA banner, and 1-tap turn-by-turn **Directions** handoff sync across all joined riders via DB lobby hydration, `ActiveRideRepository`, and LiveKit `CONVOY_ROUTE` packets, plus a pre-ride **Hosted route** card in `LobbyScreen`
+
+### Improvements
+- Added full `Standard`, `Terrain`, and `Satellite` map type toggling alongside `Fit All` camera bounds framing (covering all riders + Start/Destination) and gesture-aware follow cancellation
+- Added synchronized **English**, **Hindi**, and **Marathi** strings for all map, route suggestion, and navigation controls, verified for zero overflow on narrow `320dp` viewports and `1.3x` font scale
+
+### Bug fixes
+- Preserved legacy `androidx.compose.material3:1.0.1` API compatibility across existing screens by pinning `maps-compose:2.15.0` alongside `play-services-maps:18.2.0`
+- Enforced safe-area inset (`RvSafeArea`), accessibility `Role.Button`, JVM-safe color helpers, and `Locale.getDefault()` formatting contracts across all new map and route components
+
+---
+
 ## RiderVoice v0.0.3.23 Release Notes
 
 RiderVoice **v0.0.3.23** adds **automatic silent Wi-Fi Direct peer-to-peer group formation** when rooms are created or joined (eliminating manual hotspot setup) and fixes real-phone switching stalls that could leave rides stuck on **Reconnecting** instead of transitioning to offline mesh or status feedback.

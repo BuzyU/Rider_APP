@@ -268,11 +268,23 @@ class LobbyViewModel @Inject constructor(
                             configCoordinator.startConfig(this, statusBackupCode, isHostMeshEnabled = true)
                         }
 
+                        val lobbyRoute = com.ridervoice.models.ConvoyRoute(
+                            originName = body.origin,
+                            destinationName = body.destination,
+                            meetupPoint = body.meetupPoint,
+                            estimatedDurationMin = body.estimatedDurationMin
+                        ).takeIf { it.hasAnyRouteInfo }
                         activeRideRepository.enterLobby(
                             roomId = body.roomId ?: roomName,
                             name = body.convoyName ?: roomName,
                             isHost = body.isHost ?: false,
-                            joinCode = body.joinCode
+                            joinCode = body.joinCode,
+                            route = lobbyRoute
+                        )
+                        syncConvoyMembershipSnapshot(body)
+                        syncWifiDirectForLobby(
+                            offlineEnabled = hostMeshEnabled,
+                            isHost = body.isHost ?: false
                         )
                         syncConvoyMembershipSnapshot(body)
                         syncWifiDirectForLobby(

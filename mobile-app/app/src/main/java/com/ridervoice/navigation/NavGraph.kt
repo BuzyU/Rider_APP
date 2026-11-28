@@ -27,6 +27,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.ridervoice.ui.components.RvBottomNavigationBar
 import com.ridervoice.ui.components.shouldShowBottomBar
 import com.ridervoice.ui.screens.*
+import com.ridervoice.ui.screens.map.ConvoyRoomWithMapHost
 import com.ridervoice.ui.theme.Paper
 import com.ridervoice.ui.theme.RvMotion
 import com.ridervoice.utils.OEMBatteryWarning
@@ -341,38 +342,40 @@ fun NavGraph(
             val roomName = try { android.net.Uri.decode(rawRoomName) } catch (e: Exception) { rawRoomName }
             val userName = try { android.net.Uri.decode(rawUserName) } catch (e: Exception) { rawUserName }
             val meshSettings by com.ridervoice.mesh.OfflineMeshGate.settingsFlow.collectAsStateWithLifecycle()
-            if (com.ridervoice.mesh.selectRoomHost(
-                    com.ridervoice.mesh.OfflineMeshGate.decision(offlineMeshEnabled = meshSettings.offlineMeshEnabled)
-                ) == com.ridervoice.mesh.RoomHostSelection.OFFLINE_AWARE
-            ) {
-                com.ridervoice.mesh.ui.OfflineAwareRoomHost(
-                    roomName = roomName,
-                    userName = userName,
-                    onLeave  = {
-                        navController.navigate(Routes.POST_RIDE_SUMMARY) {
-                            popUpTo(Routes.HOME) { inclusive = false }
+            ConvoyRoomWithMapHost(roomName = roomName) {
+                if (com.ridervoice.mesh.selectRoomHost(
+                        com.ridervoice.mesh.OfflineMeshGate.decision(offlineMeshEnabled = meshSettings.offlineMeshEnabled)
+                    ) == com.ridervoice.mesh.RoomHostSelection.OFFLINE_AWARE
+                ) {
+                    com.ridervoice.mesh.ui.OfflineAwareRoomHost(
+                        roomName = roomName,
+                        userName = userName,
+                        onLeave  = {
+                            navController.navigate(Routes.POST_RIDE_SUMMARY) {
+                                popUpTo(Routes.HOME) { inclusive = false }
+                            }
+                        },
+                        onSosClick = {
+                            navController.navigate(Routes.sosPath(roomName))
+                        },
+                        onPairBackupClick = {
+                            navController.navigate(Routes.OFFLINE_MESH_LOBBY)
                         }
-                    },
-                    onSosClick = {
-                        navController.navigate(Routes.sosPath(roomName))
-                    },
-                    onPairBackupClick = {
-                        navController.navigate(Routes.OFFLINE_MESH_LOBBY)
-                    }
-                )
-            } else {
-                RoomScreen(
-                    roomName = roomName,
-                    userName = userName,
-                    onLeave = {
-                        navController.navigate(Routes.POST_RIDE_SUMMARY) {
-                            popUpTo(Routes.HOME) { inclusive = false }
+                    )
+                } else {
+                    RoomScreen(
+                        roomName = roomName,
+                        userName = userName,
+                        onLeave = {
+                            navController.navigate(Routes.POST_RIDE_SUMMARY) {
+                                popUpTo(Routes.HOME) { inclusive = false }
+                            }
+                        },
+                        onSosClick = {
+                            navController.navigate(Routes.sosPath(roomName))
                         }
-                    },
-                    onSosClick = {
-                        navController.navigate(Routes.sosPath(roomName))
-                    }
-                )
+                    )
+                }
             }
         }
 

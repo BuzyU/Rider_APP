@@ -349,6 +349,55 @@ data class Participant(
 )
 
 @Immutable
+data class ConvoyRoute(
+    val originName: String? = null,
+    val originLat: Double? = null,
+    val originLng: Double? = null,
+    val destinationName: String? = null,
+    val destinationLat: Double? = null,
+    val destinationLng: Double? = null,
+    val meetupPoint: String? = null,
+    val estimatedDurationMin: Int? = null,
+    val distanceMeters: Int? = null,
+    val encodedPolyline: String? = null
+) {
+    val hasOriginCoords: Boolean
+        get() = originLat != null && originLng != null && !originLat.isNaN() && !originLng.isNaN()
+
+    val hasDestinationCoords: Boolean
+        get() = destinationLat != null && destinationLng != null && !destinationLat.isNaN() && !destinationLng.isNaN()
+
+    val hasAnyRouteInfo: Boolean
+        get() = !originName.isNullOrBlank() || !destinationName.isNullOrBlank() || hasOriginCoords || hasDestinationCoords
+
+    fun mergeWith(incoming: ConvoyRoute?): ConvoyRoute {
+        if (incoming == null) return this
+        val nextOriginName = incoming.originName?.takeIf { it.isNotBlank() } ?: originName
+        val nextDestName = incoming.destinationName?.takeIf { it.isNotBlank() } ?: destinationName
+        val originChanged = incoming.originName != null &&
+            originName != null &&
+            !incoming.originName.equals(originName, ignoreCase = true)
+        val destChanged = incoming.destinationName != null &&
+            destinationName != null &&
+            !incoming.destinationName.equals(destinationName, ignoreCase = true)
+
+        return ConvoyRoute(
+            originName = nextOriginName,
+            originLat = if (incoming.originLat != null) incoming.originLat else if (originChanged) null else originLat,
+            originLng = if (incoming.originLng != null) incoming.originLng else if (originChanged) null else originLng,
+            destinationName = nextDestName,
+            destinationLat = if (incoming.destinationLat != null) incoming.destinationLat else if (destChanged) null else destinationLat,
+            destinationLng = if (incoming.destinationLng != null) incoming.destinationLng else if (destChanged) null else destinationLng,
+            meetupPoint = incoming.meetupPoint?.takeIf { it.isNotBlank() } ?: meetupPoint,
+            estimatedDurationMin = incoming.estimatedDurationMin ?: if (originChanged || destChanged) null else estimatedDurationMin,
+            distanceMeters = incoming.distanceMeters ?: if (originChanged || destChanged) null else distanceMeters,
+            encodedPolyline = incoming.encodedPolyline?.takeIf { it.isNotBlank() }
+                ?: if (originChanged || destChanged) null else encodedPolyline
+        )
+    }
+}
+
+@Immutable
 data class RiderLocation(
     val riderId: String,
     val lat: Double,

@@ -33,11 +33,16 @@ object MeshConfig {
     const val MESH_STATUS_CHANNEL_ID = "rv_mesh_status"
     const val MESH_STATUS_NOTIF_ID = 9821
 
-    // Group B chain topology constants (gated on hardware spikes SP-7..SP-10)
-    const val MAX_CHAIN_HOPS = 3
+    // Bus/Chain topology & Wi-Fi Aware link constants
+    const val MAX_CHAIN_HOPS = 4
     const val POSITION_BROADCAST_INTERVAL_MS = 2_000L
     const val TOPOLOGY_SETTLE_MS = 10_000L
     const val STAR_RANGE_THRESHOLD_M = 50.0
+    const val AWARE_EMPTY_FALLBACK_MS = 15_000L
+    const val AWARE_ZOMBIE_GRACE_MS = 6_000L
+    const val AWARE_CONNECT_TIMEOUT_MS = 8_000L
+    const val AWARE_REJECT_COOLDOWN_MS = 10_000L
+    const val AWARE_BEACON_TTL_MS = 12_000L
 
     /**
      * When true, a relay does not forward a packet to a neighbor that is already a (fresh, bidirectional) radio

@@ -18,7 +18,8 @@ data class RoomMeshConfig(
     val status: OfflineConfigStatus = OfflineConfigStatus.NOT_STARTED,
     val stepResults: Map<OfflineConfigStep, StepResult> = emptyMap(),
     val optOut: Boolean = false,
-    val linkLevel: RiderLinkLevel = RiderLinkLevel.AUTO_P2P
+    val linkLevel: RiderLinkLevel = RiderLinkLevel.AUTO_P2P,
+    val wifiAwareSupported: Boolean = false
 ) {
     companion object {
         /** Default: offline disabled for this room */

@@ -27,10 +27,16 @@ import com.ridervoice.mesh.convoy.SingleFlightHandoffExecutor
 import com.ridervoice.mesh.convoy.TransportAction
 import com.ridervoice.mesh.convoy.TransportDecision
 import com.ridervoice.mesh.convoy.TransportMode
+import com.ridervoice.mesh.link.ActiveOfflineTransportMode
 import com.ridervoice.mesh.link.AndroidWifiDirectGroupController
+import com.ridervoice.mesh.link.OfflineLinkOrchestrator
 import com.ridervoice.mesh.link.StarGroupOwnerSelector
 import com.ridervoice.mesh.link.WifiDirectGroupController
 import com.ridervoice.mesh.link.WifiDirectStatus
+import com.ridervoice.mesh.link.aware.AwareRuntimeContext
+import com.ridervoice.mesh.link.aware.NoOpWifiAwareLinkController
+import com.ridervoice.mesh.link.aware.WifiAwareLinkController
+import com.ridervoice.mesh.link.aware.WifiAwareStatus
 import com.ridervoice.mesh.notification.MeshStatusEvent
 import com.ridervoice.mesh.notification.MeshStatusNotifier
 import com.ridervoice.mesh.offline.RiderLinkLevel
@@ -90,7 +96,8 @@ class MeshAutoSwitchManager(
     private val wifiDirectGroupController: WifiDirectGroupController? = null,
     private val statusNotifier: MeshStatusNotifier? = null,
     private val positionBridge: MeshPositionBridge? = null,
-    private val dualP2pCapableIdsProvider: () -> Set<String> = { emptySet() }
+    private val dualP2pCapableIdsProvider: () -> Set<String> = { emptySet() },
+    private val wifiAwareLinkController: WifiAwareLinkController = NoOpWifiAwareLinkController
 ) {
 
     companion object {
@@ -127,6 +134,9 @@ class MeshAutoSwitchManager(
     private val _topologyPlan = MutableStateFlow<TopologyPlan?>(null)
     val topologyPlan: StateFlow<TopologyPlan?> = _topologyPlan.asStateFlow()
 
+    private val _activeOfflineTransportMode = MutableStateFlow(ActiveOfflineTransportMode.MANUAL_OR_NONE)
+    val activeOfflineTransportMode: StateFlow<ActiveOfflineTransportMode> = _activeOfflineTransportMode.asStateFlow()
+
     @Volatile private var pendingExclusionRequest: ManualExclusionRequest? = null
     @Volatile private var convoyCoordinator: ConvoyTransportCoordinator? = null
     @Volatile private var convoyExecutor: SingleFlightHandoffExecutor? = null
@@ -144,6 +154,12 @@ class MeshAutoSwitchManager(
     private var goAbsentSinceMs: Long? = null
     private var lastNotifiedTransportState: LocalTransportState? = null
     private var lastNotifiedP2pStatus: WifiDirectStatus? = null
+    private var lastNotifiedAwareStatus: WifiAwareStatus? = null
+    private var awareEmptySinceMs: Long? = null
+    private var awareFallbackLatched: Boolean = false
+    private var lastAwareStatusForLatch: WifiAwareStatus = WifiAwareStatus.IDLE
+    private val cachedMeshToOnlineId = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private var lastIdentityAnnounceSentMs: Long = 0L
     @Volatile private var adoptedGoAnnounce: MeshControlExtension.GoAnnounce? = null
     private var topologyElectionEpoch: Int = 0
     private var hasConnectedToCurrentGo: Boolean = false
@@ -286,6 +302,7 @@ class MeshAutoSwitchManager(
                         ride.meshConfig?.offlineMeshEnabled == false
                     ) {
                         wifiDirectGroupController?.stop()
+                        wifiAwareLinkController.stop()
                     }
                     meshRuntimeSettings?.let { com.ridervoice.mesh.RoomMeshFlagMirror.sync(ride.toMirrorSnapshot(), it) }
                     coordinator.setOnlineSession(null)
@@ -345,6 +362,7 @@ class MeshAutoSwitchManager(
                         )
                     } else if (isMeshCapExceeded) {
                         wifiDirectGroupController?.stop()
+                        wifiAwareLinkController.stop()
                     }
                     if (!isMeshCapExceeded &&
                         (OfflineMeshGate.isWarmStandbyAllowed() || OfflineMeshGate.isAutomaticFallbackAllowed()) &&
@@ -667,6 +685,8 @@ class MeshAutoSwitchManager(
         healthSignalsProvider.stopWatching()
         drivingJob?.cancel()
         drivingJob = null
+        wifiDirectGroupController?.stop()
+        wifiAwareLinkController.stop()
         clearConvoySessionState()
         scope.launch {
             stateMachine.endSession()
@@ -693,12 +713,19 @@ class MeshAutoSwitchManager(
         goAbsentSinceMs = null
         lastNotifiedTransportState = null
         lastNotifiedP2pStatus = null
+        lastNotifiedAwareStatus = null
+        awareEmptySinceMs = null
+        awareFallbackLatched = false
+        lastAwareStatusForLatch = WifiAwareStatus.IDLE
+        cachedMeshToOnlineId.clear()
+        lastIdentityAnnounceSentMs = 0L
         adoptedGoAnnounce = null
         topologyElectionEpoch = 0
         hasConnectedToCurrentGo = false
         lastGoAnnounceSentMs = 0L
         positionBridge?.clear()
         _topologyPlan.value = null
+        _activeOfflineTransportMode.value = ActiveOfflineTransportMode.MANUAL_OR_NONE
         lastConvoyOutput = null
         pendingExclusionRequest = null
         _stuckExclusionMemberIds.value = emptyList()
@@ -749,6 +776,16 @@ class MeshAutoSwitchManager(
                             }
                         }
                     }
+                } else if (discriminator == MeshControlExtension.DISCRIMINATOR_MEMBER_IDENTITY) {
+                    MeshControlExtension.decodeMemberIdentity(pkt.payload)?.let { idMsg ->
+                        val candidate = currentSnap.meshParticipants.getOrNull(idMsg.rosterIdx)
+                        if (candidate != null) {
+                            val expectedTag = ConvoyHash.computeProposerTag(currentSnap.sessionId, candidate)
+                            if (expectedTag.contentEquals(idMsg.memberTag)) {
+                                cachedMeshToOnlineId[pkt.sourceId] = candidate
+                            }
+                        }
+                    }
                 } else {
                     val res = ConvoyStateCodec.decode(pkt.payload, currentSnap.meshParticipants.size)
                     if (res is ConvoyStateDecodeResult.Ok) {
@@ -789,12 +826,19 @@ class MeshAutoSwitchManager(
         goAbsentSinceMs = null
         lastNotifiedTransportState = null
         lastNotifiedP2pStatus = null
+        lastNotifiedAwareStatus = null
+        awareEmptySinceMs = null
+        awareFallbackLatched = false
+        lastAwareStatusForLatch = WifiAwareStatus.IDLE
+        cachedMeshToOnlineId.clear()
+        lastIdentityAnnounceSentMs = 0L
         adoptedGoAnnounce = null
         topologyElectionEpoch = 0
         hasConnectedToCurrentGo = false
         lastGoAnnounceSentMs = 0L
         positionBridge?.clear()
         _topologyPlan.value = null
+        _activeOfflineTransportMode.value = ActiveOfflineTransportMode.MANUAL_OR_NONE
         meshTransport.controlPayloadProvider = null
         meshTransport.onControlPacketReceived = null
         _convoyModeState.value = ConvoyModeState.ONLINE
@@ -891,22 +935,34 @@ class MeshAutoSwitchManager(
 
     private fun resolveOnlineMemberId(
         meshDeviceId: String,
-        membership: ConvoyMembershipSnapshot
+        membership: ConvoyMembershipSnapshot,
+        nodeOnlineTagOverride: String? = null
     ): String? {
         if (meshDeviceId in membership.meshParticipants) return meshDeviceId
-        val peerTag = meshTransport.participants.value
+        val peerTag = nodeOnlineTagOverride ?: meshTransport.participants.value
             .filterIsInstance<UnifiedVoicePeer>()
             .firstOrNull { it.id == meshDeviceId }
-            ?.onlineIdTag ?: return null
-        if (peerTag in membership.meshParticipants) return peerTag
-        val session = secretProvider.backupSession.value
-        val key = if (session != null && !session.isClosed) {
-            runCatching { session.payloadKey() }.getOrNull()
-        } else null
-        key ?: return null
-        return membership.meshParticipants.firstOrNull { uid ->
-            PayloadCrypto.computeOnlineIdTag(key, uid) == peerTag
+            ?.onlineIdTag
+        if (peerTag != null) {
+            if (peerTag in membership.meshParticipants) {
+                cachedMeshToOnlineId[meshDeviceId] = peerTag
+                return peerTag
+            }
+            val session = secretProvider.backupSession.value
+            val key = if (session != null && !session.isClosed) {
+                runCatching { session.payloadKey() }.getOrNull()
+            } else null
+            if (key != null) {
+                val matched = membership.meshParticipants.firstOrNull { uid ->
+                    PayloadCrypto.computeOnlineIdTag(key, uid) == peerTag
+                }
+                if (matched != null) {
+                    cachedMeshToOnlineId[meshDeviceId] = matched
+                    return matched
+                }
+            }
         }
+        return cachedMeshToOnlineId[meshDeviceId]?.takeIf { it in membership.meshParticipants }
     }
 
     private fun isMemberPresentOnMesh(
@@ -914,7 +970,7 @@ class MeshAutoSwitchManager(
         meshPeers: List<UnifiedVoicePeer>
     ): Boolean {
         val rawIds = meshPeers.mapNotNull { it.onlineIdTag ?: it.id }
-        if (memberId in rawIds || meshPeers.any { it.id == memberId }) return true
+        if (memberId in rawIds || meshPeers.any { it.id == memberId || cachedMeshToOnlineId[it.id] == memberId }) return true
         val session = secretProvider.backupSession.value
         val key = if (session != null && !session.isClosed) {
             runCatching { session.payloadKey() }.getOrNull()
@@ -924,6 +980,64 @@ class MeshAutoSwitchManager(
         return expectedTag in rawIds
     }
 
+    private fun buildOnlineGraphContext(
+        membership: ConvoyMembershipSnapshot,
+        localId: String
+    ): Pair<Map<String, Set<String>>, Set<String>> {
+        val snap = runCatching { meshTransport.currentGraphSnapshot() }.getOrNull()
+            ?: return emptyMap<String, Set<String>>() to setOf(localId)
+        val selfDeviceId = snap.selfId
+        fun mapId(rawId: String): String? {
+            if (rawId == selfDeviceId) return localId
+            val nodeTag = snap.nodes[rawId]?.onlineIdTag
+            return resolveOnlineMemberId(rawId, membership, nodeTag)
+        }
+        val adj = HashMap<String, MutableSet<String>>()
+        for (edge in snap.edges) {
+            val u = mapId(edge.from) ?: continue
+            val v = mapId(edge.to) ?: continue
+            if (u == v) continue
+            adj.getOrPut(u) { LinkedHashSet() }.add(v)
+            adj.getOrPut(v) { LinkedHashSet() }.add(u)
+        }
+        val reachable = LinkedHashSet<String>()
+        val queue = java.util.ArrayDeque<String>()
+        reachable.add(localId)
+        queue.add(localId)
+        while (queue.isNotEmpty()) {
+            val cur = queue.removeFirst()
+            for (nxt in adj[cur].orEmpty()) {
+                if (reachable.add(nxt)) queue.add(nxt)
+            }
+        }
+        return adj to reachable
+    }
+
+    private fun maybeBroadcastIdentityAndPosition(
+        membership: ConvoyMembershipSnapshot,
+        localId: String,
+        nowMs: Long
+    ) {
+        val linkAlive = runCatching { meshTransport.isLinkAlive.value }.getOrDefault(false)
+        if (!linkAlive) return
+        if (positionBridge != null) {
+            positionBridge.maybeBuildPositionBroadcast(localId)?.let { posFrame ->
+                meshTransport.sendControlFrame(posFrame)
+            }
+        }
+        if (lastIdentityAnnounceSentMs == 0L || (nowMs - lastIdentityAnnounceSentMs) >= MeshConfig.TOPOLOGY_SETTLE_MS) {
+            val idx = membership.indexOfMeshParticipant(localId)
+            if (idx in 0..255) {
+                val myTag = ConvoyHash.computeProposerTag(membership.sessionId, localId)
+                val frame = MeshControlExtension.encodeMemberIdentity(
+                    MeshControlExtension.MemberIdentity(rosterIdx = idx, memberTag = myTag)
+                )
+                meshTransport.sendControlFrame(frame)
+                lastIdentityAnnounceSentMs = nowMs
+            }
+        }
+    }
+
     private fun ensureP2pGroupWithSelector(
         ride: ActiveRideRepository.ActiveRide,
         membership: ConvoyMembershipSnapshot?,
@@ -931,14 +1045,140 @@ class MeshAutoSwitchManager(
         localId: String?,
         nowMs: Long
     ) {
-        val controller = wifiDirectGroupController ?: return
-        val localLinkLevel = ride.meshConfig?.linkLevel
-        if (localLinkLevel != null && localLinkLevel != RiderLinkLevel.AUTO_P2P) {
+        val localLinkLevel = ride.meshConfig?.linkLevel ?: RiderLinkLevel.AUTO_P2P
+        if (!localLinkLevel.supportsAutoLink) {
             lastSelectedGoId = null
             _topologyPlan.value = null
-            controller.stop()
+            _activeOfflineTransportMode.value = ActiveOfflineTransportMode.MANUAL_OR_NONE
+            awareFallbackLatched = false
+            awareEmptySinceMs = null
+            lastAwareStatusForLatch = WifiAwareStatus.IDLE
+            wifiDirectGroupController?.stop()
+            wifiAwareLinkController.stop()
             return
         }
+
+        val isLiveOfflineVoice = _localTransportState.value == LocalTransportState.OFFLINE_ACTIVE ||
+            _localTransportState.value == LocalTransportState.FALLBACK_UNAVAILABLE ||
+            stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE
+        val awareStatusNow = wifiAwareLinkController.status.value
+        val awareDiscovered = wifiAwareLinkController.discoveredPeerCount.value
+        val awareActive = wifiAwareLinkController.activePeerCount.value
+
+        val transitioningFromOutage = lastAwareStatusForLatch in setOf(
+            WifiAwareStatus.DISABLED_WIFI_OFF,
+            WifiAwareStatus.UNAVAILABLE,
+            WifiAwareStatus.FAILED,
+            WifiAwareStatus.MISSING_PERMISSION
+        )
+        lastAwareStatusForLatch = awareStatusNow
+        if (awareStatusNow == WifiAwareStatus.ACTIVE_CHAIN ||
+            (transitioningFromOutage && awareStatusNow in setOf(WifiAwareStatus.ATTACHING, WifiAwareStatus.DISCOVERING))
+        ) {
+            awareFallbackLatched = false
+            awareEmptySinceMs = null
+        }
+
+        if (localLinkLevel == RiderLinkLevel.AUTO_AWARE_CHAIN &&
+            awareStatusNow in setOf(WifiAwareStatus.ATTACHING, WifiAwareStatus.DISCOVERING) &&
+            awareDiscovered == 0 && awareActive == 0 && !awareFallbackLatched
+        ) {
+            if (awareEmptySinceMs == null) awareEmptySinceMs = nowMs
+        } else {
+            awareEmptySinceMs = null
+        }
+
+        val mode = OfflineLinkOrchestrator.decide(
+            OfflineLinkOrchestrator.Input(
+                linkLevel = localLinkLevel,
+                awareStatus = awareStatusNow,
+                awareActivePeers = awareActive,
+                awareDiscoveredPeers = awareDiscovered,
+                awareEmptyDurationMs = awareEmptySinceMs?.let { nowMs - it } ?: 0L,
+                expectedParticipantCount = membership?.meshParticipants?.size ?: 1,
+                isLiveOfflineVoice = isLiveOfflineVoice,
+                p2pSupported = wifiDirectGroupController != null &&
+                    wifiDirectGroupController.status.value != WifiDirectStatus.UNSUPPORTED,
+                awareFallbackLatched = awareFallbackLatched
+            )
+        )
+        _activeOfflineTransportMode.value = mode
+
+        if (mode == ActiveOfflineTransportMode.DISABLED_WIFI_OFF || mode == ActiveOfflineTransportMode.MANUAL_OR_NONE) {
+            wifiDirectGroupController?.stop()
+            wifiAwareLinkController.pauseForFallback()
+            return
+        }
+
+        if (mode == ActiveOfflineTransportMode.WIFI_AWARE_CHAIN) {
+            wifiDirectGroupController?.stop()
+            if (membership == null || localId == null || !membership.isMeshParticipant(localId)) {
+                return
+            }
+            val positionsMap = positionBridge?.snapshotPositions(localId).orEmpty()
+            val awareCapableIds = membership.meshParticipants.toSet()
+            val plan = TopologyEngine.computePlan(
+                meshParticipants = membership.meshParticipants,
+                positions = positionsMap,
+                dualP2pCapableIds = awareCapableIds,
+                currentHostId = ride.hostUserId,
+                electionEpoch = topologyElectionEpoch,
+                preferChainMode = true
+            )
+            _topologyPlan.value = plan
+
+            val (adj, reachable) = buildOnlineGraphContext(membership, localId)
+            val localPos = positionsMap[localId]
+            val directTimeoutMs = runCatching { meshTransport.currentDirectTimeoutMs() }
+                .getOrDefault(MeshConfig.ACTIVE_NEIGHBOR_TIMEOUT_MS)
+            val expectUdp = meshTransport.state.value == VoiceTransportState.CONNECTED &&
+                runCatching { meshTransport.isLinkAlive.value }.getOrDefault(false)
+            wifiAwareLinkController.ensureActive(
+                session = backup,
+                runtimeContext = AwareRuntimeContext(
+                    localMemberId = localId,
+                    meshParticipants = membership.meshParticipants,
+                    plannedChain = plan.orderedChain,
+                    localLatE6 = localPos?.latE6 ?: 0,
+                    localLonE6 = localPos?.lonE6 ?: 0,
+                    hasValidGps = localPos?.isAccurate() == true,
+                    isLiveOfflineVoice = isLiveOfflineVoice,
+                    directTimeoutMs = directTimeoutMs,
+                    graphAdjacency = adj,
+                    reachableMemberIds = reachable,
+                    p2pFallbackReady = wifiDirectGroupController != null,
+                    expectUdpTraffic = expectUdp
+                )
+            )
+
+            maybeBroadcastIdentityAndPosition(membership, localId, nowMs)
+            val topoSummary = if (plan.isChainMode && plan.orderedChain.isNotEmpty()) {
+                "AWARE CHAIN (${plan.orderedChain.joinToString("↔") { it.take(4) }})"
+            } else {
+                "AWARE MESH (${awareActive} links)"
+            }
+            runCatching {
+                meshTransport.diagnosticsRepo.updateLinkMetadata(
+                    linkLevel = localLinkLevel.wireName,
+                    p2pStatus = wifiDirectGroupController?.status?.value?.name ?: "IDLE",
+                    p2pGoIp = wifiDirectGroupController?.p2pOwnerAddress?.value.orEmpty(),
+                    selectedGoId = lastSelectedGoId.orEmpty(),
+                    awareCapability = if (ride.meshConfig?.wifiAwareSupported == true) "SUPPORTED" else "UNSUPPORTED",
+                    awareStatus = wifiAwareLinkController.status.value.name,
+                    activeTransportMode = mode.wireName,
+                    topologySummary = topoSummary
+                )
+            }
+            return
+        }
+
+        // Automatic fallback to Center-Elected Wi-Fi Direct Star
+        if (localLinkLevel == RiderLinkLevel.AUTO_AWARE_CHAIN) {
+            awareFallbackLatched = true
+            awareEmptySinceMs = null
+        }
+        wifiAwareLinkController.pauseForFallback()
+        val controller = wifiDirectGroupController ?: return
 
         if (membership == null || localId == null || !membership.isMeshParticipant(localId)) {
             controller.ensureActive(backup, isHost = ride.isHost)
@@ -946,9 +1186,6 @@ class MeshAutoSwitchManager(
         }
 
         excludedGoIds.entries.removeIf { it.value <= nowMs }
-        val isLiveOfflineVoice = _localTransportState.value == LocalTransportState.OFFLINE_ACTIVE ||
-            _localTransportState.value == LocalTransportState.FALLBACK_UNAVAILABLE ||
-            stateMachine.state.value == AutoSwitchState.OFFLINE_ACTIVE
         val p2pConnected = controller.isGroupConnected.value
         if (p2pConnected) {
             hasConnectedToCurrentGo = true
@@ -1033,11 +1270,7 @@ class MeshAutoSwitchManager(
 
         val linkAlive = runCatching { meshTransport.isLinkAlive.value }.getOrDefault(false)
         if (linkAlive) {
-            if (positionBridge != null) {
-                positionBridge.maybeBuildPositionBroadcast(localId)?.let { posFrame ->
-                    meshTransport.sendControlFrame(posFrame)
-                }
-            }
+            maybeBroadcastIdentityAndPosition(membership, localId, nowMs)
             if (isGo && selectedGoId != null &&
                 (selectedGoId != prevGoId || (nowMs - lastGoAnnounceSentMs) >= MeshConfig.TOPOLOGY_SETTLE_MS)
             ) {
@@ -1057,12 +1290,17 @@ class MeshAutoSwitchManager(
             }
         }
 
+        val topoSummary = "STAR (Hub: ${selectedGoId?.take(4) ?: "?"})"
         runCatching {
             meshTransport.diagnosticsRepo.updateLinkMetadata(
-                linkLevel = (localLinkLevel ?: RiderLinkLevel.AUTO_P2P).wireName,
+                linkLevel = localLinkLevel.wireName,
                 p2pStatus = controller.status.value.name,
                 p2pGoIp = controller.p2pOwnerAddress.value.orEmpty(),
-                selectedGoId = selectedGoId.orEmpty()
+                selectedGoId = selectedGoId.orEmpty(),
+                awareCapability = if (ride.meshConfig?.wifiAwareSupported == true) "SUPPORTED" else "UNSUPPORTED",
+                awareStatus = wifiAwareLinkController.status.value.name,
+                activeTransportMode = mode.wireName,
+                topologySummary = topoSummary
             )
         }
     }
@@ -1102,6 +1340,18 @@ class MeshAutoSwitchManager(
                     MeshStatusEvent.LINK_FAILED,
                     isDeafened = deafened,
                     attempts = AndroidWifiDirectGroupController.MAX_SETUP_ATTEMPTS
+                )
+                else -> Unit
+            }
+        }
+        val curAware = wifiAwareLinkController.status.value
+        val prevAware = lastNotifiedAwareStatus
+        if (curAware != prevAware) {
+            lastNotifiedAwareStatus = curAware
+            when (curAware) {
+                WifiAwareStatus.DISABLED_WIFI_OFF -> notifier.notify(
+                    MeshStatusEvent.WIFI_OFF,
+                    isDeafened = deafened
                 )
                 else -> Unit
             }

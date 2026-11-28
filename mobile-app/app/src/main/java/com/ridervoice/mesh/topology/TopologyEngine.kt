@@ -19,7 +19,8 @@ object TopologyEngine {
         dualP2pCapableIds: Set<String>,
         currentHostId: String?,
         electionEpoch: Int = 0,
-        starRangeThresholdM: Double = MeshConfig.STAR_RANGE_THRESHOLD_M
+        starRangeThresholdM: Double = MeshConfig.STAR_RANGE_THRESHOLD_M,
+        preferChainMode: Boolean = false
     ): TopologyPlan {
         val validPositioned = meshParticipants.filter { positions[it]?.isAccurate() == true }
         val positionedCoords = validPositioned.associateWith {
@@ -57,7 +58,7 @@ object TopologyEngine {
                 if (d > maxSpreadM) maxSpreadM = d
             }
         }
-        if (maxSpreadM <= starRangeThresholdM) {
+        if (!preferChainMode && maxSpreadM <= starRangeThresholdM) {
             return starPlan(meshParticipants, starGoId, electionEpoch)
         }
 

@@ -1,3 +1,26 @@
+## RiderVoice v0.0.3.27 Release Notes
+
+RiderVoice **v0.0.3.27** makes **Wi-Fi Aware (NAN) Multi-Hop Bus/Chain (`1↔2↔3↔4↔5↔6`)** the default offline mesh transport on Android 10+ devices, with automatic zero-tap fallback to Center-Elected Wi-Fi Direct Star.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.27` |
+| **Version Code** | `3027` |
+| **Release Tag** | `v0.0.3.27` |
+| **Download APK** | `Rider_APP-v0.0.3.27.apk` |
+
+### What's new
+- **Default Wi-Fi Aware Multi-Hop Bus/Chain Mesh**: Added `AndroidWifiAwareLinkController` (API 29–35 simultaneous Publish/Subscribe + L2 signaling + NDP sockets), `CompositeMeshLink` (IPv4 + IPv6 NDP multiplexing), and `OfflineLinkOrchestrator` with sticky automatic fallback to Wi-Fi Direct Star
+- **Deterministic Chain Planner & Ordering**: Added `AwareChainLinkPlanner` integrated with `TopologyEngine` GPS shortest-path ordering (`1↔2↔3↔4↔5↔6`), 4-tier candidate ranking, partition bridging via `componentRootTag`, `isCutEdge` bridge protection, make-before-break swaps on 3-NDP hardware, and stuck/zombie link eviction
+- **Offline Identity, Lobby & Telemetry**: Added `0x83` `MemberIdentity` control frame (`MeshControlExtension`), IPv6/IPv4 endpoint family tracking in `MeshGraphRepository`, Lobby Wi-Fi Aware hardware capability badge & live status, Diagnostics Aware/transport/topology rows, and synchronized EN/HI/MR strings
+- **Verification**: Raised unit & simulation test census to `1052` passing tests (`.github/test-census-floor`), including 5-node chain convergence and 4-hop AEAD-encrypted voice delivery
+
+### Not verified on real devices
+- Physical multi-phone Android Wi-Fi Aware HAL attach/NDP timing, OEM firmware behavior, highway RF range, and cellular + Wi-Fi Aware concurrency have not yet been field-tested on real hardware
+- Mixed convoys with 2+ Wi-Fi Aware phones and 1+ non-Aware phone require shared per-rider capability negotiation (single Aware phones auto-fallback cleanly to Star after 15s)
+
+---
+
 ## RiderVoice v0.0.3.26 Release Notes
 
 RiderVoice **v0.0.3.26** delivers faster convoy-wide ONLINE ↔ OFFLINE voice switching, deterministic automatic Wi-Fi Direct Group Owner selection and mid-ride failover, cadence-aware neighbor/report timeouts, helmet-audible transition alerts, and multi-endpoint daisy-hop / bus topology foundations.

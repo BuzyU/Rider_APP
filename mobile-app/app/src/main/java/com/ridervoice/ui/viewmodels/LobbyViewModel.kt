@@ -35,14 +35,23 @@ class LobbyViewModel @Inject constructor(
     private val activeRideRepository: com.ridervoice.state.ActiveRideRepository,
     private val sessionHolder: com.ridervoice.mesh.session.OfflineSessionHolder = com.ridervoice.mesh.session.OfflineSessionHolder(),
     private val configCoordinator: com.ridervoice.mesh.offline.OfflineConfigCoordinator = com.ridervoice.mesh.offline.OfflineConfigCoordinator(sessionHolder = sessionHolder),
-    private val wifiDirectGroupController: com.ridervoice.mesh.link.WifiDirectGroupController = com.ridervoice.mesh.link.NoOpWifiDirectGroupController
+    private val wifiDirectGroupController: com.ridervoice.mesh.link.WifiDirectGroupController = com.ridervoice.mesh.link.NoOpWifiDirectGroupController,
+    private val wifiAwareLinkController: com.ridervoice.mesh.link.aware.WifiAwareLinkController = com.ridervoice.mesh.link.aware.NoOpWifiAwareLinkController
 ) : ViewModel() {
 
     val offlineConfigState = configCoordinator.state
     val wifiDirectStatus: StateFlow<com.ridervoice.mesh.link.WifiDirectStatus> = wifiDirectGroupController.status
+    val wifiAwareStatus: StateFlow<com.ridervoice.mesh.link.aware.WifiAwareStatus> = wifiAwareLinkController.status
+    val wifiAwareActivePeerCount: StateFlow<Int> = wifiAwareLinkController.activePeerCount
+    private val _activeOfflineTransportMode = MutableStateFlow(com.ridervoice.mesh.link.ActiveOfflineTransportMode.MANUAL_OR_NONE)
+    val activeOfflineTransportMode: StateFlow<com.ridervoice.mesh.link.ActiveOfflineTransportMode> = _activeOfflineTransportMode.asStateFlow()
     private val _selectedGoId = MutableStateFlow<String?>(null)
     val selectedGoId: StateFlow<String?> = _selectedGoId.asStateFlow()
     private var lastKnownBackupCode: String? = null
+    private var lobbyAwareEmptySinceMs: Long? = null
+    private var lobbyAwareFallbackLatched: Boolean = false
+    private var lastLobbyAwareStatusForLatch: com.ridervoice.mesh.link.aware.WifiAwareStatus =
+        com.ridervoice.mesh.link.aware.WifiAwareStatus.IDLE
 
     private val _loadState = MutableStateFlow<LobbyLoadState>(LobbyLoadState.Loading)
     val loadState: StateFlow<LobbyLoadState> = _loadState.asStateFlow()
@@ -66,6 +75,7 @@ class LobbyViewModel @Inject constructor(
 
     private var pollingJob: Job? = null
     private var configObserverJob: Job? = null
+    private var awareObserverJob: Job? = null
     internal var fallbackUserIdProvider: () -> String? = {
         try {
             com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
@@ -161,41 +171,131 @@ class LobbyViewModel @Inject constructor(
         val ride = activeRideRepository.state.value
         val optOut = ride?.meshConfig?.optOut == true
         val cfgState = configCoordinator.state.value
-        val autoP2pAllowed = cfgState.linkLevel == com.ridervoice.mesh.offline.RiderLinkLevel.AUTO_P2P
+        val autoSupported = cfgState.linkLevel.supportsAutoLink
         val session = sessionHolder.backup.value
         if (com.ridervoice.mesh.OfflineMeshGate.isBuildGateOpen() &&
             offlineEnabled &&
             !optOut &&
-            autoP2pAllowed &&
+            autoSupported &&
             session != null
         ) {
             val snap = ride?.convoyMembershipSnapshot ?: buildConvoyMembershipSnapshot(_lobbyStatus.value)
             val localUid = fallbackUserIdProvider()?.takeIf { it.isNotBlank() }
-            val hostUid = _lobbyStatus.value?.host?.id?.takeIf { it.isNotBlank() }
-                ?: ride?.hostUserId?.takeIf { it.isNotBlank() }
-                ?: if (isHost) localUid else null
-            val electedGoId = if (snap != null && !snap.isMeshCapExceeded) {
-                com.ridervoice.mesh.link.StarGroupOwnerSelector.selectGoId(
-                    com.ridervoice.mesh.link.StarGroupOwnerSelector.Input(
-                        meshParticipants = snap.meshParticipants,
-                        hostUserId = hostUid,
-                        previousGoId = _selectedGoId.value,
-                        isP2pConnected = wifiDirectGroupController.isGroupConnected.value
-                    )
+            val nowMs = System.currentTimeMillis()
+            val awareSt = wifiAwareLinkController.status.value
+            val awareDisc = wifiAwareLinkController.discoveredPeerCount.value
+            val awareAct = wifiAwareLinkController.activePeerCount.value
+            val transitioningFromOutage = lastLobbyAwareStatusForLatch in setOf(
+                com.ridervoice.mesh.link.aware.WifiAwareStatus.DISABLED_WIFI_OFF,
+                com.ridervoice.mesh.link.aware.WifiAwareStatus.UNAVAILABLE,
+                com.ridervoice.mesh.link.aware.WifiAwareStatus.FAILED,
+                com.ridervoice.mesh.link.aware.WifiAwareStatus.MISSING_PERMISSION
+            )
+            lastLobbyAwareStatusForLatch = awareSt
+            if (awareSt == com.ridervoice.mesh.link.aware.WifiAwareStatus.ACTIVE_CHAIN ||
+                (transitioningFromOutage && awareSt in setOf(
+                    com.ridervoice.mesh.link.aware.WifiAwareStatus.ATTACHING,
+                    com.ridervoice.mesh.link.aware.WifiAwareStatus.DISCOVERING
+                ))
+            ) {
+                lobbyAwareFallbackLatched = false
+                lobbyAwareEmptySinceMs = null
+            }
+
+            if (cfgState.linkLevel == com.ridervoice.mesh.offline.RiderLinkLevel.AUTO_AWARE_CHAIN &&
+                awareSt in setOf(
+                    com.ridervoice.mesh.link.aware.WifiAwareStatus.ATTACHING,
+                    com.ridervoice.mesh.link.aware.WifiAwareStatus.DISCOVERING
+                ) &&
+                awareDisc == 0 && awareAct == 0 && !lobbyAwareFallbackLatched
+            ) {
+                if (lobbyAwareEmptySinceMs == null) lobbyAwareEmptySinceMs = nowMs
+            } else {
+                lobbyAwareEmptySinceMs = null
+            }
+
+            val mode = com.ridervoice.mesh.link.OfflineLinkOrchestrator.decide(
+                com.ridervoice.mesh.link.OfflineLinkOrchestrator.Input(
+                    linkLevel = cfgState.linkLevel,
+                    awareStatus = awareSt,
+                    awareActivePeers = awareAct,
+                    awareDiscoveredPeers = awareDisc,
+                    awareEmptyDurationMs = lobbyAwareEmptySinceMs?.let { nowMs - it } ?: 0L,
+                    expectedParticipantCount = snap?.meshParticipants?.size ?: 1,
+                    isLiveOfflineVoice = false,
+                    p2pSupported = wifiDirectGroupController.status.value != com.ridervoice.mesh.link.WifiDirectStatus.UNSUPPORTED,
+                    awareFallbackLatched = lobbyAwareFallbackLatched
                 )
-            } else {
-                hostUid
+            )
+            _activeOfflineTransportMode.value = mode
+
+            if (mode == com.ridervoice.mesh.link.ActiveOfflineTransportMode.DISABLED_WIFI_OFF) {
+                _selectedGoId.value = null
+                wifiDirectGroupController.stop()
+                wifiAwareLinkController.pauseForFallback()
+                return
             }
-            _selectedGoId.value = electedGoId
-            val effectiveIsGo = if (localUid != null && electedGoId != null) {
-                localUid == electedGoId
-            } else {
-                isHost
+
+            if (mode == com.ridervoice.mesh.link.ActiveOfflineTransportMode.WIFI_AWARE_CHAIN) {
+                wifiDirectGroupController.stop()
+                _selectedGoId.value = null
+                if (localUid != null && snap != null && !snap.isMeshCapExceeded) {
+                    wifiAwareLinkController.ensureActive(
+                        session = session,
+                        runtimeContext = com.ridervoice.mesh.link.aware.AwareRuntimeContext(
+                            localMemberId = localUid,
+                            meshParticipants = snap.meshParticipants,
+                            plannedChain = snap.meshParticipants,
+                            isLiveOfflineVoice = false,
+                            p2pFallbackReady = true,
+                            expectUdpTraffic = false
+                        )
+                    )
+                }
+                return
             }
-            wifiDirectGroupController.ensureActive(session = session, isHost = effectiveIsGo)
-        } else if (!offlineEnabled || optOut || !autoP2pAllowed) {
+
+            if (mode == com.ridervoice.mesh.link.ActiveOfflineTransportMode.WIFI_DIRECT_STAR) {
+                if (cfgState.linkLevel == com.ridervoice.mesh.offline.RiderLinkLevel.AUTO_AWARE_CHAIN) {
+                    lobbyAwareFallbackLatched = true
+                    lobbyAwareEmptySinceMs = null
+                }
+                wifiAwareLinkController.pauseForFallback()
+                val hostUid = _lobbyStatus.value?.host?.id?.takeIf { it.isNotBlank() }
+                    ?: ride?.hostUserId?.takeIf { it.isNotBlank() }
+                    ?: if (isHost) localUid else null
+                val electedGoId = if (snap != null && !snap.isMeshCapExceeded) {
+                    com.ridervoice.mesh.link.StarGroupOwnerSelector.selectGoId(
+                        com.ridervoice.mesh.link.StarGroupOwnerSelector.Input(
+                            meshParticipants = snap.meshParticipants,
+                            hostUserId = hostUid,
+                            previousGoId = _selectedGoId.value,
+                            isP2pConnected = wifiDirectGroupController.isGroupConnected.value
+                        )
+                    )
+                } else {
+                    hostUid
+                }
+                _selectedGoId.value = electedGoId
+                val effectiveIsGo = if (localUid != null && electedGoId != null) {
+                    localUid == electedGoId
+                } else {
+                    isHost
+                }
+                wifiDirectGroupController.ensureActive(session = session, isHost = effectiveIsGo)
+            } else {
+                _selectedGoId.value = null
+                wifiDirectGroupController.stop()
+                wifiAwareLinkController.stop()
+            }
+        } else if (!offlineEnabled || optOut || !autoSupported) {
             _selectedGoId.value = null
+            _activeOfflineTransportMode.value = com.ridervoice.mesh.link.ActiveOfflineTransportMode.MANUAL_OR_NONE
+            lobbyAwareEmptySinceMs = null
+            lobbyAwareFallbackLatched = false
+            lastLobbyAwareStatusForLatch = com.ridervoice.mesh.link.aware.WifiAwareStatus.IDLE
             wifiDirectGroupController.stop()
+            wifiAwareLinkController.stop()
         }
     }
 
@@ -216,12 +316,35 @@ class LobbyViewModel @Inject constructor(
         val currentRide = activeRideRepository.state.value
         if (currentRide != null && currentRide.roomId != roomName) {
             // Room switch: purge prior room's offline session per WP-129 / FX-04
+            lobbyAwareEmptySinceMs = null
+            lobbyAwareFallbackLatched = false
+            lastLobbyAwareStatusForLatch = com.ridervoice.mesh.link.aware.WifiAwareStatus.IDLE
             sessionHolder.clearAll()
             configCoordinator.reset()
             activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.LEFT)
         }
         pollingJob?.cancel()
         configObserverJob?.cancel()
+        awareObserverJob?.cancel()
+        awareObserverJob = viewModelScope.launch {
+            kotlinx.coroutines.flow.combine(
+                wifiAwareLinkController.status,
+                wifiAwareLinkController.activePeerCount,
+                wifiDirectGroupController.status
+            ) { awareSt, activeCnt, p2pSt -> Triple(awareSt, activeCnt, p2pSt) }.collect { (awareSt, _, _) ->
+                if (awareSt == com.ridervoice.mesh.link.aware.WifiAwareStatus.DISCOVERING ||
+                    awareSt == com.ridervoice.mesh.link.aware.WifiAwareStatus.ATTACHING ||
+                    awareSt == com.ridervoice.mesh.link.aware.WifiAwareStatus.ACTIVE_CHAIN
+                ) {
+                    // Handled transitionally inside syncWifiDirectForLobby() without clearing timer on P2P ticks
+                } else {
+                    lobbyAwareEmptySinceMs = null
+                }
+                if (_lobbyStatus.value != null || activeRideRepository.state.value != null) {
+                    syncWifiDirectForLobby()
+                }
+            }
+        }
         configObserverJob = viewModelScope.launch {
             var lastReportedStatus: String? = null
             configCoordinator.state.collect { cfgState ->
@@ -232,7 +355,8 @@ class LobbyViewModel @Inject constructor(
                         status = cfgState.status,
                         stepResults = cfgState.stepResults,
                         optOut = cfgState.optOut,
-                        linkLevel = cfgState.linkLevel
+                        linkLevel = cfgState.linkLevel,
+                        wifiAwareSupported = cfgState.wifiAwareSupported
                     )
                 )
                 syncConvoyMembershipSnapshot(_lobbyStatus.value)
@@ -240,6 +364,7 @@ class LobbyViewModel @Inject constructor(
                     syncWifiDirectForLobby()
                 } else {
                     wifiDirectGroupController.stop()
+                    wifiAwareLinkController.stop()
                 }
 
                 val wireStatus = cfgState.status.wireName
@@ -326,11 +451,6 @@ class LobbyViewModel @Inject constructor(
                             offlineEnabled = hostMeshEnabled,
                             isHost = body.isHost ?: false
                         )
-                        syncConvoyMembershipSnapshot(body)
-                        syncWifiDirectForLobby(
-                            offlineEnabled = hostMeshEnabled,
-                            isHost = body.isHost ?: false
-                        )
 
                         if (body.isRideStarted == true) {
                             activeRideRepository.goLive()
@@ -370,6 +490,7 @@ class LobbyViewModel @Inject constructor(
                         when (code) {
                             410 -> {
                                 wifiDirectGroupController.stop()
+                                wifiAwareLinkController.stop()
                                 activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.ENDED_BY_HOST)
                                 _terminal.value = Terminal.ENDED
                                 _loadState.value = LobbyLoadState.Terminal(Terminal.ENDED)
@@ -380,6 +501,7 @@ class LobbyViewModel @Inject constructor(
                             }
                             403 -> {
                                 wifiDirectGroupController.stop()
+                                wifiAwareLinkController.stop()
                                 activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.REMOVED)
                                 _terminal.value = Terminal.REMOVED
                                 _loadState.value = LobbyLoadState.Terminal(Terminal.REMOVED)
@@ -390,6 +512,7 @@ class LobbyViewModel @Inject constructor(
                             }
                             404 -> {
                                 wifiDirectGroupController.stop()
+                                wifiAwareLinkController.stop()
                                 activeRideRepository.clear(com.ridervoice.state.ActiveRideRepository.ClearReason.NOT_FOUND)
                                 _terminal.value = Terminal.NOT_FOUND
                                 _loadState.value = LobbyLoadState.Terminal(Terminal.NOT_FOUND)
@@ -489,6 +612,8 @@ class LobbyViewModel @Inject constructor(
         pollingJob = null
         configObserverJob?.cancel()
         configObserverJob = null
+        awareObserverJob?.cancel()
+        awareObserverJob = null
         configCoordinator.cancel()
     }
 
@@ -544,6 +669,7 @@ class LobbyViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 wifiDirectGroupController.stop()
+                wifiAwareLinkController.stop()
                 sessionHolder.clearAll()
                 configCoordinator.reset()
                 apiService.endRideForEveryone(roomName)
@@ -585,6 +711,7 @@ class LobbyViewModel @Inject constructor(
             configCoordinator.optIn(viewModelScope, lastKnownBackupCode)
         } else {
             wifiDirectGroupController.stop()
+            wifiAwareLinkController.stop()
             activeRideRepository.setMeshConfig(com.ridervoice.mesh.RoomMeshConfig.DISABLED)
             configCoordinator.optOut()
         }
@@ -592,6 +719,7 @@ class LobbyViewModel @Inject constructor(
 
     fun optOutOfOfflineMesh() {
         wifiDirectGroupController.stop()
+        wifiAwareLinkController.stop()
         val current = activeRideRepository.state.value?.meshConfig ?: com.ridervoice.mesh.RoomMeshConfig.DEFAULT
         activeRideRepository.setMeshConfig(
             current.copy(
@@ -685,6 +813,7 @@ class LobbyViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 wifiDirectGroupController.stop()
+                wifiAwareLinkController.stop()
                 sessionHolder.clearAll()
                 configCoordinator.reset()
                 apiService.leaveLobby(roomRef)

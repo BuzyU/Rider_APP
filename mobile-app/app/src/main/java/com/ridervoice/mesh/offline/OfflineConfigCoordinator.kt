@@ -19,6 +19,7 @@ import java.net.NetworkInterface
 interface DeviceCapabilityChecker {
     fun hasMeshNetworkingCapability(): Boolean
     fun hasAutomaticP2pCapability(): Boolean = true
+    fun hasWifiAwareCapability(): Boolean = false
 }
 
 interface PermissionChecker {
@@ -36,7 +37,8 @@ interface TransportReadinessChecker {
 
 class DefaultDeviceCapabilityChecker(
     private val sdkInt: Int = android.os.Build.VERSION.SDK_INT,
-    private val hasWifiDirectFeature: () -> Boolean = { true }
+    private val hasWifiDirectFeature: () -> Boolean = { true },
+    private val hasWifiAwareFeature: () -> Boolean = { false }
 ) : DeviceCapabilityChecker {
     override fun hasMeshNetworkingCapability(): Boolean {
         return try {
@@ -51,6 +53,11 @@ class DefaultDeviceCapabilityChecker(
         hasMeshNetworkingCapability() &&
             (sdkInt == 0 || sdkInt >= android.os.Build.VERSION_CODES.Q) &&
             hasWifiDirectFeature()
+
+    override fun hasWifiAwareCapability(): Boolean =
+        hasMeshNetworkingCapability() &&
+            (sdkInt == 0 || sdkInt >= android.os.Build.VERSION_CODES.Q) &&
+            hasWifiAwareFeature()
 }
 
 class DefaultPermissionChecker(
@@ -136,12 +143,16 @@ class OfflineConfigCoordinator(
         )
 
         // Step 1: DEVICE_CAPABILITY
-        var step1LinkLevel = RiderLinkLevel.AUTO_P2P
+        val hasAwareCap = deviceCapabilityChecker.hasWifiAwareCapability()
+        var step1LinkLevel = when {
+            hasAwareCap -> RiderLinkLevel.AUTO_AWARE_CHAIN
+            else -> RiderLinkLevel.AUTO_P2P
+        }
         val capResult = executeWithStepTimeout(OfflineConfigStep.DEVICE_CAPABILITY) {
             if (!deviceCapabilityChecker.hasMeshNetworkingCapability()) {
                 step1LinkLevel = RiderLinkLevel.INELIGIBLE
                 StepResult(OfflineConfigStep.DEVICE_CAPABILITY, StepState.FAILED, "OFFLINE BACKUP UNAVAILABLE ON THIS DEVICE")
-            } else if (!deviceCapabilityChecker.hasAutomaticP2pCapability()) {
+            } else if (!hasAwareCap && !deviceCapabilityChecker.hasAutomaticP2pCapability()) {
                 step1LinkLevel = RiderLinkLevel.MANUAL_HOTSPOT
                 StepResult(
                     OfflineConfigStep.DEVICE_CAPABILITY,
@@ -158,10 +169,15 @@ class OfflineConfigCoordinator(
                 status = OfflineConfigStatus.UNAVAILABLE_DEVICE,
                 stepResults = currentSteps,
                 failureReason = capResult.detail,
-                linkLevel = step1LinkLevel
+                linkLevel = step1LinkLevel,
+                wifiAwareSupported = hasAwareCap
             )
             return
         }
+        _state.value = _state.value.copy(
+            linkLevel = step1LinkLevel,
+            wifiAwareSupported = hasAwareCap
+        )
 
         // Step 2: PERMISSIONS
         val permResult = executeWithStepTimeout(OfflineConfigStep.PERMISSIONS) {
@@ -277,7 +293,8 @@ class OfflineConfigCoordinator(
             status = OfflineConfigStatus.READY,
             stepResults = currentSteps,
             failureReason = null,
-            linkLevel = RiderLinkLevel.AUTO_P2P
+            linkLevel = step1LinkLevel,
+            wifiAwareSupported = hasAwareCap
         )
     }
 

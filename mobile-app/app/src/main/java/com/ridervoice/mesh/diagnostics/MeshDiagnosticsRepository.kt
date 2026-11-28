@@ -52,7 +52,11 @@ data class MeshDiagnosticsSnapshot(
     val linkLevel: String = "",
     val p2pStatus: String = "",
     val p2pGoIp: String = "",
-    val selectedGoId: String = ""
+    val selectedGoId: String = "",
+    val awareCapability: String = "",
+    val awareStatus: String = "",
+    val activeTransportMode: String = "",
+    val topologySummary: String = ""
 )
 
 class MeshDiagnosticsRepository {
@@ -63,22 +67,38 @@ class MeshDiagnosticsRepository {
     @Volatile private var metaP2pStatus: String = ""
     @Volatile private var metaP2pGoIp: String = ""
     @Volatile private var metaSelectedGoId: String = ""
+    @Volatile private var metaAwareCapability: String = ""
+    @Volatile private var metaAwareStatus: String = ""
+    @Volatile private var metaActiveTransportMode: String = ""
+    @Volatile private var metaTopologySummary: String = ""
 
     fun updateLinkMetadata(
         linkLevel: String,
         p2pStatus: String,
         p2pGoIp: String,
-        selectedGoId: String
+        selectedGoId: String,
+        awareCapability: String = "",
+        awareStatus: String = "",
+        activeTransportMode: String = "",
+        topologySummary: String = ""
     ) {
         metaLinkLevel = linkLevel
         metaP2pStatus = p2pStatus
         metaP2pGoIp = p2pGoIp
         metaSelectedGoId = selectedGoId
+        metaAwareCapability = awareCapability
+        metaAwareStatus = awareStatus
+        metaActiveTransportMode = activeTransportMode
+        metaTopologySummary = topologySummary
         _snapshot.value = _snapshot.value.copy(
             linkLevel = linkLevel,
             p2pStatus = p2pStatus,
             p2pGoIp = p2pGoIp,
-            selectedGoId = selectedGoId
+            selectedGoId = selectedGoId,
+            awareCapability = awareCapability,
+            awareStatus = awareStatus,
+            activeTransportMode = activeTransportMode,
+            topologySummary = topologySummary
         )
     }
 
@@ -176,7 +196,11 @@ class MeshDiagnosticsRepository {
             linkLevel = metaLinkLevel,
             p2pStatus = metaP2pStatus,
             p2pGoIp = metaP2pGoIp,
-            selectedGoId = metaSelectedGoId
+            selectedGoId = metaSelectedGoId,
+            awareCapability = metaAwareCapability,
+            awareStatus = metaAwareStatus,
+            activeTransportMode = metaActiveTransportMode,
+            topologySummary = metaTopologySummary
         )
     }
 
@@ -186,6 +210,10 @@ class MeshDiagnosticsRepository {
         metaP2pStatus = ""
         metaP2pGoIp = ""
         metaSelectedGoId = ""
+        metaAwareCapability = ""
+        metaAwareStatus = ""
+        metaActiveTransportMode = ""
+        metaTopologySummary = ""
         _snapshot.value = MeshDiagnosticsSnapshot()
     }
 }

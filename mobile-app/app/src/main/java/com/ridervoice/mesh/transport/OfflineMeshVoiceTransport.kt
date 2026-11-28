@@ -302,6 +302,10 @@ class OfflineMeshVoiceTransport(
 
             val uLink = linkFactory()
             (uLink as? UdpMeshLink)?.setExpiryWindowProvider { policy.directTimeoutMs() }
+            (uLink as? com.ridervoice.mesh.link.CompositeMeshLink)?.apply {
+                setExpiryWindowProvider { policy.directTimeoutMs() }
+                onNewAwareEndpoint = { cadenceWakeSignal.trySend(Unit) }
+            }
             link = uLink
 
             val fEngine = ForwardingEngine(
@@ -899,6 +903,8 @@ class OfflineMeshVoiceTransport(
 
     fun isCapturing(): Boolean = audioCapture?.isCapturing?.value == true
     fun isPlaying(): Boolean = audioPlayback?.isPlaying?.value == true
+    fun currentGraphSnapshot(): com.ridervoice.mesh.graph.MeshGraphSnapshot? = graphRepository?.currentSnapshot()
+    fun currentDirectTimeoutMs(): Long = timeoutPolicy?.directTimeoutMs() ?: MeshConfig.ACTIVE_NEIGHBOR_TIMEOUT_MS
 
     fun close() {
         voxBridge.close()

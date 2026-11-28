@@ -11,10 +11,30 @@ object MeshControlExtension {
     const val DISCRIMINATOR_CONVOY_STATE: Byte = 0x01
     const val DISCRIMINATOR_POSITION: Byte = 0x81.toByte()
     const val DISCRIMINATOR_GO_ANNOUNCE: Byte = 0x82.toByte()
+    const val DISCRIMINATOR_MEMBER_IDENTITY: Byte = 0x83.toByte()
 
     const val POSITION_SIZE_BYTES = 15
     const val GO_ANNOUNCE_SIZE_BYTES = 14
+    const val MEMBER_IDENTITY_SIZE_BYTES = 10
     const val GO_TAG_BYTES = 8
+
+    data class MemberIdentity(
+        val rosterIdx: Int,
+        val memberTag: ByteArray
+    ) {
+        init {
+            require(rosterIdx in 0..255) { "rosterIdx must fit uint8" }
+            require(memberTag.size == GO_TAG_BYTES) { "memberTag must be $GO_TAG_BYTES bytes" }
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is MemberIdentity) return false
+            return rosterIdx == other.rosterIdx && memberTag.contentEquals(other.memberTag)
+        }
+
+        override fun hashCode(): Int = 31 * rosterIdx + memberTag.contentHashCode()
+    }
 
     data class GoAnnounce(
         val electionEpoch: Int,
@@ -56,7 +76,9 @@ object MeshControlExtension {
 
     fun isTopologyControlPayload(bytes: ByteArray): Boolean {
         val first = bytes.firstOrNull() ?: return false
-        return first == DISCRIMINATOR_POSITION || first == DISCRIMINATOR_GO_ANNOUNCE
+        return first == DISCRIMINATOR_POSITION ||
+            first == DISCRIMINATOR_GO_ANNOUNCE ||
+            first == DISCRIMINATOR_MEMBER_IDENTITY
     }
 
     fun encodePosition(fix: PositionFix): ByteArray {
@@ -111,5 +133,24 @@ object MeshControlExtension {
             electedGoTag = tag,
             electedRosterIdx = rosterIdx
         )
+    }
+
+    fun encodeMemberIdentity(identity: MemberIdentity): ByteArray {
+        return ByteBuffer.allocate(MEMBER_IDENTITY_SIZE_BYTES)
+            .order(ByteOrder.BIG_ENDIAN)
+            .put(DISCRIMINATOR_MEMBER_IDENTITY)
+            .put(identity.rosterIdx.toByte())
+            .put(identity.memberTag)
+            .array()
+    }
+
+    fun decodeMemberIdentity(bytes: ByteArray): MemberIdentity? {
+        if (bytes.size != MEMBER_IDENTITY_SIZE_BYTES || bytes[0] != DISCRIMINATOR_MEMBER_IDENTITY) return null
+        val bb = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN)
+        bb.get()
+        val rosterIdx = bb.get().toInt() and 0xFF
+        val tag = ByteArray(GO_TAG_BYTES)
+        bb.get(tag)
+        return MemberIdentity(rosterIdx = rosterIdx, memberTag = tag)
     }
 }

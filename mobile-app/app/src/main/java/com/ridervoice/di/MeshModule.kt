@@ -23,10 +23,13 @@ import com.ridervoice.mesh.identity.SharedPrefsMeshKeyValueStore
 import com.ridervoice.mesh.link.AndroidNetworkLocks
 import com.ridervoice.mesh.link.AndroidWifiDirectGroupController
 import com.ridervoice.mesh.link.AndroidWifiNetworkWatcher
+import com.ridervoice.mesh.link.CompositeMeshLink
 import com.ridervoice.mesh.link.NetworkLocks
 import com.ridervoice.mesh.link.UdpMeshLink
 import com.ridervoice.mesh.link.WifiDirectGroupController
 import com.ridervoice.mesh.link.WifiNetworkWatcher
+import com.ridervoice.mesh.link.aware.AndroidWifiAwareLinkController
+import com.ridervoice.mesh.link.aware.WifiAwareLinkController
 import com.ridervoice.mesh.notification.AndroidMeshAudioCuePlayer
 import com.ridervoice.mesh.notification.MeshAudioCuePlayer
 import com.ridervoice.mesh.notification.MeshStatusNotifier
@@ -172,6 +175,12 @@ object MeshModule {
 
     @Provides
     @Singleton
+    fun provideWifiAwareLinkController(
+        @ApplicationContext context: Context
+    ): WifiAwareLinkController = AndroidWifiAwareLinkController(context)
+
+    @Provides
+    @Singleton
     fun provideWifiNetworkWatcher(
         @ApplicationContext context: Context,
         wifiDirectGroupController: WifiDirectGroupController
@@ -192,7 +201,8 @@ object MeshModule {
         wifiWatcher: WifiNetworkWatcher,
         diagnosticsRepo: MeshDiagnosticsRepository,
         @ApplicationContext context: Context,
-        wifiDirectGroupController: WifiDirectGroupController
+        wifiDirectGroupController: WifiDirectGroupController,
+        wifiAwareLinkController: WifiAwareLinkController
     ): OfflineMeshVoiceTransport = OfflineMeshVoiceTransport(
         identityProvider = { identityRepo.get() },
         audioOwnershipArbiter = arbiter,
@@ -205,17 +215,20 @@ object MeshModule {
             UdpMeshLink.discoverBroadcastEndpoints(
                 port = MeshConfig.MESH_PORT,
                 p2pGoAddress = wifiDirectGroupController.p2pOwnerAddress.value
-            )
+            ) + wifiAwareLinkController.activePeerEndpoints.value
         },
         peerFilterPort = com.ridervoice.mesh.forwarding.PeerFilterHolder.delegating,
         linkFactory = {
-            UdpMeshLink(
-                bindPort = MeshConfig.MESH_PORT,
-                gateAllowed = { OfflineMeshGate.isOfflineAllowed() },
-                networkBinder = { socket ->
-                    locks.bindSocketToWifi(socket)
-                },
-                onBufferDropped = { diagnosticsRepo.recordBufferDrop() }
+            CompositeMeshLink(
+                primaryLink = UdpMeshLink(
+                    bindPort = MeshConfig.MESH_PORT,
+                    gateAllowed = { OfflineMeshGate.isOfflineAllowed() },
+                    networkBinder = { socket ->
+                        locks.bindSocketToWifi(socket)
+                    },
+                    onBufferDropped = { diagnosticsRepo.recordBufferDrop() }
+                ),
+                awareController = wifiAwareLinkController
             )
         },
         hasMicPermission = {
@@ -307,7 +320,8 @@ object MeshModule {
         convoyStateStore: com.ridervoice.mesh.convoy.EncryptedConvoyStateStore,
         wifiDirectGroupController: WifiDirectGroupController,
         statusNotifier: MeshStatusNotifier,
-        positionBridge: MeshPositionBridge
+        positionBridge: MeshPositionBridge,
+        wifiAwareLinkController: WifiAwareLinkController
     ): MeshAutoSwitchManager = MeshAutoSwitchManager(
         activeRideRepository = activeRideRepository,
         liveKitManager = liveKitManager,
@@ -321,7 +335,8 @@ object MeshModule {
         convoyPersistence = convoyStateStore,
         wifiDirectGroupController = wifiDirectGroupController,
         statusNotifier = statusNotifier,
-        positionBridge = positionBridge
+        positionBridge = positionBridge,
+        wifiAwareLinkController = wifiAwareLinkController
     )
 
     @Provides
@@ -347,6 +362,9 @@ object MeshModule {
             sdkInt = Build.VERSION.SDK_INT,
             hasWifiDirectFeature = {
                 context.packageManager?.hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT) == true
+            },
+            hasWifiAwareFeature = {
+                context.packageManager?.hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE) == true
             }
         ),
         permissionChecker = com.ridervoice.mesh.offline.DefaultPermissionChecker(

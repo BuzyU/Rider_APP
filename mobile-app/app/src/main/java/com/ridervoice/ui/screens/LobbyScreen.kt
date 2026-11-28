@@ -9,7 +9,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import com.ridervoice.mesh.link.ActiveOfflineTransportMode
 import com.ridervoice.mesh.link.WifiDirectStatus
+import com.ridervoice.mesh.link.aware.WifiAwareStatus
 import com.ridervoice.mesh.offline.RiderLinkLevel
 import com.ridervoice.permissions.PermissionManager
 import androidx.compose.foundation.BorderStroke
@@ -71,6 +73,15 @@ fun LobbyScreen(
     val selectedGoFlow: kotlinx.coroutines.flow.StateFlow<*> = viewModel.selectedGoId
     val rawSelectedGoId by selectedGoFlow.collectAsStateWithLifecycle()
     val selectedGoId = rawSelectedGoId as? String
+    val wifiAwareStatusFlow: kotlinx.coroutines.flow.StateFlow<*> = viewModel.wifiAwareStatus
+    val rawWifiAwareStatus by wifiAwareStatusFlow.collectAsStateWithLifecycle()
+    val wifiAwareStatus = (rawWifiAwareStatus as? WifiAwareStatus) ?: WifiAwareStatus.IDLE
+    val awarePeerCountFlow: kotlinx.coroutines.flow.StateFlow<*> = viewModel.wifiAwareActivePeerCount
+    val rawAwarePeerCount by awarePeerCountFlow.collectAsStateWithLifecycle()
+    val wifiAwarePeerCount = (rawAwarePeerCount as? Int) ?: 0
+    val activeTransportFlow: kotlinx.coroutines.flow.StateFlow<*> = viewModel.activeOfflineTransportMode
+    val rawActiveTransport by activeTransportFlow.collectAsStateWithLifecycle()
+    val activeOfflineTransportMode = (rawActiveTransport as? ActiveOfflineTransportMode) ?: ActiveOfflineTransportMode.MANUAL_OR_NONE
     val error by viewModel.error.collectAsStateWithLifecycle()
     val terminal by viewModel.terminal.collectAsStateWithLifecycle()
 
@@ -732,7 +743,10 @@ fun LobbyScreen(
                         onOptIn = { viewModel.optInToOfflineMesh() },
                         onRetryStep = { viewModel.retryOfflineStep(it) },
                         wifiDirectStatus = wifiDirectStatus,
-                        selectedGoId = selectedGoId
+                        selectedGoId = selectedGoId,
+                        wifiAwareStatus = wifiAwareStatus,
+                        wifiAwarePeerCount = wifiAwarePeerCount,
+                        activeOfflineTransportMode = activeOfflineTransportMode
                     )
                 }
 
@@ -1027,7 +1041,10 @@ fun OfflineConfigCard(
     onOptIn: () -> Unit = {},
     onRetryStep: (com.ridervoice.mesh.offline.OfflineConfigStep) -> Unit = {},
     wifiDirectStatus: WifiDirectStatus = WifiDirectStatus.IDLE,
-    selectedGoId: String? = null
+    selectedGoId: String? = null,
+    wifiAwareStatus: WifiAwareStatus = WifiAwareStatus.IDLE,
+    wifiAwarePeerCount: Int = 0,
+    activeOfflineTransportMode: ActiveOfflineTransportMode = ActiveOfflineTransportMode.MANUAL_OR_NONE
 ) {
     Card(
         modifier = Modifier
@@ -1126,9 +1143,10 @@ fun OfflineConfigCard(
                     }
                 }
 
-                // Automatic Wi-Fi Direct / hotspot status & convoy switching trade-off disclosure (v7 Section 13.1)
+                // Automatic Wi-Fi Aware chain / Wi-Fi Direct / hotspot status & convoy switching trade-off disclosure (v7 Section 13.1)
                 Spacer(modifier = Modifier.height(4.dp))
                 val linkLevelRes = when (meshConfig.linkLevel) {
+                    RiderLinkLevel.AUTO_AWARE_CHAIN -> R.string.mesh_link_level_auto_aware_chain
                     RiderLinkLevel.AUTO_P2P -> R.string.mesh_link_level_auto_p2p
                     RiderLinkLevel.MANUAL_HOTSPOT -> R.string.mesh_link_level_manual_hotspot
                     RiderLinkLevel.INELIGIBLE -> R.string.mesh_convoy_unavailable
@@ -1139,7 +1157,21 @@ fun OfflineConfigCard(
                 Text(
                     text = linkLevelSummary,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (meshConfig.linkLevel == RiderLinkLevel.AUTO_P2P) {
+                    color = if (meshConfig.linkLevel.supportsAutoLink) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                val awareCapText = stringResource(
+                    if (meshConfig.wifiAwareSupported) R.string.mesh_aware_cap_supported
+                    else R.string.mesh_aware_cap_unsupported
+                )
+                Text(
+                    text = awareCapText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (meshConfig.wifiAwareSupported) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
@@ -1170,21 +1202,33 @@ fun OfflineConfigCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                val p2pHintRes = when (wifiDirectStatus) {
-                    WifiDirectStatus.CONNECTED -> R.string.lobby_p2p_status_ready
-                    WifiDirectStatus.CREATING_GROUP, WifiDirectStatus.CONNECTING -> R.string.lobby_p2p_status_forming
-                    WifiDirectStatus.DISABLED_WIFI_OFF -> R.string.lobby_p2p_status_wifi_off
-                    WifiDirectStatus.MISSING_PERMISSION -> R.string.lobby_p2p_status_permission
-                    else -> R.string.lobby_offline_hotspot_hint
+                val (statusText, statusColor) = when (activeOfflineTransportMode) {
+                    ActiveOfflineTransportMode.WIFI_AWARE_CHAIN -> when (wifiAwareStatus) {
+                        WifiAwareStatus.ACTIVE_CHAIN -> stringResource(R.string.mesh_aware_status_ready, wifiAwarePeerCount) to MaterialTheme.colorScheme.primary
+                        WifiAwareStatus.DISABLED_WIFI_OFF -> stringResource(R.string.lobby_p2p_status_wifi_off) to Brick
+                        WifiAwareStatus.MISSING_PERMISSION -> stringResource(R.string.lobby_p2p_status_permission) to Brick
+                        else -> stringResource(R.string.mesh_aware_status_forming) to MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    ActiveOfflineTransportMode.WIFI_DIRECT_STAR -> when (wifiDirectStatus) {
+                        WifiDirectStatus.CONNECTED -> stringResource(R.string.lobby_p2p_status_ready) to MaterialTheme.colorScheme.primary
+                        WifiDirectStatus.CREATING_GROUP, WifiDirectStatus.CONNECTING -> stringResource(R.string.lobby_p2p_status_forming) to MaterialTheme.colorScheme.onSurfaceVariant
+                        WifiDirectStatus.DISABLED_WIFI_OFF -> stringResource(R.string.lobby_p2p_status_wifi_off) to Brick
+                        WifiDirectStatus.MISSING_PERMISSION -> stringResource(R.string.lobby_p2p_status_permission) to Brick
+                        else -> stringResource(R.string.mesh_aware_status_fallback_p2p) to MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    ActiveOfflineTransportMode.DISABLED_WIFI_OFF -> stringResource(R.string.lobby_p2p_status_wifi_off) to Brick
+                    ActiveOfflineTransportMode.MANUAL_OR_NONE -> when (wifiDirectStatus) {
+                        WifiDirectStatus.CONNECTED -> stringResource(R.string.lobby_p2p_status_ready) to MaterialTheme.colorScheme.primary
+                        WifiDirectStatus.CREATING_GROUP, WifiDirectStatus.CONNECTING -> stringResource(R.string.lobby_p2p_status_forming) to MaterialTheme.colorScheme.onSurfaceVariant
+                        WifiDirectStatus.DISABLED_WIFI_OFF -> stringResource(R.string.lobby_p2p_status_wifi_off) to Brick
+                        WifiDirectStatus.MISSING_PERMISSION -> stringResource(R.string.lobby_p2p_status_permission) to Brick
+                        else -> stringResource(R.string.lobby_offline_hotspot_hint) to MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 }
                 Text(
-                    text = stringResource(p2pHintRes),
+                    text = statusText,
                     style = MaterialTheme.typography.labelSmall,
-                    color = when (wifiDirectStatus) {
-                        WifiDirectStatus.CONNECTED -> MaterialTheme.colorScheme.primary
-                        WifiDirectStatus.DISABLED_WIFI_OFF, WifiDirectStatus.MISSING_PERMISSION -> Brick
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    color = statusColor
                 )
 
                 // Rider opt out / in control

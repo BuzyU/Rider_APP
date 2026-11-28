@@ -93,7 +93,8 @@ class MeshGraphRepository(
     companion object {
         const val MAX_ENDPOINTS_PER_NEIGHBOR = 2
 
-        private fun ipv4Subnet24(host: String): String? {
+        private fun endpointFamily(host: String): String? {
+            if (host.contains(':')) return "ipv6"
             val parts = host.split('.')
             if (parts.size != 4) return null
             return "${parts[0]}.${parts[1]}.${parts[2]}"
@@ -110,15 +111,15 @@ class MeshGraphRepository(
         val endpoints: LinkedHashMap<MeshEndpoint, Long> = linkedMapOf(endpoint to lastSeen)
     ) {
         fun recordEndpoint(ep: MeshEndpoint, seenAt: Long): Boolean {
-            val subnet = ipv4Subnet24(ep.host)
-            var removedStaleSameSubnet = false
-            if (subnet != null) {
+            val family = endpointFamily(ep.host)
+            var removedStaleSameFamily = false
+            if (family != null) {
                 val iter = endpoints.entries.iterator()
                 while (iter.hasNext()) {
                     val existing = iter.next().key
-                    if (existing != ep && ipv4Subnet24(existing.host) == subnet) {
+                    if (existing != ep && endpointFamily(existing.host) == family) {
                         iter.remove()
-                        removedStaleSameSubnet = true
+                        removedStaleSameFamily = true
                     }
                 }
             }
@@ -130,7 +131,7 @@ class MeshGraphRepository(
             }
             val primaryChanged = endpoint != ep
             endpoint = ep
-            return !wasPresent || removedStaleSameSubnet || primaryChanged
+            return !wasPresent || removedStaleSameFamily || primaryChanged
         }
     }
     private class Report(

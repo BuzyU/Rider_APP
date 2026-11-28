@@ -46,9 +46,13 @@ enum class OfflineConfigStatus(val wireName: String) {
 }
 
 enum class RiderLinkLevel(val wireName: String) {
+    AUTO_AWARE_CHAIN("AUTO_AWARE_CHAIN"),
     AUTO_P2P("AUTO_P2P"),
     MANUAL_HOTSPOT("MANUAL_HOTSPOT"),
-    INELIGIBLE("INELIGIBLE")
+    INELIGIBLE("INELIGIBLE");
+
+    val supportsAutoLink: Boolean
+        get() = this == AUTO_AWARE_CHAIN || this == AUTO_P2P
 }
 
 data class OfflineConfigState(
@@ -56,7 +60,8 @@ data class OfflineConfigState(
     val stepResults: Map<OfflineConfigStep, StepResult> = emptyMap(),
     val optOut: Boolean = false,
     val failureReason: String? = null,
-    val linkLevel: RiderLinkLevel = RiderLinkLevel.AUTO_P2P
+    val linkLevel: RiderLinkLevel = RiderLinkLevel.AUTO_P2P,
+    val wifiAwareSupported: Boolean = false
 ) {
     val isReady: Boolean get() = status == OfflineConfigStatus.READY
     val isTerminal: Boolean get() = status.isTerminal()

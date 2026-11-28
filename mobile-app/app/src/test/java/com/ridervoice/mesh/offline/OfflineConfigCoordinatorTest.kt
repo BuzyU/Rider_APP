@@ -231,5 +231,24 @@ class OfflineConfigCoordinatorTest {
         assertEquals(RiderLinkLevel.INELIGIBLE, coordinator.state.value.linkLevel)
         assertFalse(coordinator.state.value.isReady)
     }
+
+    @Test
+    fun wifiAwareCapablePhone_selectsAutoAwareChainByDefaultAndRecordsFlag() = testScope.runTest {
+        val coordinator = OfflineConfigCoordinator(
+            deviceCapabilityChecker = DefaultDeviceCapabilityChecker(
+                sdkInt = 33,
+                hasWifiDirectFeature = { true },
+                hasWifiAwareFeature = { true }
+            ),
+            dispatcher = testDispatcher
+        )
+
+        coordinator.startConfig(this, validCode, isHostMeshEnabled = true)
+        advanceUntilIdle()
+
+        assertEquals(OfflineConfigStatus.READY, coordinator.state.value.status)
+        assertEquals(RiderLinkLevel.AUTO_AWARE_CHAIN, coordinator.state.value.linkLevel)
+        assertTrue(coordinator.state.value.wifiAwareSupported)
+    }
 }
 

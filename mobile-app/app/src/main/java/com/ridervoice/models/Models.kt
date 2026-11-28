@@ -357,6 +357,8 @@ data class ConvoyRoute(
     val destinationLat: Double? = null,
     val destinationLng: Double? = null,
     val meetupPoint: String? = null,
+    val meetupLat: Double? = null,
+    val meetupLng: Double? = null,
     val estimatedDurationMin: Int? = null,
     val distanceMeters: Int? = null,
     val encodedPolyline: String? = null
@@ -367,19 +369,31 @@ data class ConvoyRoute(
     val hasDestinationCoords: Boolean
         get() = destinationLat != null && destinationLng != null && !destinationLat.isNaN() && !destinationLng.isNaN()
 
+    val hasMeetupCoords: Boolean
+        get() = meetupLat != null && meetupLng != null && !meetupLat.isNaN() && !meetupLng.isNaN()
+
     val hasAnyRouteInfo: Boolean
-        get() = !originName.isNullOrBlank() || !destinationName.isNullOrBlank() || hasOriginCoords || hasDestinationCoords
+        get() = !originName.isNullOrBlank() ||
+            !destinationName.isNullOrBlank() ||
+            !meetupPoint.isNullOrBlank() ||
+            hasOriginCoords ||
+            hasDestinationCoords ||
+            hasMeetupCoords
 
     fun mergeWith(incoming: ConvoyRoute?): ConvoyRoute {
         if (incoming == null) return this
         val nextOriginName = incoming.originName?.takeIf { it.isNotBlank() } ?: originName
         val nextDestName = incoming.destinationName?.takeIf { it.isNotBlank() } ?: destinationName
+        val nextMeetupPoint = incoming.meetupPoint?.takeIf { it.isNotBlank() } ?: meetupPoint
         val originChanged = incoming.originName != null &&
             originName != null &&
             !incoming.originName.equals(originName, ignoreCase = true)
         val destChanged = incoming.destinationName != null &&
             destinationName != null &&
             !incoming.destinationName.equals(destinationName, ignoreCase = true)
+        val meetupChanged = incoming.meetupPoint != null &&
+            meetupPoint != null &&
+            !incoming.meetupPoint.equals(meetupPoint, ignoreCase = true)
 
         return ConvoyRoute(
             originName = nextOriginName,
@@ -388,11 +402,13 @@ data class ConvoyRoute(
             destinationName = nextDestName,
             destinationLat = if (incoming.destinationLat != null) incoming.destinationLat else if (destChanged) null else destinationLat,
             destinationLng = if (incoming.destinationLng != null) incoming.destinationLng else if (destChanged) null else destinationLng,
-            meetupPoint = incoming.meetupPoint?.takeIf { it.isNotBlank() } ?: meetupPoint,
-            estimatedDurationMin = incoming.estimatedDurationMin ?: if (originChanged || destChanged) null else estimatedDurationMin,
-            distanceMeters = incoming.distanceMeters ?: if (originChanged || destChanged) null else distanceMeters,
+            meetupPoint = nextMeetupPoint,
+            meetupLat = if (incoming.meetupLat != null) incoming.meetupLat else if (meetupChanged) null else meetupLat,
+            meetupLng = if (incoming.meetupLng != null) incoming.meetupLng else if (meetupChanged) null else meetupLng,
+            estimatedDurationMin = incoming.estimatedDurationMin ?: if (originChanged || destChanged || meetupChanged) null else estimatedDurationMin,
+            distanceMeters = incoming.distanceMeters ?: if (originChanged || destChanged || meetupChanged) null else distanceMeters,
             encodedPolyline = incoming.encodedPolyline?.takeIf { it.isNotBlank() }
-                ?: if (originChanged || destChanged) null else encodedPolyline
+                ?: if (originChanged || destChanged || meetupChanged) null else encodedPolyline
         )
     }
 }

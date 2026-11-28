@@ -522,7 +522,11 @@ class MeshAutoSwitchManager(
         val lkParticipants = (rawLk as? List<*>)?.filterIsInstance<com.ridervoice.models.Participant>() ?: emptyList()
 
         val session = secretProvider.backupSession.value
-        val payloadKey = session?.payloadKey()
+        val payloadKey = if (session != null && !session.isClosed) {
+            try { session.payloadKey() } catch (_: IllegalStateException) { null }
+        } else {
+            null
+        }
 
         val lkPeers = lkParticipants.map { p ->
             val tag = if (payloadKey != null) com.ridervoice.mesh.protocol.PayloadCrypto.computeOnlineIdTag(payloadKey, p.identity) else null

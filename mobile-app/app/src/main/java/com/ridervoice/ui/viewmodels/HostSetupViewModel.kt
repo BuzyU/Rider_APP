@@ -93,11 +93,17 @@ class HostSetupViewModel private constructor(
     private val _destinationSuggestions = MutableStateFlow<List<PlaceSuggestion>>(emptyList())
     val destinationSuggestions = _destinationSuggestions.asStateFlow()
 
+    private val _meetupSuggestions = MutableStateFlow<List<PlaceSuggestion>>(emptyList())
+    val meetupSuggestions = _meetupSuggestions.asStateFlow()
+
     private val _isSearchingOrigin = MutableStateFlow(false)
     val isSearchingOrigin = _isSearchingOrigin.asStateFlow()
 
     private val _isSearchingDestination = MutableStateFlow(false)
     val isSearchingDestination = _isSearchingDestination.asStateFlow()
+
+    private val _isSearchingMeetup = MutableStateFlow(false)
+    val isSearchingMeetup = _isSearchingMeetup.asStateFlow()
 
     private val _selectedOrigin = MutableStateFlow<ResolvedPlace?>(null)
     val selectedOrigin = _selectedOrigin.asStateFlow()
@@ -105,11 +111,15 @@ class HostSetupViewModel private constructor(
     private val _selectedDestination = MutableStateFlow<ResolvedPlace?>(null)
     val selectedDestination = _selectedDestination.asStateFlow()
 
+    private val _selectedMeetup = MutableStateFlow<ResolvedPlace?>(null)
+    val selectedMeetup = _selectedMeetup.asStateFlow()
+
     private val _routePreview = MutableStateFlow<ComputedDirections?>(null)
     val routePreview = _routePreview.asStateFlow()
 
     private var originSearchJob: Job? = null
     private var destinationSearchJob: Job? = null
+    private var meetupSearchJob: Job? = null
     private var routePreviewJob: Job? = null
 
     fun onOriginQueryChanged(query: String) {
@@ -195,6 +205,47 @@ class HostSetupViewModel private constructor(
     fun dismissSuggestions() {
         _originSuggestions.value = emptyList()
         _destinationSuggestions.value = emptyList()
+        _meetupSuggestions.value = emptyList()
+    }
+
+    fun onMeetupQueryChanged(query: String) {
+        val clean = query.trim()
+        if (_selectedMeetup.value?.name != clean) {
+            _selectedMeetup.value = null
+            _routePreview.value = null
+        }
+        meetupSearchJob?.cancel()
+        if (clean.length < 2 || routePlacesService == null) {
+            _meetupSuggestions.value = emptyList()
+            _isSearchingMeetup.value = false
+            return
+        }
+        meetupSearchJob = viewModelScope.launch {
+            _isSearchingMeetup.value = true
+            delay(250L)
+            val loc = locationService?.currentLocation?.value
+            val suggestions = routePlacesService.autocompletePlaces(clean, loc?.latitude, loc?.longitude)
+            _meetupSuggestions.value = suggestions
+            _isSearchingMeetup.value = false
+        }
+    }
+
+    fun selectMeetupSuggestion(suggestion: PlaceSuggestion, onTextResolved: (String) -> Unit) {
+        meetupSearchJob?.cancel()
+        _meetupSuggestions.value = emptyList()
+        _isSearchingMeetup.value = false
+        onTextResolved(suggestion.fullText)
+        viewModelScope.launch {
+            val resolved = routePlacesService?.resolveSuggestion(suggestion)
+                ?: suggestion.lat?.let { lat ->
+                    suggestion.lng?.let { lng -> ResolvedPlace(suggestion.fullText, lat, lng) }
+                }
+            if (resolved != null) {
+                _selectedMeetup.value = resolved
+                onTextResolved(resolved.name)
+                refreshRoutePreview()
+            }
+        }
     }
 
     fun useCurrentLocationAsOrigin(onResolved: (String) -> Unit, onUnavailable: () -> Unit = {}) {
@@ -228,13 +279,21 @@ class HostSetupViewModel private constructor(
     private fun refreshRoutePreview() {
         val start = _selectedOrigin.value
         val end = _selectedDestination.value
+        val meetup = _selectedMeetup.value
         routePreviewJob?.cancel()
         if (start == null || end == null || routePlacesService == null) {
             _routePreview.value = null
             return
         }
         routePreviewJob = viewModelScope.launch {
-            _routePreview.value = routePlacesService.fetchRoute(start.lat, start.lng, end.lat, end.lng)
+            _routePreview.value = routePlacesService.fetchRoute(
+                originLat = start.lat,
+                originLng = start.lng,
+                destLat = end.lat,
+                destLng = end.lng,
+                waypointLat = meetup?.lat,
+                waypointLng = meetup?.lng
+            )
         }
     }
 
@@ -301,12 +360,26 @@ class HostSetupViewModel private constructor(
                             withTimeoutOrNull(1_500L) { routePlacesService.geocodeName(cleanDest) }
                         } else null
                 }
+                val resolvedMeetupDeferred = async {
+                    _selectedMeetup.value?.takeIf { cleanMeetup == null || it.name.equals(cleanMeetup, ignoreCase = true) }
+                        ?: if (cleanMeetup != null && routePlacesService != null) {
+                            withTimeoutOrNull(1_500L) { routePlacesService.geocodeName(cleanMeetup) }
+                        } else null
+                }
                 val startPlace = resolvedStartDeferred.await()
                 val endPlace = resolvedDestDeferred.await()
+                val meetupPlace = resolvedMeetupDeferred.await()
 
                 val directions = _routePreview.value ?: if (startPlace != null && endPlace != null && routePlacesService != null) {
                     withTimeoutOrNull(1_500L) {
-                        routePlacesService.fetchRoute(startPlace.lat, startPlace.lng, endPlace.lat, endPlace.lng)
+                        routePlacesService.fetchRoute(
+                            originLat = startPlace.lat,
+                            originLng = startPlace.lng,
+                            destLat = endPlace.lat,
+                            destLng = endPlace.lng,
+                            waypointLat = meetupPlace?.lat,
+                            waypointLng = meetupPlace?.lng
+                        )
                     }
                 } else null
 
@@ -318,7 +391,9 @@ class HostSetupViewModel private constructor(
                     destinationName = cleanDest ?: endPlace?.name,
                     destinationLat = endPlace?.lat,
                     destinationLng = endPlace?.lng,
-                    meetupPoint = cleanMeetup,
+                    meetupPoint = cleanMeetup ?: meetupPlace?.name,
+                    meetupLat = meetupPlace?.lat,
+                    meetupLng = meetupPlace?.lng,
                     estimatedDurationMin = effectiveDurationMin,
                     distanceMeters = directions?.distanceMeters,
                     encodedPolyline = directions?.encodedPolyline

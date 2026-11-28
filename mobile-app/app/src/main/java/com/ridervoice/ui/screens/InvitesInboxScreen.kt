@@ -19,12 +19,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
 import com.ridervoice.R
 import com.ridervoice.models.RideInvite
+import com.ridervoice.permissions.LocationGateStatus
+import com.ridervoice.permissions.MandatoryLocationGate
 import com.ridervoice.ui.components.ConfirmDialog
 import com.ridervoice.ui.components.InlineError
+import com.ridervoice.ui.components.MandatoryLocationGateDialog
 import com.ridervoice.ui.components.RvStateHost
 import com.ridervoice.ui.components.UiLoadState
+import com.ridervoice.ui.components.rememberMandatoryLocationStatus
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.InvitesInboxViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,6 +47,38 @@ fun InvitesInboxScreen(
 
     var inviteToDecline by remember { mutableStateOf<RideInvite?>(null) }
     var processingInviteId by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val (locationStatus, refreshLocationStatus) = rememberMandatoryLocationStatus()
+    var pendingInviteAccept by remember { mutableStateOf<RideInvite?>(null) }
+
+    val dispatchAcceptInvite: (RideInvite) -> Unit = { invite ->
+        processingInviteId = invite.id
+        viewModel.respondToInvite(invite, true) { roomName ->
+            processingInviteId = null
+            onInviteAccepted(roomName)
+        }
+    }
+
+    LaunchedEffect(locationStatus) {
+        if (locationStatus == LocationGateStatus.READY && pendingInviteAccept != null) {
+            val pending = pendingInviteAccept
+            pendingInviteAccept = null
+            if (pending != null) dispatchAcceptInvite(pending)
+        }
+    }
+
+    if (pendingInviteAccept != null && locationStatus != LocationGateStatus.READY) {
+        MandatoryLocationGateDialog(
+            status = locationStatus,
+            onDismiss = { pendingInviteAccept = null },
+            onReady = {
+                refreshLocationStatus()
+                val pending = pendingInviteAccept
+                pendingInviteAccept = null
+                if (pending != null) dispatchAcceptInvite(pending)
+            }
+        )
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadInvites()
@@ -230,10 +267,11 @@ fun InvitesInboxScreen(
                         invite = invite,
                         isProcessing = isProcessing,
                         onAccept = {
-                            processingInviteId = invite.id
-                            viewModel.respondToInvite(invite, true) { roomName ->
-                                processingInviteId = null
-                                onInviteAccepted(roomName)
+                            if (MandatoryLocationGate.evaluate(context) == LocationGateStatus.READY) {
+                                dispatchAcceptInvite(invite)
+                            } else {
+                                refreshLocationStatus()
+                                pendingInviteAccept = invite
                             }
                         },
                         onDecline = {

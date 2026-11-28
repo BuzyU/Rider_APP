@@ -1113,6 +1113,8 @@ class LiveKitManager @Inject constructor(
                     route.destinationLat?.let { put("destinationLat", it) }
                     route.destinationLng?.let { put("destinationLng", it) }
                     route.meetupPoint?.let { put("meetupPoint", it) }
+                    route.meetupLat?.let { put("meetupLat", it) }
+                    route.meetupLng?.let { put("meetupLng", it) }
                     route.estimatedDurationMin?.let { put("estimatedDurationMin", it) }
                     route.distanceMeters?.let { put("distanceMeters", it) }
                     route.encodedPolyline?.let { put("encodedPolyline", it) }
@@ -1146,6 +1148,8 @@ class LiveKitManager @Inject constructor(
                 destinationLat = optFiniteDouble("destinationLat"),
                 destinationLng = optFiniteDouble("destinationLng"),
                 meetupPoint = optCleanString("meetupPoint"),
+                meetupLat = optFiniteDouble("meetupLat"),
+                meetupLng = optFiniteDouble("meetupLng"),
                 estimatedDurationMin = if (obj.has("estimatedDurationMin") && !obj.isNull("estimatedDurationMin")) obj.optInt("estimatedDurationMin") else null,
                 distanceMeters = if (obj.has("distanceMeters") && !obj.isNull("distanceMeters")) obj.optInt("distanceMeters") else null,
                 encodedPolyline = optCleanString("encodedPolyline")

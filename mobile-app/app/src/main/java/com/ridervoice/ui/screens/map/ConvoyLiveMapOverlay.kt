@@ -3,15 +3,11 @@
 package com.ridervoice.ui.screens.map
 
 import android.Manifest
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -94,9 +90,6 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.ridervoice.R
-import com.ridervoice.navigation.GoogleMapsProvider
-import com.ridervoice.navigation.Waypoint
-import com.ridervoice.ui.components.LocalRvFeedback
 import com.ridervoice.ui.theme.Ink
 import com.ridervoice.ui.theme.InkBorderStrong
 import com.ridervoice.ui.theme.InkDisabled
@@ -136,8 +129,12 @@ fun ConvoyRoomWithMapHost(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var isMapOpen by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(roomName) {
-        viewModel.refreshTrackingIfPermitted()
+    LaunchedEffect(
+        roomName,
+        state.route?.originName,
+        state.route?.destinationName,
+        state.route?.meetupPoint
+    ) {
         viewModel.refreshRoute(roomName)
     }
 
@@ -175,8 +172,6 @@ fun ConvoyRoomWithMapHost(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            val feedback = LocalRvFeedback.current
-            val context = LocalContext.current
             val permissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestMultiplePermissions()
             ) { grants ->
@@ -184,12 +179,12 @@ fun ConvoyRoomWithMapHost(
                     grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
                 viewModel.onLocationPermissionResult(granted)
             }
-            val noNavAppError = stringResource(R.string.map_no_nav_app_error)
 
             ConvoyLiveMapScreen(
                 roomName = roomName,
                 state = state,
                 isOfflineMeshActive = isOfflineMeshActive,
+                isPreStartLobby = false,
                 onBackToVoice = { isMapOpen = false },
                 onSelectRider = { viewModel.selectRider(it) },
                 onCycleMapStyle = { viewModel.cycleMapStyle() },
@@ -204,28 +199,68 @@ fun ConvoyRoomWithMapHost(
                         )
                     )
                 },
-                onNavigateToRider = { rider ->
-                    val lat = rider.lat
-                    val lng = rider.lng
-                    if (lat != null && lng != null) {
-                        val opened = launchExternalNavigation(context, lat, lng)
-                        if (!opened) {
-                            feedback.showError(noNavAppError)
-                        }
-                    }
-                },
-                onNavigateToRouteDestination = {
-                    val dest = state.route?.destinationLatLng
-                    if (dest != null) {
-                        val opened = launchExternalNavigation(context, dest.latitude, dest.longitude)
-                        if (!opened) {
-                            feedback.showError(noNavAppError)
-                        }
-                    }
-                }
+                onNavigateToRider = { rider -> viewModel.requestNavigateToRiderInApp(rider.riderId) },
+                onNavigateToRouteDestination = { viewModel.requestFocusDestination() },
+                onFocusMeetup = { viewModel.requestFocusMeetup() }
             )
         }
     }
+}
+
+/**
+ * In-app Pre-Start Convoy & Meet-up Map used inside LobbyScreen so riders can navigate to the
+ * gathering / starting point inside the app before the host starts the active ride.
+ */
+@Composable
+fun ConvoyPreStartMapOverlay(
+    roomName: String,
+    onDismiss: () -> Unit,
+    viewModel: ConvoyMapViewModel = hiltViewModel()
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val granted = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        viewModel.onLocationPermissionResult(granted)
+    }
+
+    LaunchedEffect(
+        roomName,
+        state.route?.originName,
+        state.route?.destinationName,
+        state.route?.meetupPoint
+    ) {
+        viewModel.refreshTrackingIfPermitted()
+        viewModel.refreshRoute(roomName)
+    }
+
+    BackHandler(onBack = onDismiss)
+
+    ConvoyLiveMapScreen(
+        roomName = roomName,
+        state = state,
+        isOfflineMeshActive = false,
+        isPreStartLobby = true,
+        onBackToVoice = onDismiss,
+        onSelectRider = { viewModel.selectRider(it) },
+        onCycleMapStyle = { viewModel.cycleMapStyle() },
+        onFitConvoy = { viewModel.requestFitConvoy() },
+        onCenterSelf = { viewModel.requestCenterOnSelf() },
+        onUserCameraGesture = { viewModel.disableAutoFollow() },
+        onRequestLocationPermission = {
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        },
+        onNavigateToRider = { rider -> viewModel.requestNavigateToRiderInApp(rider.riderId) },
+        onNavigateToRouteDestination = { viewModel.requestFocusDestination() },
+        onFocusMeetup = { viewModel.requestFocusMeetup() }
+    )
 }
 
 @Composable
@@ -295,6 +330,8 @@ fun ConvoyLiveMapScreen(
     onRequestLocationPermission: () -> Unit,
     onNavigateToRider: (RiderMapItem) -> Unit,
     onNavigateToRouteDestination: () -> Unit = {},
+    isPreStartLobby: Boolean = false,
+    onFocusMeetup: () -> Unit = {},
     modifier: Modifier = Modifier,
     mapViewportOverride: (@Composable (
         state: ConvoyMapUiState,
@@ -319,6 +356,7 @@ fun ConvoyLiveMapScreen(
                 ridersOnMapCount = ridersOnMap,
                 totalRidersCount = totalRiders,
                 isOfflineMeshActive = isOfflineMeshActive,
+                isPreStartLobby = isPreStartLobby,
                 canFitAll = state.hasAnyMapCoordinates,
                 onBackToVoice = onBackToVoice,
                 onFitAll = onFitConvoy
@@ -365,7 +403,9 @@ fun ConvoyLiveMapScreen(
                 if (state.route?.hasAnyRouteInfo == true) {
                     HostedRouteBanner(
                         route = state.route,
-                        onNavigateClick = onNavigateToRouteDestination
+                        isPreStartLobby = isPreStartLobby,
+                        onNavigateClick = onNavigateToRouteDestination,
+                        onFocusMeetupClick = onFocusMeetup
                     )
                 }
                 if (!state.hasLocationPermission) {
@@ -405,6 +445,7 @@ private fun ConvoyMapTopBar(
     ridersOnMapCount: Int,
     totalRidersCount: Int,
     isOfflineMeshActive: Boolean,
+    isPreStartLobby: Boolean = false,
     canFitAll: Boolean,
     onBackToVoice: () -> Unit,
     onFitAll: () -> Unit
@@ -452,7 +493,11 @@ private fun ConvoyMapTopBar(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = stringResource(R.string.map_back_to_voice),
+                        text = if (isPreStartLobby) {
+                            stringResource(R.string.map_back_to_lobby)
+                        } else {
+                            stringResource(R.string.map_back_to_voice)
+                        },
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -974,22 +1019,45 @@ private fun RiderMapChip(
 @Composable
 private fun HostedRouteBanner(
     route: ConvoyRouteUiState,
-    onNavigateClick: () -> Unit
+    isPreStartLobby: Boolean = false,
+    onNavigateClick: () -> Unit,
+    onFocusMeetupClick: () -> Unit = {}
 ) {
     val routeText = listOfNotNull(
         route.originName?.takeIf { it.isNotBlank() },
+        route.meetupPoint?.takeIf { it.isNotBlank() },
         route.destinationName?.takeIf { it.isNotBlank() }
-    ).joinToString(" → ")
+    ).distinct().joinToString(" → ")
+
+    val activeMeters = if (isPreStartLobby && route.distanceToMeetupMeters != null) {
+        route.distanceToMeetupMeters
+    } else {
+        route.distanceToDestinationMeters ?: route.distanceMeters
+    }
 
     val etaParts = buildList {
-        route.distanceMeters?.takeIf { it > 0 }?.let { dist ->
-            val km = ((dist / 100.0).roundToInt() / 10.0).toString()
+        if (isPreStartLobby && route.distanceToMeetupMeters != null) {
+            val km = ((route.distanceToMeetupMeters / 100.0).roundToInt() / 10.0).toString()
+            add(stringResource(R.string.map_meetup_distance_label, km))
+        } else if (activeMeters != null && activeMeters > 0) {
+            val km = ((activeMeters / 100.0).roundToInt() / 10.0).toString()
             add("$km km")
         }
         route.estimatedDurationMin?.takeIf { it > 0 }?.let { mins ->
             add("~$mins min")
         }
     }.joinToString(" · ")
+
+    val subtitleText = buildList {
+        if (isPreStartLobby) {
+            add(stringResource(R.string.map_lobby_meetup_banner_hint))
+        } else if (!route.nextInstruction.isNullOrBlank()) {
+            add(route.nextInstruction)
+        }
+        if (etaParts.isNotBlank()) add(etaParts)
+    }.joinToString(" · ").ifBlank { stringResource(R.string.map_route_resolving_hint) }
+
+    val hasMeetupTarget = (route.meetupLatLng ?: route.originLatLng) != null
 
     Surface(
         shape = RoundedCornerShape(RvRadius.md),
@@ -1025,19 +1093,44 @@ private fun HostedRouteBanner(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (etaParts.isNotBlank()) {
-                    Text(
-                        text = etaParts,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Moss,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                Text(
+                    text = subtitleText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isPreStartLobby) StatusWarn else Moss,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (hasMeetupTarget && (isPreStartLobby || route.meetupLatLng != null)) {
+                val meetupCd = stringResource(R.string.cd_focus_route_meetup)
+                Surface(
+                    onClick = onFocusMeetupClick,
+                    shape = RoundedCornerShape(RvRadius.pill),
+                    color = StatusWarnContainer,
+                    contentColor = StatusWarn,
+                    border = BorderStroke(1.dp, StatusWarn.copy(alpha = 0.35f)),
+                    modifier = Modifier
+                        .heightIn(min = RvTouchTarget.min)
+                        .testTag("map_route_meetup_btn")
+                        .semantics { contentDescription = meetupCd }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = RvSpacing.sm, vertical = RvSpacing.xs),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.map_route_meetup_cta),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
             }
             if (route.destinationLatLng != null) {
-                val navRouteCd = stringResource(R.string.cd_navigate_to_route_dest)
+                val navRouteCd = stringResource(R.string.cd_focus_route_dest)
                 Surface(
                     onClick = onNavigateClick,
                     shape = RoundedCornerShape(RvRadius.pill),
@@ -1055,12 +1148,12 @@ private fun HostedRouteBanner(
                         horizontalArrangement = Arrangement.spacedBy(RvSpacing.xs)
                     ) {
                         Icon(
-                            imageVector = RvIcons.Navigation,
+                            imageVector = RvIcons.LocationOn,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = stringResource(R.string.map_route_go_cta),
+                            text = stringResource(R.string.map_route_show_dest_cta),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -1092,12 +1185,14 @@ private fun ConvoyGoogleMapViewport(
         )
     }
     var hasPerformedInitialFit by remember { mutableStateOf(false) }
+    var hasFittedAsyncRoute by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val youLabel = stringResource(R.string.map_rider_you_label)
     val speakingLabel = stringResource(R.string.map_rider_speaking)
     val liveLabel = stringResource(R.string.map_rider_live_now)
     val startSnippet = stringResource(R.string.map_route_start_snippet)
+    val meetupSnippet = stringResource(R.string.map_route_meetup_snippet)
     val destSnippet = stringResource(R.string.map_route_dest_snippet)
 
     val selfColor = Color(ConvoyMapViewModel.SELF_BLIP_COLOR_ARGB)
@@ -1121,6 +1216,7 @@ private fun ConvoyGoogleMapViewport(
     LaunchedEffect(
         state.ridersWithLocation.size,
         state.route?.originLatLng,
+        state.route?.meetupLatLng,
         state.route?.destinationLatLng
     ) {
         if (!hasPerformedInitialFit && state.hasAnyMapCoordinates) {
@@ -1129,10 +1225,72 @@ private fun ConvoyGoogleMapViewport(
         }
     }
 
+    // Re-frame bounds smoothly once asynchronous road polyline or destination coordinates finish loading.
+    LaunchedEffect(
+        state.route?.destinationLatLng,
+        state.route?.meetupLatLng,
+        state.route?.polylinePoints?.size
+    ) {
+        val hasRouteGeometry = (state.route?.polylinePoints?.size ?: 0) >= 2 || state.route?.destinationLatLng != null
+        if (!hasFittedAsyncRoute && hasRouteGeometry && state.selectedRiderId == null && !state.isFollowingSelf) {
+            hasFittedAsyncRoute = true
+            animateCameraToConvoy(cameraPositionState, state.ridersWithLocation, state.route)
+        }
+    }
+
     // Respond to explicit Fit Convoy clicks.
     LaunchedEffect(state.fitConvoySignal) {
         if (state.fitConvoySignal > 0 && state.hasAnyMapCoordinates) {
             animateCameraToConvoy(cameraPositionState, state.ridersWithLocation, state.route)
+        }
+    }
+
+    // Focus Destination pin cleanly inside our app (zero external Maps app redirect).
+    LaunchedEffect(state.focusDestinationSignal) {
+        val destLatLng = state.route?.destinationLatLng
+        if (state.focusDestinationSignal > 0 && destLatLng != null) {
+            cameraPositionState.animate(
+                update = CameraUpdateFactory.newLatLngZoom(
+                    destLatLng,
+                    maxOf(cameraPositionState.position.zoom, 15.0f)
+                ),
+                durationMs = 450
+            )
+        }
+    }
+
+    // Focus Meet-up / Starting Point pin cleanly inside our app.
+    LaunchedEffect(state.focusMeetupSignal) {
+        val meetupLatLng = state.route?.meetupLatLng ?: state.route?.originLatLng
+        if (state.focusMeetupSignal > 0 && meetupLatLng != null) {
+            cameraPositionState.animate(
+                update = CameraUpdateFactory.newLatLngZoom(
+                    meetupLatLng,
+                    maxOf(cameraPositionState.position.zoom, 15.0f)
+                ),
+                durationMs = 450
+            )
+        }
+    }
+
+    // When rider taps Navigate on a convoy rider, frame both Self & that Rider in-app with a guide line.
+    LaunchedEffect(state.navigateTargetRiderId) {
+        val selfPos = state.selfRider?.latLng
+        val targetPos = state.navigateTargetRider?.latLng
+        if (selfPos != null && targetPos != null) {
+            val bounds = com.google.android.gms.maps.model.LatLngBounds.Builder()
+                .include(selfPos)
+                .include(targetPos)
+                .build()
+            cameraPositionState.animate(
+                update = CameraUpdateFactory.newLatLngBounds(bounds, 160),
+                durationMs = 450
+            )
+        } else if (targetPos != null) {
+            cameraPositionState.animate(
+                update = CameraUpdateFactory.newLatLngZoom(targetPos, 15.5f),
+                durationMs = 450
+            )
         }
     }
 
@@ -1189,8 +1347,9 @@ private fun ConvoyGoogleMapViewport(
         properties = mapProperties,
         uiSettings = mapUiSettings
     ) {
-        // 1. Hosted Convoy Route Polyline & Endpoint Pins (Start A -> Destination B)
+        // 1. Hosted Convoy Route Polyline & Endpoint Pins (Start A -> Meet-up M -> Destination B)
         val activeRoute = state.route
+        val selfLatLngNow = state.selfRider?.latLng
         if (activeRoute != null) {
             if (activeRoute.polylinePoints.size >= 2) {
                 Polyline(
@@ -1205,14 +1364,21 @@ private fun ConvoyGoogleMapViewport(
                     width = 10f,
                     zIndex = 0.6f
                 )
-            } else if (activeRoute.originLatLng != null && activeRoute.destinationLatLng != null) {
-                Polyline(
-                    points = listOf(activeRoute.originLatLng, activeRoute.destinationLatLng),
-                    color = routeStrokeColor,
-                    width = 8f,
-                    pattern = listOf(Dash(22f), Gap(14f)),
-                    zIndex = 0.6f
-                )
+            } else {
+                val guidePoints = listOfNotNull(
+                    activeRoute.originLatLng ?: selfLatLngNow,
+                    activeRoute.meetupLatLng,
+                    activeRoute.destinationLatLng
+                ).distinct()
+                if (guidePoints.size >= 2) {
+                    Polyline(
+                        points = guidePoints,
+                        color = routeStrokeColor,
+                        width = 8f,
+                        pattern = listOf(Dash(22f), Gap(14f)),
+                        zIndex = 0.6f
+                    )
+                }
             }
 
             activeRoute.originLatLng?.let { startLatLng ->
@@ -1230,7 +1396,44 @@ private fun ConvoyGoogleMapViewport(
                     title = activeRoute.originName ?: startSnippet,
                     snippet = startSnippet,
                     icon = startIcon,
-                    zIndex = 1.5f
+                    zIndex = 1.5f,
+                    onClick = {
+                        scope.launch {
+                            cameraPositionState.animate(
+                                update = CameraUpdateFactory.newLatLngZoom(startLatLng, 15.0f),
+                                durationMs = 350
+                            )
+                        }
+                        false
+                    }
+                )
+            }
+
+            activeRoute.meetupLatLng?.let { meetupLatLng ->
+                val meetupIcon = remember(meetupLatLng, markerBorderArgb) {
+                    createRiderBadgeDescriptor(
+                        initial = "M",
+                        fillColorArgb = ConvoyMapViewModel.MEETUP_PIN_COLOR_ARGB,
+                        borderColorArgb = markerBorderArgb,
+                        textColorArgb = markerTextArgb,
+                        isHighlighted = true
+                    )
+                }
+                Marker(
+                    state = MarkerState(position = meetupLatLng),
+                    title = activeRoute.meetupPoint ?: meetupSnippet,
+                    snippet = meetupSnippet,
+                    icon = meetupIcon,
+                    zIndex = 1.8f,
+                    onClick = {
+                        scope.launch {
+                            cameraPositionState.animate(
+                                update = CameraUpdateFactory.newLatLngZoom(meetupLatLng, 15.5f),
+                                durationMs = 350
+                            )
+                        }
+                        false
+                    }
                 )
             }
 
@@ -1249,9 +1452,30 @@ private fun ConvoyGoogleMapViewport(
                     title = activeRoute.destinationName ?: destSnippet,
                     snippet = destSnippet,
                     icon = destIcon,
-                    zIndex = 2.0f
+                    zIndex = 2.0f,
+                    onClick = {
+                        scope.launch {
+                            cameraPositionState.animate(
+                                update = CameraUpdateFactory.newLatLngZoom(destLatLng, 15.5f),
+                                durationMs = 350
+                            )
+                        }
+                        false
+                    }
                 )
             }
+        }
+
+        // In-app directional guide line to a selected convoy rider (replaces external Maps app redirect)
+        val guideTargetLatLng = state.navigateTargetRider?.latLng
+        if (selfLatLngNow != null && guideTargetLatLng != null) {
+            Polyline(
+                points = listOf(selfLatLngNow, guideTargetLatLng),
+                color = Moss,
+                width = 9f,
+                pattern = listOf(Dash(18f), Gap(12f)),
+                zIndex = 0.8f
+            )
         }
 
         // 2. Self Blue Halo Ring
@@ -1341,6 +1565,7 @@ private suspend fun animateCameraToConvoy(
     val allPoints = buildList {
         addAll(ridersWithLocation.mapNotNull { it.latLng })
         route?.originLatLng?.let { add(it) }
+        route?.meetupLatLng?.let { add(it) }
         route?.destinationLatLng?.let { add(it) }
     }
     if (allPoints.isEmpty()) return
@@ -1425,26 +1650,3 @@ private fun formatFreshnessText(rider: RiderMapItem): String {
 
 private fun riderInitial(name: String): String =
     name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "R"
-
-private fun launchExternalNavigation(context: Context, lat: Double, lng: Double): Boolean {
-    val gmapsIntent = GoogleMapsProvider().buildNavigationIntent(Waypoint(lat, lng)).apply {
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-    return try {
-        context.startActivity(gmapsIntent)
-        true
-    } catch (_: ActivityNotFoundException) {
-        val fallbackIntent = Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse("geo:$lat,$lng?q=$lat,$lng")
-        ).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        try {
-            context.startActivity(fallbackIntent)
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
-}

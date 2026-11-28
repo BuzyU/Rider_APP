@@ -1,3 +1,25 @@
+## RiderVoice v0.0.3.25 Release Notes
+
+RiderVoice **v0.0.3.25** resolves the offline `IllegalStateException: session closed` crash reported on device testing, upgrades convoy routing so **Starting Point, Meet-up Point, Destination, road polylines, and turn-by-turn guidance stay 100% inside the app**, and enforces **mandatory GPS/location access** before creating or joining any ride.
+
+| Attribute | Value |
+| :--- | :--- |
+| **Version Name** | `0.0.3.25` |
+| **Version Code** | `3025` |
+| **Release Tag** | `v0.0.3.25` |
+| **Download APK** | `Rider_APP-v0.0.3.25.apk` |
+
+### What's new
+- **Two-Phase In-App Meet-up -> Destination Navigation**: Hosts can select an optional **Meet-up Point** with place auto-suggest during ride creation (`HostSetupScreen` / `HostSetupViewModel`); waiting riders can open **Meet-up & Route Map** right inside `LobbyScreen` (`ConvoyPreStartMapOverlay`) to follow road directions to the meet-up (`M`) / starting (`A`) pin before the host starts the ride, and continue seamlessly to Destination (`B`) in the active ride map (`ConvoyLiveMapOverlay`)
+- **Zero External Google Maps Redirects**: Replaced external Maps app redirects on **Show Dest**, **Meet-up**, and rider **Navigate** actions with in-app camera focus, Start -> Meet-up -> Destination road polylines, next-maneuver instruction strips, live remaining distance/ETA, and in-app self-to-rider dashed guide lines
+- **Mandatory Location Gate**: Creating a ride, joining by code or deep-link token, accepting a ride invite, or entering/starting an active ride now requires both runtime Location permission and enabled device GPS (`MandatoryLocationGate`), displaying an interactive prompt banner/dialog until enabled
+
+### Bug fixes & Stability
+- **Fixed `IllegalStateException: session closed` crash**: Guarded `OfflineSession.payloadKey()` / `authKey()` lookups in `OfflineMeshVoiceTransport`, `WifiDirectGroupManager`, and `MeshAutoSwitchManager` against concurrent session closure on `Dispatchers.IO` workers
+- **Fixed missing road polylines on real Android devices**: Added `X-Android-Package` and signing SHA-1 `X-Android-Cert` headers to Google REST requests plus OpenStreetMap Nominatim search/geocoding fallback and OSRM driving polyline + step fallbacks in `GooglePlacesRouteService`
+
+---
+
 ## RiderVoice v0.0.3.24 Release Notes
 
 RiderVoice **v0.0.3.24** introduces the **live Google Maps convoy view** inside active voice rooms and **Google location auto-suggest route setup** when creating rides, so hosts set exact start-to-destination routes and every joined rider tracks teammates and the convoy path together in real time.

@@ -1004,5 +1004,22 @@
     <string name="map_route_dest_snippet">Destination</string>
     <string name="map_route_go_cta">Directions</string>
     <string name="cd_navigate_to_route_dest">Open turn-by-turn directions to hosted destination</string>
+    <string name="map_route_show_dest_cta">Show Dest</string>
+    <string name="map_route_meetup_cta">Meet-up</string>
+    <string name="map_route_meetup_snippet">Meet-up point</string>
+    <string name="cd_focus_route_dest">Focus destination on convoy map</string>
+    <string name="cd_focus_route_meetup">Focus meet-up point on convoy map</string>
+    <string name="map_meetup_distance_label">%1$s km to meet-up</string>
+    <string name="map_lobby_meetup_banner_hint">Head to meet-up point</string>
+    <string name="map_route_resolving_hint">Tap Meet-up or Show Dest to view route</string>
+    <string name="lobby_view_meetup_map_cta">Meet-up &amp; Route Map</string>
+    <string name="map_back_to_lobby">Lobby</string>
+    <string name="location_gate_required_title">Location required</string>
+    <string name="location_gate_perm_title">Allow Location access</string>
+    <string name="location_gate_perm_body">Location must be turned on so your convoy can coordinate safely on the map.</string>
+    <string name="location_gate_allow_cta">Allow GPS</string>
+    <string name="location_gate_gps_off_title">Turn on device GPS</string>
+    <string name="location_gate_gps_off_body">Please enable device Location (GPS) before creating or joining a ride room.</string>
+    <string name="location_gate_open_gps_cta">Turn on GPS</string>
 </resources>
 

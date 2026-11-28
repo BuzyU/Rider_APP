@@ -37,6 +37,7 @@ import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -83,12 +84,21 @@ data class ConvoyRouteUiState(
     val destinationName: String? = null,
     val destinationLatLng: LatLng? = null,
     val meetupPoint: String? = null,
+    val meetupLatLng: LatLng? = null,
     val polylinePoints: List<LatLng> = emptyList(),
     val distanceMeters: Int? = null,
-    val estimatedDurationMin: Int? = null
+    val distanceToDestinationMeters: Int? = null,
+    val distanceToMeetupMeters: Int? = null,
+    val estimatedDurationMin: Int? = null,
+    val nextInstruction: String? = null
 ) {
     val hasAnyRouteInfo: Boolean
-        get() = !originName.isNullOrBlank() || !destinationName.isNullOrBlank() || originLatLng != null || destinationLatLng != null
+        get() = !originName.isNullOrBlank() ||
+            !destinationName.isNullOrBlank() ||
+            !meetupPoint.isNullOrBlank() ||
+            originLatLng != null ||
+            destinationLatLng != null ||
+            meetupLatLng != null
 }
 
 data class ConvoyMapUiState(
@@ -97,10 +107,13 @@ data class ConvoyMapUiState(
     val hasLocationPermission: Boolean = false,
     val riders: List<RiderMapItem> = emptyList(),
     val selectedRiderId: String? = null,
+    val navigateTargetRiderId: String? = null,
     val mapStyle: ConvoyMapStyle = ConvoyMapStyle.STANDARD,
     val isFollowingSelf: Boolean = false,
     val fitConvoySignal: Int = 0,
     val centerSelfSignal: Int = 0,
+    val focusDestinationSignal: Int = 0,
+    val focusMeetupSignal: Int = 0,
     val route: ConvoyRouteUiState? = null
 ) {
     val ridersWithLocation: List<RiderMapItem>
@@ -109,20 +122,29 @@ data class ConvoyMapUiState(
     val selectedRider: RiderMapItem?
         get() = riders.firstOrNull { it.riderId == selectedRiderId }
 
+    val navigateTargetRider: RiderMapItem?
+        get() = riders.firstOrNull { it.riderId == navigateTargetRiderId }
+
     val selfRider: RiderMapItem?
         get() = riders.firstOrNull { it.isSelf }
 
     val hasAnyMapCoordinates: Boolean
-        get() = ridersWithLocation.isNotEmpty() || route?.originLatLng != null || route?.destinationLatLng != null
+        get() = ridersWithLocation.isNotEmpty() ||
+            route?.originLatLng != null ||
+            route?.destinationLatLng != null ||
+            route?.meetupLatLng != null
 }
 
 private data class MapControlState(
     val selectedRiderId: String? = null,
+    val navigateTargetRiderId: String? = null,
     val mapStyle: ConvoyMapStyle = ConvoyMapStyle.STANDARD,
     val isFollowingSelf: Boolean = false,
     val hasLocationPermission: Boolean = false,
     val fitConvoySignal: Int = 0,
-    val centerSelfSignal: Int = 0
+    val centerSelfSignal: Int = 0,
+    val focusDestinationSignal: Int = 0,
+    val focusMeetupSignal: Int = 0
 )
 
 private data class LiveFeedSnapshot(
@@ -202,6 +224,7 @@ class ConvoyMapViewModel private constructor(
 
     private val controls = MutableStateFlow(MapControlState())
     private val resolvedRouteFlow = MutableStateFlow<ConvoyRoute?>(null)
+    private val resolvedNextInstructionFlow = MutableStateFlow<String?>(null)
     private var lastRouteRoomRef: String? = null
     private var lastRouteEnrichKey: String? = null
 
@@ -245,7 +268,7 @@ class ConvoyMapViewModel private constructor(
         )
     }
 
-    val uiState: StateFlow<ConvoyMapUiState> = combine(liveFeed, controls) { feed, control ->
+    val uiState: StateFlow<ConvoyMapUiState> = combine(liveFeed, controls, resolvedNextInstructionFlow) { feed, control, nextInstr ->
         val mergedRoute = listOfNotNull(
             feed.ride?.route,
             feed.liveKitRoute,
@@ -262,12 +285,16 @@ class ConvoyMapViewModel private constructor(
             selfId = currentUserIdProvider(),
             nowMs = nowMsProvider(),
             selectedRiderId = control.selectedRiderId,
+            navigateTargetRiderId = control.navigateTargetRiderId,
             mapStyle = control.mapStyle,
             isFollowingSelf = control.isFollowingSelf,
             hasLocationPermission = control.hasLocationPermission,
             fitConvoySignal = control.fitConvoySignal,
             centerSelfSignal = control.centerSelfSignal,
-            route = mergedRoute
+            focusDestinationSignal = control.focusDestinationSignal,
+            focusMeetupSignal = control.focusMeetupSignal,
+            route = mergedRoute,
+            nextInstruction = nextInstr
         )
     }.stateIn(
         scope = viewModelScope,
@@ -331,15 +358,20 @@ class ConvoyMapViewModel private constructor(
             if (places != null) {
                 val needOriginCoords = !workingRoute.originName.isNullOrBlank() && !workingRoute.hasOriginCoords
                 val needDestCoords = !workingRoute.destinationName.isNullOrBlank() && !workingRoute.hasDestinationCoords
-                if (needOriginCoords || needDestCoords) {
+                val needMeetupCoords = !workingRoute.meetupPoint.isNullOrBlank() && !workingRoute.hasMeetupCoords
+                if (needOriginCoords || needDestCoords || needMeetupCoords) {
                     val startDeferred = async {
                         if (needOriginCoords) places.geocodeName(workingRoute!!.originName!!) else null
                     }
                     val destDeferred = async {
                         if (needDestCoords) places.geocodeName(workingRoute!!.destinationName!!) else null
                     }
+                    val meetupDeferred = async {
+                        if (needMeetupCoords) places.geocodeName(workingRoute!!.meetupPoint!!) else null
+                    }
                     val startResolved = startDeferred.await()
                     val destResolved = destDeferred.await()
+                    val meetupResolved = meetupDeferred.await()
                     workingRoute = workingRoute.mergeWith(
                         ConvoyRoute(
                             originName = workingRoute.originName ?: startResolved?.name,
@@ -347,19 +379,33 @@ class ConvoyMapViewModel private constructor(
                             originLng = startResolved?.lng,
                             destinationName = workingRoute.destinationName ?: destResolved?.name,
                             destinationLat = destResolved?.lat,
-                            destinationLng = destResolved?.lng
+                            destinationLng = destResolved?.lng,
+                            meetupPoint = workingRoute.meetupPoint ?: meetupResolved?.name,
+                            meetupLat = meetupResolved?.lat,
+                            meetupLng = meetupResolved?.lng
                         )
                     )
                 }
 
-                if (workingRoute.hasOriginCoords && workingRoute.hasDestinationCoords && workingRoute.encodedPolyline.isNullOrBlank()) {
+                val selfLoc = locationService.currentLocation.value
+                val legStartLat = workingRoute.originLat ?: workingRoute.meetupLat ?: selfLoc?.latitude
+                val legStartLng = workingRoute.originLng ?: workingRoute.meetupLng ?: selfLoc?.longitude
+                val legEndLat = workingRoute.destinationLat ?: workingRoute.meetupLat
+                val legEndLng = workingRoute.destinationLng ?: workingRoute.meetupLng
+
+                if (legStartLat != null && legStartLng != null && legEndLat != null && legEndLng != null &&
+                    (workingRoute.encodedPolyline.isNullOrBlank() || resolvedNextInstructionFlow.value == null)
+                ) {
                     val directions = places.fetchRoute(
-                        workingRoute.originLat!!,
-                        workingRoute.originLng!!,
-                        workingRoute.destinationLat!!,
-                        workingRoute.destinationLng!!
+                        originLat = legStartLat,
+                        originLng = legStartLng,
+                        destLat = legEndLat,
+                        destLng = legEndLng,
+                        waypointLat = workingRoute.meetupLat,
+                        waypointLng = workingRoute.meetupLng
                     )
                     if (directions != null) {
+                        resolvedNextInstructionFlow.value = directions.nextInstruction
                         workingRoute = workingRoute.mergeWith(
                             ConvoyRoute(
                                 estimatedDurationMin = workingRoute.estimatedDurationMin ?: directions.durationMinutes,
@@ -424,6 +470,37 @@ class ConvoyMapViewModel private constructor(
         }
     }
 
+    fun requestFocusDestination() {
+        controls.update {
+            it.copy(
+                isFollowingSelf = false,
+                selectedRiderId = null,
+                focusDestinationSignal = it.focusDestinationSignal + 1
+            )
+        }
+    }
+
+    fun requestFocusMeetup() {
+        controls.update {
+            it.copy(
+                isFollowingSelf = false,
+                selectedRiderId = null,
+                focusMeetupSignal = it.focusMeetupSignal + 1
+            )
+        }
+    }
+
+    fun requestNavigateToRiderInApp(riderId: String?) {
+        controls.update {
+            val nextTarget = if (riderId != null && it.navigateTargetRiderId == riderId) null else riderId
+            it.copy(
+                isFollowingSelf = false,
+                selectedRiderId = riderId ?: it.selectedRiderId,
+                navigateTargetRiderId = nextTarget
+            )
+        }
+    }
+
     fun disableAutoFollow() {
         controls.update {
             if (it.isFollowingSelf) it.copy(isFollowingSelf = false) else it
@@ -452,12 +529,16 @@ class ConvoyMapViewModel private constructor(
             selfId: String?,
             nowMs: Long,
             selectedRiderId: String?,
+            navigateTargetRiderId: String? = null,
             mapStyle: ConvoyMapStyle,
             isFollowingSelf: Boolean,
             hasLocationPermission: Boolean,
             fitConvoySignal: Int,
             centerSelfSignal: Int,
-            route: ConvoyRoute? = ride?.route
+            focusDestinationSignal: Int = 0,
+            focusMeetupSignal: Int = 0,
+            route: ConvoyRoute? = ride?.route,
+            nextInstruction: String? = null
         ): ConvoyMapUiState {
             val resolvedSelfId = selfId?.takeIf { it.isNotBlank() } ?: LOCAL_SELF_FALLBACK_ID
             val rideId = ride?.roomId
@@ -568,18 +649,34 @@ class ConvoyMapViewModel private constructor(
             val uiRoute = route?.takeIf { it.hasAnyRouteInfo }?.let { r ->
                 val originLatLng = if (r.hasOriginCoords) LatLng(r.originLat!!, r.originLng!!) else null
                 val destLatLng = if (r.hasDestinationCoords) LatLng(r.destinationLat!!, r.destinationLng!!) else null
+                val meetupLatLng = if (r.hasMeetupCoords) LatLng(r.meetupLat!!, r.meetupLng!!) else null
                 val poly = r.encodedPolyline?.takeIf { it.isNotBlank() }?.let {
                     GooglePlacesRouteService.decodePolyline(it)
                 }.orEmpty()
+                val liveDestMeters = if (effectiveSelfLat != null && effectiveSelfLng != null && destLatLng != null) {
+                    haversineMeters(effectiveSelfLat, effectiveSelfLng, destLatLng.latitude, destLatLng.longitude).roundToInt()
+                } else {
+                    r.distanceMeters
+                }
+                val liveMeetupMeters = if (effectiveSelfLat != null && effectiveSelfLng != null && (meetupLatLng ?: originLatLng) != null) {
+                    val target = meetupLatLng ?: originLatLng!!
+                    haversineMeters(effectiveSelfLat, effectiveSelfLng, target.latitude, target.longitude).roundToInt()
+                } else {
+                    null
+                }
                 ConvoyRouteUiState(
                     originName = r.originName,
                     originLatLng = originLatLng,
                     destinationName = r.destinationName,
                     destinationLatLng = destLatLng,
                     meetupPoint = r.meetupPoint,
+                    meetupLatLng = meetupLatLng,
                     polylinePoints = poly,
                     distanceMeters = r.distanceMeters,
-                    estimatedDurationMin = r.estimatedDurationMin
+                    distanceToDestinationMeters = liveDestMeters,
+                    distanceToMeetupMeters = liveMeetupMeters,
+                    estimatedDurationMin = r.estimatedDurationMin,
+                    nextInstruction = nextInstruction
                 )
             }
 
@@ -589,10 +686,13 @@ class ConvoyMapViewModel private constructor(
                 hasLocationPermission = hasLocationPermission,
                 riders = sortedRiders,
                 selectedRiderId = selectedRiderId?.takeIf { id -> sortedRiders.any { it.riderId == id } },
+                navigateTargetRiderId = navigateTargetRiderId?.takeIf { id -> sortedRiders.any { it.riderId == id } },
                 mapStyle = mapStyle,
                 isFollowingSelf = isFollowingSelf,
                 fitConvoySignal = fitConvoySignal,
                 centerSelfSignal = centerSelfSignal,
+                focusDestinationSignal = focusDestinationSignal,
+                focusMeetupSignal = focusMeetupSignal,
                 route = uiRoute
             )
         }
@@ -612,6 +712,7 @@ class ConvoyMapViewModel private constructor(
         val SPEAKING_RING_COLOR_ARGB: Int = argb(46, 125, 50)   // Bright Moss Green speaking halo
         val STALE_BLIP_COLOR_ARGB: Int = argb(122, 86, 0)       // Warm Ochre stale/ghost
         val START_PIN_COLOR_ARGB: Int = argb(46, 125, 50)       // Green Start pin
+        val MEETUP_PIN_COLOR_ARGB: Int = argb(217, 119, 6)      // Amber Gold Meet-up pin
         val DEST_PIN_COLOR_ARGB: Int = argb(198, 40, 40)        // Crimson Destination pin
 
         fun riderBlipColorArgb(rider: RiderMapItem): Int {
@@ -640,7 +741,16 @@ class ConvoyMapViewModel private constructor(
             val points = buildList {
                 addAll(riders.mapNotNull { it.latLng })
                 route?.originLatLng?.let { add(it) }
+                route?.meetupLatLng?.let { add(it) }
                 route?.destinationLatLng?.let { add(it) }
+                val poly = route?.polylinePoints.orEmpty()
+                if (poly.isNotEmpty()) {
+                    val step = (poly.size / 16).coerceAtLeast(1)
+                    for (i in poly.indices step step) {
+                        add(poly[i])
+                    }
+                    add(poly.last())
+                }
             }
             if (points.size < 2) return null
             val builder = LatLngBounds.Builder()

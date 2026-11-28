@@ -244,4 +244,71 @@ class ConvoyLiveMapUiTest {
         composeRule.onNodeWithTag("map_route_directions_btn").performClick()
         assertEquals(1, routeNavClicks)
     }
+
+    @Test
+    fun liveMapScreen_preStartMeetupShowsMeetupAndDestControlsWithoutOverflow() {
+        var meetupClicks = 0
+        var destClicks = 0
+        val ctx = englishContext()
+        val stateWithMeetup = sampleState(selectedRiderId = null, hasPermission = true).copy(
+            route = ConvoyRouteUiState(
+                originName = "Pune Station",
+                originLatLng = LatLng(18.5289, 73.8744),
+                meetupPoint = "Chandni Chowk",
+                meetupLatLng = LatLng(18.5074, 73.7844),
+                destinationName = "Tiger Point, Lonavala",
+                destinationLatLng = LatLng(18.7052, 73.3924),
+                distanceToMeetupMeters = 7_600,
+                distanceToDestinationMeters = 68_400,
+                estimatedDurationMin = 84
+            )
+        )
+
+        composeRule.setContent {
+            val baseDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalContext provides ctx,
+                LocalConfiguration provides ctx.resources.configuration,
+                LocalDensity provides Density(baseDensity.density, fontScale = 1.2f)
+            ) {
+                RiderVoiceTheme {
+                    ConvoyLiveMapScreen(
+                        roomName = "Lonavala Dawn Ride",
+                        state = stateWithMeetup,
+                        isOfflineMeshActive = false,
+                        isPreStartLobby = true,
+                        onBackToVoice = {},
+                        onSelectRider = {},
+                        onCycleMapStyle = {},
+                        onFitConvoy = {},
+                        onCenterSelf = {},
+                        onUserCameraGesture = {},
+                        onRequestLocationPermission = {},
+                        onNavigateToRider = {},
+                        onNavigateToRouteDestination = { destClicks++ },
+                        onFocusMeetup = { meetupClicks++ },
+                        mapViewportOverride = { state, _, _, mod ->
+                            Box(mod.fillMaxSize()) {
+                                Text("Meetup:${state.route?.meetupPoint}")
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+        val rootBounds = composeRule.onNodeWithTag("convoy_live_map_screen").getBoundsInRoot()
+        val bannerBounds = composeRule.onNodeWithTag("map_hosted_route_banner").getBoundsInRoot()
+        val meetupBounds = composeRule.onNodeWithTag("map_route_meetup_btn").getBoundsInRoot()
+        val destBounds = composeRule.onNodeWithTag("map_route_directions_btn").getBoundsInRoot()
+
+        assertTrue(bannerBounds.right <= rootBounds.right + 1.dp)
+        assertTrue(meetupBounds.height >= 48.dp)
+        assertTrue(destBounds.right <= rootBounds.right + 1.dp)
+
+        composeRule.onNodeWithTag("map_route_meetup_btn").performClick()
+        composeRule.onNodeWithTag("map_route_directions_btn").performClick()
+        assertEquals(1, meetupClicks)
+        assertEquals(1, destClicks)
+    }
 }

@@ -233,7 +233,7 @@ class OfflineMeshVoiceTransport(
                 if (currentSession?.sessionId == session.sessionId) return@withLock
             }
 
-            if (!gateAllowed()) {
+            if (!gateAllowed() || session.isClosed) {
                 _state.value = VoiceTransportState.FAILED
                 return@withLock
             }
@@ -256,8 +256,20 @@ class OfflineMeshVoiceTransport(
                 monotonicClock = monotonicClock
             ).apply {
                 selfOnlineTagProvider = {
-                    onlineIdentitySupplier()?.let { onlineId ->
-                        com.ridervoice.mesh.protocol.PayloadCrypto.computeOnlineIdTag(session.payloadKey(), onlineId)
+                    if (session.isClosed) {
+                        null
+                    } else {
+                        onlineIdentitySupplier()?.let { onlineId ->
+                            try {
+                                if (!session.isClosed) {
+                                    com.ridervoice.mesh.protocol.PayloadCrypto.computeOnlineIdTag(session.payloadKey(), onlineId)
+                                } else {
+                                    null
+                                }
+                            } catch (_: IllegalStateException) {
+                                null
+                            }
+                        }
                     }
                 }
             }
@@ -392,17 +404,25 @@ class OfflineMeshVoiceTransport(
             heartbeatJob = scope.launch {
                 cachedLocalIp = UdpMeshLink.getLocalIpAddress() ?: ""
                 cachedBroadcastAddr = UdpMeshLink.getLocalBroadcastAddress()
-                while (isActive) {
+                while (isActive && !session.isClosed) {
                     val broadcastEndpoints = broadcastProvider()
                     cachedBroadcastAddr = broadcastEndpoints.firstOrNull()?.host ?: cachedBroadcastAddr
                     if (cachedLocalIp.isBlank()) {
                         cachedLocalIp = UdpMeshLink.getLocalIpAddress() ?: ""
                     }
-                    fEngine.originateHello(broadcastEndpoints)
-                    controlPayloadProvider?.invoke()?.let { ctrlBytes ->
-                        if (ctrlBytes.size <= MeshConfig.MAX_CONTROL_PAYLOAD_BYTES) {
-                            fEngine.originateControl(ctrlBytes, broadcastEndpoints)
+                    try {
+                        if (!isActive || session.isClosed) break
+                        fEngine.originateHello(broadcastEndpoints)
+                        controlPayloadProvider?.invoke()?.let { ctrlBytes ->
+                            if (ctrlBytes.size <= MeshConfig.MAX_CONTROL_PAYLOAD_BYTES && !session.isClosed) {
+                                fEngine.originateControl(ctrlBytes, broadcastEndpoints)
+                            }
                         }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: IllegalStateException) {
+                        MeshLog.d("MeshTransport", "Heartbeat stopped cleanly (${e.message})")
+                        break
                     }
                     com.ridervoice.diagnostics.PowerProbe.recordMeshPacket()
                     kotlinx.coroutines.withTimeoutOrNull(helloIntervalMs.get()) {

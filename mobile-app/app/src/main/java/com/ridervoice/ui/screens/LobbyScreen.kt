@@ -43,7 +43,11 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.ridervoice.permissions.LocationGateStatus
+import com.ridervoice.permissions.MandatoryLocationGate
 import com.ridervoice.ui.components.LocalRvFeedback
+import com.ridervoice.ui.screens.map.ConvoyPreStartMapOverlay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,6 +93,10 @@ fun LobbyScreen(
     var showStartAloneDialog by remember { mutableStateOf(false) }
     var showAddRidersSheet by remember { mutableStateOf(false) }
     var riderToRemove by remember { mutableStateOf<com.ridervoice.models.LobbyRiderInfo?>(null) }
+    var showLobbyMap by rememberSaveable { mutableStateOf(false) }
+    val (locationStatus, refreshLocationStatus) = rememberMandatoryLocationStatus()
+    var showLocationGateDialog by remember { mutableStateOf(false) }
+    var pendingStartRideAllowSolo by remember { mutableStateOf<Boolean?>(null) }
 
     BackHandler {
         showExitDialog = true
@@ -106,12 +114,50 @@ fun LobbyScreen(
         mutableStateOf(false)
     }
 
-    LaunchedEffect(lobbyStatus?.roomId, lobbyStatus?.isRideStarted) {
+    LaunchedEffect(lobbyStatus?.roomId, lobbyStatus?.isRideStarted, locationStatus) {
         if (lobbyStatus?.isRideStarted == true && !navigatedToRide.value) {
-            navigatedToRide.value = true
-            val isHost = lobbyStatus?.isHost == true
-            onStartRide(isHost)
+            if (locationStatus == LocationGateStatus.READY) {
+                navigatedToRide.value = true
+                val isHost = lobbyStatus?.isHost == true
+                onStartRide(isHost)
+            } else {
+                showLocationGateDialog = true
+            }
         }
+    }
+
+    LaunchedEffect(locationStatus) {
+        if (locationStatus == LocationGateStatus.READY && showLocationGateDialog) {
+            showLocationGateDialog = false
+            val allowSolo = pendingStartRideAllowSolo
+            pendingStartRideAllowSolo = null
+            if (allowSolo != null) {
+                viewModel.startRide(convoyName, allowSolo = allowSolo, onStartSuccess = {
+                    onStartRide(true)
+                })
+            }
+        }
+    }
+
+    if (showLocationGateDialog && locationStatus != LocationGateStatus.READY) {
+        MandatoryLocationGateDialog(
+            status = locationStatus,
+            onDismiss = {
+                pendingStartRideAllowSolo = null
+                showLocationGateDialog = false
+            },
+            onReady = {
+                refreshLocationStatus()
+                showLocationGateDialog = false
+                val allowSolo = pendingStartRideAllowSolo
+                pendingStartRideAllowSolo = null
+                if (allowSolo != null) {
+                    viewModel.startRide(convoyName, allowSolo = allowSolo, onStartSuccess = {
+                        onStartRide(true)
+                    })
+                }
+            }
+        )
     }
 
     // Register callsigns with ParticipantNameResolver whenever invites update
@@ -166,9 +212,15 @@ fun LobbyScreen(
             dismissLabel = stringResource(R.string.lobby_wait_for_riders),
             onConfirm = {
                 showStartAloneDialog = false
-                viewModel.startRide(convoyName, allowSolo = true, onStartSuccess = {
-                    onStartRide(true)
-                })
+                if (MandatoryLocationGate.evaluate(context) == LocationGateStatus.READY) {
+                    viewModel.startRide(convoyName, allowSolo = true, onStartSuccess = {
+                        onStartRide(true)
+                    })
+                } else {
+                    refreshLocationStatus()
+                    pendingStartRideAllowSolo = true
+                    showLocationGateDialog = true
+                }
             },
             onDismiss = { showStartAloneDialog = false }
         )
@@ -208,6 +260,7 @@ fun LobbyScreen(
     val declined = status?.invites?.filter { it.status == "DECLINED" } ?: emptyList()
     val isFailedWithNoData = status == null && activeRide == null && loadState is LobbyLoadState.Failed
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = ZeroWindowInsets,
@@ -343,7 +396,11 @@ fun LobbyScreen(
                                     },
                                     enabled = true,
                                     onClick = {
-                                        if (accepted.isEmpty()) {
+                                        if (MandatoryLocationGate.evaluate(context) != LocationGateStatus.READY) {
+                                            refreshLocationStatus()
+                                            pendingStartRideAllowSolo = accepted.isEmpty()
+                                            showLocationGateDialog = true
+                                        } else if (accepted.isEmpty()) {
                                             showStartAloneDialog = true
                                         } else {
                                             viewModel.startRide(convoyName, allowSolo = false, onStartSuccess = {
@@ -678,13 +735,22 @@ fun LobbyScreen(
                 val routeDest = status?.destination ?: activeRide?.route?.destinationName
                 val routeMeetup = status?.meetupPoint ?: activeRide?.route?.meetupPoint
                 val routeDurationMin = status?.estimatedDurationMin ?: activeRide?.route?.estimatedDurationMin
-                if (!routeOrigin.isNullOrBlank() || !routeDest.isNullOrBlank()) {
+                if (locationStatus != LocationGateStatus.READY) {
+                    item {
+                        MandatoryLocationRequiredBanner(
+                            status = locationStatus,
+                            onActionClick = { showLocationGateDialog = true }
+                        )
+                    }
+                }
+                if (!routeOrigin.isNullOrBlank() || !routeDest.isNullOrBlank() || !routeMeetup.isNullOrBlank()) {
                     item {
                         LobbyRouteCard(
                             origin = routeOrigin,
                             destination = routeDest,
                             meetupPoint = routeMeetup,
-                            durationMin = routeDurationMin
+                            durationMin = routeDurationMin,
+                            onViewRouteMapClick = { showLobbyMap = true }
                         )
                     }
                 }
@@ -819,6 +885,14 @@ fun LobbyScreen(
             }
         }
     }
+
+    if (showLobbyMap) {
+        ConvoyPreStartMapOverlay(
+            roomName = currentRoomRef,
+            onDismiss = { showLobbyMap = false }
+        )
+    }
+    }
 }
 
 @Composable
@@ -826,7 +900,8 @@ private fun LobbyRouteCard(
     origin: String?,
     destination: String?,
     meetupPoint: String?,
-    durationMin: Int?
+    durationMin: Int?,
+    onViewRouteMapClick: () -> Unit = {}
 ) {
     Surface(
         color = PaperRaised,
@@ -923,6 +998,13 @@ private fun LobbyRouteCard(
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
+            Spacer(modifier = Modifier.height(RvSpacing.xs))
+            SecondaryButton(
+                text = stringResource(R.string.lobby_view_meetup_map_cta),
+                onClick = onViewRouteMapClick,
+                leadingIcon = RvIcons.Map,
+                modifier = Modifier.testTag("lobby_open_route_map_btn")
+            )
         }
     }
 }

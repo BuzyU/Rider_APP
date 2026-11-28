@@ -32,11 +32,14 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import com.ridervoice.permissions.LocationGateStatus
+import com.ridervoice.permissions.MandatoryLocationGate
 import com.ridervoice.ui.components.rvBringIntoViewOnFocus
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
@@ -56,14 +59,21 @@ fun HostSetupScreen(
     val createState by viewModel.createState.collectAsStateWithLifecycle()
     val originSuggestions = collectSafeSuggestions(viewModel.originSuggestions)
     val destinationSuggestions = collectSafeSuggestions(viewModel.destinationSuggestions)
+    val meetupSuggestions = collectSafeSuggestions(viewModel.meetupSuggestions)
     val isSearchingOrigin = collectSafeBoolean(viewModel.isSearchingOrigin)
     val isSearchingDestination = collectSafeBoolean(viewModel.isSearchingDestination)
+    val isSearchingMeetup = collectSafeBoolean(viewModel.isSearchingMeetup)
     val selectedOrigin = collectSafeTyped<ResolvedPlace>(viewModel.selectedOrigin)
     val selectedDestination = collectSafeTyped<ResolvedPlace>(viewModel.selectedDestination)
+    val selectedMeetup = collectSafeTyped<ResolvedPlace>(viewModel.selectedMeetup)
     val routePreview = collectSafeTyped<ComputedDirections>(viewModel.routePreview)
 
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val feedback = LocalRvFeedback.current
+    val (locationStatus, refreshLocationStatus) = rememberMandatoryLocationStatus()
+    var showLocationGateDialog by remember { mutableStateOf(false) }
+    var pendingCreateAfterLocationReady by remember { mutableStateOf(false) }
     var convoyName by rememberSaveable { mutableStateOf("") }
     var meetupPoint by rememberSaveable { mutableStateOf("") }
     var destination by rememberSaveable { mutableStateOf("") }
@@ -97,6 +107,52 @@ fun HostSetupScreen(
     val isDestinationValid = destination.trim().length >= 2
     val isSubmitting = createState is HostSetupViewModel.CreateRideState.Submitting || isLoading
     val canCreate = isNameValid && isOriginValid && isDestinationValid && !isSubmitting
+
+    val dispatchCreate = {
+        val gate = MandatoryLocationGate.evaluate(context)
+        if (gate == LocationGateStatus.READY) {
+            viewModel.createConvoy(
+                convoyName = convoyName.trim(),
+                origin = origin.trim().ifBlank { null },
+                destination = destination.trim().ifBlank { null },
+                meetupPoint = meetupPoint.trim().ifBlank { null },
+                diagnosticsEnabled = diagnosticsEnabled,
+                clientRequestId = clientRequestId
+            )
+        } else {
+            refreshLocationStatus()
+            pendingCreateAfterLocationReady = true
+            showLocationGateDialog = true
+        }
+    }
+
+    LaunchedEffect(locationStatus) {
+        if (locationStatus == LocationGateStatus.READY && showLocationGateDialog) {
+            showLocationGateDialog = false
+            if (pendingCreateAfterLocationReady) {
+                pendingCreateAfterLocationReady = false
+                if (canCreate) dispatchCreate()
+            }
+        }
+    }
+
+    if (showLocationGateDialog && locationStatus != LocationGateStatus.READY) {
+        MandatoryLocationGateDialog(
+            status = locationStatus,
+            onDismiss = {
+                pendingCreateAfterLocationReady = false
+                showLocationGateDialog = false
+            },
+            onReady = {
+                refreshLocationStatus()
+                showLocationGateDialog = false
+                if (pendingCreateAfterLocationReady && canCreate) {
+                    pendingCreateAfterLocationReady = false
+                    dispatchCreate()
+                }
+            }
+        )
+    }
 
     BackHandler {
         if (isDirty) {
@@ -185,22 +241,21 @@ fun HostSetupScreen(
         bottomBar = {
             PrimaryButton(
                 text = stringResource(R.string.action_create_ride),
-                onClick = {
-                    viewModel.createConvoy(
-                        convoyName = convoyName.trim(),
-                        origin = origin.trim().ifBlank { null },
-                        destination = destination.trim().ifBlank { null },
-                        meetupPoint = meetupPoint.trim().ifBlank { null },
-                        diagnosticsEnabled = diagnosticsEnabled,
-                        clientRequestId = clientRequestId
-                    )
-                },
+                onClick = dispatchCreate,
                 enabled = canCreate,
                 loading = isSubmitting
             )
         }
     ) {
         Spacer(modifier = Modifier.height(RvSpacing.sm))
+
+        if (locationStatus != LocationGateStatus.READY) {
+            MandatoryLocationRequiredBanner(
+                status = locationStatus,
+                onActionClick = { showLocationGateDialog = true }
+            )
+            Spacer(modifier = Modifier.height(RvSpacing.sm))
+        }
 
         Text(
             text = stringResource(R.string.host_intro_subtitle),
@@ -405,14 +460,7 @@ fun HostSetupScreen(
                     viewModel.dismissSuggestions()
                     focusManager.clearFocus()
                     if (canCreate) {
-                        viewModel.createConvoy(
-                            convoyName = convoyName.trim(),
-                            origin = origin.trim().ifBlank { null },
-                            destination = destination.trim().ifBlank { null },
-                            meetupPoint = meetupPoint.trim().ifBlank { null },
-                            diagnosticsEnabled = diagnosticsEnabled,
-                            clientRequestId = clientRequestId
-                        )
+                        dispatchCreate()
                     }
                 }
             ),
@@ -478,12 +526,32 @@ fun HostSetupScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 4. Meet-up point (optional)
+        // 4. Meet-up point (optional with autocomplete for directional pin)
         RvTextField(
             value = meetupPoint,
-            onValueChange = { meetupPoint = it },
+            onValueChange = {
+                meetupPoint = it
+                viewModel.onMeetupQueryChanged(it)
+            },
             label = { Text(stringResource(R.string.create_ride_meetup_label)) },
             placeholder = { Text(stringResource(R.string.host_meetup_placeholder), color = InkSecondary) },
+            trailingIcon = {
+                if (isSearchingMeetup) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Pop
+                    )
+                } else if (selectedMeetup != null) {
+                    Text(
+                        text = stringResource(R.string.host_route_pin_selected),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Moss,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(end = RvSpacing.sm)
+                    )
+                }
+            },
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Words,
@@ -497,6 +565,20 @@ fun HostSetupScreen(
             shape = RoundedCornerShape(16.dp),
             colors = fieldColors
         )
+
+        if (meetupSuggestions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(6.dp))
+            PlaceSuggestionsDropdown(
+                suggestions = meetupSuggestions,
+                testTagPrefix = "host_meetup_suggestion",
+                onSelect = { suggestion ->
+                    viewModel.selectMeetupSuggestion(suggestion) { resolved ->
+                        meetupPoint = resolved
+                    }
+                    focusManager.clearFocus()
+                }
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -603,16 +685,7 @@ fun HostSetupScreen(
             Spacer(modifier = Modifier.height(14.dp))
             InlineError(
                 message = error ?: stringResource(R.string.host_create_failed),
-                onRetry = {
-                    viewModel.createConvoy(
-                        convoyName = convoyName.trim(),
-                        origin = origin.trim().ifBlank { null },
-                        destination = destination.trim().ifBlank { null },
-                        meetupPoint = meetupPoint.trim().ifBlank { null },
-                        diagnosticsEnabled = diagnosticsEnabled,
-                        clientRequestId = clientRequestId
-                    )
-                }
+                onRetry = dispatchCreate
             )
         }
 

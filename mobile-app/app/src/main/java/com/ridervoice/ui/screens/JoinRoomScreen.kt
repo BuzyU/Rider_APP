@@ -14,9 +14,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.ridervoice.R
+import com.ridervoice.permissions.LocationGateStatus
+import com.ridervoice.permissions.MandatoryLocationGate
 import com.ridervoice.ui.components.InlineError
+import com.ridervoice.ui.components.MandatoryLocationGateDialog
+import com.ridervoice.ui.components.MandatoryLocationRequiredBanner
 import com.ridervoice.ui.components.PrimaryButton
 import com.ridervoice.ui.components.RvScreen
+import com.ridervoice.ui.components.rememberMandatoryLocationStatus
 import com.ridervoice.ui.theme.*
 import com.ridervoice.ui.viewmodels.JoinRoomViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -24,6 +29,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
@@ -41,7 +47,12 @@ fun JoinRoomScreen(
     onJoin: (roomName: String, userName: String) -> Unit,
     viewModel: JoinRoomViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val (locationStatus, refreshLocationStatus) = rememberMandatoryLocationStatus()
+    var showLocationGateDialog by remember { mutableStateOf(false) }
+    var pendingManualJoin by remember { mutableStateOf(false) }
+
     val currentUser = remember { FirebaseAuth.getInstance().currentUser }
     var roomCode by rememberSaveable(initialRoomName) { mutableStateOf(initialRoomName) }
     var userName by rememberSaveable {
@@ -52,15 +63,59 @@ fun JoinRoomScreen(
     val tokenError by viewModel.error.collectAsStateWithLifecycle()
 
     var activeToken by rememberSaveable(initialToken) { mutableStateOf(initialToken?.takeIf { it.isNotBlank() }) }
-    LaunchedEffect(activeToken) {
-        activeToken?.let { tok ->
+
+    val canJoin = roomCode.isNotBlank() && userName.isNotBlank() && !isTokenConnecting
+
+    val dispatchManualJoin = {
+        if (canJoin) {
+            if (MandatoryLocationGate.evaluate(context) == LocationGateStatus.READY) {
+                viewModel.smartJoin(roomCode.trim(), userName.trim()) { resolvedRoom ->
+                    onJoin(resolvedRoom, userName.trim())
+                }
+            } else {
+                refreshLocationStatus()
+                pendingManualJoin = true
+                showLocationGateDialog = true
+            }
+        }
+    }
+
+    LaunchedEffect(activeToken, locationStatus) {
+        val tok = activeToken ?: return@LaunchedEffect
+        if (locationStatus == LocationGateStatus.READY) {
             viewModel.joinViaToken(tok) { roomName ->
                 onJoin(roomName, userName)
             }
         }
     }
 
-    val canJoin = roomCode.isNotBlank() && userName.isNotBlank() && !isTokenConnecting
+    LaunchedEffect(locationStatus) {
+        if (locationStatus == LocationGateStatus.READY && showLocationGateDialog) {
+            showLocationGateDialog = false
+            if (pendingManualJoin) {
+                pendingManualJoin = false
+                dispatchManualJoin()
+            }
+        }
+    }
+
+    if (showLocationGateDialog && locationStatus != LocationGateStatus.READY) {
+        MandatoryLocationGateDialog(
+            status = locationStatus,
+            onDismiss = {
+                pendingManualJoin = false
+                showLocationGateDialog = false
+            },
+            onReady = {
+                refreshLocationStatus()
+                showLocationGateDialog = false
+                if (pendingManualJoin) {
+                    pendingManualJoin = false
+                    dispatchManualJoin()
+                }
+            }
+        )
+    }
 
     val fieldColors = TextFieldDefaults.outlinedTextFieldColors(
         focusedBorderColor = Pop,
@@ -77,13 +132,7 @@ fun JoinRoomScreen(
             {
                 PrimaryButton(
                     text = if (isTokenConnecting) stringResource(R.string.join_connecting_short) else stringResource(R.string.join_button_label),
-                    onClick = {
-                        if (canJoin) {
-                            viewModel.smartJoin(roomCode.trim(), userName.trim()) { resolvedRoom ->
-                                onJoin(resolvedRoom, userName.trim())
-                            }
-                        }
-                    },
+                    onClick = dispatchManualJoin,
                     enabled = canJoin,
                     loading = isTokenConnecting
                 )
@@ -102,7 +151,23 @@ fun JoinRoomScreen(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (isTokenConnecting) {
+                    if (locationStatus != LocationGateStatus.READY) {
+                        MandatoryLocationRequiredBanner(
+                            status = locationStatus,
+                            onActionClick = { showLocationGateDialog = true }
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        OutlinedButton(
+                            onClick = { activeToken = null },
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, InkHairline),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = RvTouchTarget.min)
+                        ) {
+                            Text(stringResource(R.string.join_action_enter_code), color = Ink, fontWeight = FontWeight.SemiBold)
+                        }
+                    } else if (isTokenConnecting) {
                         CircularProgressIndicator(color = Pop, strokeWidth = 3.dp)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
@@ -180,6 +245,14 @@ fun JoinRoomScreen(
                 color = InkSecondary
             )
 
+            if (locationStatus != LocationGateStatus.READY) {
+                Spacer(modifier = Modifier.height(14.dp))
+                MandatoryLocationRequiredBanner(
+                    status = locationStatus,
+                    onActionClick = { showLocationGateDialog = true }
+                )
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
 
             RvTextField(
@@ -227,11 +300,7 @@ fun JoinRoomScreen(
                 keyboardActions = KeyboardActions(
                     onGo = {
                         focusManager.clearFocus()
-                        if (canJoin) {
-                            viewModel.smartJoin(roomCode.trim(), userName.trim()) { resolvedRoom ->
-                                onJoin(resolvedRoom, userName.trim())
-                            }
-                        }
+                        dispatchManualJoin()
                     }
                 ),
                 modifier = Modifier.fillMaxWidth().rvBringIntoViewOnFocus().testTag("join_room_code_field"),

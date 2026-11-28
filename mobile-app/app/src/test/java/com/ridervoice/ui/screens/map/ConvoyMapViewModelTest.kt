@@ -308,4 +308,52 @@ class ConvoyMapViewModelTest {
 
         collectJob.cancel()
     }
+
+    @Test
+    fun `in-app focus signals meetup coordinates and live destination distances update correctly`() = runTest {
+        val route = ConvoyRoute(
+            originName = "Shivaji Nagar",
+            originLat = 18.5308,
+            originLng = 73.8475,
+            meetupPoint = "Chandni Chowk",
+            meetupLat = 18.5074,
+            meetupLng = 73.7844,
+            destinationName = "Mulshi Lake",
+            destinationLat = 18.5011,
+            destinationLng = 73.5131,
+            distanceMeters = 38_000,
+            estimatedDurationMin = 55
+        )
+        rideStateFlow.value = rideStateFlow.value?.copy(route = route)
+        currentLocationFlow.value = mockLocation(lat = 18.5204, lng = 73.8567)
+
+        val vm = createViewModel(selfId = "uid-self")
+        val collectJob = launch { vm.uiState.collect {} }
+        participantsFlow.value = listOf(
+            Participant(identity = "uid-self", displayName = "Me"),
+            Participant(identity = "uid-r2", displayName = "Aarav")
+        )
+        advanceUntilIdle()
+
+        val initial = vm.uiState.value
+        assertNotNull(initial.route?.meetupLatLng)
+        assertNotNull(initial.route?.distanceToMeetupMeters)
+        assertNotNull(initial.route?.distanceToDestinationMeters)
+        assertTrue(initial.route!!.distanceToDestinationMeters!! > 30_000)
+
+        vm.requestFocusDestination()
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.focusDestinationSignal)
+
+        vm.requestFocusMeetup()
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.focusMeetupSignal)
+
+        vm.requestNavigateToRiderInApp("uid-r2")
+        advanceUntilIdle()
+        assertEquals("uid-r2", vm.uiState.value.navigateTargetRiderId)
+        assertEquals("uid-r2", vm.uiState.value.selectedRiderId)
+
+        collectJob.cancel()
+    }
 }

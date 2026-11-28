@@ -51,9 +51,15 @@ data class WifiDirectCredentials(
 object WifiDirectCredentialsFactory {
     private const val BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
-    fun derive(session: OfflineSession): WifiDirectCredentials {
+    fun derive(session: OfflineSession): WifiDirectCredentials? {
+        if (session.isClosed) return null
+        val authKeyBytes = try {
+            session.authKey()
+        } catch (_: IllegalStateException) {
+            return null
+        }
         val mac = Mac.getInstance("HmacSHA256").apply {
-            init(SecretKeySpec(session.authKey(), "HmacSHA256"))
+            init(SecretKeySpec(authKeyBytes, "HmacSHA256"))
         }
         val digest = mac.doFinal("RV-P2P-V1|${session.sessionId}".toByteArray(Charsets.UTF_8))
         val suffix = encodeAlnum(digest, offset = 0, length = 8)
@@ -190,7 +196,7 @@ class AndroidWifiDirectGroupController(
             _status.value = WifiDirectStatus.UNSUPPORTED
             return
         }
-        val creds = WifiDirectCredentialsFactory.derive(session)
+        val creds = WifiDirectCredentialsFactory.derive(session) ?: return
         synchronized(stateLock) {
             registerReceiverLocked()
             val unchanged = activeSessionId == session.sessionId &&

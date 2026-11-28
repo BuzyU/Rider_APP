@@ -1004,4 +1004,21 @@
     <string name="map_route_dest_snippet">गंतव्य</string>
     <string name="map_route_go_cta">दिशाएं</string>
     <string name="cd_navigate_to_route_dest">निर्धारित गंतव्य तक नेविगेशन खोलें</string>
+    <string name="map_route_show_dest_cta">गंतव्य देखें</string>
+    <string name="map_route_meetup_cta">मीट-अप</string>
+    <string name="map_route_meetup_snippet">मिलने का स्थान</string>
+    <string name="cd_focus_route_dest">मैप पर गंतव्य पर केंद्रित करें</string>
+    <string name="cd_focus_route_meetup">मैप पर मीट-अप स्थान पर केंद्रित करें</string>
+    <string name="map_meetup_distance_label">मीट-अप %1$s किमी</string>
+    <string name="map_lobby_meetup_banner_hint">मीट-अप स्थान की ओर बढ़ें</string>
+    <string name="map_route_resolving_hint">मार्ग देखने के लिए मीट-अप या गंतव्य चुनें</string>
+    <string name="lobby_view_meetup_map_cta">मीट-अप और मार्ग मैप</string>
+    <string name="map_back_to_lobby">लॉबी</string>
+    <string name="location_gate_required_title">लोकेशन आवश्यक है</string>
+    <string name="location_gate_perm_title">लोकेशन अनुमति दें</string>
+    <string name="location_gate_perm_body">मैप पर काफिले के साथ जुड़ने के लिए लोकेशन चालू होना आवश्यक है।</string>
+    <string name="location_gate_allow_cta">GPS अनुमति दें</string>
+    <string name="location_gate_gps_off_title">डिवाइस GPS चालू करें</string>
+    <string name="location_gate_gps_off_body">राइड रूम बनाने या जुड़ने से पहले कृपया डिवाइस लोकेशन (GPS) चालू करें।</string>
+    <string name="location_gate_open_gps_cta">GPS चालू करें</string>
 </resources>

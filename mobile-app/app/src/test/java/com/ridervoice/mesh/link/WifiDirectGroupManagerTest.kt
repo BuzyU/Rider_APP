@@ -73,9 +73,9 @@ class WifiDirectGroupManagerTest {
         val sessionA2 = OfflineSession.fromCode(sessionA1.pairingCode, now = 10_000L)!!
         val sessionB = OfflineSession.create(20_000L)
 
-        val creds1 = WifiDirectCredentialsFactory.derive(sessionA1)
-        val creds2 = WifiDirectCredentialsFactory.derive(sessionA2)
-        val credsOther = WifiDirectCredentialsFactory.derive(sessionB)
+        val creds1 = WifiDirectCredentialsFactory.derive(sessionA1)!!
+        val creds2 = WifiDirectCredentialsFactory.derive(sessionA2)!!
+        val credsOther = WifiDirectCredentialsFactory.derive(sessionB)!!
 
         assertEquals(creds1, creds2)
         assertNotEquals(creds1.networkName, credsOther.networkName)

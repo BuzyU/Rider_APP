@@ -90,4 +90,58 @@ class GooglePlacesRouteServiceTest {
         assertEquals(43.252, points[2].latitude, 0.001)
         assertEquals(-126.453, points[2].longitude, 0.001)
     }
+
+    @Test
+    fun `parseOsrmDirectionsResponse parses road geometry and next maneuver step`() {
+        val osrmJson = """
+            {
+              "code": "Ok",
+              "routes": [
+                {
+                  "geometry": "_p~iF~ps|U_ulLnnqC_mqNvxq`@",
+                  "distance": 42350.5,
+                  "duration": 2910.0,
+                  "legs": [
+                    {
+                      "steps": [
+                        {
+                          "name": "Mumbai-Pune Expy",
+                          "maneuver": { "type": "depart", "modifier": "west" }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val directions = GooglePlacesRouteService.parseOsrmDirectionsResponse(osrmJson)
+        assertNotNull(directions)
+        assertEquals(42350, directions!!.distanceMeters)
+        assertEquals(49, directions.durationMinutes)
+        assertEquals("Head west on Mumbai-Pune Expy", directions.nextInstruction)
+        assertNull(GooglePlacesRouteService.parseOsrmDirectionsResponse("""{"code":"NoRoute"}"""))
+    }
+
+    @Test
+    fun `parseNominatimResponse extracts lat lng and display labels`() {
+        val json = """
+            [
+              {
+                "place_id": 1001,
+                "name": "Lonavala",
+                "display_name": "Lonavala, Pune District, Maharashtra, India",
+                "lat": "18.7557",
+                "lon": "73.4091"
+              }
+            ]
+        """.trimIndent()
+
+        val suggestions = GooglePlacesRouteService.parseNominatimResponse(json)
+        assertEquals(1, suggestions.size)
+        assertEquals("Lonavala", suggestions[0].primaryText)
+        assertEquals(18.7557, suggestions[0].lat!!, 0.0001)
+        assertEquals(73.4091, suggestions[0].lng!!, 0.0001)
+    }
 }
